@@ -12,7 +12,7 @@ rLLM is a build for llm-based relational data mining. This project focuses on th
 
 It is recommended to use a Linux system for experimentation, which also facilitates submission.
 
-For Windows systems, installing WSL is advised.
+For Windows systems, installing WSL is advised. But you can also use your own system.
 
 ## PyTorch Installation
 
