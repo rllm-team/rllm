@@ -1,6 +1,6 @@
 # rLLM
 
-**rLLM** (**r**elation **LLM**) focuses on LLM-based relational data mining, prioritizing **Accuracy, Efficiency, and Economy**.
+**rLLM** (**r**elation **LLM**) focuses on LLM-based relational data mining, prioritizing: Accuracy, Efficiency, and Economy.
 
 - Accuracy: MAE for regression; Macro-F1 and Micro-F1 for classification.
 - Efficiency: Runtime, measured in seconds.
