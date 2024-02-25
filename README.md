@@ -1,14 +1,14 @@
 # rLLM
 
-rLLM is a build for llm-based relational data mining. This project focuses on three core performance metrics: **Accuracy, Efficiency, and Cost**.
+**rLLM** (**r**elation **LLM**) focuses on LLM-based relational data mining, prioritizing **Accuracy, Efficiency, and Economy**.
 
-- Accuracy: MAE for regression. Macro-F1 and Micro-F1 for classification.
+- Accuracy: MAE for regression; Macro-F1 and Micro-F1 for classification.
 - Efficiency: Runtime, measured in seconds.
-- Cost: Money, measured in dollar.
+- Economy: Money, measured in dollar.
 
-# Environment
+# Environment Setup
 
-**Due to variations in the configurations of each student's computer, achieving uniform setup is not feasible. Therefore, the following instructions address potential installation issues:**
+**Due to variations in the configurations of everyone's computer, achieving uniform setup is not feasible. Therefore, the following instructions address potential installation issues:**
 
 It is recommended to use a Linux system for experimentation, which also facilitates submission.
 
@@ -16,8 +16,8 @@ For Windows systems, installing WSL is advised.
 
 ## PyTorch Installation
 
-- Students with Nvidia GPUs can use the `nvidia-smi` command to check their CUDA support version.
-- Students without dedicated Nvidia GPUs should install the CPU version.
+- PCs with Nvidia GPUs can use the `nvidia-smi` command to check their CUDA support version.
+- PCs without dedicated Nvidia GPUs should install the CPU version.
 - [PyTorch official website](https://pytorch.org/)
 
 ## llama-cpp-python and langchain
@@ -54,7 +54,7 @@ For detailed instructions, refer to [abetlen/llama-cpp-python: Python bindings f
 
 ## Choosing Embedding Models
 
-- If students need to use the BERT model for sentence embedding, it is recommended to use [sentence-transformers/all-MiniLM-L6-v2 · Hugging Face](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
+- If you need to use the BERT model for sentence embedding, it is recommended to use [sentence-transformers/all-MiniLM-L6-v2 · Hugging Face](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
 - Downloads can be obtained from the SJTU cloud storage, or directly from Hugging Face.
 - Use Sentence-Transformers or HuggingFace Transformers library to invoke the model.
 - You can also use LLM to make sentence embedding.
