@@ -9,7 +9,7 @@
 
 # Append rllm to search path
 import sys
-sys.path.append("../../")
+sys.path.append("../../../../")
 import time
 
 import pandas as pd
