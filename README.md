@@ -6,9 +6,9 @@ rLLM is a build for llm-based relational data mining. This project focuses on th
 - Efficiency: Runtime, measured in seconds.
 - Cost: Money, measured in dollar.
 
-**Due to variations in the configurations of each student's computer, achieving uniform setup is not feasible. Therefore, the following instructions address potential installation issues:**
-
 # Environment
+
+**Due to variations in the configurations of each student's computer, achieving uniform setup is not feasible. Therefore, the following instructions address potential installation issues:**
 
 It is recommended to use a Linux system for experimentation, which also facilitates submission.
 
@@ -20,7 +20,7 @@ For Windows systems, installing WSL is advised.
 - Students without dedicated Nvidia GPUs should install the CPU version.
 - [PyTorch official website](https://pytorch.org/)
 
-## llama-cpp-python
+## llama-cpp-python and langchain
 
 - Default installation method: **CPU only** (Windows/Linux/MacOS)
 
@@ -43,22 +43,18 @@ CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install --upgrade --force-reins
 
 For detailed instructions, refer to [abetlen/llama-cpp-python: Python bindings for llama.cpp (github.com)](https://github.com/abetlen/llama-cpp-python)
 
+- We have used `langchain`, `langchain-experimental` and `langchain-community` packages. For detailed instructions, refer to [Introduction | 🦜️🔗 Langchain](https://python.langchain.com/docs/get_started/introduction)
+
 ## Download 4-bit quantized llama models
 
 - Download the 4-bit quantized llama models directly from the SJTU cloud storage. Currently, llama-2-7b-chat.Q4_K_M.gguf and gemma-2b-it-q4_k_m.gguf are provided.
-- Pull from HuggingFace using git lfs:
 
-```bash
-git lfs install
-GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF
-cd Llama-2-7B-Chat-GGUF/
-git lfs pull --include="llama-2-7b-chat.Q4_K_M.gguf"
-```
-
-- Download the llama-2-7b-chat.Q4_K_M.gguf file directly from https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF.
+- Download the llama-2-7b-chat.Q4_K_M.gguf file directly from [llama-2-7b-chat.Q4_K_M.gguf](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/blob/main/llama-2-7b-chat.Q4_K_M.gguf). 
+- Download gemma-2b-it-q4_k_m.gguf from [gemma-2b-it-q4_k_m.gguf](https://huggingface.co/lmstudio-ai/gemma-2b-it-GGUF/blob/main/gemma-2b-it-q4_k_m.gguf)
 
 ## Choosing Embedding Models
 
 - If students need to use the BERT model for sentence embedding, it is recommended to use [sentence-transformers/all-MiniLM-L6-v2 · Hugging Face](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
 - Downloads can be obtained from the SJTU cloud storage, or directly from Hugging Face.
 - Use Sentence-Transformers or HuggingFace Transformers library to invoke the model.
+- You can also use LLM to make sentence embedding.
