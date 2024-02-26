@@ -71,7 +71,7 @@ def load():
     for i in rating_range:
         idx = torch.where(adj_v == i, True, False)
         A = torch.sparse_coo_tensor(adj_i[:, idx], adj_v[idx], adj.shape)
-        A = torch.spmm(A.T, A).to_dense()
+        A = torch.spmm(A.transpose(0, 1), A).to_dense()
         hop |= torch.where(A > threshold, 1, 0)
     hop = hop.type(torch.FloatTensor)
     
