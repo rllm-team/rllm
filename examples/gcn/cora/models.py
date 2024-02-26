@@ -1,7 +1,11 @@
+import sys
+import os.path as osp
+current_path = osp.dirname(__file__)
+sys.path.append(current_path + '/../')
+from GCNconv import GraphConvolution
+
 import torch.nn as nn
 import torch.nn.functional as F
-from pygcn.layers import GraphConvolution
-
 
 class GCN(nn.Module):
     def __init__(self, nfeat, nhid, nclass, dropout):

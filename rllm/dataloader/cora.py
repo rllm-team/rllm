@@ -1,7 +1,7 @@
 import sys 
 import os
 current_path = os.path.dirname(__file__)
-sys.path.append(current_path + '../../data')
+sys.path.append(current_path + '/../data')
 
 import scipy.sparse as sp
 import numpy as np
@@ -32,14 +32,14 @@ def load(dataname):
     names = ['x', 'y', 'tx', 'ty', 'allx', 'ally', 'graph']
     objects = []
     for i in range(len(names)):
-        with open(current_path + "../../dataset/{}/ind.{}.{}".format(dataname, dataname, names[i]), 'rb') as f:
+        with open(current_path + "/../datasets/{}/ind.{}.{}".format(dataname, dataname, names[i]), 'rb') as f:
             if sys.version_info > (3, 0):
                 objects.append(pkl.load(f, encoding='latin1'))
             else:
                 objects.append(pkl.load(f))
 
     x, y, tx, ty, allx, ally, graph = tuple(objects)
-    test_idx_reorder = parse_index_file(current_path + "../../dataset/{}/ind.{}.test.index".format(dataname, dataname))
+    test_idx_reorder = parse_index_file(current_path + "/../datasets/{}/ind.{}.test.index".format(dataname, dataname))
     test_idx_range = np.sort(test_idx_reorder)
 
     features = sp.vstack((allx, tx)).tolil()

@@ -1,6 +1,10 @@
 import torch
 
 class feature:
+    r"""
+    The feature of dataset. Support Tensor and Dataframe.
+    Example: data.x['movie'], data.x[('movie', 'user')].to_homo()
+    """
     def __init__(self, vmap, x, meta):
         self.vmap = vmap
         self.x = x
@@ -45,6 +49,10 @@ class feature:
 
 
 class label:
+    r"""
+    The label of dataset. Support Tensor and Dataframe.
+    Example: data.y['movie'], data.y[('movie', 'user')].to_homo()
+    """
     def __init__(self, y, meta):
         self.y = y
         self.meta = meta
@@ -86,6 +94,10 @@ class label:
         return torch.block_diag(*[self.y[_] for _ in self.meta])
 
 class edgeset:
+    r"""
+    The edgeset of dataset. edge_index must be Tensor. edge_weight can be Dataframe or Tensor.
+    Example: data.e['rating'], data.e[('user', 'movie')], data.e.to_homo(), data.e.to_homo_weighted(beta)
+    """
     def __init__(self, e, w, meta, vmeta, v_num, vmap):
         self.e = e
         self.w = w
@@ -174,10 +186,14 @@ class edgeset:
 
 
 class DataLoader:
-    def I_id_mapping(n):
+    r""""
+    Describes a dataset. Containing feature, label and edgeset.
+    Example: data.x, data.y, data.e, data.normalize(), print(data)
+    """
+    def _I_id_mapping(n):
         return {i: i for i in range(n)}
     
-    def get_id_mapping(ids):
+    def _get_id_mapping(ids):
         mapping, cnt = {}, 0
         for _ in ids:
             x = _.item()
@@ -201,13 +217,13 @@ class DataLoader:
         self.v_class = len(v)
         # suppose id is first row
         if node_index is None:
-            self.x = feature({vmeta[i]: DataLoader.I_id_mapping(v[i].shape[0])
+            self.x = feature({vmeta[i]: DataLoader._I_id_mapping(v[i].shape[0])
                              for i in range(self.v_class)},
                              {vmeta[i]: v[i] for i in range(self.v_class)},
                              vmeta)
         else:
             assert (len(v) == len(node_index))
-            self.x = feature({vmeta[i]: DataLoader.get_id_mapping(node_index[i])
+            self.x = feature({vmeta[i]: DataLoader._get_id_mapping(node_index[i])
                              for i in range(self.v_class)},
                              {vmeta[i]: v[i] for i in range(self.v_class)},
                              vmeta)
@@ -257,7 +273,7 @@ class DataLoader:
 
         return DataLoader(v, vmeta, y, ymeta, edge_index, emeta, edge_weight=edge_weight)
 
-    def normalize(self, type=None):
+    def normalize(self, type='GCNNorm'):
         r"""
         Normalize features and adjancency matrix.
         """
