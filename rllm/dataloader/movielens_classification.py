@@ -1,7 +1,7 @@
 import sys 
 import os
 current_path = os.path.dirname(__file__)
-sys.path.append(current_path + '../../data')
+sys.path.append(current_path + '/../data/')
 
 import pandas as pd
 import numpy as np
@@ -13,16 +13,16 @@ rating_range = range(1, 6)
 threshold = 2000
 
 def load():
-    net_path = current_path + '../../dataset/rel-movielens1m/classification/'
-    train = pd.read_csv(net_path + 'movies/train.csv',
+    net_path = current_path + '/../datasets/rel-movielens1m/classification/'
+    train = pd.read_csv(net_path + '/movies/train.csv',
                         sep=',',
                         engine='python',
                         encoding='ISO-8859-1')
-    valid = pd.read_csv(net_path + 'movies/validation.csv',
+    valid = pd.read_csv(net_path + '/movies/validation.csv',
                         sep=',',
                         engine='python',
                         encoding='ISO-8859-1')
-    test = pd.read_csv(net_path + 'movies/test.csv',
+    test = pd.read_csv(net_path + '/movies/test.csv',
                        sep=',',
                        engine='python',
                        encoding='ISO-8859-1')
@@ -30,7 +30,7 @@ def load():
 
     genres = movie_all['Genre'].str.get_dummies('|').values
     mid = torch.tensor(movie_all['MovielensID'].values)
-    mfeat = np.load(current_path + '../../dataset/embeddings.npy')
+    mfeat = np.load(current_path + '/../datasets/embeddings.npy')
     mfeat = torch.Tensor(mfeat)
     label = torch.FloatTensor(genres)#[:, 0: 1]
     

@@ -7,7 +7,7 @@ import torch
 import data
 
 def load():
-    net_path = '../../rllm/dataset/titanic/'
+    net_path = '../../rllm/datasets/titanic/'
     df = pd.read_csv(net_path + 'titanic.csv',
                      sep=',',
                      engine='python',
