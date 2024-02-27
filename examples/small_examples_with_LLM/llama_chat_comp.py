@@ -1,6 +1,6 @@
 from llama_cpp import Llama
-model_path = "path/to/llm"
-llm = Llama(model_path = model_path, n_gpu_layers=0)
+model_path = "llama-2-7b-chat.Q4_K_M.gguf"
+llm = Llama(model_path = model_path, n_gpu_layers=40)
 respnse = \
     llm.create_chat_completion(
       messages = [

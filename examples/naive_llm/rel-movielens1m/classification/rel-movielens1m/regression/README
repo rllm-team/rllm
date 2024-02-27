@@ -1,0 +1,18 @@
+DESCRIPTION
+================================================================================
+
+- This is a regression task, aiming to predict the rating a user would give to a particular movie.
+
+- The "ratings" folder contains the training, validation, and testing sets, which is split by 8-1-1 proportion.
+
+- Supplementary information is available in users.csv and movies.csv.
+
+
+Output Format
+================================================================================
+
+- Since the test.csv file contains a total of 97383 rows, the task is to provide a vector/tensor of dimensions 1*97383.
+
+- Additionally, you need to compare your predictions with the actual ratings and provide your Mean Absolute Error.
+
+
