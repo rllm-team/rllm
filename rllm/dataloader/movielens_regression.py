@@ -1,7 +1,7 @@
 import sys 
 import os
 current_path = os.path.dirname(__file__)
-sys.path.append(current_path + '../../data')
+sys.path.append(current_path + '/../data')
 
 import pandas as pd
 import numpy as np
@@ -10,7 +10,7 @@ import torch
 import data
 
 def load():
-    net_path = current_path + '../../dataset/rel-movielens1m/regression/'
+    net_path = current_path + '/../datasets/rel-movielens1m/regression/'
     df_m = pd.read_csv(net_path + 'movies.csv',
                     sep=',',
                     engine='python',

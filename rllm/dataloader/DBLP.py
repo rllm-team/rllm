@@ -1,7 +1,7 @@
 import sys
 import os.path as osp
 current_path = osp.dirname(__file__)
-sys.path.append(current_path + '../../data')
+sys.path.append(current_path + '/../data')
 
 import scipy.sparse as sp
 import numpy as np
@@ -11,7 +11,7 @@ from itertools import product
 import data
 
 def load():
-    net_path = current_path + '../../dataset/DBLP/'
+    net_path = current_path + '/../datasets/DBLP/'
 
     v = [None, None, None, None]
     vmeta = ['author', 'paper', 'term', 'conference']

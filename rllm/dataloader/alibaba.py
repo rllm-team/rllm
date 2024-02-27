@@ -21,7 +21,7 @@ def scicsc_to_torch_sparse(csc):
     return torch.sparse_coo_tensor(i, v, torch.Size(shape)).coalesce()
 
 def load():
-    net_path = '../../rllm/dataset/small_alibaba_1_10/small_alibaba_1_10.mat'
+    net_path = '../../rllm/datasets/small_alibaba_1_10/small_alibaba_1_10.mat'
 
     mat = loadmat(net_path)
     # e0, e1, e2, e3
