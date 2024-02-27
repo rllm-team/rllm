@@ -1,0 +1,17 @@
+DESCRIPTION
+================================================================================
+
+- This is a multi-label classification task, ang to predict the possible genres of a given movie.
+
+- The "movies" folder contains the training, validation, and testing sets, which is split by 1-1-8 proportion.
+
+- Supplementary information is available in users.csv and ratings.csv.
+
+
+Output Format
+================================================================================
+
+- Since the test.csv file contains a total of 389 movies and there are a total of 18 movie genres, the task is to produce a matrix of dimensions 389*18. Here are Genres:
+['Documentary', 'Adventure', 'Comedy', 'Horror', 'War', 'Sci-Fi', 'Drama', 'Mystery', 'Western', 'Action', "Children's", 'Musical', 'Thriller', 'Crime', 'Film-Noir', 'Romance', 'Animation', 'Fantasy']
+
+- Additionally, you need to compare your predictions with the actual genres and provide your F1 score.
