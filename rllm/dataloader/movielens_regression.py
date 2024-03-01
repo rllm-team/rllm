@@ -1,5 +1,6 @@
 import sys 
 import os
+from multiprocessing import Pool
 current_path = os.path.dirname(__file__)
 sys.path.append(current_path + '/../data')
 
@@ -9,34 +10,29 @@ import torch
 
 import data
 
-def load():
-    net_path = current_path + '/../datasets/rel-movielens1m/regression/'
-    df_m = pd.read_csv(net_path + 'movies.csv',
+net_path = current_path + '/../datasets/rel-movielens1m/regression/'
+def load_csv(name):
+    return pd.read_csv(net_path + name,
                     sep=',',
                     engine='python',
                     encoding='ISO-8859-1')
+
+def load():
+    file_list = [
+        'movies.csv',
+        'users.csv',
+        'ratings/test.csv',
+        'ratings/train.csv',
+        'ratings/validation.csv',
+    ]
+    with Pool(5) as worker:
+        df_m, user, test, train, valid = worker.map(load_csv, file_list)
     mid = torch.tensor(df_m['MovielensID'].values)
     mfeat = torch.eye(len(df_m))
     
-    user = pd.read_csv(net_path + 'users.csv',
-                    sep=',',
-                    engine='python',
-                    encoding='ISO-8859-1')
     uid = torch.tensor(user['UserID'].values)
     ufeat = torch.eye(uid.shape[0])
 
-    test = pd.read_csv(net_path + 'ratings/test.csv',
-                    sep=',',
-                    engine='python',
-                    encoding='ISO-8859-1')
-    train = pd.read_csv(net_path + 'ratings/train.csv',
-                        sep=',',
-                        engine='python',
-                        encoding='ISO-8859-1')
-    valid = pd.read_csv(net_path + 'ratings/validation.csv',
-                        sep=',',
-                        engine='python',
-                        encoding='ISO-8859-1')
     rat = pd.concat([test, train, valid])
     edge_index = torch.Tensor(np.array([rat['UserID'].values, rat['MovieID'].values]))
     # print(edge_index.shape[1])

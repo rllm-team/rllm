@@ -1,5 +1,6 @@
 import sys 
 import os
+from multiprocessing import Pool
 current_path = os.path.dirname(__file__)
 sys.path.append(current_path + '/../data/')
 
@@ -11,21 +12,23 @@ import data
 
 rating_range = range(1, 6)
 threshold = 2000
+net_path = current_path + '/../datasets/rel-movielens1m/classification/'
+def load_csv(name):
+    return pd.read_csv(net_path + name,
+                    sep=',',
+                    engine='python',
+                    encoding='ISO-8859-1')
 
 def load():
-    net_path = current_path + '/../datasets/rel-movielens1m/classification/'
-    train = pd.read_csv(net_path + '/movies/train.csv',
-                        sep=',',
-                        engine='python',
-                        encoding='ISO-8859-1')
-    valid = pd.read_csv(net_path + '/movies/validation.csv',
-                        sep=',',
-                        engine='python',
-                        encoding='ISO-8859-1')
-    test = pd.read_csv(net_path + '/movies/test.csv',
-                       sep=',',
-                       engine='python',
-                       encoding='ISO-8859-1')
+    file_list = [
+        '/movies/train.csv',
+        '/movies/validation.csv',
+        '/movies/test.csv',
+        'users.csv',
+        'ratings.csv',
+    ]
+    with Pool(5) as worker:
+        train, valid, test, user, rating = worker.map(load_csv, file_list)
     movie_all = pd.concat([test, train, valid])
 
     genres = movie_all['Genre'].str.get_dummies('|').values
@@ -34,17 +37,9 @@ def load():
     mfeat = torch.Tensor(mfeat)
     label = torch.FloatTensor(genres)#[:, 0: 1]
     
-    user = pd.read_csv(net_path + 'users.csv',
-                       sep=',',
-                       engine='python',
-                       encoding='ISO-8859-1')
     uid = torch.tensor(user['UserID'].values)
     ufeat = torch.eye(uid.shape[0])
 
-    rating = pd.read_csv(net_path + 'ratings.csv',
-                         sep=',',
-                         engine='python',
-                         encoding='ISO-8859-1')
     edge_index = torch.Tensor(np.array([rating['UserID'].values, rating['MovieID'].values]))
     edge_weight = torch.Tensor(rating['Rating'].values)
 
