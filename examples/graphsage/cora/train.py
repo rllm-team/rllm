@@ -1,3 +1,10 @@
+# Adapting GraphSAGE for classification task in Cora
+# Paper: Inductive Representation Learning on Large Graphs https://arxiv.org/abs/1706.02216
+# Test Accuracy: 0.8020
+# Runtime: 1.5283s on a single GPU (Tesla V100-SXM2)
+# Cost: N/A
+# Description: Paper Reproduction. Simply apply GraphSAGE to Cora.
+# The code is adapted from official implementation https://github.com/williamleif/graphsage-simple
 import sys
 sys.path.append("../../../rllm/dataloader")
 

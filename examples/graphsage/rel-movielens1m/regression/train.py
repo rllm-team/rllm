@@ -1,3 +1,10 @@
+# Naive GCN for regression task in rel-movielens1M
+# Paper: Inductive Representation Learning on Large Graphs https://arxiv.org/abs/1706.02216
+# Test MSE Loss: 1.3725
+# Runtime: 3.6363s on a single GPU (Tesla V100-SXM2)
+# Cost: N/A
+# Description: Simply apply GraphSAGE to movielens. Graph was obtained by sampling from foreign keys. Features were llm embeddings from table data to vectors.
+
 import sys
 sys.path.append("../../../../rllm/dataloader")
 

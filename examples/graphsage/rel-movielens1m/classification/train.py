@@ -1,3 +1,9 @@
+# Naive GraphSAGE for classification task in rel-movielens1M
+# Paper: Inductive Representation Learning on Large Graphs https://arxiv.org/abs/1706.02216
+# Test f1_score micro: micro: 0.3459; macro: 0.1143
+# Runtime: 5.3822s on a single GPU (Tesla V100-SXM2)
+# Cost: N/A
+# Description: Simply apply GraphSAGE to movielens. Movies are linked iff a certain number of users rate them samely. Features were llm embeddings from table data to vectors.
 import sys
 import time
 import argparse
