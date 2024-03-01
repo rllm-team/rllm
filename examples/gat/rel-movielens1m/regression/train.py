@@ -1,11 +1,10 @@
 # Naive GAT for regression task in rel-movielens1M
 # Paper: P Veličković, G Cucurull, A Casanova, A Romero, P Lio, Y Bengio (2017). Graph attention networks arXiv preprint arXiv:1710.10903
-# Test MSE Loss: 1.3191
-# Runtime: 88.4309s on a single CPU (Intel(R) Core(TM) i5-12400F CPU @ 2.50GHz 4.40GHz)
+# Test MSE Loss: 1.3203
+# Runtime: 411.4200s on a 8GB GPU (NVIDIA(R) GeForce RTX(TM) 3060Ti) epoch 50
 # Cost: N/A
 # Description: Simply apply GAT to movielens. Graph was obtained by sampling from foreign keys. Features were llm embeddings from table data to vectors.
-
-from __future__ import division
+from __future__ import division, print_function
 from random import random
 from models import Model
 import glob
@@ -13,16 +12,15 @@ import os
 import torch.optim as optim
 import torch.nn as nn
 import torch
-from load_data import load_data
 import numpy as np
 import argparse
 import time
-from __future__ import print_function
 
 
 import sys
 sys.path.append("../../../../rllm/dataloader")
-
+# sys.path.append("rllm/dataloader")
+from load_data import load_data
 
 # Training settings
 parser = argparse.ArgumentParser()
@@ -30,21 +28,21 @@ parser.add_argument('--no-cuda', action='store_true',
                     default=False, help='Disables CUDA training.')
 parser.add_argument('--fastmode', action='store_true',
                     default=False, help='Validate during training pass.')
-parser.add_argument('--seed', type=int, default=42, help='Random seed.')
-parser.add_argument('--epochs', type=int, default=200,
+parser.add_argument('--seed', type=int, default=72, help='Random seed.')
+parser.add_argument('--epochs', type=int, default=10000,
                     help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01,
                     help='Initial learning rate.')
 parser.add_argument('--weight_decay', type=float, default=5e-4,
                     help='Weight decay (L2 loss on parameters).')
-parser.add_argument('--hidden', type=int, default=16,
+parser.add_argument('--hidden', type=int, default=8,
                     help='Number of hidden units.')
-parser.add_argument('--in_heads', type=int, default=8,
-                    help='Number of input head attentions.')
-parser.add_argument('--out_heads', type=int, default=1,
-                    help='Number of output head attentions.')
-parser.add_argument('--dropout', type=float, default=0.5,
+parser.add_argument('--nb_heads', type=int, default=8,
+                    help='Number of head attentions.')
+parser.add_argument('--dropout', type=float, default=0.6,
                     help='Dropout rate (1 - keep probability).')
+parser.add_argument('--alpha', type=float, default=0.2,
+                    help='Alpha for the leaky_relu.')
 parser.add_argument('--patience', type=int, default=100, help='Patience')
 
 args = parser.parse_args()
@@ -64,11 +62,16 @@ for i in range(adj.indices().shape[1]):
         adj_drop[adj.indices()[0][i], adj.indices()[1][i]] = 1
 adj_drop = adj_drop.to_sparse().coalesce()
 
+if args.cuda:
+    adj_drop = adj_drop.cuda()
 # Model and optimizer
 
 model = Model(nfeat=features.shape[1],
               nhid=args.hidden,
-              v_num=data.v_num)
+              v_num=data.v_num,
+              dropout=args.dropout,
+              nheads=args.nb_heads,
+              alpha=args.alpha)
 
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr,
@@ -94,13 +97,11 @@ def train(epoch):
     loss_train = loss_func(output[idx_train], labels[idx_train])
     loss_train.backward()
     optimizer.step()
-
     if not args.fastmode:
         # Evaluate validation set performance separately,
         # deactivates dropout during validation run.
         model.eval()
         output = model(features, adj, adj_drop)
-
     loss_val = loss_func(output[idx_val], labels[idx_val])
     print('Epoch: {:04d}'.format(epoch+1),
           'loss_train: {:.4f}'.format(loss_train.item()),
@@ -125,7 +126,6 @@ best = args.epochs + 1
 best_epoch = 0
 for epoch in range(args.epochs):
     loss_values.append(train(epoch))
-
     torch.save(model.state_dict(), '{}.pkl'.format(epoch))
     if loss_values[-1] < best:
         best = loss_values[-1]
