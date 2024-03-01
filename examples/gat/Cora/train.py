@@ -1,13 +1,13 @@
 # Naive GAT for classification task in Cora
-# Paper: P Veličković, G Cucurull, A Casanova, A Romero, P Lio, Y Bengio (2017). Graph attention networks arXiv preprint arXiv:1710.10903
-# Test Accuracy: 0.8270
-# Runtime: 3.7530s on a 8GB GPU (NVIDIA(R) GeForce RTX(TM) 3060Ti)
+# Paper: P Veličković, G Cucurull, A Casanova, A Romero, P Lio, Y Bengio (2017) Graph attention networks arXiv preprint arXiv:1710.10903
+# Test Accuracy: 0.8150
+# Runtime: 8.7594s on a 8GB GPU (NVIDIA(R) GeForce RTX(TM) 3060Ti) epoch 200
 # Cost: N/A
 # Description: Paper Reproduction. Simply apply GAT to Cora.
-
-from __future__ import division, print_function
+from __future__ import division
 from models import GAT
 from load_data import load_data
+from __future__ import print_function
 
 import os
 import glob
@@ -16,6 +16,7 @@ import random
 import argparse
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
@@ -31,7 +32,7 @@ parser.add_argument('--no-cuda', action='store_true',
 parser.add_argument('--fastmode', action='store_true',
                     default=False, help='Validate during training pass.')
 parser.add_argument('--seed', type=int, default=72, help='Random seed.')
-parser.add_argument('--epochs', type=int, default=200,
+parser.add_argument('--epochs', type=int, default=10000,
                     help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01,
                     help='Initial learning rate.')
@@ -39,10 +40,8 @@ parser.add_argument('--weight_decay', type=float, default=5e-4,
                     help='Weight decay (L2 loss on parameters).')
 parser.add_argument('--hidden', type=int, default=8,
                     help='Number of hidden units.')
-parser.add_argument('--in_heads', type=int, default=8,
-                    help='Number of input head attentions.')
-parser.add_argument('--out_heads', type=int, default=1,
-                    help='Number of output head attentions.')
+parser.add_argument('--nb_heads', type=int, default=8,
+                    help='Number of head attentions.')
 parser.add_argument('--dropout', type=float, default=0.6,
                     help='Dropout rate (1 - keep probability).')
 parser.add_argument('--alpha', type=float, default=0.2,
@@ -67,8 +66,8 @@ model = GAT(nfeat=features.shape[1],
             nhid=args.hidden,
             nclass=int(labels.max()) + 1,
             dropout=args.dropout,
-            in_heads=args.in_heads,
-            out_heads=args.out_heads)
+            nheads=args.nb_heads,
+            alpha=args.alpha)
 
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr,

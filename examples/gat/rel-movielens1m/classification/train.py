@@ -1,14 +1,11 @@
 # Naive GAT for classification task in rel-movielens1M
 # Paper: P Veličković, G Cucurull, A Casanova, A Romero, P Lio, Y Bengio (2017). Graph attention networks arXiv preprint arXiv:1710.10903
 # Test f1_score micro: 0.3934, macro: 0.0585
-# Runtime: 7.3795s on a single CPU (Intel(R) Core(TM) i5-12400F CPU @ 2.50GHz 4.40GHz)
+# Runtime: 69.7902s on a single CPU (Intel(R) Core(TM) i5-12400F CPU @ 2.50GHz 4.40GHz) epoch 200
 # Cost: N/A
 # Description: Simply apply GAT to movielens. Movies are linked iff a certain number of users rate them samely. Features were llm embeddings from table data to vectors.
-
-from __future__ import division
+from __future__ import division, print_function
 from models import GAT
-from load_data import load_data
-from __future__ import print_function
 
 import os
 import glob
@@ -25,7 +22,7 @@ from sklearn.metrics import f1_score
 
 import sys
 sys.path.append("../../../../rllm/dataloader")
-
+from load_data import load_data
 
 # Training settings
 parser = argparse.ArgumentParser()
@@ -33,7 +30,7 @@ parser.add_argument('--no-cuda', action='store_true',
                     default=False, help='Disables CUDA training.')
 parser.add_argument('--fastmode', action='store_true',
                     default=False, help='Validate during training pass.')
-parser.add_argument('--seed', type=int, default=72, help='Random seed.')
+parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=200,
                     help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01,
@@ -42,10 +39,8 @@ parser.add_argument('--weight_decay', type=float, default=5e-4,
                     help='Weight decay (L2 loss on parameters).')
 parser.add_argument('--hidden', type=int, default=16,
                     help='Number of hidden units.')
-parser.add_argument('--in_heads', type=int, default=8,
-                    help='Number of input head attentions.')
-parser.add_argument('--out_heads', type=int, default=1,
-                    help='Number of output head attentions.')
+parser.add_argument('--nb_heads', type=int, default=2,
+                    help='Number of head attentions.')
 parser.add_argument('--dropout', type=float, default=0.5,
                     help='Dropout rate (1 - keep probability).')
 parser.add_argument('--alpha', type=float, default=0.2,
@@ -64,16 +59,14 @@ if args.cuda:
 # Load data
 data, adj, features, labels, idx_train, idx_val, idx_test = load_data(
     'movielens-classification')
-adj = adj.to_sparse()
 
 # Model and optimizer
 model = GAT(nfeat=features.shape[1],
             nhid=args.hidden,
             nclass=labels.shape[1],
             dropout=args.dropout,
-            in_heads=args.in_heads,
-            out_heads=args.out_heads)
-
+            nheads=args.nb_heads,
+            alpha=args.alpha)
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr,
                        weight_decay=args.weight_decay)
@@ -87,6 +80,7 @@ if args.cuda:
     idx_val = idx_val.cuda()
     idx_test = idx_test.cuda()
 
+features, adj, labels = Variable(features), Variable(adj), Variable(labels)
 loss_func = nn.BCEWithLogitsLoss()
 
 
@@ -95,8 +89,7 @@ def train(epoch):
     model.train()
     optimizer.zero_grad()
     output = model(features, adj)
-    pred = np.where(output > -1, 1, 0)
-
+    pred = np.where(output > -1.0, 1, 0)
     loss_train = loss_func(output[idx_train], labels[idx_train])
     f1_micro_train = f1_score(
         labels[idx_train], pred[idx_train], average="micro")

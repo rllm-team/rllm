@@ -3,7 +3,7 @@
 # Test f1_score micro: 0.3911, macro: 0.0756
 # Runtime: 36.2197s on a single CPU (Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz 2.11 GHz)
 # Cost: N/A
-# Description: Simply apply GAT to movielens. Movies are linked iff a certain number of users rate them samely. Features were llm embeddings from table data to vectors.
+# Description: Simply apply GCN to movielens. Movies are linked iff a certain number of users rate them samely. Features were llm embeddings from table data to vectors.
 
 
 from __future__ import division
