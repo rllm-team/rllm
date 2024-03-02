@@ -74,7 +74,7 @@ adj_drop = adj_drop.to_sparse().coalesce()
 # Model and optimizer
 model = Model(nfeat=features.shape[1],
               nhid=args.hidden,
-              v_num=data.v_num)
+              v_num=datatensor.v_num)
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr, weight_decay=args.weight_decay)
 
