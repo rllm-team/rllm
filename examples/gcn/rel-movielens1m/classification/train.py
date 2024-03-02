@@ -84,7 +84,7 @@ def train(epoch):
     model.train()
     optimizer.zero_grad()
     output = model(features, adj)
-    pred = np.where(output > -1.0, 1, 0)
+    pred = np.where(output.cpu() > -1.0, 1, 0)
     # print('output[0] =', output[1], output[15])
     # print('f1 =', f1_score(labels[idx_train], pred[idx_train], average=None))
 
@@ -114,7 +114,7 @@ def train(epoch):
 def test():
     model.eval()
     output = model(features, adj)
-    pred = np.where(output > -1.0, 1, 0)
+    pred = np.where(output.cpu() > -1.0, 1, 0)
     loss_test = loss_func(output[idx_test], labels[idx_test])
     f1_micro_test = f1_score(labels[idx_test], pred[idx_test], average="micro")
     f1_macro_test = f1_score(labels[idx_test], pred[idx_test], average="macro")

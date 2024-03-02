@@ -7,7 +7,7 @@ import scipy.sparse as sp
 import numpy as np
 import torch
 
-import data
+import datatensor
 
 def parse_index_file(filename):
     """Parse index file."""
@@ -61,10 +61,12 @@ def load(dataname):
     idx_val = torch.LongTensor(idx_val)
     idx_test = torch.LongTensor(idx_test)
 
-    dataset = data.DataLoader([features], ['v'], 
+    dataset = datatensor.legacy_init([features], ['v'], 
                 [labels], ['v'],
                 [adj.indices()], [('e', 'v', 'v')])
     
     dataset.normalize()
 
     return dataset, dataset.e['e'], dataset.x.to_homo(), dataset.y['v'], idx_train, idx_val, idx_test
+
+# print(load('cora')[0])

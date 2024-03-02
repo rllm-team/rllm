@@ -76,7 +76,7 @@ class LinearNeuralNetwork(torch.nn.Module):
             out[trainval_mask],
             label[trainval_mask],
         )
-        pred = np.where(out > -1.0, 1, 0)
+        pred = np.where(out.cpu() > -1.0, 1, 0)
         f1_micro_train = f1_score(label[idx_train], pred[idx_train], average="micro")
         f1_macro_train = f1_score(label[idx_train], pred[idx_train], average="macro")
 
