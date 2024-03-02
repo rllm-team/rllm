@@ -66,6 +66,12 @@ def load(dataname):
                 [adj.indices()], [('e', 'v', 'v')])
     
     dataset.normalize()
+    
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    dataset.to(device)
+    idx_train = idx_train.to(device)
+    idx_val = idx_val.to(device)
+    idx_test = idx_test.to(device)
 
     return dataset, dataset.e['e'], dataset.x.to_homo(), dataset.y['v'], idx_train, idx_val, idx_test
 
