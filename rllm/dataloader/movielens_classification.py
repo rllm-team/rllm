@@ -4,73 +4,93 @@ from multiprocessing import Pool
 current_path = os.path.dirname(__file__)
 sys.path.append(current_path + '/../data/')
 
+import sys 
+import os
+current_path = os.path.dirname(__file__)
+sys.path.append(current_path + '/../data/')
+
 import pandas as pd
 import numpy as np
 import torch
 
-import data
+import datatensor
+import datadf
 
 rating_range = range(1, 6)
 threshold = 2000
-net_path = current_path + '/../datasets/rel-movielens1m/classification/'
-def load_csv(name):
-    return pd.read_csv(net_path + name,
-                    sep=',',
-                    engine='python',
-                    encoding='ISO-8859-1')
 
-def load():
-    file_list = [
-        '/movies/train.csv',
-        '/movies/validation.csv',
-        '/movies/test.csv',
-        'users.csv',
-        'ratings.csv',
-    ]
-    with Pool(5) as worker:
-        train, valid, test, user, rating = worker.map(load_csv, file_list)
+def _pre_load():
+    ddf = datadf.GraphStore()
+
+    net_path = current_path + '/../datasets/rel-movielens1m/classification/'
+    train = pd.read_csv(net_path + '/movies/train.csv',
+                        sep=',',
+                        engine='python',
+                        encoding='ISO-8859-1')
+    valid = pd.read_csv(net_path + '/movies/validation.csv',
+                        sep=',',
+                        engine='python',
+                        encoding='ISO-8859-1')
+    test = pd.read_csv(net_path + '/movies/test.csv',
+                       sep=',',
+                       engine='python',
+                       encoding='ISO-8859-1')
     movie_all = pd.concat([test, train, valid])
 
-    genres = movie_all['Genre'].str.get_dummies('|').values
-    mid = torch.tensor(movie_all['MovielensID'].values)
-    mfeat = np.load(current_path + '/../datasets/embeddings.npy')
-    mfeat = torch.Tensor(mfeat)
-    label = torch.FloatTensor(genres)#[:, 0: 1]
+    ddf.x['movie'] = pd.DataFrame(np.load(current_path + '/../datasets/embeddings.npy'))
+    ddf.y['movie'] = movie_all['Genre'].str.get_dummies('|')
+    mmap = datadf._get_id_mapping(movie_all['MovielensID'])
     
-    uid = torch.tensor(user['UserID'].values)
-    ufeat = torch.eye(uid.shape[0])
+    user = pd.read_csv(net_path + 'users.csv',
+                       sep=',',
+                       engine='python',
+                       encoding='ISO-8859-1')
+    ddf.x['user'] = pd.DataFrame(np.eye(len(user)))
+    umap = datadf._get_id_mapping(user['UserID'])
 
-    edge_index = torch.Tensor(np.array([rating['UserID'].values, rating['MovieID'].values]))
-    edge_weight = torch.Tensor(rating['Rating'].values)
 
-    dataset = data.DataLoader([ufeat, mfeat],
-                    ['user', 'movie'],
-                    [label],
-                    ['movie'],
-                    [edge_index],
-                    [('rating', 'user', 'movie')],
-                    node_index=[uid, mid],
-                    edge_weight=[edge_weight])
+    rating = pd.read_csv(net_path + 'ratings.csv',
+                         sep=',',
+                         engine='python',
+                         encoding='ISO-8859-1')
+    edge_index = pd.DataFrame([[umap[_] for _ in rating['UserID'].values], 
+                               [mmap[_] for _ in rating['MovieID'].values]])
+    edge_weight = rating['Rating']
+    ddf.e[('rating', 'user', 'movie')] = (edge_index, edge_weight)
     
-    vmap = dataset.x.vmap['movie']
     trainid = train['MovielensID'].values
     validid = valid['MovielensID'].values
     testid = test['MovielensID'].values
-    idx_train = torch.LongTensor([vmap[i] for i in trainid])
-    idx_val = torch.LongTensor([vmap[i] for i in validid])
-    idx_test = torch.LongTensor([vmap[i] for i in testid])
+    idx_train = torch.LongTensor([mmap[i] for i in trainid])
+    idx_val = torch.LongTensor([mmap[i] for i in validid])
+    idx_test = torch.LongTensor([mmap[i] for i in testid])
+    
+    return ddf, idx_train, idx_val, idx_test
+
+
+def load():
+    ddf, idx_train, idx_val, idx_test = _pre_load()
+
+    dataset = datatensor.from_datadf(ddf)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    dataset.to(device)
+    idx_train = idx_train.to(device)
+    idx_val = idx_val.to(device)
+    idx_test = idx_test.to(device)
 
     adj = dataset.e['rating']
     adj_i, adj_v = adj.indices(), adj.values()
-    hop = torch.zeros((dataset.v_num['movie'], dataset.v_num['movie'])).type(torch.LongTensor)
+    hop = torch.zeros((dataset.node_count('movie'), dataset.node_count('movie'))).type(torch.LongTensor)
     for i in rating_range:
         idx = torch.where(adj_v == i, True, False)
         A = torch.sparse_coo_tensor(adj_i[:, idx], adj_v[idx], adj.shape)
         A = torch.spmm(A.transpose(0, 1), A).to_dense()
         hop |= torch.where(A > threshold, 1, 0)
     hop = hop.type(torch.FloatTensor)
-    
+
     return dataset, \
            hop, \
            dataset.x['movie'], \
            dataset.y['movie'], idx_train, idx_val, idx_test
+
+# print(load()[0])
