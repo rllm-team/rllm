@@ -68,6 +68,9 @@ def load():
     dataset = datatensor.from_datadf(ddf)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dataset.to(device)
+    idx_train = idx_train.to(device)
+    idx_val = idx_val.to(device)
+    idx_test = idx_test.to(device)
 
     adj = dataset.e['rating']
     adj_i, adj_v = adj.indices(), adj.values()
