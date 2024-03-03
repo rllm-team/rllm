@@ -6,7 +6,7 @@ import numpy as np
 from scipy.io import loadmat
 import torch
 
-import data
+import datatensor
 
 def scicsc_to_torch_sparse(csc):
     adj = csc.tocoo()
@@ -37,7 +37,7 @@ def load():
     idx_val = torch.LongTensor(mat['valid_idx'].ravel().astype(np.int16)) - 1
     idx_test = torch.LongTensor(mat['test_idx'].ravel().astype(np.int16)) - 1
     
-    dataset = data.DataLoader([feature], ['v'], 
+    dataset = datatensor.legacy_init([feature], ['v'], 
                 [label], ['v'],
                 A_torch, [(0, 'v', 'v'), (1, 'v', 'v'), (2, 'v', 'v'), (3, 'v', 'v')])
 

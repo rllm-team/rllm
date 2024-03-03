@@ -4,7 +4,7 @@ sys.path.append("../../rllm/data")
 import pandas as pd
 import torch
 
-import data
+import datatensor
 
 def load():
     net_path = '../../rllm/datasets/titanic/'
@@ -17,7 +17,7 @@ def load():
     df = df.drop(['PassengerId', 'Survived'], axis=1)
     x = df
 
-    dataset = data.DataLoader([x],
+    dataset = datatensor.legacy_init([x],
                 ['v'],
                 [y],
                 ['v'],

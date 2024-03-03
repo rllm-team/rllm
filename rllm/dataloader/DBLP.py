@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from itertools import product
 
-import data
+import datatensor
 
 def load():
     net_path = current_path + '/../datasets/DBLP/'
@@ -58,6 +58,6 @@ def load():
             edge_index.append(torch.stack([row, col], dim=0))
             emeta.append((src + '->' + dst, src, dst))
 
-    return data.DataLoader(v, vmeta, y, ymeta, edge_index, emeta)
+    return datatensor.legacy_init(v, vmeta, y, ymeta, edge_index, emeta)
 
 # print(load())
