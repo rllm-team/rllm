@@ -9,7 +9,7 @@ import torch
 
 import datatensor
 
-def parse_index_file(filename):
+def parse_index_file(filename, device='cpu'):
     """Parse index file."""
     index = []
     for line in open(filename):
@@ -67,7 +67,6 @@ def load(dataname):
     
     dataset.normalize()
     
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dataset.to(device)
     idx_train = idx_train.to(device)
     idx_val = idx_val.to(device)
