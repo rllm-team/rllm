@@ -9,7 +9,7 @@ import torch
 
 import datatensor
 
-def parse_index_file(filename, device='cpu'):
+def parse_index_file(filename):
     """Parse index file."""
     index = []
     for line in open(filename):
@@ -25,7 +25,7 @@ def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     shape = torch.Size(sparse_mx.shape)
     return torch.torch.sparse_coo_tensor(indices, values, shape)
 
-def load(dataname):
+def load(dataname, device='cpu'):
     import sys
     import pickle as pkl
     import networkx as nx
