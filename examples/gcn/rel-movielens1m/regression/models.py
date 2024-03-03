@@ -44,14 +44,11 @@ class Decoder(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, nfeat, nhid, v_num):
+    def __init__(self, nfeat, nhid):
         super(Model, self).__init__()
         self.encoder = GCN(nfeat, nhid, nhid)
         self.decoder = Decoder(nhid)
-        self.v_num = v_num
     
     def forward(self, x_all, adj, adj_drop):
         z_all = self.encoder(x_all, adj_drop)
-        # print(z_all[0])
-        # print(z_all[1])
         return self.decoder(z_all, adj)
