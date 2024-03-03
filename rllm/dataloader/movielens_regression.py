@@ -54,11 +54,10 @@ def _pre_load():
 
     return ddf, idx_train, idx_val, idx_test
 
-def load():
+def load(device='cpu'):
     ddf, idx_train, idx_val, idx_test = _pre_load()
 
     dataset = datatensor.from_datadf(ddf)
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dataset.to(device)
     idx_train = idx_train.to(device)
     idx_val = idx_val.to(device)

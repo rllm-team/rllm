@@ -62,11 +62,10 @@ def _pre_load():
     return ddf, idx_train, idx_val, idx_test
 
 
-def load():
+def load(device='cpu'):
     ddf, idx_train, idx_val, idx_test = _pre_load()
 
     dataset = datatensor.from_datadf(ddf)
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dataset.to(device)
     idx_train = idx_train.to(device)
     idx_val = idx_val.to(device)
@@ -75,6 +74,7 @@ def load():
     adj = dataset.e['rating']
     adj_i, adj_v = adj.indices(), adj.values()
     hop = torch.zeros((dataset.node_count('movie'), dataset.node_count('movie'))).type(torch.LongTensor)
+    hop = hop.to(device)
     for i in rating_range:
         idx = torch.where(adj_v == i, True, False)
         A = torch.sparse_coo_tensor(adj_i[:, idx], adj_v[idx], adj.shape)
