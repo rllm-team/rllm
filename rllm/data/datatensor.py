@@ -182,7 +182,7 @@ class edgeset:
             sft[_] = sum
             sum += v_num[_]
         shape = (sum, sum)
-        res = torch.zeros(shape).to_sparse().to(self.e[self.meta[0]].device)
+        res = torch.zeros(shape).to_sparse().to(self.e[self.meta[0][0]].device)
         for _ in self.meta:
             e = self.e[_[0]].indices()
             w = self.e[_[0]].values()
