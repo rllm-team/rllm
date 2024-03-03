@@ -180,17 +180,17 @@ features_train = torch.FloatTensor(features_train).to(device)
 
 # init the sampler
 if args.model == 'Fast':
-    sampler = Sampler_FastGCN(None, features_train, adj_train,
+    sampler = Sampler_FastGCN(None, features, adj_train,
                               input_dim=input_dim,
                               layer_sizes=layer_sizes,
                               device=device)
 
-    sampler_val = Sampler_FastGCN(None, features_val, adj_val,
+    sampler_val = Sampler_FastGCN(None, features, adj_val,
                                   input_dim=input_dim,
                                   layer_sizes=layer_sizes,
                                   device=device)
 
-    sampler_test = Sampler_FastGCN(None, features_test, adj_test,
+    sampler_test = Sampler_FastGCN(None, features, adj_test,
                                    input_dim=input_dim,
                                    layer_sizes=layer_sizes,
                                    device=device)
