@@ -66,19 +66,12 @@ adj_drop = adj_drop.to_sparse().coalesce()
 
 # Model and optimizer
 model = Model(nfeat=features.shape[1],
-              nhid=args.hidden,
-              v_num=data.v_num).to(device)
+              nhid=args.hidden)
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr, weight_decay=args.weight_decay)
-
+# model.to(device)
 if args.cuda:
     model.cuda()
-    features = features.cuda()
-    adj = adj.cuda()
-    labels = labels.cuda()
-    idx_train = idx_train.cuda()
-    idx_val = idx_val.cuda()
-    idx_test = idx_test.cuda()
 
 loss_func = nn.MSELoss()
 
