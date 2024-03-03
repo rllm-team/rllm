@@ -67,6 +67,8 @@ model = GCN(nfeat=features.shape[1],
             dropout=args.dropout).to(device)
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr, weight_decay=args.weight_decay)
+# if args.cuda:
+#     model.cuda()
 
 
 loss_func = nn.BCEWithLogitsLoss()
@@ -81,8 +83,8 @@ def train(epoch):
     # print('f1 =', f1_score(labels[idx_train], pred[idx_train], average=None))
 
     loss_train = loss_func(output[idx_train], labels[idx_train])
-    f1_micro_train = f1_score(labels[idx_train], pred[idx_train], average="micro")
-    f1_macro_train = f1_score(labels[idx_train], pred[idx_train], average="macro")
+    f1_micro_train = f1_score(labels[idx_train].cpu().numpy(), pred[idx_train], average="micro")
+    f1_macro_train = f1_score(labels[idx_train].cpu().numpy(), pred[idx_train], average="macro")
     loss_train.backward()
     optimizer.step()
 
@@ -93,8 +95,8 @@ def train(epoch):
         output = model(features, adj)
 
     loss_val = loss_func(output[idx_val], labels[idx_val])
-    f1_micro_val = f1_score(labels[idx_val], pred[idx_val], average="micro")
-    f1_macro_val = f1_score(labels[idx_val], pred[idx_val], average="macro")
+    f1_micro_val = f1_score(labels[idx_val].cpu().numpy(), pred[idx_val], average="micro")
+    f1_macro_val = f1_score(labels[idx_val].cpu().numpy(), pred[idx_val], average="macro")
     print('Epoch: {:04d}'.format(epoch+1),
           'loss_train: {:.4f}'.format(loss_train.item()),
           'f1_train: {:.4f} {:.4f}'.format(f1_micro_train, f1_macro_train),
@@ -108,8 +110,8 @@ def test():
     output = model(features, adj)
     pred = np.where(output.cpu() > -1.0, 1, 0)
     loss_test = loss_func(output[idx_test], labels[idx_test])
-    f1_micro_test = f1_score(labels[idx_test], pred[idx_test], average="micro")
-    f1_macro_test = f1_score(labels[idx_test], pred[idx_test], average="macro")
+    f1_micro_test = f1_score(labels[idx_test].cpu().numpy(), pred[idx_test], average="micro")
+    f1_macro_test = f1_score(labels[idx_test].cpu().numpy(), pred[idx_test], average="macro")
     print("Test set results:",
           "loss= {:.4f}".format(loss_test.item()),
           "f1_test= {:.4f} {:.4f}".format(f1_micro_test, f1_macro_test))
