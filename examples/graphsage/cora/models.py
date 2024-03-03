@@ -2,6 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
+import os.path as osp
+import sys
+current_path = osp.dirname(__file__)
+sys.path.append(current_path + '/../')
+from SageConv import SageGCN
 
 
 class NeighborAggregator(nn.Module):
