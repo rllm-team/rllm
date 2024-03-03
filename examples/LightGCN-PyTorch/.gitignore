@@ -1,0 +1,16 @@
+*.xml
+*.log
+*.apk
+*.iml
+**/.vscode/
+**/.idea/
+*.pyc
+.DS_Store
+*.cfg
+*.sqlite3
+code/checkpoints/
+code/runs/
+code/__pycache__/
+*.npy
+*.so
+.rendered
