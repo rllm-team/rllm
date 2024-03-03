@@ -9,8 +9,13 @@
 # Unlike other GCN improvements that only adjust the model layer or use a simpler sampling method, FastGCN samples the graph for every layer of the model. Nodes are sampled one by one with a probability proportional to the 2-norm of its column in the matrix to minimize some variants. And unlike classification problem like cora, pubmed and , whose features and labels are all on nodes, the regression problem focus on the features on the edges. If we do the sampling in every training batch, then we're actually dealing with a training dataset of about 7M edges and 10K nodes for [every batch and every layer]. What's worse, the original code used alot of numpy matrix to finish the sampling, and performed type conversion between [Torch.spaseTensor, Torch.sparse_coo_tensor, Torch.denseTensor, scipy.sparse_mx, and numpy.array], which is also a reason for the high memory and cpu occupation.
 # in all, if you'd like to do regression with FastGCN, plz wait for further optimization.
 
-
 from __future__ import division
+from __future__ import print_function
+import sys
+sys.path.append("../../src")
+sys.path.append("../../../../rllm/dataloader")
+
+
 import warnings
 import scipy.sparse as sp
 from sklearn.metrics import f1_score
@@ -23,7 +28,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch
 from load_data import load_data
-from __future__ import print_function
 import argparse
 import time
 import sys
@@ -32,8 +36,7 @@ import time
 import argparse
 import numpy as np
 import random
-import sys
-sys.path.append("../../src")
+
 # from utils import load_data
 
 

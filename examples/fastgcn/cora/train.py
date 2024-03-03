@@ -7,6 +7,10 @@
 # comment: faster and better then original GCN
 
 import os
+import sys
+sys.path.append("../src")
+sys.path.append("../../../../rllm/dataloader")
+
 from utils_cora import sparse_mx_to_torch_sparse_tensor
 from utils_cora import load_data, get_batches, accuracy
 from sampler import Sampler_FastGCN, Sampler_ASGCN
@@ -18,8 +22,6 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
-import sys
-sys.path.append("../src")
 
 st = time.time()
 
