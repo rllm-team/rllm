@@ -14,13 +14,6 @@ def _pre_load():
     ddf = datadf.GraphStore()
 
     net_path = current_path + '/../datasets/rel-movielens1m/regression/'
-    df_movie = pd.read_csv(net_path + 'movies.csv',
-                        sep=',',
-                        engine='python',
-                        encoding='ISO-8859-1')
-    ddf.x['movie'] = pd.DataFrame(np.load(current_path + '/../datasets/embeddings.npy'))
-    mmap = datadf._get_id_mapping(df_movie['MovielensID'])
-    
     df_user = pd.read_csv(net_path + 'users.csv',
                     sep=',',
                     engine='python',
@@ -28,6 +21,13 @@ def _pre_load():
     ddf.x['user'] = pd.DataFrame(np.eye(len(df_user)))
     umap = datadf._get_id_mapping(df_user['UserID'])
 
+    df_movie = pd.read_csv(net_path + 'movies.csv',
+                        sep=',',
+                        engine='python',
+                        encoding='ISO-8859-1')
+    ddf.x['movie'] = pd.DataFrame(np.load(current_path + '/../datasets/embeddings.npy'))
+    mmap = datadf._get_id_mapping(df_movie['MovielensID'])
+    
 
     test = pd.read_csv(net_path + 'ratings/test.csv',
                     sep=',',
