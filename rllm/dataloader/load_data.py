@@ -14,7 +14,7 @@ def load_data(dataname, device='cpu'):
     
     if (dataname == 'cora'):
         from cora import load
-        return load(dataname)
+        return load(dataname, device=device)
     
     if (dataname == 'titanic'):
         from titanic import load
