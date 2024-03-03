@@ -47,6 +47,7 @@ parser.add_argument('--dropout', type=float, default=0.5,
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
+device = 'cuda' if args.cuda else 'cpu'
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -54,18 +55,10 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 # Load data
-data, adj, features, labels, idx_train, idx_val, idx_test = load_data('movielens-regression')
-
-# adj = adj.indices()
-# e_cnt = adj.shape[1]
-# e_cnt_drop = round(0.01 * e_cnt)
-# sample = torch.ones(adj.shape[1]).multinomial(num_samples=e_cnt_drop)
-# print(sample)
-# adj_drop = torch.sparse.Tensor([adj[0][sample], adj[1][sample]], torch.ones(adj.shape[1]))
-# print(adj_drop)
+data, adj, features, labels, idx_train, idx_val, idx_test = load_data('movielens-regression', device=device)
 
 from random import random
-adj_drop = torch.zeros_like(adj.to_dense())
+adj_drop = torch.zeros_like(adj.to_dense()).to(device)
 for i in range(adj.indices().shape[1]):
     if random() < 0.01:
         adj_drop[adj.indices()[0][i], adj.indices()[1][i]] = 1
@@ -73,19 +66,11 @@ adj_drop = adj_drop.to_sparse().coalesce()
 
 # Model and optimizer
 model = Model(nfeat=features.shape[1],
-              nhid=args.hidden,
-              v_num=data.v_num)
+              nhid=args.hidden).to(device)
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr, weight_decay=args.weight_decay)
-
-if args.cuda:
-    model.cuda()
-    features = features.cuda()
-    adj = adj.cuda()
-    labels = labels.cuda()
-    idx_train = idx_train.cuda()
-    idx_val = idx_val.cuda()
-    idx_test = idx_test.cuda()
+# if args.cuda:
+#     model.cuda()
 
 loss_func = nn.MSELoss()
 
