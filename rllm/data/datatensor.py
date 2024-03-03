@@ -129,9 +129,9 @@ class edgeset:
         if type(key) is list:
             keys = [self._getkey_single(_) for _ in key]
             return edgeset({_: self.e[_].indices() for _ in keys},
-                        {_: self.e[_].values() for _ in keys},
-                        keys,
-                        self._parent)
+                           {_: self.e[_].values() for _ in keys},
+                           keys,
+                           self._parent)
 
     def __setitem__(self, key, value):
         r"""
@@ -182,7 +182,7 @@ class edgeset:
             sft[_] = sum
             sum += v_num[_]
         shape = (sum, sum)
-        res = torch.zeros(shape).to_sparse().to(self.e[self.meta[0]].device)
+        res = torch.zeros(shape).to_sparse().to(self.e[self.meta[0][0]].device)
         for _ in self.meta:
             e = self.e[_[0]].indices()
             w = self.e[_[0]].values()
@@ -277,7 +277,7 @@ class GraphStore:
         for _ in self.y.meta:
             self.y[_] = self.y[_].to(device)
         for _ in self.e.meta:
-            self.e[_] = self.e[_].to(device)
+            self.e[_[0]] = self.e[_[0]].to(device)
     
     def __repr__(self):
         res1 = self.__class__.__name__ + '(\n'
