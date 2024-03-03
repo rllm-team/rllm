@@ -2,7 +2,7 @@ import torch.nn as nn
 import os.path as osp
 import sys
 current_path = osp.dirname(__file__)
-sys.path.append(current_path + '/../')
+sys.path.append(current_path + '/../../')
 from SageConv import SageGCN
 
 
