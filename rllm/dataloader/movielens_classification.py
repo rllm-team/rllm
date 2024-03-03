@@ -80,7 +80,7 @@ def load(device='cpu'):
         A = torch.sparse_coo_tensor(adj_i[:, idx], adj_v[idx], adj.shape)
         A = torch.spmm(A.transpose(0, 1), A).to_dense()
         hop |= torch.where(A > threshold, 1, 0)
-    hop = hop.type(torch.FloatTensor)
+    hop = hop.type(torch.FloatTensor).to(device)
 
     return dataset, \
            hop, \
