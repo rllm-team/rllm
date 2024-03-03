@@ -4,12 +4,18 @@
 # Runtime: 201.700s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40) 
 # Cost: N/A
 # Description: Simply apply FT-transformer to Covtype.
+import sys
+import os.path
+current_file_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = os.path.dirname(current_file_dir)
+sys.path.append(project_dir)
+
 import math
 import warnings
 from typing import Dict, Literal
 
 warnings.simplefilter("ignore")
-import delu  # Deep Learning Utilities: https://github.com/Yura52/delu
+import delu
 import numpy as np
 import scipy.special
 import sklearn.datasets
