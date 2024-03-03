@@ -2,11 +2,11 @@
 def load_data(dataname, device='cpu'):
     if (dataname == 'movielens-regression'):
         from movielens_regression import load
-        return load(device='cpu')
+        return load(device=device)
     
     if (dataname == 'movielens-classification'):
         from movielens_classification import load
-        return load(device='cpu')
+        return load(device=device)
     
     if (dataname == 'small_alibaba_1_10'):    
         from alibaba import load

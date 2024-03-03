@@ -87,4 +87,4 @@ def load(device='cpu'):
            dataset.x['movie'], \
            dataset.y['movie'], idx_train, idx_val, idx_test
 
-# print(load()[0])
+# print(load()[2].device)
