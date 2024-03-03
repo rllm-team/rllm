@@ -7,23 +7,27 @@ import pandas as pd
 import numpy as np
 import torch
 
-import data
+import datatensor
+import datadf
 
-def load():
+def _pre_load():
+    ddf = datadf.GraphStore()
+
     net_path = current_path + '/../datasets/rel-movielens1m/regression/'
-    df_m = pd.read_csv(net_path + 'movies.csv',
-                    sep=',',
-                    engine='python',
-                    encoding='ISO-8859-1')
-    mid = torch.tensor(df_m['MovielensID'].values)
-    mfeat = torch.eye(len(df_m))
+    df_movie = pd.read_csv(net_path + 'movies.csv',
+                        sep=',',
+                        engine='python',
+                        encoding='ISO-8859-1')
+    ddf.x['movie'] = pd.DataFrame(np.load(current_path + '/../datasets/embeddings.npy'))
+    mmap = datadf._get_id_mapping(df_movie['MovielensID'])
     
-    user = pd.read_csv(net_path + 'users.csv',
+    df_user = pd.read_csv(net_path + 'users.csv',
                     sep=',',
                     engine='python',
                     encoding='ISO-8859-1')
-    uid = torch.tensor(user['UserID'].values)
-    ufeat = torch.eye(uid.shape[0])
+    ddf.x['user'] = pd.DataFrame(np.eye(len(df_user)))
+    umap = datadf._get_id_mapping(df_user['UserID'])
+
 
     test = pd.read_csv(net_path + 'ratings/test.csv',
                     sep=',',
@@ -37,23 +41,31 @@ def load():
                         sep=',',
                         engine='python',
                         encoding='ISO-8859-1')
-    rat = pd.concat([test, train, valid])
-    edge_index = torch.Tensor(np.array([rat['UserID'].values, rat['MovieID'].values]))
-    # print(edge_index.shape[1])
-    label = torch.Tensor(rat['Rating'].values)
+    rating = pd.concat([test, train, valid])
+    edge_index = pd.DataFrame([[umap[_] for _ in rating['UserID'].values], 
+                               [mmap[_] for _ in rating['MovieID'].values]])
+    edge_weight = rating['Rating']
+    ddf.e[('rating', 'user', 'movie')] = (edge_index, edge_weight)
+    ddf.y['rating'] = rating['Rating']
+
     idx_test = torch.LongTensor(test.index)
     idx_train = torch.LongTensor(train.index) + idx_test.shape[0]
     idx_val = torch.LongTensor(valid.index) + idx_test.shape[0] + idx_train.shape[0]
 
-    dataset = data.DataLoader([ufeat, mfeat],
-                ['user', 'movie'],
-                [label],
-                ['rating'],
-                [edge_index],
-                [('rating', 'user', 'movie')],
-                node_index=[uid, mid])
+    return ddf, idx_train, idx_val, idx_test
+
+def load(device='cpu'):
+    ddf, idx_train, idx_val, idx_test = _pre_load()
+
+    dataset = datatensor.from_datadf(ddf)
+    dataset.to(device)
+    idx_train = idx_train.to(device)
+    idx_val = idx_val.to(device)
+    idx_test = idx_test.to(device)
 
     return dataset, \
            dataset.e.to_homo(), \
            dataset.x.to_homo(), \
            dataset.y['rating'], idx_train, idx_val, idx_test
+
+# print(load()[0])

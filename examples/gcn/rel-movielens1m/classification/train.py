@@ -50,6 +50,7 @@ parser.add_argument('--dropout', type=float, default=0.5,
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
+device = 'cuda' if args.cuda else 'cpu'
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -57,25 +58,16 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 # Load data
-data, adj, features, labels, idx_train, idx_val, idx_test = load_data('movielens-classification')
-# print(adj)
+data, adj, features, labels, idx_train, idx_val, idx_test = load_data('movielens-classification', device=device)
 
 # Model and optimizer
 model = GCN(nfeat=features.shape[1],
             nhid=args.hidden,
             nclass=labels.shape[1],
-            dropout=args.dropout)
+            dropout=args.dropout).to(device)
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr, weight_decay=args.weight_decay)
 
-if args.cuda:
-    model.cuda()
-    features = features.cuda()
-    adj = adj.cuda()
-    labels = labels.cuda()
-    idx_train = idx_train.cuda()
-    idx_val = idx_val.cuda()
-    idx_test = idx_test.cuda()
 
 loss_func = nn.BCEWithLogitsLoss()
 
@@ -84,7 +76,7 @@ def train(epoch):
     model.train()
     optimizer.zero_grad()
     output = model(features, adj)
-    pred = np.where(output > -1.0, 1, 0)
+    pred = np.where(output.cpu() > -1.0, 1, 0)
     # print('output[0] =', output[1], output[15])
     # print('f1 =', f1_score(labels[idx_train], pred[idx_train], average=None))
 
@@ -114,7 +106,7 @@ def train(epoch):
 def test():
     model.eval()
     output = model(features, adj)
-    pred = np.where(output > -1.0, 1, 0)
+    pred = np.where(output.cpu() > -1.0, 1, 0)
     loss_test = loss_func(output[idx_test], labels[idx_test])
     f1_micro_test = f1_score(labels[idx_test], pred[idx_test], average="micro")
     f1_macro_test = f1_score(labels[idx_test], pred[idx_test], average="macro")
