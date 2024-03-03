@@ -1,11 +1,5 @@
 import sys 
 import os
-from multiprocessing import Pool
-current_path = os.path.dirname(__file__)
-sys.path.append(current_path + '/../data/')
-
-import sys 
-import os
 current_path = os.path.dirname(__file__)
 sys.path.append(current_path + '/../data/')
 
