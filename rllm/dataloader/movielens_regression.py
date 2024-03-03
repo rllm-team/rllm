@@ -68,4 +68,4 @@ def load(device='cpu'):
            dataset.x.to_homo(), \
            dataset.y['rating'], idx_train, idx_val, idx_test
 
-# print(load()[0])
+# print(load()[2].device)
