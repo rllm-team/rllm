@@ -2,12 +2,16 @@
 
 # Tabnet for classification task in adult
 # Paper: TabNet: Attentive Interpretable Tabular Learning  https://doi.org/10.1609/aaai.v35i8.16826
+# arxiv : https://arxiv.org/abs/1908.07442
 # macro_f1: 0.81, micro_f1:0.85 
 # Runtime: 336.08s on single CPU(AMD Ryzen 5 5600U with Radeon Graphics 2.3Ghz)
 # Cost: N/A
 # Description: Paper Reproduction.
 
+import sys
+sys.path.append("../src")
 from tab_model import TabNetClassifier
+
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import f1_score
 
@@ -24,7 +28,7 @@ time_start = time.time()
 
 ##### 1.Load and process data
 
-train = pd.read_csv('yourpath/adult.data')
+train = pd.read_csv('dataset/adult.data')
 target = ' <=50K'
 
 ##### cutting dataset into train, validation, test set
