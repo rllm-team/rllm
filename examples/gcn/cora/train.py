@@ -47,6 +47,7 @@ parser.add_argument('--dropout', type=float, default=0.5,
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
+device = 'cuda' if args.cuda else 'cpu'
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -54,7 +55,7 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 # Load data
-data, adj, features, labels, idx_train, idx_val, idx_test = load_data('cora')
+data, adj, features, labels, idx_train, idx_val, idx_test = load_data('cora', device=device)
 labels = labels.argmax(dim=-1)
 # print(adj)
 
@@ -62,7 +63,7 @@ labels = labels.argmax(dim=-1)
 model = GCN(nfeat=features.shape[1],
             nhid=args.hidden,
             nclass=labels.max().item() + 1,
-            dropout=args.dropout)
+            dropout=args.dropout).to(device)
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr, weight_decay=args.weight_decay)
 
