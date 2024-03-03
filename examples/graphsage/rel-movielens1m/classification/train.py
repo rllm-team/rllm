@@ -1,3 +1,11 @@
+# GraphSage
+# Inductive Representation Learning on Large Graphs
+# https://arxiv.org/abs/1706.02216
+# micro: 0.34596944320143197; macro: 0.11430499992755531
+# 6.09s
+# N/A
+# python train.py
+
 import sys
 import time
 import argparse

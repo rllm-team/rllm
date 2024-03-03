@@ -5,13 +5,16 @@ import torch
 # Convert to adjacency list
 def adj_matrix_to_list(adj_matrix, node_index_movie, label_mat):
     """
-    This function converts adjacency matrices to adjacency lists and 
-    label matrices to label lists for a given set of nodes, 
-    typically representing movies. 
+    This function converts adjacency matrices to adjacency lists and
+    label matrices to label lists for a given set of nodes,
+    typically representing movies.
     Args:
-        adj_matrix (COO Sparse Tensor): The adjacency matrix representing the connections between nodes.
-        node_index_movie (Iterable): An iterable of indices representing specific nodes (e.g., movies)
-        label_mat (COO Sparse Tensor): Matrix containing labels, with the same shape and indices as adj_matrix
+        adj_matrix (COO Sparse Tensor): The adjacency matrix representing
+        the connections between nodes.
+        node_index_movie (Iterable): An iterable of indices representing
+        specific nodes (e.g., movies)
+        label_mat (COO Sparse Tensor): Matrix containing labels, with
+        the same shape and indices as adj_matrix
     """
     adj_list = {}
     label_list = {}
@@ -27,28 +30,13 @@ def adj_matrix_to_list(adj_matrix, node_index_movie, label_mat):
             label_list[i] = np.expand_dims(label_list[i], 0)
     return adj_list, label_list
 
-"""
-def adj_matrix_to_list_test(adj_matrix, node_index_movie, label_mat):
-    adj_list = {}
-    label_list = {}
-    adj_matrix = adj_matrix.transpose(0, 1)
-    label_mat = label_mat.transpose(0, 1)
-    for i in node_index_movie:
-        i = i.item()
-        adj_list[i] = adj_matrix[i].coalesce().indices().squeeze().numpy()
-        label_list[i] = label_mat[i].coalesce().values().squeeze().numpy()
-        if len(adj_list[i].shape) == 0:
-            adj_list[i] = np.expand_dims(adj_list[i], 0)
-        if len(label_list[i].shape) == 0:
-            label_list[i] = np.expand_dims(label_list[i], 0)
-    return adj_list, label_list
-"""
 
 def sampling(src_nodes, sample_num, neighbor_table, label_table):
     """
-    Sample a specified number of neighbor nodes based on the source node, 
-    noting that sampling with replacement is used; 
-    when the number of neighbor nodes of a certain node is less than the sampling number, 
+    Sample a specified number of neighbor nodes based on the source node,
+    noting that sampling with replacement is used;
+    when number of neighbor nodes of a certain node is
+    less than the sampling number,
     the sampling result will include duplicate nodes.
 
     Arguments:
