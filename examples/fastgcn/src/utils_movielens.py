@@ -1,10 +1,7 @@
-import sys
 import pdb
-import pickle as pkl
 
 import torch
 import numpy as np
-import networkx as nx
 import scipy.sparse as sp
 import random
 
@@ -15,7 +12,8 @@ def sample_tensor(coo_tensor, idx_list):
     adj_value_train = adj_value[idx_list]
     adj_indice_train = adj_indice[:, idx_list]
     adj_small = torch.sparse_coo_tensor(
-        indices=adj_indice_train, values=adj_value_train, size=torch.Size((9923, 9923)))
+        indices=adj_indice_train, values=adj_value_train,
+        size=torch.Size((9923, 9923)))
     return adj_small
 
 
