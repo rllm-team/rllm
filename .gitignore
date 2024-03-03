@@ -159,10 +159,5 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-*.gguf
-
 /rllm/datasets/cora/
 /rllm/datasets/rel-movielens1m/
-
-*.pkl
-.vscode/

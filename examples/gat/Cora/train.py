@@ -1,13 +1,15 @@
 # Naive GAT for classification task in Cora
 # Paper: P Veličković, G Cucurull, A Casanova, A Romero, P Lio, Y Bengio (2017) Graph attention networks arXiv preprint arXiv:1710.10903
-# Test Accuracy: 0.8150
-# Runtime: 8.7594s on a 8GB GPU (NVIDIA(R) GeForce RTX(TM) 3060Ti) epoch 200
+# Test Accuracy: 0.8120
+# Runtime: 25.0309s on a 8GB GPU (NVIDIA(R) GeForce RTX(TM) 3060Ti)
 # Cost: N/A
 # Description: Paper Reproduction. Simply apply GAT to Cora.
-from __future__ import division
+from __future__ import division, print_function
+import sys
+sys.path.append("../../../rllm/dataloader")
+sys.path.append("../../../examples/gat")
 from models import GAT
 from load_data import load_data
-from __future__ import print_function
 
 import os
 import glob
@@ -21,8 +23,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
-import sys
-sys.path.append("../../../rllm/dataloader")
+
 
 
 # Training settings
@@ -171,3 +172,4 @@ model.load_state_dict(torch.load('{}.pkl'.format(best_epoch)))
 
 # Testing
 compute_test()
+os.remove("{}.pkl".format(best_epoch))

@@ -5,7 +5,11 @@
 # Cost: N/A
 # Description: Simply apply GAT to movielens. Movies are linked iff a certain number of users rate them samely. Features were llm embeddings from table data to vectors.
 from __future__ import division, print_function
-from models import GAT
+import sys
+sys.path.append("../../../../rllm/dataloader")
+sys.path.append("../../../../examples/gat")
+from load_data import load_data
+from models import GATClassification
 
 import os
 import glob
@@ -20,9 +24,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 from sklearn.metrics import f1_score
 
-import sys
-sys.path.append("../../../../rllm/dataloader")
-from load_data import load_data
+
 
 # Training settings
 parser = argparse.ArgumentParser()
@@ -61,7 +63,7 @@ data, adj, features, labels, idx_train, idx_val, idx_test = load_data(
     'movielens-classification')
 
 # Model and optimizer
-model = GAT(nfeat=features.shape[1],
+model = GATClassification(nfeat=features.shape[1],
             nhid=args.hidden,
             nclass=labels.shape[1],
             dropout=args.dropout,
@@ -170,3 +172,4 @@ model.load_state_dict(torch.load('{}.pkl'.format(best_epoch)))
 
 # Testing
 compute_test()
+os.remove("{}.pkl".format(best_epoch))
