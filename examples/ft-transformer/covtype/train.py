@@ -1,7 +1,7 @@
 # Naive FT-transformer for regression task in Covtype dataset(sklearn builtin dataset)
 # Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021). Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
-# Test Accuracy: 0.9403 
-# Runtime: 201.700s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40) 
+# Test Accuracy: 0.9403
+# Runtime: 201.700s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40)
 # Cost: N/A
 # Description: Simply apply FT-transformer to Covtype.
 import sys
@@ -34,7 +34,7 @@ from rtdl_revisiting_models import MLP, ResNet, FTTransformer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Set random seeds in all libraries.
 delu.random.seed(0)
-## Dataset
+# Dataset
 # >>> Dataset.
 TaskType = Literal["regression", "binclass", "multiclass"]
 
@@ -104,7 +104,7 @@ if X_cat is not None:
     data_numpy["train"]["x_cat"] = X_cat[train_idx]
     data_numpy["val"]["x_cat"] = X_cat[val_idx]
     data_numpy["test"]["x_cat"] = X_cat[test_idx]
-## Preprocessing
+# Preprocessing
 # >>> Feature preprocessing.
 # NOTE
 # The choice between preprocessing strategies depends on a task and a model.
@@ -149,7 +149,7 @@ if task_type != "multiclass":
     # Required by F.binary_cross_entropy_with_logits
     for part in data:
         data[part]["y"] = data[part]["y"].float()
-## Model
+# Model
 # The output size.
 d_out = n_classes if task_type == "multiclass" else 1
 
@@ -183,6 +183,8 @@ model = FTTransformer(
     **FTTransformer.get_default_kwargs(),
 ).to(device)
 optimizer = model.make_default_optimizer()
+
+
 ## Training
 def apply_model(batch: Dict[str, Tensor]) -> Tensor:
     if isinstance(model, (MLP, ResNet)):
