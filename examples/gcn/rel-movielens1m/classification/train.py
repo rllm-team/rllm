@@ -64,12 +64,11 @@ data, adj, features, labels, idx_train, idx_val, idx_test = load_data('movielens
 model = GCN(nfeat=features.shape[1],
             nhid=args.hidden,
             nclass=labels.shape[1],
-            dropout=args.dropout)
+            dropout=args.dropout).to(device)
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr, weight_decay=args.weight_decay)
-# model.to(device)
-if args.cuda:
-    model.cuda()
+# if args.cuda:
+#     model.cuda()
 
 
 loss_func = nn.BCEWithLogitsLoss()
