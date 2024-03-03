@@ -3,13 +3,19 @@
 # Test RMSE Loss: 0.4814
 # Runtime: 95.000s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40) 
 # Cost: N/A
-# Description: Simply apply FT-transformer to movielens.
+# Description: Simply apply FT-transformer to california.
+import sys
+import os.path
+current_file_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = os.path.dirname(current_file_dir)
+sys.path.append(project_dir)
+
 import math
 import warnings
 from typing import Dict, Literal
 
 warnings.simplefilter("ignore")
-import delu  # Deep Learning Utilities: https://github.com/Yura52/delu
+import delu
 import numpy as np
 import scipy.special
 import sklearn.datasets

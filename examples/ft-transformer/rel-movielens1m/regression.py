@@ -4,35 +4,40 @@
 # Runtime: 2685.956s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40) 
 # Cost: N/A
 # Description: Simply apply FT-transformer to movielens.
-from rtdl_revisiting_models import MLP, ResNet, FTTransformer
-import torch
-from tqdm.std import tqdm
-from torch import Tensor
-import torch.optim
-import torch.nn.functional as F
-import sklearn.preprocessing
-import sklearn.model_selection
-import sklearn.metrics
-import sklearn.datasets
-import scipy.special
-import pandas as pd
-import numpy as np
-import delu
+import sys
+import os.path
+current_file_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = os.path.dirname(current_file_dir)
+sys.path.append(project_dir)
+sys.path.append("../../../../")
+
 import math
 import warnings
 from typing import Dict, Literal
-import sys
-sys.path.append("../../../../")
-
+import torch
 warnings.simplefilter("ignore")
-
+import delu
+import numpy as np
+import pandas as pd
+import scipy.special
+import sklearn.datasets
+import sklearn.metrics
+import sklearn.model_selection
+import sklearn.preprocessing
+import time
+import torch.nn.functional as F
+import torch.optim
+from torch import Tensor
+from tqdm.std import tqdm
 
 warnings.resetwarnings()
 
+from rtdl_revisiting_models import MLP, ResNet, FTTransformer
+start_time = time.time()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Set random seeds in all libraries.
 delu.random.seed(0)
-# Dataset
+## Dataset
 # >>> Dataset.
 TaskType = Literal["regression", "binclass", "multiclass"]
 
@@ -77,7 +82,7 @@ data_numpy = {
 
 train_idx = range(len(train_df))
 
-# Preprocessing
+## Preprocessing
 # >>> Feature preprocessing.
 # NOTE
 # The choice between preprocessing strategies depends on a task and a model.
@@ -103,8 +108,7 @@ preprocessing = sklearn.preprocessing.QuantileTransformer(
 del X_cont_train_numpy
 
 for part in data_numpy:
-    data_numpy[part]["x_cont"] = preprocessing.transform(
-        data_numpy[part]["x_cont"])
+    data_numpy[part]["x_cont"] = preprocessing.transform(data_numpy[part]["x_cont"])
 
 # >>> Label preprocessing.
 if task_type == "regression":
@@ -115,8 +119,7 @@ if task_type == "regression":
 
 # >>> Convert data to tensors.
 data = {
-    part: {k: torch.as_tensor(v, device=device)
-           for k, v in data_numpy[part].items()}
+    part: {k: torch.as_tensor(v, device=device) for k, v in data_numpy[part].items()}
     for part in data_numpy
 }
 
@@ -124,7 +127,7 @@ if task_type != "multiclass":
     # Required by F.binary_cross_entropy_with_logits
     for part in data:
         data[part]["y"] = data[part]["y"].float()
-# Model
+## Model
 # The output size.
 d_out = n_classes if task_type == "multiclass" else 1
 
@@ -158,9 +161,7 @@ model = FTTransformer(
     **FTTransformer.get_default_kwargs(),
 ).to(device)
 optimizer = model.make_default_optimizer()
-# Training
-
-
+## Training
 def apply_model(batch: Dict[str, Tensor]) -> Tensor:
     if isinstance(model, (MLP, ResNet)):
         x_cat_ohe = (
@@ -217,7 +218,6 @@ def evaluate(part: str) -> float:
         score = - sklearn.metrics.mean_absolute_error(y_true, y_pred)
     return score  # The higher -- the better.
 
-
 # For demonstration purposes (fast training and bad performance),
 # one can set smaller values:
 # n_epochs = 20
@@ -265,3 +265,4 @@ for epoch in range(n_epochs):
 
 print("\n\nResult:")
 print("MSE: ", best["test"])
+print("Time: ", time.time() - start_time)
