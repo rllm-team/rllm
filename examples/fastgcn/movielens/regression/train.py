@@ -1,5 +1,6 @@
 # FastGCN for regression task in rel-movielens1M
-# Paper: Chen J, Ma T, Xiao C. Fastgcn: fast learning with graph convolutional networks via importance sampling  https://arxiv.org/abs/1801.10247
+# Paper: Chen J, Ma T, Xiao C. Fastgcn: fast learning with graph convolutional
+# networks via importance sampling  https://arxiv.org/abs/1801.10247
 # Test MSE Loss: 1.346
 # Runtime: 20.015s on a single CPU (11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHZ)
 # Cost: N/A
@@ -16,33 +17,20 @@ sys.path.append("../../src")
 sys.path.append("../../../../rllm/dataloader")
 
 
-import warnings
-import scipy.sparse as sp
-from sklearn.metrics import f1_score
-from utils_movielens import sparse_mx_to_torch_sparse_tensor
-from utils_movielens import get_batches, accuracy, sample_tensor, sample_more, concate_coo, drop_adj
-from sampler import Sampler_FastGCN, Sampler_ASGCN
-from models import Model
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import torch
-from load_data import load_data
-import argparse
-import time
-import sys
-
-import time
-import argparse
-import numpy as np
 import random
+import numpy as np
+import time
+import argparse
+from load_data import load_data
+import torch
+import torch.optim as optim
+import torch.nn as nn
+from models import Model
+from sampler import Sampler_FastGCN
+from utils_movielens import get_batches, sample_more, drop_adj
+import scipy.sparse as sp
+import warnings
 
-# from utils import load_data
-
-
-# from utils import load_data, get_batches, accuracy
-
-# from random import random
 
 warnings.filterwarnings("ignore")
 
@@ -91,9 +79,9 @@ def normalize_adj(adj):
     return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
 
 
-def sample_mask(idx, l):
+def sample_mask(idx, lst):
     """Create mask."""
-    mask = torch.zeros(l)
+    mask = torch.zeros(lst)
     mask[idx] = 1
     return torch.tensor(mask, dtype=bool).to(device)
 
@@ -115,19 +103,11 @@ else:
 data, adj, features, labels, idx_train, idx_val, idx_test = load_data(
     'movielens-regression')
 
-
-'''
-这里比较烦人的地方在于，它label应该是在边上（因为是给电影打的分嘛，是“人”和“电影”的关系），(因为label)的shape是九十多万
-同时它的feature又是每个点的，这就使得它这个生成的idx实际上是边的idx
-但我做Fast的话需要分train_dataset给sampler，需要对应的train_feature，这就导致
-feature的"点"的number和边的number不能一一对应
-'''
-# 一共992524条边，同时9923个点
+# 992524 edges 9923 nodes
 N = 992524
 S = 500
-T = 2400  # 二八原则
+T = 2400
 
-# features 永远要传原始的，毕竟得到的是node_number
 
 # move to fit
 idx_val = torch.LongTensor(random.sample(range(N), S))

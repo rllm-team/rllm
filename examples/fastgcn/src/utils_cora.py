@@ -21,17 +21,18 @@ def _load_data(dataset_str):
             index.append(int(line.strip()))
         return index
 
-    def sample_mask(idx, l):
+    def sample_mask(idx, lst):
         """Create mask."""
-        mask = np.zeros(l)
+        mask = np.zeros(lst)
         mask[idx] = 1
-        return np.array(mask, dtype=np.bool)
+        return np.array(mask, dtype=bool)
 
     names = ['x', 'y', 'tx', 'ty', 'allx', 'ally', 'graph']
     objects = []
     for i in range(len(names)):
         # with open("data/ind.{}.{}".format(dataset_str, names[i]), 'rb') as f:
-        with open(file_path + "/datasets/{}/ind.{}.{}".format(dataset_str, dataset_str, names[i]), 'rb') as f:
+        with open(file_path + "/datasets/{}/ind.{}.{}".format
+                  (dataset_str, dataset_str, names[i]), 'rb') as f:
             if sys.version_info > (3, 0):
                 objects.append(pkl.load(f, encoding='latin1'))
             else:
@@ -39,7 +40,8 @@ def _load_data(dataset_str):
 
     x, y, tx, ty, allx, ally, graph = tuple(objects)
     test_idx_reorder = parse_index_file(
-        file_path + "/datasets/{}/ind.{}.test.index".format(dataset_str, dataset_str))
+        file_path + "/datasets/{}/ind.{}.test.index".format
+        (dataset_str, dataset_str))
     test_idx_range = np.sort(test_idx_reorder)
 
     if dataset_str == 'citeseer':

@@ -9,38 +9,23 @@
 
 from __future__ import division
 from __future__ import print_function
-
 import sys
 sys.path.append("../../src")
 sys.path.append("../../../../rllm/dataloader")
-
-import warnings
-import scipy.sparse as sp
-from sklearn.metrics import f1_score
-from utils_movielens import sparse_mx_to_torch_sparse_tensor
-from utils_movielens import get_batches, accuracy
-from sampler import Sampler_FastGCN, Sampler_ASGCN
-from models import GCN
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import torch
-from load_data import load_data
-import argparse
-import time
-import sys
-
-import time
-import argparse
 import numpy as np
-import random
-
-# from utils import load_data
-
-
-# from utils import load_data, get_batches, accuracy
-
-
+import time
+import argparse
+from load_data import load_data
+import torch
+import torch.optim as optim
+import torch.nn as nn
+from models import GCN
+from sampler import Sampler_FastGCN, Sampler_ASGCN
+from utils_movielens import get_batches
+from utils_movielens import sparse_mx_to_torch_sparse_tensor
+from sklearn.metrics import f1_score
+import scipy.sparse as sp
+import warnings
 warnings.filterwarnings("ignore")
 
 st = time.time()
@@ -88,9 +73,9 @@ def normalize_adj(adj):
     return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
 
 
-def sample_mask(idx, l):
+def sample_mask(idx, lst):
     """Create mask."""
-    mask = np.zeros(l)
+    mask = np.zeros(lst)
     mask[idx] = 1
     return np.array(mask, dtype=np.bool)
 
@@ -247,13 +232,8 @@ def train(train_ind, train_labels, batch_size, train_times):
         for batch_inds, batch_labels in get_batches(train_ind,
                                                     train_labels,
                                                     batch_size):
-            # for k,v in model.named_parameters():
-            #     print('{}: {}'.format(k, v.requires_grad))
             sampled_feats, sampled_adjs, var_loss = model.sampling(
                 batch_inds)
-            # for param_tensor in model.state_dict(): # 字典的遍历默认是遍历 key，所以param_tensor实际上是键值
-            #     print(param_tensor,'\t',model.state_dict()[param_tensor])
-            # print(f"type(batch_inds): {batch_inds}")
             optimizer.zero_grad()
             sampled_feats = torch.tensor(sampled_feats, requires_grad=True)
             # print(f"sampled_adjs: {sampled_adjs}")
@@ -263,44 +243,16 @@ def train(train_ind, train_labels, batch_size, train_times):
                 adj_in = torch.tensor(adj_in, requires_grad=True)
                 # print(f"adj_in: {adj_in}")
                 adj_list.append(adj_in)
-            # sampled_adjs = torch.tensor(sampled_adjs.todense(), requires_grad=True)
-            # print(sampled_adjs[0].to_dense())
-            # print(f"sampled_adjs[0]: {sampled_adjs[0]}")
-
-            # print(f"sampled_adjs[1]:{sampled_adjs[1]}")
-
-            # print(f"adj_list: {len(adj_list)}")
             output = model(sampled_feats, adj_list)
-
-            # output = torch.tensor(output, requires_grad=True, dtype=torch.float).to(device)
-
             # # print(f"output: {output}")
             batch_labels = torch.tensor(
                 batch_labels, requires_grad=True, dtype=torch.float).to(device)
 
-            # print(f"output.shape: {output}")
-            # print(f"batch_labels.shape: {batch_labels}")
-            # print(f"pred.shape: {pred}")
-
             pred = np.where(output > -1, 1, 0)
-
-            # print(f"pred: {pred}")
-
-            # counts = 0
-            # for i in range(batch_labels.shape[0]):
-            #     for j in range(batch_labels.shape[1]):
-            #         num = batch_labels[i][j]
-            #         if (num == 1):
-            #             counts += 1
-            # print(f"counts_1: {counts}")
-
-            # loss_train = loss_fn(
-            #     output.float(), batch_labels.float()) + 0.5 * float(var_loss)
 
             loss_train = loss_fn(
                 output, batch_labels)
-            # print(f"loss_train: {loss_train}")
-            # print(type(loss_train))
+
             loss_train = loss_train.float().to(device)
             # 111
 
@@ -314,13 +266,9 @@ def train(train_ind, train_labels, batch_size, train_times):
 
             # acc_train = accuracy(output, batch_labels)
             loss_train.backward()
-            # print(f"output.grad: {output.grad}")
-            # print(f"batch_labels.grad: {batch_labels.grad}")
-            # print(loss_train)
-            # print(loss_train.backward())
+
             optimizer.step()
     # just return the train loss of the last train epoch
-    # return loss_train.item(), acc_train.item(), time.time() - t, f1_micro_train, f1_macro_train
     return loss_train.item(), time.time() - t, f1_micro_train, f1_macro_train
 
 
@@ -354,24 +302,19 @@ if __name__ == '__main__':
 
     # train and test
     for epochs in range(0, args.epochs // test_gap):
-        # train_loss, train_acc, train_time, f1_micro_train, f1_macro_train = train(np.arange(train_nums),
-        #                                           y_train,
-        #                                           args.batchsize,
-        #                                           test_gap)
 
-        train_loss, train_time, f1_micro_train, f1_macro_train = train(np.arange(train_nums),
-                                                                       y_train,
-                                                                       args.batchsize,
-                                                                       test_gap)
+        (train_loss,
+         train_time,
+         f1_micro_train,
+         f1_macro_train) = train(np.arange(train_nums),
+                                 y_train,
+                                 args.batchsize,
+                                 test_gap)
 
         val_loss, val_time, f1_micro_val, f1_macro_val = test(val_adj,
                                                               val_feats,
                                                               val_labels,
                                                               args.epochs)
-        # test_loss, test_acc, test_time = test(test_adj,
-        #                                       test_feats,
-        #                                       test_labels,
-        #                                       args.epochs)
         print(f"epchs:{epochs * test_gap}~{(epochs + 1) * test_gap - 1} "
               f"train_loss: {train_loss:.3f}, "
               #   f"train_acc: {train_acc:.3f}, "

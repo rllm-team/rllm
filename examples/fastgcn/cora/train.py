@@ -6,7 +6,6 @@
 # Description: apply FastGCN to a cora and siteseer, classification
 # comment: faster and better then original GCN
 
-import os
 import sys
 sys.path.append("../src")
 sys.path.append("../../../../rllm/dataloader")
