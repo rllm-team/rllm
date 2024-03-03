@@ -1,3 +1,10 @@
+# GraphSage
+# Inductive Representation Learning on Large Graphs
+# https://arxiv.org/abs/1706.02216
+# MSE: 1.3283003568649292
+# 3.6268s
+# N/A
+# python train.py
 import sys
 sys.path.append("../../../../rllm/dataloader")
 

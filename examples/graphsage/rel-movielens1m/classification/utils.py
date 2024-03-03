@@ -7,7 +7,8 @@ def adj_matrix_to_list(adj_matrix):
     """
     This function converts adjacency matrices to adjacency lists
     Args:
-        adj_matrix (COO Sparse Tensor): The adjacency matrix representing the connections between nodes.
+        adj_matrix (COO Sparse Tensor): The adjacency matrix
+        representing the connections between nodes.
     """
     adj_list = {}
     adj_matrix = adj_matrix.to_dense()
@@ -23,9 +24,10 @@ def adj_matrix_to_list(adj_matrix):
 
 def sampling(src_nodes, sample_num, neighbor_table):
     """
-    Sample a specified number of neighbor nodes based on the source node, 
-    noting that sampling with replacement is used; 
-    when the number of neighbor nodes of a certain node is less than the sampling number, 
+    Sample a specified number of neighbor nodes based on the source node,
+    noting that sampling with replacement is used;
+    when the number of neighbor nodes of a certain node is
+    less than the sampling number,
     the sampling result will include duplicate nodes.
 
     Arguments:

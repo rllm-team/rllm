@@ -1,3 +1,10 @@
+# GraphSage
+# Inductive Representation Learning on Large Graphs
+# https://arxiv.org/abs/1706.02216
+# MSE: 1.3283003568649292
+# 1.5574s
+# N/A
+# python train.py
 import sys
 sys.path.append("../../../rllm/dataloader")
 
@@ -88,7 +95,7 @@ def train(epoch):
     num = 0
     acc_train = 0
     loss_lst = []
-    test()
+    # test()
     for batch in range(NUM_BATCH_PER_EPOCH):
         optimizer.zero_grad()
         batch_src_index = idx_train[torch.randint(0, len(idx_train),

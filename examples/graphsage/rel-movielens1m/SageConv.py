@@ -38,8 +38,7 @@ class NeighborAggregator(nn.Module):
         elif self.aggr_method == "max":
             aggr_neighbor = neighbor_feature.max(dim=1)
         else:
-            raise ValueError("Unknown aggr type, expected sum, max, or mean, b\
-                ut got {}".format(self.aggr_method))
+            raise ValueError("Unknown aggr type, expected sum, max, or mean")
 
         neighbor_hidden = torch.matmul(aggr_neighbor, self.weight)
         if self.use_bias:
@@ -62,8 +61,8 @@ class SageGCN(nn.Module):
         Args:
             input_dim: Dimension of input features.
             hidden_dim: Dimension of hidden layer features.
-                When aggr_hidden_method=sum, the output dimension
-                is hidden_dim.
+                When aggr_hidden_method=sum, the output dimension is
+                hidden_dim.
                 When aggr_hidden_method=concat, the output dimension
                 is hidden_dim*2.
             activation: Activation function.
@@ -106,43 +105,6 @@ class SageGCN(nn.Module):
 
     def extra_repr(self):
         output_dim = self.hidden_dim if self.aggr_hidden_method == "sum" \
-            else self.hidden_dim * 2
-        return 'in_features={}, out_features={}, aggr_hidden_method=\
-            {}'.format(self.input_dim, output_dim, self.aggr_hidden_method)
-
-
-class GraphSage(nn.Module):
-    def __init__(self, input_dim, hidden_dim,
-                 num_neighbors_list):
-        super(GraphSage, self).__init__()
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        self.num_neighbors_list = num_neighbors_list
-        self.num_layers = len(num_neighbors_list)
-        self.gcn = nn.ModuleList()
-        self.gcn.append(SageGCN(input_dim, hidden_dim[0]))
-        for index in range(0, len(hidden_dim) - 2):
-            self.gcn.append(SageGCN(hidden_dim[index], hidden_dim[index+1]))
-        self.gcn.append(SageGCN(
-            hidden_dim[-2],
-            hidden_dim[-1],
-            activation=None))
-
-    def forward(self, node_features_list):
-        hidden = node_features_list
-        for i in range(self.num_layers):
-            next_hidden = []
-            gcn = self.gcn[i]
-            for hop in range(self.num_layers - i):
-                src_node_features = hidden[hop]
-                src_node_num = len(src_node_features)
-                neighbor_node_features = hidden[hop + 1] \
-                    .view((src_node_num, self.num_neighbors_list[hop], -1))
-                h = gcn(src_node_features, neighbor_node_features)
-                next_hidden.append(h)
-            hidden = next_hidden
-        return F.log_softmax(hidden[0], dim=1)
-
-    def extra_repr(self):
-        return 'in_features={}, num_neighbors_list={}'.format(
-            self.input_dim, self.num_neighbors_list)
+                                     else self.hidden_dim * 2
+        return 'in_features={}, out_features={}, aggr_hidden_method={}'.format(
+            self.input_dim, output_dim, self.aggr_hidden_method)
