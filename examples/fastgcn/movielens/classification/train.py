@@ -8,6 +8,12 @@
 
 
 from __future__ import division
+from __future__ import print_function
+
+import sys
+sys.path.append("../../src")
+sys.path.append("../../../../rllm/dataloader")
+
 import warnings
 import scipy.sparse as sp
 from sklearn.metrics import f1_score
@@ -20,7 +26,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch
 from load_data import load_data
-from __future__ import print_function
 import argparse
 import time
 import sys
@@ -29,8 +34,6 @@ import time
 import argparse
 import numpy as np
 import random
-import sys
-sys.path.append("../../src")
 
 # from utils import load_data
 
