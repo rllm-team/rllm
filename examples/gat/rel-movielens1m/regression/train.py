@@ -5,8 +5,12 @@
 # Cost: N/A
 # Description: Simply apply GAT to movielens. Graph was obtained by sampling from foreign keys. Features were llm embeddings from table data to vectors.
 from __future__ import division, print_function
-from random import random
+import sys
+sys.path.append("../../../../rllm/dataloader")
+sys.path.append("../../../../examples/gat")
+from load_data import load_data
 from models import Model
+from random import random
 import glob
 import os
 import torch.optim as optim
@@ -16,11 +20,6 @@ import numpy as np
 import argparse
 import time
 
-
-import sys
-sys.path.append("../../../../rllm/dataloader")
-# sys.path.append("rllm/dataloader")
-from load_data import load_data
 
 # Training settings
 parser = argparse.ArgumentParser()
@@ -158,3 +157,4 @@ model.load_state_dict(torch.load('{}.pkl'.format(best_epoch)))
 
 # Testing
 compute_test()
+os.remove("{}.pkl".format(best_epoch))

@@ -28,8 +28,8 @@ time_start = time.time()
 
 ##### Global variables
 total_cost = 0
-test_path = "../../../../rllm/datasets/rel-movielens1m/classification/movies/test.csv"
-llm_model_path = "llama-2-7b-chat.Q4_K_M.gguf"
+test_path = "your/test_file/path"
+llm_model_path = "your/llm/path"
 
 ##### 1. Construct LLM chain
 # Load model

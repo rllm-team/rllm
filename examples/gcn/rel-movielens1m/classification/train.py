@@ -5,6 +5,7 @@
 # Cost: N/A
 # Description: Simply apply GCN to movielens. Movies are linked iff a certain number of users rate them samely. Features were llm embeddings from table data to vectors.
 
+# Comment: Over-smoothing is significant.
 
 from __future__ import division
 from __future__ import print_function
