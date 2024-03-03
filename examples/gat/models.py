@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
-## Cora
+
+# Cora
 class GATConv(nn.Module):
     """
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
@@ -52,7 +53,10 @@ class GATConv(nn.Module):
         return self.leakyrelu(e)
 
     def __repr__(self):
-        return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
+        return (
+            self.__class__.__name__ + ' (' + str(self.in_features) +
+            ' -> ' + str(self.out_features) + ')'
+        )
 
 
 class GAT(nn.Module):
@@ -61,13 +65,16 @@ class GAT(nn.Module):
         super(GAT, self).__init__()
         self.dropout = dropout
 
-        self.attentions = [GATConv(
-            nfeat, nhid, dropout=dropout, alpha=alpha, concat=True) for _ in range(nheads)]
+        self.attentions = [
+            GATConv(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True)
+            for _ in range(nheads)
+        ]
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
 
-        self.out_att = GATConv(nhid * nheads, nclass,
-                               dropout=dropout, alpha=alpha, concat=False)
+        self.out_att = GATConv(
+            nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False
+        )
 
     def forward(self, x, adj):
         x = F.dropout(x, self.dropout, training=self.training)
@@ -77,8 +84,8 @@ class GAT(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-## Classification
-    
+# Classification
+
 class GraphAttentionClassificationLayer(nn.Module):
     """
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
@@ -127,7 +134,10 @@ class GraphAttentionClassificationLayer(nn.Module):
         return self.leakyrelu(e)
 
     def __repr__(self):
-        return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
+        return (
+            self.__class__.__name__ + ' (' + str(self.in_features) +
+            ' -> ' + str(self.out_features) + ')'
+        )
 
 
 class GATClassification(nn.Module):
@@ -136,13 +146,18 @@ class GATClassification(nn.Module):
         super(GATClassification, self).__init__()
         self.dropout = dropout
 
-        self.attentions = [GraphAttentionClassificationLayer(
-            nfeat, nhid, dropout=dropout, alpha=alpha, concat=True) for _ in range(nheads)]
+        self.attentions = [
+            GraphAttentionClassificationLayer(
+                nfeat, nhid, dropout=dropout, alpha=alpha, concat=True
+            )
+            for _ in range(nheads)
+        ]
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
 
         self.out_att = GraphAttentionClassificationLayer(
-            nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False)
+            nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False
+        )
 
     def forward(self, x, adj):
         x = F.dropout(x, self.dropout, training=self.training)
@@ -152,7 +167,7 @@ class GATClassification(nn.Module):
         return F.logsigmoid(x)
 
 
-## Regression
+# Regression
 class GraphAttentionRegressionLayer(nn.Module):
     """
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
@@ -201,7 +216,10 @@ class GraphAttentionRegressionLayer(nn.Module):
         return self.leakyrelu(e)
 
     def __repr__(self):
-        return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
+        return (
+            self.__class__.__name__ + ' (' + str(self.in_features) +
+            ' -> ' + str(self.out_features) + ')'
+        )
 
 
 class GATRegression(nn.Module):
@@ -210,13 +228,18 @@ class GATRegression(nn.Module):
         super(GATRegression, self).__init__()
         self.dropout = dropout
 
-        self.attentions = [GraphAttentionRegressionLayer(
-            nfeat, nhid, dropout=dropout, alpha=alpha, concat=True) for _ in range(nheads)]
+        self.attentions = [
+            GraphAttentionRegressionLayer(
+                nfeat, nhid, dropout=dropout, alpha=alpha, concat=True
+            )
+            for _ in range(nheads)
+        ]
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
 
         self.out_att = GraphAttentionRegressionLayer(
-            nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False)
+            nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False
+        )
 
     def forward(self, x, adj):
         x = F.dropout(x, self.dropout, training=self.training)
@@ -242,11 +265,10 @@ class Decoder(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, nfeat, nhid, v_num, dropout, alpha, nheads):
+    def __init__(self, nfeat, nhid, dropout, alpha, nheads):
         super(Model, self).__init__()
         self.encoder = GATRegression(nfeat, nhid, nhid, dropout, alpha, nheads)
         self.decoder = Decoder(nhid)
-        self.v_num = v_num
 
     def forward(self, x_all, adj, adj_drop):
         z_all = self.encoder(x_all, adj_drop)

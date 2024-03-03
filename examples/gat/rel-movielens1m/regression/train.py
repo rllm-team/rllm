@@ -8,17 +8,17 @@ from __future__ import division, print_function
 import sys
 sys.path.append("../../../../rllm/dataloader")
 sys.path.append("../../../../examples/gat")
-from load_data import load_data
-from models import Model
-from random import random
-import glob
-import os
-import torch.optim as optim
-import torch.nn as nn
-import torch
-import numpy as np
-import argparse
 import time
+import argparse
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import os
+import glob
+from random import random
+from models import Model
+from load_data import load_data
 
 
 # Training settings
@@ -46,6 +46,7 @@ parser.add_argument('--patience', type=int, default=100, help='Patience')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
+device = 'cuda' if args.cuda else 'cpu'
 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -55,7 +56,7 @@ if args.cuda:
 # Load data
 data, adj, features, labels, idx_train, idx_val, idx_test = load_data(
     'movielens-regression')
-adj_drop = torch.zeros_like(adj.to_dense())
+adj_drop = torch.zeros_like(adj.to_dense()).to(device)
 for i in range(adj.indices().shape[1]):
     if random() < 0.01:
         adj_drop[adj.indices()[0][i], adj.indices()[1][i]] = 1
@@ -67,10 +68,9 @@ if args.cuda:
 
 model = Model(nfeat=features.shape[1],
               nhid=args.hidden,
-              v_num=data.v_num,
               dropout=args.dropout,
               nheads=args.nb_heads,
-              alpha=args.alpha)
+              alpha=args.alpha).to(device)
 
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr,
