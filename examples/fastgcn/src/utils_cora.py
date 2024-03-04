@@ -8,7 +8,8 @@ import networkx as nx
 import scipy.sparse as sp
 import os
 current_path = os.path.dirname(__file__)
-file_path = current_path + "/.."
+# file_path = current_path + "/.."
+file_path = current_path + "/../../../rllm"
 
 
 def _load_data(dataset_str):
