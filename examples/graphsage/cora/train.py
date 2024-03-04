@@ -7,6 +7,7 @@
 # python train.py
 import sys
 sys.path.append("../../../rllm/dataloader")
+sys.path.append("../../graphsage")
 
 import time
 import argparse
@@ -104,7 +105,8 @@ def train(epoch):
         batch_sampling_result = multihop_sampling(
             batch_src_index,
             NUM_NEIGHBORS_LIST,
-            adjacency_dict)
+            adjacency_dict,
+            "cora")
         batch_sampling_x = [features[idx].float().to(DEVICE) for idx
                             in batch_sampling_result]
         output = model(batch_sampling_x)
@@ -138,7 +140,8 @@ def test():
         test_sampling_result = multihop_sampling(
             idx_test,
             NUM_NEIGHBORS_LIST,
-            adjacency_dict)
+            adjacency_dict,
+            "cora")
         test_x = [features[idx].float().to(DEVICE) for idx in
                   test_sampling_result]
         test_logits = model(test_x)
