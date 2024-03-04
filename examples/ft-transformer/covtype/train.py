@@ -1,5 +1,6 @@
 # Naive FT-transformer for regression task in Covtype dataset(sklearn builtin dataset)
-# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021). Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
+# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021).
+# Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
 # Test Accuracy: 0.9403
 # Runtime: 201.700s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40)
 # Cost: N/A
