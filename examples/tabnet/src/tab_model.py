@@ -20,7 +20,7 @@ from callbacks import (
     LRSchedulerCallback,
 )
 from metrics import MetricContainer, check_metrics
-from multiclass_utils import infer_output_dim, infer_multitask_output,check_output_dim
+from multiclass_utils import infer_output_dim, infer_multitask_output, check_output_dim
 
 from scipy.special import softmax
 from torch.utils.data import DataLoader
@@ -973,8 +973,10 @@ class TabNetRegressor(TabModel):
         y_true = np.vstack(list_y_true)
         y_score = np.vstack(list_y_score)
         return y_true, y_score
-    
+
+
 class TabNetMultiTaskClassifier(TabModel):
+
     def __post_init__(self):
         super(TabNetMultiTaskClassifier, self).__post_init__()
         self._task = 'classification'

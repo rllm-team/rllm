@@ -4,7 +4,9 @@ import torch.nn.functional as F
 
 import torch
 
+
 def _make_ix_like(input, dim=0):
+
     d = input.size(dim)
     rho = torch.arange(1, d + 1, device=input.device, dtype=input.dtype)
     view = [1] * input.dim()
@@ -37,8 +39,9 @@ class SparsemaxFunction(Function):
         """
         ctx.dim = dim
         max_val, _ = input.max(dim=dim, keepdim=True)
-        input -= max_val  # same numerical stability trick as for softmax
-        tau, supp_size = SparsemaxFunction._threshold_and_support(input, dim=dim)
+        input -= max_val
+        tau, supp_size = SparsemaxFunction._threshold_and_support(
+            input, dim=dim)
         output = torch.clamp(input - tau, min=0)
         ctx.save_for_backward(supp_size, output)
         return output
@@ -107,8 +110,9 @@ class Entmax15Function(Function):
     def forward(ctx, input, dim=-1):
         ctx.dim = dim
 
-        max_val, _ = input.max(dim=dim, keepdim=True)
-        input = input - max_val  # same numerical stability trick as for softmax
+        max_val, _ = input.max(
+            dim=dim, keepdim=True)
+        input = input - max_val 
         input = input / 2  # divide by 2 to solve actual Entmax
 
         tau_star, _ = Entmax15Function._threshold_and_support(input, dim)

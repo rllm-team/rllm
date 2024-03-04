@@ -5,19 +5,15 @@
 # Runtime: 30min20s on single CPU (Inter(R) Core(TM) i7-11800H @ 2.30Ghz)
 # Cost: N/A
 # Description: Simply apply TabNet to movielens.
-
-import os
 import sys
 sys.path.append("../../src")
 from tab_model import TabNetRegressor
 
-import time
-import numpy as np
-import pandas as pd
-from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import LabelEncoder
-import torch
-
+from sklearn.metrics import mean_squared_error
+import pandas as pd
+import numpy as np
+import time
 
 np.random.seed(0)
 
@@ -62,7 +58,6 @@ target = 'Rating'
 
 
 def process_data(data):
-    nunique = data.nunique()
     types = data.dtypes
 
     categorical_columns = []
@@ -87,11 +82,14 @@ train, categorical_columns, categorical_dims = process_data(train_merge)
 
 for col in categorical_columns:
     print(
-        f"{col}: {train_merge[col].nunique()}, {valid_merge[col].nunique()}, {test_merge[col].nunique()}")
+        f"{col}: {train_merge[col].nunique()}, 
+        {valid_merge[col].nunique()}, {test_merge[col].nunique()}")
 
 # define categorical features for categorical embeddings
-unused_feat = ['Url', 'MovieID', 'Timestamp', 'Plot',
-               'Title', 'Genre', 'Director', 'Cast', 'Language']
+unused_feat = ['Url', 'MovieID',
+               'Timestamp', 'Plot',
+               'Title', 'Genre',
+               'Director', 'Cast', 'Language']
 features = [col for col in train.columns if col not in unused_feat+[target]]
 
 cat_idxs = [i for i, f in enumerate(features) if f in categorical_columns]
