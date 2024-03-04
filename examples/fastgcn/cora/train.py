@@ -28,7 +28,7 @@ st = time.time()
 def get_args():
     # Training settings
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='citeseer',
+    parser.add_argument('--dataset', type=str, default='cora',
                         help='dataset name.')
     # model can be "Fast" or "AS"
     parser.add_argument('--model', type=str, default='Fast',
