@@ -1,7 +1,8 @@
 # Naive FT-transformer for regression task in rel-movielens1M
-# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021). Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
-# Test MSE Loss: 0.8445
-# Runtime: 2685.956s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40) 
+# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021).
+# Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
+# Test MSE Loss: 1.0725
+# Runtime: 2772.838s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40)
 # Cost: N/A
 # Description: Simply apply FT-transformer to movielens.
 import sys

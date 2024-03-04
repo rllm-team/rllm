@@ -1,7 +1,8 @@
 # Naive FT-transformer for classification task in rel-movielens1M
-# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021). Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
-# Test f1_score micro: 0.3239654790882939, macro: 0.14571109296459356
-# Runtime: 16.654811143875122s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40)
+# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021). 
+# Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
+# Test f1_score micro: 0.3240, macro: 0.1457
+# Runtime: 16.655s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40)
 # Cost: N/A
 # Description: Simply apply FT-transformer to movielens.
 import sys

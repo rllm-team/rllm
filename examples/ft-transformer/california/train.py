@@ -1,5 +1,6 @@
 # Naive FT-transformer for regression task in california housing dataset(sklearn builtin dataset)
-# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021). Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
+# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021). 
+# Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
 # Test RMSE Loss: 0.4814
 # Runtime: 95.000s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40)
 # Cost: N/A
