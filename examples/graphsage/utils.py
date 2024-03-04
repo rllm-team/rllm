@@ -12,9 +12,13 @@ def adj_matrix_to_list(adj_matrix, node_index_movie=None, label_mat=None, task="
         adj_matrix (COO Sparse Tensor): The adjacency matrix representing
         the connections between nodes.
         node_index_movie (Iterable): An iterable of indices representing
-        specific nodes (e.g., movies)
+        specific nodes (e.g., movies), useless in cora and
+        movie-classfication
         label_mat (COO Sparse Tensor): Matrix containing labels, with
-        the same shape and indices as adj_matrix
+        the same shape and indices as adj_matrix, useless in cora and
+        movie-classfication
+        task (string):The task that this function used, default as cora and
+        movie-classfication
     """
     if task == "movie-reg":
         adj_list = {}
@@ -55,6 +59,9 @@ def sampling(src_nodes, sample_num, neighbor_table, task, label_table=None):
         sample_nums {list of int} -- number of samples for each hop
         neighbor_table {dict} -- mapping from nodes to their neighbors
         task {str} -- the task that this function used
+        label_table {COO Sparse Tensor} --  Matrix containing labels, with
+        the same shape and indices as adj_matrix, useless in cora and
+        movie-classfication
 
     Returns:
         torch.Tensor -- result of sampling
@@ -84,7 +91,6 @@ def sampling(src_nodes, sample_num, neighbor_table, task, label_table=None):
     elif task == "movie-cla":
         results = []
         for sid in src_nodes:
-            # 从节点的邻居中进行有放回地进行采样
             neighbors = neighbor_table[sid.item()]
             if len(neighbors) != 0:
                 res = np.random.choice(neighbors, size=(sample_num, ))
@@ -95,7 +101,6 @@ def sampling(src_nodes, sample_num, neighbor_table, task, label_table=None):
     else:
         results = []
         for sid in src_nodes:
-            # 从节点的邻居中进行有放回地进行采样
             res = np.random.choice(
                 neighbor_table[sid.item()],
                 size=(sample_num, ))
@@ -110,6 +115,10 @@ def multihop_sampling(src_nodes, sample_nums, neighbor_table, task, label_table=
         src_nodes {torch.Tensor} -- source nodes
         sample_nums {list of int} -- number of samples for each hop
         neighbor_table {dict} -- mapping from nodes to their neighbors
+        task {str} -- the task that this function used
+        label_table {COO Sparse Tensor} --  Matrix containing labels, with
+        the same shape and indices as adj_matrix, useless in cora and
+        movie-classfication
 
     Returns:
         [list of torch.Tensor] -- result of sampling
