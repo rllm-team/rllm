@@ -293,7 +293,7 @@ def check_list_groups(list_groups, input_dim):
         flat_list.extend(group)
     unique_elements = np.unique(flat_list)
     n_unique_elements_in_groups = len(unique_elements)
-    msg = f"One feature can only appear in one group, please check your grouped_features."
+    msg = "One feature can only appear in one group, please check your grouped_features."
     assert n_unique_elements_in_groups == n_elements_in_groups, msg
 
     highest_feat = np.max(unique_elements)

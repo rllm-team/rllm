@@ -162,7 +162,7 @@ class TabNetEncoder(torch.nn.Module):
             prior = torch.ones((bs, self.attention_dim)).to(x.device)
 
         M_loss = 0
-        att = self.initial_splitter(x)[:, self.n_d :]
+        att = self.initial_splitter(x)[:, self.n_d:]
         steps_output = []
         for step in range(self.n_steps):
             M = self.att_transformers[step](prior, att)
@@ -178,7 +178,7 @@ class TabNetEncoder(torch.nn.Module):
             d = ReLU()(out[:, : self.n_d])
             steps_output.append(d)
             # update attention
-            att = out[:, self.n_d :]
+            att = out[:, self.n_d:]
 
         M_loss /= self.n_steps
         return steps_output, M_loss
@@ -188,7 +188,7 @@ class TabNetEncoder(torch.nn.Module):
         bs = x.shape[0]  # batch size
         prior = torch.ones((bs, self.attention_dim)).to(x.device)
         M_explain = torch.zeros(x.shape).to(x.device)
-        att = self.initial_splitter(x)[:, self.n_d :]
+        att = self.initial_splitter(x)[:, self.n_d:]
         masks = {}
 
         for step in range(self.n_steps):
@@ -205,7 +205,7 @@ class TabNetEncoder(torch.nn.Module):
             step_importance = torch.sum(d, dim=1)
             M_explain += torch.mul(M_feature_level, step_importance.unsqueeze(dim=1))
             # update attention
-            att = out[:, self.n_d :]
+            att = out[:, self.n_d:]
 
         return M_explain, masks
 
@@ -231,7 +231,7 @@ class TabNetDecoder(torch.nn.Module):
         output_dim : int or list of int for multi task classification
             Dimension of network output
         n_d : int
-            Dimension of the prediction  layer 
+            Dimension of the prediction  layer
         n_steps : int
             Number of successive steps in the network
         gamma : float
@@ -424,7 +424,7 @@ class TabNet(torch.nn.Module):
         output_dim : int
             Dimension of network output
         n_d : int
-            Dimension of the prediction  layer 
+            Dimension of the prediction  layer
         n_a : int
             Dimension of the attention  layer
         n_steps : int
@@ -690,7 +690,7 @@ class GLU_Layer(torch.nn.Module):
     def forward(self, x):
         x = self.fc(x)
         x = self.bn(x)
-        out = torch.mul(x[:, : self.output_dim], torch.sigmoid(x[:, self.output_dim :]))
+        out = torch.mul(x[:, : self.output_dim], torch.sigmoid(x[:, self.output_dim:]))
         return out
 
 

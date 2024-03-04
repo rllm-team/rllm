@@ -84,7 +84,8 @@ class UnsupMetricContainer:
         Original input embedded by network
     obf_vars : torch.Tensor
         Binary mask for obfuscated variables.
-        1 means the variables was obfuscated so reconstruction is based on this.
+        1 means the variables was obfuscated so
+        reconstruction is based on this.
 
     """
 
@@ -371,13 +372,6 @@ class MSE(Metric):
 
 
 class RMSLE(Metric):
-    """
-    Root Mean squared logarithmic error regression loss.
-    Scikit-implementation:
-    https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_log_error.html
-    Note: In order to avoid error, negative predictions are clipped to 0.
-    This means that you should clip negative predictions manually after calling predict.
-    """
 
     def __init__(self):
         self._name = "rmsle"

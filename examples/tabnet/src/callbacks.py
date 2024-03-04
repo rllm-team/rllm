@@ -94,7 +94,8 @@ class CallbackContainer:
 
 @dataclass
 class EarlyStopping(Callback):
-    """EarlyStopping callback to exit the training loop if early_stopping_metric
+    """EarlyStopping callback to
+    exit the training loop if early_stopping_metric
     does not improve by a certain amount for a certain
     number of epochs.
 
@@ -140,7 +141,8 @@ class EarlyStopping(Callback):
             self.best_loss = current_loss
             self.best_epoch = epoch
             self.wait = 1
-            self.best_weights = copy.deepcopy(self.trainer.network.state_dict())
+            self.best_weights = copy.deepcopy(
+                self.trainer.network.state_dict())
         else:
             if self.wait >= self.patience:
                 self.stopped_epoch = epoch
@@ -265,7 +267,8 @@ class LRSchedulerCallback(Callback):
         self,
     ):
         self.is_metric_related = hasattr(self.scheduler_fn, "is_better")
-        self.scheduler = self.scheduler_fn(self.optimizer, **self.scheduler_params)
+        self.scheduler = self.scheduler_fn(
+            self.optimizer, **self.scheduler_params)
         super().__init__()
 
     def on_batch_end(self, batch, logs=None):

@@ -5,18 +5,17 @@
 # Runtime: 5.36s on single CPU (AMD Ryzen 5 5600U with Radeon Graphics 2.3Ghz)
 # Cost: N/A
 # Description: Simply apply TabNet to movielens.
-
 import sys
 sys.path.append("../../src")
 from tab_model import TabNetMultiTaskClassifier
 
-from sklearn.metrics import f1_score
-from sklearn.preprocessing import LabelEncoder
-import pandas as pd
-import torch
-import numpy as np
-import scipy
 import time
+import numpy as np
+import torch
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import f1_score
+
 
 # start time
 time_start = time.time()
@@ -84,7 +83,7 @@ clf = TabNetMultiTaskClassifier(cat_idxs=cat_idxs,
                                 cat_emb_dim=1,
                                 optimizer_fn=torch.optim.Adam,
                                 optimizer_params=dict(lr=2e-2),
-                                scheduler_params={"step_size": 50,  # how to use learning rate scheduler
+                                scheduler_params={"step_size": 50,
                                                   "gamma": 0.9},
                                 scheduler_fn=torch.optim.lr_scheduler.StepLR,
                                 mask_type='entmax'  # "sparsemax"
