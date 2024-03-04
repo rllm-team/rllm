@@ -77,7 +77,7 @@ def sample_mask(idx, lst):
     """Create mask."""
     mask = np.zeros(lst)
     mask[idx] = 1
-    return np.array(mask, dtype=np.bool)
+    return np.array(mask, dtype=bool)
 
 
 def nontuple_preprocess_adj(adj):
