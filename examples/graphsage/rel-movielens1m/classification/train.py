@@ -19,6 +19,7 @@ from sklearn.metrics import f1_score
 
 # from utils import load_data
 sys.path.append("../../../../rllm/dataloader")
+sys.path.append("../../../graphsage")
 from load_data import load_data
 from models import GraphSage
 from utils import adj_matrix_to_list, multihop_sampling
@@ -97,7 +98,10 @@ def train(epoch):
         batch_src_index = idx_train[rand_idx]
         batch_src_label = labels[batch_src_index].float().to(DEVICE)
         batch_sampling_result = multihop_sampling(
-            batch_src_index, NUM_NEIGHBORS_LIST, adjacency_dict
+            batch_src_index,
+            NUM_NEIGHBORS_LIST,
+            adjacency_dict,
+            "movie-cla"
             )
         batch_sampling_x = [
             features[idx].float().to(DEVICE) for idx in batch_sampling_result
@@ -125,7 +129,10 @@ def test():
     model.eval()
     with torch.no_grad():
         test_sampling_result = multihop_sampling(
-            idx_test, NUM_NEIGHBORS_LIST, adjacency_dict
+            idx_test,
+            NUM_NEIGHBORS_LIST,
+            adjacency_dict,
+            "movie-cla"
             )
         test_x = [
             features[idx].float().to(DEVICE) for idx in test_sampling_result

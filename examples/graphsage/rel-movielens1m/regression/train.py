@@ -7,6 +7,7 @@
 # python train.py
 import sys
 sys.path.append("../../../../rllm/dataloader")
+sys.path.append("../../../graphsage")
 
 import time
 import argparse
@@ -80,9 +81,13 @@ label_mat_test = torch.sparse_coo_tensor(
     size=adj.shape,
     requires_grad=False).float()
 test_adjacency_dict, test_label_dict = \
-    adj_matrix_to_list(label_mat_test, node_index_test_movie, label_mat_test)
+    adj_matrix_to_list(
+        label_mat_test,
+        node_index_test_movie,
+        label_mat_test,
+        "movie-reg")
 adjacency_dict, label_dict = \
-    adj_matrix_to_list(adj, node_index_movie, label_mat)
+    adj_matrix_to_list(adj, node_index_movie, label_mat, "movie-reg")
 # print(adj)
 
 # Model and optimizer
@@ -133,7 +138,9 @@ def train(epoch):
                 batch_node_movie_train,
                 NUM_NEIGHBORS_LIST,
                 adjacency_dict,
-                label_dict)
+                "movie-reg",
+                label_dict
+                )
         batch_sampling_x = [
             features[idx].float().to(DEVICE) for idx in batch_sampling_result]
         output = model(batch_sampling_x)
@@ -158,6 +165,7 @@ def test():
                 node_index_test_movie,
                 NUM_NEIGHBORS_LIST,
                 adjacency_dict,
+                "movie-reg",
                 label_dict)
         batch_sampling_x = [
             features[idx].float().to(DEVICE) for idx in batch_sampling_result]
