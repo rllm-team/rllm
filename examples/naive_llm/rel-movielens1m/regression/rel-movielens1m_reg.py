@@ -6,6 +6,7 @@
 # Runtime: 97200s (on a single 6G GPU (Not applicable in practice))
 # Cost: 7.6494 US Dollar
 # Description: Use random 5 history rating to predict given user-movie rating by llm.
+# Usage: python rel-movielens1m_reg.py
 
 # Append rllm to search path
 import sys
