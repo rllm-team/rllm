@@ -1,5 +1,5 @@
 # Naive FT-transformer for regression task in california housing dataset(sklearn builtin dataset)
-# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021). 
+# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021).
 # Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
 # Test RMSE Loss: 0.4814
 # Runtime: 95.000s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40)
@@ -45,18 +45,6 @@ dataset = sklearn.datasets.fetch_california_housing()
 X_cont: np.ndarray = dataset["data"]
 Y: np.ndarray = dataset["target"]
 
-# NOTE: uncomment to solve a classification task.
-# n_classes = 2
-# assert n_classes >= 2
-# task_type: TaskType = 'binclass' if n_classes == 2 else 'multiclass'
-# X_cont, Y = sklearn.datasets.make_classification(
-#     n_samples=20000,
-#     n_features=8,
-#     n_classes=n_classes,
-#     n_informative=3,
-#     n_redundant=2,
-# )
-
 # >>> Continuous features.
 X_cont: np.ndarray = X_cont.astype(np.float32)
 n_cont_features = X_cont.shape[1]
@@ -64,11 +52,7 @@ n_cont_features = X_cont.shape[1]
 # >>> Categorical features.
 # NOTE: the above datasets do not have categorical features, but,
 # for the demonstration purposes, it is possible to generate them.
-cat_cardinalities = [
-    # NOTE: uncomment the two lines below to add two categorical features.
-    # 4,  # Allowed values: [0, 1, 2, 3].
-    # 7,  # Allowed values: [0, 1, 2, 3, 4, 5, 6].
-]
+cat_cardinalities = []
 X_cat = (
     np.column_stack(
         [np.random.randint(0, c, (len(X_cont),)) for c in cat_cardinalities]
@@ -107,16 +91,6 @@ if X_cat is not None:
     data_numpy["test"]["x_cat"] = X_cat[test_idx]
 # Preprocessing
 # >>> Feature preprocessing.
-# NOTE
-# The choice between preprocessing strategies depends on a task and a model.
-
-# (A) Simple preprocessing strategy.
-# preprocessing = sklearn.preprocessing.StandardScaler().fit(
-#     data_numpy['train']['x_cont']
-# )
-
-# (B) Fancy preprocessing strategy.
-# The noise is added to improve the output of QuantileTransformer in some cases.
 X_cont_train_numpy = data_numpy["train"]["x_cont"]
 noise = (
     np.random.default_rng(0)
@@ -144,7 +118,8 @@ if task_type == "regression":
 
 # >>> Convert data to tensors.
 data = {
-    part: {k: torch.as_tensor(v, device=device) for k, v in data_numpy[part].items()}
+    part: {k: torch.as_tensor(v, device=device)
+           for k, v in data_numpy[part].items()}
     for part in data_numpy
 }
 
@@ -170,7 +145,6 @@ optimizer = model.make_default_optimizer()
 def apply_model(batch: Dict[str, Tensor]) -> Tensor:
     if isinstance(model, FTTransformer):
         return model(batch["x_cont"], batch.get("x_cat")).squeeze(-1)
-
     else:
         raise RuntimeError(f"Unknown model type: {type(model)}")
 
@@ -209,7 +183,8 @@ def evaluate(part: str) -> float:
         score = sklearn.metrics.accuracy_score(y_true, y_pred)
     else:
         assert task_type == "regression"
-        score = -(sklearn.metrics.mean_squared_error(y_true, y_pred) ** 0.5 * Y_std)
+        score = -(sklearn.metrics.mean_squared_error(y_true, y_pred)
+                  ** 0.5 * Y_std)
     return score  # The higher -- the better.
 
 

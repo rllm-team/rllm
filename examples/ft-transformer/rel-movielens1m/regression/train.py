@@ -9,8 +9,7 @@ import sys
 import os.path
 current_file_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.dirname(current_file_dir)
-sys.path.append(project_dir)
-sys.path.append("../../../../")
+sys.path.append(project_dir + "/../")
 
 import math
 import warnings
@@ -34,11 +33,12 @@ from tqdm.std import tqdm
 warnings.resetwarnings()
 
 from rtdl_revisiting_models import FTTransformer
+
 start_time = time.time()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Set random seeds in all libraries.
 delu.random.seed(0)
-## Dataset
+# Dataset
 # >>> Dataset.
 TaskType = Literal["regression", "binclass", "multiclass"]
 
@@ -47,10 +47,11 @@ n_classes = None
 
 # Load Dataset
 train_df = pd.read_csv(
-    '../../../rllm/datasets/rel-movielens1m/regression/ratings/train.csv')
-test_df = pd.read_csv('../../../rllm/datasets/rel-movielens1m/regression/ratings/test.csv')
+    '../../../../rllm/datasets/rel-movielens1m/regression/ratings/train.csv')
+test_df = pd.read_csv(
+    '../../../../rllm/datasets/rel-movielens1m/regression/ratings/test.csv')
 validation_df = pd.read_csv(
-    '../../../rllm/datasets/rel-movielens1m/regression/ratings/validation.csv')
+    '../../../../rllm/datasets/rel-movielens1m/regression/ratings/validation.csv')
 
 X_train = train_df[['UserID', 'MovieID']].values.astype(np.float32)
 Y_train = train_df['Rating'].values.astype(np.float32)
@@ -83,7 +84,7 @@ data_numpy = {
 
 train_idx = range(len(train_df))
 
-## Preprocessing
+# Preprocessing
 # >>> Feature preprocessing.
 # NOTE
 # The choice between preprocessing strategies depends on a task and a model.
@@ -109,7 +110,8 @@ preprocessing = sklearn.preprocessing.QuantileTransformer(
 del X_cont_train_numpy
 
 for part in data_numpy:
-    data_numpy[part]["x_cont"] = preprocessing.transform(data_numpy[part]["x_cont"])
+    data_numpy[part]["x_cont"] = preprocessing.transform(
+        data_numpy[part]["x_cont"])
 
 # >>> Label preprocessing.
 if task_type == "regression":
@@ -120,7 +122,8 @@ if task_type == "regression":
 
 # >>> Convert data to tensors.
 data = {
-    part: {k: torch.as_tensor(v, device=device) for k, v in data_numpy[part].items()}
+    part: {k: torch.as_tensor(v, device=device)
+           for k, v in data_numpy[part].items()}
     for part in data_numpy
 }
 
@@ -130,7 +133,7 @@ if task_type != "multiclass":
         data[part]["y"] = data[part]["y"].float()
 
 
-## Model
+# Model
 # The output size.
 d_out = n_classes if task_type == "multiclass" else 1
 
@@ -144,11 +147,11 @@ model = FTTransformer(
 optimizer = model.make_default_optimizer()
 
 
-## Training
+# Training
 def apply_model(batch: Dict[str, Tensor]) -> Tensor:
     if isinstance(model, FTTransformer):
         return model(batch["x_cont"], batch.get("x_cat")).squeeze(-1)
-    
+
     else:
         raise RuntimeError(f"Unknown model type: {type(model)}")
 
@@ -189,6 +192,7 @@ def evaluate(part: str) -> float:
         assert task_type == "regression"
         score = - sklearn.metrics.mean_absolute_error(y_true, y_pred)
     return score  # The higher -- the better.
+
 
 # For demonstration purposes (fast training and bad performance),
 # one can set smaller values:

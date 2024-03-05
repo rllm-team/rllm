@@ -1,5 +1,5 @@
 # Naive FT-transformer for classification task in rel-movielens1M
-# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021). 
+# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021).
 # Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
 # Test f1_score micro: 0.3240, macro: 0.1457
 # Runtime: 16.655s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40)
@@ -9,8 +9,7 @@ import sys
 import os.path
 current_file_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.dirname(current_file_dir)
-sys.path.append(project_dir)
-sys.path.append("../../../../")
+sys.path.append(project_dir + "/../")
 
 import math
 import warnings
@@ -34,26 +33,33 @@ import time
 warnings.resetwarnings()
 
 from rtdl_revisiting_models import FTTransformer
+
 start_time = time.time()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Set random seeds in all libraries.
 delu.random.seed(0)
 
-## Dataset
+# Dataset
 # >>> Dataset.
 TaskType = Literal["regression", "binclass", "multiclass"]
 task_type: TaskType = "multiclass"
 
 # Load Dataset
-train_df = pd.read_csv('../../../rllm/datasets/rel-movielens1m/classification/movies/train.csv')
-test_df = pd.read_csv('../../../rllm/datasets/rel-movielens1m/classification/movies/test.csv')
-validation_df = pd.read_csv('../../../rllm/datasets/rel-movielens1m/classification/movies/validation.csv')
+train_df = pd.read_csv(
+    '../../../../rllm/datasets/rel-movielens1m/classification/movies/train.csv')
+test_df = pd.read_csv(
+    '../../../../rllm/datasets/rel-movielens1m/classification/movies/test.csv')
+validation_df = pd.read_csv(
+    '../../../../rllm/datasets/rel-movielens1m/classification/movies/validation.csv')
 
 mlb = MultiLabelBinarizer()
 mlb.fit(train_df['Genre'].str.split('|').apply(lambda x: set(x)))
-genres_encoded = mlb.transform(train_df['Genre'].str.split('|').apply(lambda x: set(x)))
-test_genres_encoded = mlb.transform(test_df['Genre'].str.split('|').apply(lambda x: set(x)))
-validation_genres_encoded = mlb.transform(validation_df['Genre'].str.split('|').apply(lambda x: set(x)))
+genres_encoded = mlb.transform(
+    train_df['Genre'].str.split('|').apply(lambda x: set(x)))
+test_genres_encoded = mlb.transform(
+    test_df['Genre'].str.split('|').apply(lambda x: set(x)))
+validation_genres_encoded = mlb.transform(
+    validation_df['Genre'].str.split('|').apply(lambda x: set(x)))
 
 n_classes = len(mlb.classes_)
 
@@ -70,7 +76,8 @@ cat_cardinalities = [train_df[feature].nunique() for feature in cat_features]
 
 X_cat = (
     np.column_stack(
-        [np.random.randint(0, c, (len(cat_cardinalities),)) for c in cat_cardinalities]
+        [np.random.randint(0, c, (len(cat_cardinalities),))
+         for c in cat_cardinalities]
     )
     if cat_cardinalities
     else None
@@ -87,7 +94,7 @@ data_numpy = {
 
 train_idx = range(len(train_df))
 
-## Preprocessing
+# Preprocessing
 # >>> Feature preprocessing.
 # NOTE
 # The choice between preprocessing strategies depends on a task and a model.
@@ -113,7 +120,8 @@ preprocessing = sklearn.preprocessing.StandardScaler().fit(
 # del X_cont_train_numpy
 
 for part in data_numpy:
-    data_numpy[part]["x_cont"] = preprocessing.transform(data_numpy[part]["x_cont"])
+    data_numpy[part]["x_cont"] = preprocessing.transform(
+        data_numpy[part]["x_cont"])
 
 # >>> Label preprocessing.
 if task_type == "regression":
@@ -124,7 +132,8 @@ if task_type == "regression":
 
 # >>> Convert data to tensors.
 data = {
-    part: {k: torch.as_tensor(v, device=device).float() for k, v in data_numpy[part].items()}
+    part: {k: torch.as_tensor(v, device=device).float()
+           for k, v in data_numpy[part].items()}
     for part in data_numpy
 }
 
@@ -132,7 +141,7 @@ if task_type != "multiclass":
     # Required by F.binary_cross_entropy_with_logits
     for part in data:
         data[part]["y"] = data[part]["y"].float()
-## Model
+# Model
 # The output size.
 d_out = n_classes if task_type == "multiclass" else 1
 
@@ -144,7 +153,9 @@ model = FTTransformer(
     **FTTransformer.get_default_kwargs(),
 ).to(device)
 optimizer = model.make_default_optimizer()
-## Training
+# Training
+
+
 def apply_model(batch: Dict[str, Tensor]) -> Tensor:
     if isinstance(model, FTTransformer):
         return model(batch["x_cont"], batch.get("x_cat")).squeeze(-1)
@@ -160,6 +171,7 @@ loss_fn = (
     if task_type == "multiclass"
     else F.mse_loss
 )
+
 
 @torch.no_grad()
 def evaluate(part: str) -> dict:
@@ -184,11 +196,13 @@ def evaluate(part: str) -> dict:
     f1_macro = f1_score(y_true, y_pred_bin, average='macro')
     f1_weighted = f1_score(y_true, y_pred_bin, average='weighted')
 
-    return {'f1_micro': f1_micro, 'f1_macro': f1_macro, 'f1_weighted': f1_weighted}  # The higher -- the better.
+    # The higher -- the better.
+    return {'f1_micro': f1_micro, 'f1_macro': f1_macro, 'f1_weighted': f1_weighted}
 
 
 score = evaluate("test")
-print("Test set results before training: f1_test= {:.4f} {:.4f}".format(score["f1_micro"], score["f1_macro"]))
+print("Test set results before training: f1_test= {:.4f} {:.4f}".format(
+    score["f1_micro"], score["f1_macro"]))
 
 # For demonstration purposes (fast training and bad performance),
 # one can set smaller values:
@@ -226,7 +240,8 @@ for epoch in range(n_epochs):
     test_score = evaluate("test")["f1_weighted"]
     f1_micro = evaluate("test")["f1_micro"]
     f1_macro = evaluate("test")["f1_macro"]
-    print(f"(val) {val_score:.4f} (test) {test_score:.4f} (f1_micro) {f1_micro:.4f} (f1_marco) {f1_macro:.4f} [time] {timer}")
+    print(
+        f"(val) {val_score:.4f} (test) {test_score:.4f} (f1_micro) {f1_micro:.4f} (f1_marco) {f1_macro:.4f} [time] {timer}")
 
     early_stopping.update(val_score)
     if early_stopping.should_stop():
@@ -234,8 +249,10 @@ for epoch in range(n_epochs):
 
     if val_score > best["val"]:
         print("🌸 New best epoch! 🌸")
-        best = {"val": val_score, "test": test_score, "f1_micro": f1_micro, "f1_marco": f1_macro, "epoch": epoch}
+        best = {"val": val_score, "test": test_score,
+                "f1_micro": f1_micro, "f1_marco": f1_macro, "epoch": epoch}
     print()
 
-print("\n\nResult: f1_micro:{f1_micro}, f1_marco:{f1_marco}".format(f1_micro=best["f1_micro"], f1_marco=best["f1_marco"]))
-print("Time: ", time.time()- start_time)
+print("\n\nResult: f1_micro:{f1_micro}, f1_marco:{f1_marco}".format(
+    f1_micro=best["f1_micro"], f1_marco=best["f1_marco"]))
+print("Time: ", time.time() - start_time)

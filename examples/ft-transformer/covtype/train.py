@@ -64,11 +64,7 @@ n_cont_features = X_cont.shape[1]
 # >>> Categorical features.
 # NOTE: the above datasets do not have categorical features, but,
 # for the demonstration purposes, it is possible to generate them.
-cat_cardinalities = [
-    # NOTE: uncomment the two lines below to add two categorical features.
-    # 4,  # Allowed values: [0, 1, 2, 3].
-    # 7,  # Allowed values: [0, 1, 2, 3, 4, 5, 6].
-]
+cat_cardinalities = []
 X_cat = (
     np.column_stack(
         [np.random.randint(0, c, (len(X_cont),)) for c in cat_cardinalities]
@@ -107,16 +103,6 @@ if X_cat is not None:
     data_numpy["test"]["x_cat"] = X_cat[test_idx]
 # Preprocessing
 # >>> Feature preprocessing.
-# NOTE
-# The choice between preprocessing strategies depends on a task and a model.
-
-# (A) Simple preprocessing strategy.
-# preprocessing = sklearn.preprocessing.StandardScaler().fit(
-#     data_numpy['train']['x_cont']
-# )
-
-# (B) Fancy preprocessing strategy.
-# The noise is added to improve the output of QuantileTransformer in some cases.
 X_cont_train_numpy = data_numpy["train"]["x_cont"]
 noise = (
     np.random.default_rng(0)
@@ -131,7 +117,8 @@ preprocessing = sklearn.preprocessing.QuantileTransformer(
 del X_cont_train_numpy
 
 for part in data_numpy:
-    data_numpy[part]["x_cont"] = preprocessing.transform(data_numpy[part]["x_cont"])
+    data_numpy[part]["x_cont"] = preprocessing.transform(
+        data_numpy[part]["x_cont"])
 
 # >>> Label preprocessing.
 if task_type == "regression":
@@ -142,7 +129,8 @@ if task_type == "regression":
 
 # >>> Convert data to tensors.
 data = {
-    part: {k: torch.as_tensor(v, device=device) for k, v in data_numpy[part].items()}
+    part: {k: torch.as_tensor(v, device=device)
+           for k, v in data_numpy[part].items()}
     for part in data_numpy
 }
 
@@ -164,7 +152,7 @@ model = FTTransformer(
 optimizer = model.make_default_optimizer()
 
 
-## Training
+# Training
 def apply_model(batch: Dict[str, Tensor]) -> Tensor:
     if isinstance(model, FTTransformer):
         return model(batch["x_cont"], batch.get("x_cat")).squeeze(-1)
@@ -207,7 +195,8 @@ def evaluate(part: str) -> float:
         score = sklearn.metrics.accuracy_score(y_true, y_pred)
     else:
         assert task_type == "regression"
-        score = -(sklearn.metrics.mean_squared_error(y_true, y_pred) ** 0.5 * Y_std)
+        score = -(sklearn.metrics.mean_squared_error(y_true, y_pred)
+                  ** 0.5 * Y_std)
     return score  # The higher -- the better.
 
 
