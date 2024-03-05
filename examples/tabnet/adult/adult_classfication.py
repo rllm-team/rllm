@@ -25,6 +25,7 @@ time_start = time.time()
 
 # 1.Load and process data
 
+# train = pd.read_csv('dataset/adult.data')
 train = pd.read_csv('dataset/adult.data')
 target = ' <=50K'
 

@@ -21,22 +21,6 @@ class SparsemaxFunction(Function):
 
     @staticmethod
     def forward(ctx, input, dim=-1):
-        """sparsemax: normalizing sparse transform (a la softmax)
-
-        Parameters
-        ----------
-        ctx : torch.autograd.function._ContextMethodMixin
-        input : torch.Tensor
-            any shape
-        dim : int
-            dimension along which to apply sparsemax
-
-        Returns
-        -------
-        output : torch.Tensor
-            same shape as input
-
-        """
         ctx.dim = dim
         max_val, _ = input.max(dim=dim, keepdim=True)
         input -= max_val
@@ -60,23 +44,6 @@ class SparsemaxFunction(Function):
 
     @staticmethod
     def _threshold_and_support(input, dim=-1):
-        """Sparsemax building block: compute the threshold
-
-        Parameters
-        ----------
-        input: torch.Tensor
-            any dimension
-        dim : int
-            dimension along which to apply the sparsemax
-
-        Returns
-        -------
-        tau : torch.Tensor
-            the threshold value
-        support_size : torch.Tensor
-
-        """
-
         input_srt, _ = torch.sort(input, descending=True, dim=dim)
         input_cumsum = input_srt.cumsum(dim) - 1
         rhos = _make_ix_like(input, dim)
@@ -123,7 +90,7 @@ class Entmax15Function(Function):
     @staticmethod
     def backward(ctx, grad_output):
         Y, = ctx.saved_tensors
-        gppr = Y.sqrt()  # = 1 / g'' (Y)
+        gppr = Y.sqrt()
         dX = grad_output * gppr
         q = dX.sum(ctx.dim) / gppr.sum(ctx.dim)
         q = q.unsqueeze(ctx.dim)
@@ -140,9 +107,6 @@ class Entmax15Function(Function):
         ss = rho * (mean_sq - mean ** 2)
         delta = (1 - ss) / rho
 
-        # NOTE this is not exactly the same as in reference algo
-        # Fortunately it seems the clamped values never wrongly
-        # get selected by tau <= sorted_z. Prove this!
         delta_nz = torch.clamp(delta, 0)
         tau = mean - torch.sqrt(delta_nz)
 
