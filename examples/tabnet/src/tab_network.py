@@ -53,37 +53,6 @@ class TabNetEncoder(torch.nn.Module):
         mask_type="sparsemax",
         group_attention_matrix=None,
     ):
-        """
-        Defines main part of the TabNet network without the embedding layers.
-        Parameters
-        ----------
-        input_dim : int
-            Number of features
-        output_dim : int or list of int for multi task classification
-            Dimension of network output
-        n_d : int
-            Dimension of the prediction  layer
-        n_a : int
-            Dimension of the attention  layer
-        n_steps : int
-            Number of successive steps in the network
-        gamma : float
-            Float above 1, scaling factor for attention updates
-        n_independent : int
-            Number of independent GLU layer in each GLU block
-        n_shared : int
-            Number of independent GLU layer in each GLU block
-        epsilon : float
-            Avoid log(0), this should be kept very low
-        virtual_batch_size : int
-            Batch size for Ghost Batch Normalization
-        momentum : float
-            Float value between 0 and 1 which will be used for momentum in all batch norm
-        mask_type : str
-            Either "sparsemax" or "entmax" : this is the masking function to use
-        group_attention_matrix : torch matrix
-            Matrix of size (n_groups, input_dim), m_ij = importance within group i of feature j
-        """
         super(TabNetEncoder, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -221,30 +190,6 @@ class TabNetDecoder(torch.nn.Module):
         virtual_batch_size=128,
         momentum=0.02,
     ):
-        """
-        Defines main part of the TabNet network without the embedding layers.
-
-        Parameters
-        ----------
-        input_dim : int
-            Number of features
-        output_dim : int or list of int for multi task classification
-            Dimension of network output
-        n_d : int
-            Dimension of the prediction  layer
-        n_steps : int
-            Number of successive steps in the network
-        gamma : float
-            Float above 1, scaling factor for attention updates
-        n_independent : int
-            Number of independent GLU layer in each GLU block
-        n_shared : int
-            Number of independent GLU layer in each GLU block
-        virtual_batch_size : int
-            Batch size for Ghost Batch Normalization
-        momentum : float
-            Float value between 0 and 1 which will be used for momentum in all batch norm
-        """
         super(TabNetDecoder, self).__init__()
         self.input_dim = input_dim
         self.n_d = n_d
@@ -302,39 +247,6 @@ class TabNetNoEmbeddings(torch.nn.Module):
         mask_type="sparsemax",
         group_attention_matrix=None,
     ):
-        """
-        Defines main part of the TabNet network without the embedding layers.
-
-        Parameters
-        ----------
-        input_dim : int
-            Number of features
-        output_dim : int or list of int for multi task classification
-            Dimension of network output
-            examples : one for regression, 2 for binary classification etc...
-        n_d : int
-            Dimension of the prediction  layer (usually between 4 and 64)
-        n_a : int
-            Dimension of the attention  layer (usually between 4 and 64)
-        n_steps : int
-            Number of successive steps in the network (usually between 3 and 10)
-        gamma : float
-            Float above 1, scaling factor for attention updates (usually between 1.0 to 2.0)
-        n_independent : int
-            Number of independent GLU layer in each GLU block (default 2)
-        n_shared : int
-            Number of independent GLU layer in each GLU block (default 2)
-        epsilon : float
-            Avoid log(0), this should be kept very low
-        virtual_batch_size : int
-            Batch size for Ghost Batch Normalization
-        momentum : float
-            Float value between 0 and 1 which will be used for momentum in all batch norm
-        mask_type : str
-            Either "sparsemax" or "entmax" : this is the masking function to use
-        group_attention_matrix : torch matrix
-            Matrix of size (n_groups, input_dim), m_ij = importance within group i of feature j
-        """
         super(TabNetNoEmbeddings, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -414,46 +326,6 @@ class TabNet(torch.nn.Module):
         mask_type="sparsemax",
         group_attention_matrix=[],
     ):
-        """
-        Defines TabNet network
-
-        Parameters
-        ----------
-        input_dim : int
-            Initial number of features
-        output_dim : int
-            Dimension of network output
-        n_d : int
-            Dimension of the prediction  layer
-        n_a : int
-            Dimension of the attention  layer
-        n_steps : int
-            Number of successive steps in the network
-        gamma : float
-            Float above 1, scaling factor for attention updates
-        cat_idxs : list of int
-            Index of each categorical column in the dataset
-        cat_dims : list of int
-            Number of categories in each categorical column
-        cat_emb_dim : int or list of int
-            Size of the embedding of categorical features
-            if int, all categorical features will have same embedding size
-            if list of int, every corresponding feature will have specific size
-        n_independent : int
-            Number of independent GLU layer in each GLU block
-        n_shared : int
-            Number of independent GLU layer in each GLU block
-        epsilon : float
-            Avoid log(0), this should be kept very low
-        virtual_batch_size : int
-            Batch size for Ghost Batch Normalization
-        momentum : float
-            Float value between 0 and 1 which will be used for momentum in all batch norm
-        mask_type : str
-            Either "sparsemax" or "entmax" : this is the masking function to use
-        group_attention_matrix : torch matrix
-            Matrix of size (n_groups, input_dim), m_ij = importance within group i of feature j
-        """
         super(TabNet, self).__init__()
         self.cat_idxs = cat_idxs or []
         self.cat_dims = cat_dims or []
@@ -518,22 +390,6 @@ class AttentiveTransformer(torch.nn.Module):
         momentum=0.02,
         mask_type="sparsemax",
     ):
-        """
-        Initialize an attention transformer.
-
-        Parameters
-        ----------
-        input_dim : int
-            Input size
-        group_dim : int
-            Number of groups for features
-        virtual_batch_size : int
-            Batch size for Ghost Batch Normalization
-        momentum : float
-            Float value between 0 and 1 which will be used for momentum in batch norm
-        mask_type : str
-            Either "sparsemax" or "entmax" : this is the masking function to use
-        """
         super(AttentiveTransformer, self).__init__()
         self.fc = Linear(input_dim, group_dim, bias=False)
         initialize_non_glu(self.fc, input_dim, group_dim)
@@ -571,24 +427,6 @@ class FeatTransformer(torch.nn.Module):
         momentum=0.02,
     ):
         super(FeatTransformer, self).__init__()
-        """
-        Initialize a feature transformer.
-
-        Parameters
-        ----------
-        input_dim : int
-            Input size
-        output_dim : int
-            Output_size
-        shared_layers : torch.nn.ModuleList
-            The shared block that should be common to every step
-        n_glu_independent : int
-            Number of independent GLU layers
-        virtual_batch_size : int
-            Batch size for Ghost Batch Normalization within GLU block(s)
-        momentum : float
-            Float value between 0 and 1 which will be used for momentum in batch norm
-        """
 
         params = {
             "n_glu": n_glu_independent,
@@ -700,23 +538,6 @@ class EmbeddingGenerator(torch.nn.Module):
     """
 
     def __init__(self, input_dim, cat_dims, cat_idxs, cat_emb_dims, group_matrix):
-        """This is an embedding module for an entire set of features
-
-        Parameters
-        ----------
-        input_dim : int
-            Number of features coming as input (number of columns)
-        cat_dims : list of int
-            Number of modalities for each categorial features
-            If the list is empty, no embeddings will be done
-        cat_idxs : list of int
-            Positional index for each categorical features in inputs
-        cat_emb_dim : list of int
-            Embedding dimension for each categorical features
-            If int, the same embedding dimension will be used for all categorical features
-        group_matrix : torch matrix
-            Original group matrix before embeddings
-        """
         super(EmbeddingGenerator, self).__init__()
 
         if cat_dims == [] and cat_idxs == []:
@@ -781,42 +602,3 @@ class EmbeddingGenerator(torch.nn.Module):
         # concat
         post_embeddings = torch.cat(cols, dim=1)
         return post_embeddings
-
-
-class RandomObfuscator(torch.nn.Module):
-    """
-    Create and applies obfuscation masks.
-    The obfuscation is done at group level to match attention.
-    """
-
-    def __init__(self, pretraining_ratio, group_matrix):
-        """
-        This create random obfuscation for self suppervised pretraining
-        Parameters
-        ----------
-        pretraining_ratio : float
-            Ratio of feature to randomly discard for reconstruction
-
-        """
-        super(RandomObfuscator, self).__init__()
-        self.pretraining_ratio = pretraining_ratio
-        # group matrix is set to boolean here to pass all posssible information
-        self.group_matrix = (group_matrix > 0) + 0.
-        self.num_groups = group_matrix.shape[0]
-
-    def forward(self, x):
-        """
-        Generate random obfuscation mask.
-
-        Returns
-        -------
-        masked input and obfuscated variables.
-        """
-        bs = x.shape[0]
-
-        obfuscated_groups = torch.bernoulli(
-            self.pretraining_ratio * torch.ones((bs, self.num_groups), device=x.device)
-        )
-        obfuscated_vars = torch.matmul(obfuscated_groups, self.group_matrix)
-        masked_input = torch.mul(1 - obfuscated_vars, x)
-        return masked_input, obfuscated_groups, obfuscated_vars
