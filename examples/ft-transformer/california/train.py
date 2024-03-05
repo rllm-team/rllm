@@ -31,7 +31,7 @@ from tqdm.std import tqdm
 
 warnings.resetwarnings()
 
-from rtdl_revisiting_models import MLP, ResNet, FTTransformer
+from rtdl_revisiting_models import FTTransformer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Set random seeds in all libraries.
 delu.random.seed(0)
@@ -156,28 +156,6 @@ if task_type != "multiclass":
 # The output size.
 d_out = n_classes if task_type == "multiclass" else 1
 
-# # NOTE: uncomment to train MLP
-# model = MLP(
-#     d_in=n_cont_features + sum(cat_cardinalities),
-#     d_out=d_out,
-#     n_blocks=2,
-#     d_block=384,
-#     dropout=0.1,
-# ).to(device)
-# optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-5)
-
-# # NOTE: uncomment to train ResNet
-# model = ResNet(
-#     d_in=n_cont_features + sum(cat_cardinalities),
-#     d_out=d_out,
-#     n_blocks=2,
-#     d_block=192,
-#     d_hidden=None,
-#     d_hidden_multiplier=2.0,
-#     dropout1=0.3,
-#     dropout2=0.0,
-# ).to(device)
-# optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-5)
 
 model = FTTransformer(
     n_cont_features=n_cont_features,
@@ -190,18 +168,7 @@ optimizer = model.make_default_optimizer()
 
 # Training
 def apply_model(batch: Dict[str, Tensor]) -> Tensor:
-    if isinstance(model, (MLP, ResNet)):
-        x_cat_ohe = (
-            [
-                F.one_hot(column, cardinality)
-                for column, cardinality in zip(batch["x_cat"].T, cat_cardinalities)
-            ]
-            if "x_cat" in batch
-            else []
-        )
-        return model(torch.column_stack([batch["x_cont"]] + x_cat_ohe)).squeeze(-1)
-
-    elif isinstance(model, FTTransformer):
+    if isinstance(model, FTTransformer):
         return model(batch["x_cont"], batch.get("x_cat")).squeeze(-1)
 
     else:
