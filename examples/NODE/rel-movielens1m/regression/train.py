@@ -18,7 +18,7 @@ import torch, torch.nn as nn
 import torch.nn.functional as F
 from qhoptim.pyt import QHAdam
 from tqdm import tqdm
-from IPython.display import clear_output
+# from IPython.display import clear_output
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -93,7 +93,7 @@ for batch in lib.iterate_minibatches(data.X_train, data.y_train, batch_size=1024
         trainer.load_checkpoint()  # last
         trainer.remove_old_temp_checkpoints()
 
-        clear_output(True)
+        # clear_output(True)
 
     if trainer.step > best_step_mse + early_stopping_rounds:
         print('BREAK. There is no improvment for {} steps'.format(early_stopping_rounds))
