@@ -190,7 +190,7 @@ def evaluate(part: str) -> float:
         score = sklearn.metrics.accuracy_score(y_true, y_pred)
     else:
         assert task_type == "regression"
-        score = - sklearn.metrics.mean_absolute_error(y_true, y_pred)
+        score = - sklearn.metrics.mean_squared_error(y_true, y_pred)
     return score  # The higher -- the better.
 
 
