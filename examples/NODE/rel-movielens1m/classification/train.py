@@ -17,7 +17,7 @@ import torch, torch.nn as nn
 import torch.nn.functional as F
 from qhoptim.pyt import QHAdam
 from tqdm import tqdm
-from IPython.display import clear_output
+# from IPython.display import clear_output
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -84,7 +84,7 @@ for batch in lib.iterate_minibatches(data.X_train, data.y_train, batch_size=512,
         trainer.load_checkpoint()  # last
         trainer.remove_old_temp_checkpoints()
             
-        clear_output(True)
+        # clear_output(True)
         
     if trainer.step > best_step + early_stopping_rounds:
         print('BREAK. There is no improvment for {} steps'.format(early_stopping_rounds))
@@ -93,15 +93,15 @@ for batch in lib.iterate_minibatches(data.X_train, data.y_train, batch_size=512,
         break
 
 trainer.load_checkpoint(tag='best')
-error_rate = trainer.evaluate_classification_error(data.X_test, data.y_test, device=device, batch_size=1024)
-micro_f1 = trainer.evaluate_classification_error_micro(data.X_test, data.y_test, device=device, batch_size=1024)
+macro_f1_error_rate = trainer.evaluate_classification_error(data.X_test, data.y_test, device=device, batch_size=1024)
+micro_f1_error_rate = trainer.evaluate_classification_error_micro(data.X_test, data.y_test, device=device, batch_size=1024)
 
 end_time = time.time()
 elapsed_time = end_time - start_time
 
 print('Best step: ', trainer.step)
-print("Test Macro_f1: %0.5f" % (1-error_rate))
-print("Test Micro_f1: %0.5f" % (1-micro_f1))
+print("Test Macro_f1: %0.5f" % (1-macro_f1_error_rate))
+print("Test Micro_f1: %0.5f" % (1-micro_f1_error_rate))
 # trainer.load_checkpoint()
 
 print(f"Total time: {elapsed_time} seconds")
