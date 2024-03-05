@@ -6,6 +6,7 @@
 # Runtime: 6097s (on a single 6G GPU)
 # Cost: 0.2532 US Dollar
 # Description: Give llm movie name and limited genres, then ask llm which genres the movie should belong to.
+# Usage: python rel-movielens1m_clf.py
 
 # Append rllm to search path
 import sys
