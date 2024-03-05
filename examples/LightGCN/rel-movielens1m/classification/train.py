@@ -1,4 +1,5 @@
-
+# the model is also lightGCN, but in order to get better result, we use the idea from LightGCN into a simplified model
+# macro 0.337 micro 0.128
 
 from __future__ import division
 from __future__ import print_function
