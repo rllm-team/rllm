@@ -170,6 +170,16 @@ class Trainer(nn.Module):
             prediction = check_numpy(prediction)
             error_rate = ((y_test - prediction) ** 2).mean()
         return error_rate
+
+    def evaluate_mae(self, X_test, y_test, device, batch_size=4096):
+        X_test = torch.as_tensor(X_test, device=device)
+        y_test = check_numpy(y_test)
+        self.model.train(False)
+        with torch.no_grad():
+            prediction = process_in_chunks(self.model, X_test, batch_size=batch_size)
+            prediction = check_numpy(prediction)
+            error_rate = np.abs(y_test - prediction).mean()
+        return error_rate
     
     def evaluate_auc(self, X_test, y_test, device, batch_size=512):
         X_test = torch.as_tensor(X_test, device=device)
