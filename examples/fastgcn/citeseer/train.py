@@ -1,6 +1,7 @@
 # FastGCN for classification task in cora and citeseer
 # Paper: Chen J, Ma T, Xiao C. Fastgcn: fast learning with graph convolutional networks via importance sampling  https://arxiv.org/abs/1801.10247
-# test_acc: 0.854 for cora, 0.783 for citeseer
+# test_acc: 0.854 for cora if use training set of 1208; 0.736 if use training set of 140, 
+# 0.783 for citeseer if use original segmentation, 0.674 if use training set of 120. 
 # Runtime: 2.35s for cora, and 3.48s for citeseer on a single CPU (11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHZ)
 # Cost: N/A
 # Description: apply FastGCN to a cora and siteseer, classification
