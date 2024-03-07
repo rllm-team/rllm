@@ -1,7 +1,7 @@
 # GraphSage
 # Inductive Representation Learning on Large Graphs
 # https://arxiv.org/abs/1706.02216
-# MSE: 1.3283003568649292
+# Accuracy: 0.8020
 # 1.5574s
 # N/A
 # python train.py
