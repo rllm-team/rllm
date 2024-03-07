@@ -8,7 +8,8 @@ import networkx as nx
 import scipy.sparse as sp
 import os
 current_path = os.path.dirname(__file__)
-file_path = current_path + "/.."
+# file_path = current_path + "/.."
+file_path = current_path + "/../../../rllm"
 
 
 def _load_data(dataset_str):
@@ -64,10 +65,10 @@ def _load_data(dataset_str):
     labels[test_idx_reorder, :] = labels[test_idx_range, :]
 
     idx_test = test_idx_range.tolist()
-    idx_train = range(len(ally)-500)
-    idx_val = range(len(ally)-500, len(ally))
-    # idx_train = range(len(y))
-    # idx_val = range(len(y), len(y)+500)
+    # idx_train = range(len(ally)-500)
+    # idx_val = range(len(ally)-500, len(ally))
+    idx_train = range(len(y))
+    idx_val = range(len(y), len(y)+500)
 
     train_mask = sample_mask(idx_train, labels.shape[0])
     val_mask = sample_mask(idx_val, labels.shape[0])
