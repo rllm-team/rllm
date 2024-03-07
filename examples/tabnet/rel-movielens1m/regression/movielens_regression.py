@@ -14,6 +14,7 @@
 # further observation tells us the When the GPU is working, the CPU runs slower. 
 # I guess optimizations on cpus and the time cost when converting gpu-tensors to cpu-tensors may be responsible for this phenomenom. 
 # to conclude, tabnet do use gpu if we turn the device to "cuda", yet the running time is actually cpu-dominated. 
+# We owe our thanks to https://github.com/Bireflection who helps run experiment. 
 
 
 
