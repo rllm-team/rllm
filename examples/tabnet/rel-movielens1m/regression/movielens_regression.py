@@ -5,6 +5,18 @@
 # Runtime: 30min20s on single CPU (Inter(R) Core(TM) i7-11800H @ 2.30Ghz)
 # Cost: N/A
 # Description: Simply apply TabNet to movielens.
+# comment: we've run the same code on different CPUs and may reach a conclusion: 
+# we used 1.5h on 1: CPU AMD Ryzen 5 5600U and 2: Inter Core i5-10210U; 0.5h on 3: CPU Inter(R) Core(TM) i7-11800H and 4: i5 12400F
+# Turning the device to GPU won't improve the running time significantly. What's more, turning it to GPU won't take much GPU memory. 
+# I've tried it on 1: CPU Inter(R) Core(TM) i7-11800H with GPU Nvidia-T600 and 2: CPU i5-12400F with GPU 3060ti
+# What's funny is that the running time will be slightly longer if we run the code on GPU, 
+# for example, we've run it on i5-12400F with GPU 3060ti and got about 29s/epoch on cpu and 32s/epoch on gpu, with a gpu usage of 800MB. 
+# further observation tells us the When the GPU is working, the CPU runs slower. 
+# I guess optimizations on cpus and the time cost when converting gpu-tensors to cpu-tensors may be responsible for this phenomenom. 
+# to conclude, tabnet do use gpu if we turn the device to "cuda", yet the running time is actually cpu-dominated. 
+
+
+
 import sys
 sys.path.append("../../src")
 from tab_model import TabNetRegressor
