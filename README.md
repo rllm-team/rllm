@@ -45,11 +45,9 @@ For detailed instructions, refer to [abetlen/llama-cpp-python: Python bindings f
 
 - We have used `langchain`, `langchain-experimental` and `langchain-community` packages. For detailed instructions, refer to [Introduction | 🦜️🔗 Langchain](https://python.langchain.com/docs/get_started/introduction)
 
-## Download 4-bit quantized llama models
+## Download 4-bit quantized LLM models
 
-- Download the 4-bit quantized llama models directly from the SJTU cloud storage. Currently, llama-2-7b-chat.Q4_K_M.gguf and gemma-2b-it-q4_k_m.gguf are provided.
-
-- Download the llama-2-7b-chat.Q4_K_M.gguf file directly from [llama-2-7b-chat.Q4_K_M.gguf](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/blob/main/llama-2-7b-chat.Q4_K_M.gguf). 
+- Download the 4-bit quantized LLM models directly from the SJTU cloud storage. Currently, due to its great performance, we choose 4-bit quantized gemma 2b model as our LLM.
 - Download gemma-2b-it-q4_k_m.gguf from [gemma-2b-it-q4_k_m.gguf](https://huggingface.co/lmstudio-ai/gemma-2b-it-GGUF/blob/main/gemma-2b-it-q4_k_m.gguf)
 
 ## Choosing Embedding Models
