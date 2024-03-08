@@ -27,7 +27,7 @@ import torch.optim as optim
 import torch.nn as nn
 from models import Model
 from sampler import Sampler_FastGCN
-from utils_movielens import get_batches, sample_more, drop_adj
+from utils import get_batches, sample_more, drop_adj
 import scipy.sparse as sp
 import warnings
 
