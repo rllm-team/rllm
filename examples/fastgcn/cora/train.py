@@ -10,14 +10,16 @@
 
 import sys
 sys.path.append("../src")
-sys.path.append("../../../../rllm/dataloader")
+sys.path.append("../../../rllm/dataloader")
 
-from utils_cora import sparse_mx_to_torch_sparse_tensor
-from utils_cora import load_data, get_batches, accuracy
+from utils import sparse_mx_to_torch_sparse_tensor
+from utils import get_batches, accuracy
 from sampler import Sampler_FastGCN, Sampler_ASGCN
 from models import GCN
 import argparse
 import time
+import scipy.sparse as sp
+from load_data import load_data
 
 import torch
 import torch.nn.functional as F
@@ -89,12 +91,72 @@ def test(test_adj, test_feats, test_labels, epoch):
 
     return loss_test.item(), acc_test.item(), time.time() - t
 
+def normalize_adj(adj):
+    """Symmetrically normalize adjacency matrix."""
+    adj = sp.coo_matrix(adj)
+    rowsum = np.array(adj.sum(1))
+    d_inv_sqrt = np.power(rowsum, -0.5).flatten()
+    d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
+    d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
+    return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
+
+
+def sample_mask(idx, lst):
+    """Create mask."""
+    mask = np.zeros(lst)
+    mask[idx] = 1
+    return np.array(mask, dtype=bool)
+
+
+def nontuple_preprocess_adj(adj):
+    adj_normalized = normalize_adj(sp.eye(adj.shape[0]) + adj)
+    # adj_normalized = sp.eye(adj.shape[0]) + normalize_adj(adj)
+    return adj_normalized.tocsr()
+
 
 if __name__ == '__main__':
     # load data, set superpara and constant
     args = get_args()
-    adj, features, adj_train, train_features, y_train, y_test, test_index = \
-        load_data(args.dataset)
+    data, adj, features, labels, idx_train, idx_val, idx_test = load_data(
+    args.dataset)
+    label_origin = labels.detach().cpu().numpy()
+
+    # move to fit
+
+    train_mask = sample_mask(idx_train, label_origin.shape[0])
+    val_mask = sample_mask(idx_val, label_origin.shape[0])
+    test_mask = sample_mask(idx_test, label_origin.shape[0])
+
+    # print(f"idx_train.shape: {idx_train.shape}")
+
+    y_train = np.zeros(label_origin.shape)
+    y_val = np.zeros(label_origin.shape)
+    y_test = np.zeros(label_origin.shape)
+    y_train[train_mask, :] = label_origin[train_mask, :]
+    y_val[val_mask, :] = label_origin[val_mask, :]
+    y_test[test_mask, :] = label_origin[test_mask, :]
+    train_index = np.where(train_mask)[0]
+    # adj_train = adj[train_index, :][:, train_index]
+    y_train = y_train[train_index]
+    val_index = np.where(val_mask)[0]
+    y_val = y_val[val_index]
+    test_index = np.where(test_mask)[0]
+    y_test = y_test[test_index]
+    # print(f"y_test.shape: {y_test.shape}")
+    # print(f"y_val.shape: {y_val.shape}")
+
+
+    sparse_adj = sp.csr_matrix(adj.to_dense().numpy())
+    # norm_adj_train = nontuple_preprocess_adj(idx_train)
+    norm_adj = nontuple_preprocess_adj(sparse_adj)
+    adj = norm_adj
+
+    # print(f"train_index: {train_index}")
+    # print(f"sparse_adj: {sparse_adj}")
+    adj_train = sparse_adj[train_index, :][:, train_index]
+    norm_adj_train = nontuple_preprocess_adj(adj_train)
+    adj_train = norm_adj_train
+    train_features = features[train_index]
 
     layer_sizes = [128, 128]
     input_dim = features.shape[1]
