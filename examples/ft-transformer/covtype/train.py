@@ -16,7 +16,7 @@ import warnings
 from typing import Dict, Literal
 
 warnings.simplefilter("ignore")
-import delu
+import utils
 import numpy as np
 import scipy.special
 import sklearn.datasets
@@ -34,7 +34,7 @@ warnings.resetwarnings()
 from rtdl_revisiting_models import FTTransformer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Set random seeds in all libraries.
-delu.random.seed(0)
+utils.random.seed(0)
 # Dataset
 # >>> Dataset.
 TaskType = Literal["regression", "binclass", "multiclass"]
@@ -179,7 +179,7 @@ def evaluate(part: str) -> float:
         torch.cat(
             [
                 apply_model(batch)
-                for batch in delu.iter_batches(data[part], eval_batch_size)
+                for batch in utils.iter_batches(data[part], eval_batch_size)
             ]
         )
         .cpu()
@@ -210,8 +210,8 @@ patience = 16
 
 batch_size = 256
 epoch_size = math.ceil(len(train_idx) / batch_size)
-timer = delu.tools.Timer()
-early_stopping = delu.tools.EarlyStopping(patience, mode="max")
+timer = utils.tools.Timer()
+early_stopping = utils.tools.EarlyStopping(patience, mode="max")
 best = {
     "val": -math.inf,
     "test": -math.inf,
@@ -223,7 +223,7 @@ print("-" * 88 + "\n")
 timer.run()
 for epoch in range(n_epochs):
     for batch in tqdm(
-        delu.iter_batches(data["train"], batch_size, shuffle=True),
+        utils.iter_batches(data["train"], batch_size, shuffle=True),
         desc=f"Epoch {epoch}",
         total=epoch_size,
     ):
