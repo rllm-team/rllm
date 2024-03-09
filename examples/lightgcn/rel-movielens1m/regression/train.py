@@ -7,10 +7,13 @@
 # Description: only single-layer linear transformation. 
 # Description:In this model, we only retain the final result output instead of using multiple layers of output averaging as in the standard LightGCN.
 
+import time
 import torch
 import torch.nn as nn
 import pandas as pd
 
+
+t_total = time.time()
 class LightGCN(nn.Module):
     def __init__(self, num_users, num_items, emb_size):
         super(LightGCN, self).__init__()
@@ -33,12 +36,12 @@ class LightGCN(nn.Module):
         return logits
 
 # 读取文件
-train_df = pd.read_csv('../../../rllm/datasets/rel-movielens1m/regression/ratings/train.csv')
-test_df = pd.read_csv('../../../rllm/datasets/rel-movielens1m/regression/ratings/test.csv')
-val_df = pd.read_csv('../../../rllm/datasets/rel-movielens1m/regression/ratings/validation.csv')
+train_df = pd.read_csv('../../../../rllm/datasets/rel-movielens1m/regression/ratings/train.csv')
+test_df = pd.read_csv('../../../../rllm/datasets/rel-movielens1m/regression/ratings/test.csv')
+val_df = pd.read_csv('../../../../rllm/datasets/rel-movielens1m/regression/ratings/validation.csv')
 
-movie_df = pd.read_csv('../../../rllm/datasets/rel-movielens1m/regression/movies.csv')
-user_df = pd.read_csv('../../../rllm/datasets/rel-movielens1m/regression/users.csv')
+movie_df = pd.read_csv('../../../../rllm/datasets/rel-movielens1m/regression/movies.csv')
+user_df = pd.read_csv('../../../../rllm/datasets/rel-movielens1m/regression/users.csv')
 
 # Create user and movie index mappings
 user_idx_map = {user_id: idx for idx, user_id in enumerate(user_df['UserID'].unique())}
@@ -66,7 +69,6 @@ user_indices = torch.tensor(train_df['user_idx'].values, dtype=torch.long)
 movie_indices = torch.tensor(train_df['movie_idx'].values, dtype=torch.long)
 ratings = torch.tensor(train_df['Rating'].values, dtype=torch.float)
 
-print(user_indices.shape, movie_indices.shape, ratings.shape)
 
 # train process begin
 num_epochs = 100
@@ -99,3 +101,4 @@ with torch.no_grad():
     # get MAE
     mae = torch.abs(predictions - ratings).mean()
     print(f'Mean Absolute Error (MAE): {mae.item()}')
+    print("Total time elapsed: {:.4f}s".format(time.time() - t_total))
