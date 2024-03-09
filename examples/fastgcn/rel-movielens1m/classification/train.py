@@ -21,8 +21,8 @@ import torch.optim as optim
 import torch.nn as nn
 from models import GCN
 from sampler import Sampler_FastGCN, Sampler_ASGCN
-from utils_movielens import get_batches
-from utils_movielens import sparse_mx_to_torch_sparse_tensor
+from utils import get_batches
+from utils import sparse_mx_to_torch_sparse_tensor
 from sklearn.metrics import f1_score
 import scipy.sparse as sp
 import warnings
