@@ -1,5 +1,11 @@
-# the model is also lightGCN, but in order to get better result, we use the idea from LightGCN into a simplified model
-# macro 0.337 micro 0.128
+# Naive GCN for classification task in rel-movielens1M
+# Paper: Kipf, T. N., & Welling, M. (2016). Semi-Supervised Classification with Graph Convolutional Networks. ArXiv. /abs/1609.02907
+# Test f1_score micro: 0.3911, macro: 0.0756
+# Runtime: 36.2197s on a single CPU (Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz 2.11 GHz)
+# Cost: N/A
+# Description: Simply apply GCN to movielens. Movies are linked iff a certain number of users rate them samely. Features were llm embeddings from table data to vectors.
+
+# Comment: Over-smoothing is significant.
 
 from __future__ import division
 from __future__ import print_function
@@ -20,7 +26,7 @@ from sklearn.metrics import f1_score
 # from utils import load_data
 
 from load_data import load_data
-from models import LightGCN
+from models import lightGCN
 
 t_total = time.time()
 
@@ -31,9 +37,9 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
 parser.add_argument('--fastmode', action='store_true', default=False,
                     help='Validate during training pass.')
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
-parser.add_argument('--epochs', type=int, default=1000,
+parser.add_argument('--epochs', type=int, default=200,
                     help='Number of epochs to train.')
-parser.add_argument('--lr', type=float, default=0.05,
+parser.add_argument('--lr', type=float, default=0.01,
                     help='Initial learning rate.')
 parser.add_argument('--weight_decay', type=float, default=5e-4,
                     help='Weight decay (L2 loss on parameters).')
@@ -52,13 +58,13 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 # Load data
-data, adj, features, labels, idx_train, idx_val, idx_test = load_data('movielens-classification')
+data, adj, features, labels, idx_train, idx_val, idx_test = load_data('movielens-classification', device=device)
 labels_train = labels.cpu()[idx_train.cpu()]
 labels_val = labels.cpu()[idx_val.cpu()]
 labels_test = labels.cpu()[idx_test.cpu()]
 
 # Model and optimizer
-model = LightGCN(nfeat=features.shape[1],
+model = lightGCN(nfeat=features.shape[1],
             nhid=args.hidden,
             nclass=labels.shape[1],
             dropout=args.dropout).to(device)
