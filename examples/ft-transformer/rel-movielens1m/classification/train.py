@@ -16,7 +16,7 @@ import warnings
 from typing import Dict, Literal
 import torch
 warnings.simplefilter("ignore")
-import delu
+import utils
 import numpy as np
 import pandas as pd
 import sklearn.datasets
@@ -37,7 +37,7 @@ from rtdl_revisiting_models import FTTransformer
 start_time = time.time()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Set random seeds in all libraries.
-delu.random.seed(0)
+utils.random.seed(0)
 
 # Dataset
 # >>> Dataset.
@@ -182,7 +182,7 @@ def evaluate(part: str) -> dict:
         torch.cat(
             [
                 apply_model(batch)
-                for batch in delu.iter_batches(data[part], eval_batch_size)
+                for batch in utils.iter_batches(data[part], eval_batch_size)
             ]
         )
         .cpu()
@@ -213,8 +213,8 @@ patience = 16
 
 batch_size = 256
 epoch_size = math.ceil(len(train_idx) / batch_size)
-timer = delu.tools.Timer()
-early_stopping = delu.tools.EarlyStopping(patience, mode="max")
+timer = utils.tools.Timer()
+early_stopping = utils.tools.EarlyStopping(patience, mode="max")
 best = {
     "val": -math.inf,
     "test": -math.inf,
@@ -226,7 +226,7 @@ print("-" * 88 + "\n")
 timer.run()
 for epoch in range(n_epochs):
     for batch in tqdm(
-        delu.iter_batches(data["train"], batch_size, shuffle=True),
+        utils.iter_batches(data["train"], batch_size, shuffle=True),
         desc=f"Epoch {epoch}",
         total=epoch_size,
     ):
