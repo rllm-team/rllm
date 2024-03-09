@@ -1,4 +1,4 @@
-from utils_cora import sparse_mx_to_torch_sparse_tensor, load_data
+from utils import sparse_mx_to_torch_sparse_tensor
 import pdb
 import math
 import torch
