@@ -19,7 +19,7 @@ import time
 
 # from utils import load_data function
 from load_data import load_data
-from examples.DGI.models import DGI, Model
+from models import DGI, Model
 
 # Training settings
 parser = argparse.ArgumentParser()
