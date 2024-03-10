@@ -20,7 +20,7 @@ from sklearn.metrics import f1_score
 
 # from utils import load_data function
 from load_data import load_data
-from examples.DGI.models import DGI, LogReg
+from models import DGI, LogReg
 
 
 # Training settings
