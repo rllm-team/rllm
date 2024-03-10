@@ -16,7 +16,8 @@
 - langchain-experimental	0.0.52
 - tiktoken	0.6.0
 - sentence-transformers	2.3.1
-- transformers	4.37.2
+- numpy	1.26.4
+- pandas	2.1.4
 
 ## LLM models
 
