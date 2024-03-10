@@ -95,8 +95,7 @@ train, categorical_columns, categorical_dims = process_data(train_merge)
 
 for col in categorical_columns:
     print(
-        f"{col}: {train_merge[col].nunique()}, 
-        {valid_merge[col].nunique()}, {test_merge[col].nunique()}")
+        f"{col}: {train_merge[col].nunique()}, {valid_merge[col].nunique()}, {test_merge[col].nunique()}")
 
 # define categorical features for categorical embeddings
 unused_feat = ['Url', 'MovieID',
