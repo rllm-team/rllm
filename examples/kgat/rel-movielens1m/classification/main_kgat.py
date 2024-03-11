@@ -1,28 +1,26 @@
 # KGAT
 # KGAT: Knowledge Graph Attention Network for Recommendation
 # https://arxiv.org/abs/1905.07854
-# MSE: 1.49
+# F1-Ma: 0.1542642875096072 F1-Mi: 0.16810245995610731
 # about 690s on Tesla V100-SXM2
 # N/A
 # python main_kgat.py
 import sys
 import random
 from time import time
-
 import torch
 import torch.optim as optim
 import numpy as np
 
-from model.KGAT import KGAT
-from parser.parser_kgat import parse_kgat_args
 sys.path.append("../../../kgat")
+from model.KGAT import MLP_KGAT
+from parsers.parser_kgat import parse_kgat_args_clf
 from utils.log_helper import create_log_id, logging_config
 from utils.metrics import calc_mse
 from utils.model_helper import load_model
 from utils.io_helper import read_interactions
 import logging
-# from data_loader.loader_kgat import DataLoaderKGAT
-from data_loader.test_loader_kgat import DataLoaderKGAT
+from data_loader.movie_loader_kgat import DataLoaderKGAT
 sys.path.append("../../../../rllm/dataloader")
 from load_data import load_data
 
@@ -30,7 +28,7 @@ from load_data import load_data
 data, adj, features, labels, idx_train, idx_val, idx_test = \
     load_data('movielens-classification')
 
-args = parse_kgat_args()
+args = parse_kgat_args_clf()
 # seed
 random.seed(args.seed)
 np.random.seed(args.seed)
@@ -99,7 +97,7 @@ def train(args):
         user_pre_embed, item_pre_embed = None, None
 
     # construct model & optimizer
-    model = KGAT(
+    model = MLP_KGAT(
         args,
         data.n_users,
         data.n_entities,
@@ -178,82 +176,82 @@ def train(args):
             if (iter % args.cf_print_every) == 0:
                 logging.info(
                     'CF Training: Epoch {:04d} Iter {:04d} / {:04d} | \
-                        Time {:.1f}s | Iter Loss {:.4f} | MSE {:.4f}'
+                        Time {:.1f}s'
                     .format(
-                        epoch, iter, n_cf_batch, time() - time2,
-                        cf_batch_loss.item() - mse.item(), mse.item())
+                        epoch, iter, n_cf_batch, time() - time2)
                     )
-        continue
-        # train kg
+        # continue
 
-        kg_total_loss = 0
-        n_kg_batch = data.n_kg_train // data.kg_batch_size + 1
+    #     # train kg
 
-        for iter in range(1, n_kg_batch + 1):
-            # for iter in range(1, 200 + 1):
-            time4 = time()
-            kg_batch_head, kg_batch_relation, kg_batch_pos_tail, \
-                kg_batch_neg_tail = \
-                data.generate_kg_batch(
-                    data.train_kg_dict,
-                    data.kg_batch_size,
-                    data.n_users_entities)
-            kg_batch_head = kg_batch_head.to(device)
-            kg_batch_relation = kg_batch_relation.to(device)
-            kg_batch_relation[kg_batch_relation > data.type_of_scores] = \
-                kg_batch_relation[
-                    kg_batch_relation > data.type_of_scores
-                ] - data.type_of_scores
-            kg_batch_pos_tail = kg_batch_pos_tail.to(device)
-            kg_batch_neg_tail = kg_batch_neg_tail.to(device)
+    #     kg_total_loss = 0
+    #     n_kg_batch = data.n_kg_train // data.kg_batch_size + 1
 
-            kg_batch_loss = model(
-                kg_batch_head, kg_batch_relation, kg_batch_pos_tail,
-                kg_batch_neg_tail, mode='train_kg')
-            mse = mse_loss(
-                model, kg_batch_head, kg_batch_pos_tail, kg_batch_relation)
-            kg_batch_loss += mse
+    #     for iter in range(1, n_kg_batch + 1):
+    #         # for iter in range(1, 200 + 1):
+    #         time4 = time()
+    #         kg_batch_head, kg_batch_relation, kg_batch_pos_tail, \
+    #             kg_batch_neg_tail = \
+    #             data.generate_kg_batch(
+    #                 data.train_kg_dict,
+    #                 data.kg_batch_size,
+    #                 data.n_users_entities)
+    #         kg_batch_head = kg_batch_head.to(device)
+    #         kg_batch_relation = kg_batch_relation.to(device)
+    #         kg_batch_relation[kg_batch_relation > data.type_of_scores] = \
+    #             kg_batch_relation[
+    #                 kg_batch_relation > data.type_of_scores
+    #             ] - data.type_of_scores
+    #         kg_batch_pos_tail = kg_batch_pos_tail.to(device)
+    #         kg_batch_neg_tail = kg_batch_neg_tail.to(device)
 
-            if np.isnan(kg_batch_loss.cpu().detach().numpy()):
-                logging.info(
-                    'ERROR (KG Training): Epoch {:04d} \
-                    Iter {:04d} / {:04d} Loss is nan.'
-                    .format(epoch, iter, n_kg_batch))
-                sys.exit()
+    #         kg_batch_loss = model(
+    #             kg_batch_head, kg_batch_relation, kg_batch_pos_tail,
+    #             kg_batch_neg_tail, mode='train_kg')
+    #         mse = mse_loss(
+    #             model, kg_batch_head, kg_batch_pos_tail, kg_batch_relation)
+    #         kg_batch_loss += mse
 
-            kg_batch_loss.backward()
-            kg_optimizer.step()
-            kg_optimizer.zero_grad()
-            kg_total_loss += kg_batch_loss.item()
+    #         if np.isnan(kg_batch_loss.cpu().detach().numpy()):
+    #             logging.info(
+    #                 'ERROR (KG Training): Epoch {:04d} \
+    #                 Iter {:04d} / {:04d} Loss is nan.'
+    #                 .format(epoch, iter, n_kg_batch))
+    #             sys.exit()
 
-            if (iter % args.kg_print_every) == 0:
-                logging.info(
-                    'KG Training: Epoch {:04d} Iter {:04d} / {:04d} | \
-                    Time {:.1f}s | Iter Loss {:.4f} | MSE {:.4f}'.format(
-                        epoch, iter, n_kg_batch, time() - time4,
-                        kg_batch_loss.item() - mse.item(), mse.item())
-                )
+    #         kg_batch_loss.backward()
+    #         kg_optimizer.step()
+    #         kg_optimizer.zero_grad()
+    #         kg_total_loss += kg_batch_loss.item()
 
-        # update attention
-        time5 = time()
-        h_list = data.h_list.to(device)
-        t_list = data.t_list.to(device)
-        r_list = data.r_list.to(device)
-        relations = list(data.laplacian_dict.keys())
-        model(h_list, t_list, r_list, relations, mode='update_att')
-        logging.info('Update Attention: Epoch {:04d} | \
-            Total Time {:.1f}s'.format(epoch, time() - time5))
+    #         if (iter % args.kg_print_every) == 0:
+    #             logging.info(
+    #                 'KG Training: Epoch {:04d} Iter {:04d} / {:04d} | \
+    #                 Time {:.1f}s | Iter Loss {:.4f} | MSE {:.4f}'.format(
+    #                     epoch, iter, n_kg_batch, time() - time4,
+    #                     kg_batch_loss.item() - mse.item(), mse.item())
+    #             )
 
-        logging.info('CF + KG Training: Epoch {:04d} | \
-            Total Time {:.1f}s'.format(epoch, time() - time0))
+    #     # update attention
+    #     time5 = time()
+    #     h_list = data.h_list.to(device)
+    #     t_list = data.t_list.to(device)
+    #     r_list = data.r_list.to(device)
+    #     relations = list(data.laplacian_dict.keys())
+    #     model(h_list, t_list, r_list, relations, mode='update_att')
+    #     logging.info('Update Attention: Epoch {:04d} | \
+    #         Total Time {:.1f}s'.format(epoch, time() - time5))
 
-        # evaluate cf
-        if (epoch % args.evaluate_every) == 0 or epoch == args.n_epoch:
-            metrics_dict = evaluate(model, device)
-            logging.info(metrics_dict)
+    #     logging.info('CF + KG Training: Epoch {:04d} | \
+    #         Total Time {:.1f}s'.format(epoch, time() - time0))
 
-            epoch_list.append(epoch)
-    model.train_classifier(labels, idx_train, idx_test, classifier_optimizer)
+    #     # evaluate cf
+    #     if (epoch % args.evaluate_every) == 0 or epoch == args.n_epoch:
+    #         metrics_dict = evaluate(model, device)
+    #         logging.info(metrics_dict)
+
+    #         epoch_list.append(epoch)
+    model.train_classifier(labels.to(device), idx_train.to(device), idx_test.to(device), classifier_optimizer)
     torch.save(model, 'trained_model/KGAT/rel-movielens/kgat.pth')
 
 

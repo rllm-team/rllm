@@ -1,0 +1,1 @@
+To run KGAT on rel-movielens, you need to build knowledge graph using the code in `build_kg`. For regression task, run `python build_reg.py` and move the txt files generated to `datasets/rel-movielens`. For classification task, run `python build_clf.py` and move the txt files generated to `datasets/rel-movielens`(keep the txt files for regression task).
