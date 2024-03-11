@@ -3,15 +3,13 @@
 # Test f1_score micro: 0.4048, macro: 0.1038
 # Runtime: 23.6416s (on a single 32G GPU)
 # Cost: N/A
-# Description: Simply apply SGC to movielens. Movies are linked iff a certain number of users rate them samely. Features were llm embeddings from table data to vectors.
+# Description: Simply apply SGC to movielens.
+# Movies are linked iff a certain number of users rate them samely.
+# Features were llm embeddings from table data to vectors.
 
-# Comment: Over-smoothing is significant.
 
 from __future__ import division
 from __future__ import print_function
-
-import sys 
-sys.path.append("../../../../rllm/dataloader")
 
 import time
 import argparse
@@ -23,9 +21,12 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import f1_score
 
-# from utils import load_data
-from load_data import load_data
 from models import SGC
+
+import sys
+path = "../../../../rllm/dataloader"
+sys.path.append(path)
+from load_data import load_data
 
 t_total = time.time()
 
@@ -55,14 +56,9 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 # Load data
-data, adj, features, labels, idx_train, idx_val, idx_test = load_data('movielens-classification', device=device)
-
-def sgc_precompute(features, adj, degree=1):
-    for i in range(degree):
-        features = torch.spmm(adj, features)
-    return features
-
-features = sgc_precompute(features, adj)
+data, adj, features, labels, \
+    idx_train, idx_val, idx_test \
+    = load_data('movielens-classification', device=device)
 
 # Model and optimizer
 model = SGC(nfeat=features.shape[1],
@@ -72,18 +68,19 @@ optimizer = optim.Adam(model.parameters(),
 
 loss_func = nn.BCEWithLogitsLoss()
 
+
 def train(epoch):
     t = time.time()
     model.train()
     optimizer.zero_grad()
     output = model(features, adj)
     pred = np.where(output.cpu() > -1.0, 1, 0)
-    # print('output[0] =', output[1], output[15])
-    # print('f1 =', f1_score(labels[idx_train], pred[idx_train], average=None))
 
     loss_train = loss_func(output[idx_train], labels[idx_train])
-    f1_micro_train = f1_score(labels[idx_train].cpu(), pred[idx_train.cpu()], average="micro")
-    f1_macro_train = f1_score(labels[idx_train].cpu(), pred[idx_train.cpu()], average="macro")
+    f1_micro_train = f1_score(labels[idx_train].cpu(),
+                              pred[idx_train.cpu()], average="micro")
+    f1_macro_train = f1_score(labels[idx_train].cpu(),
+                              pred[idx_train.cpu()], average="macro")
     loss_train.backward()
     optimizer.step()
 
@@ -94,8 +91,11 @@ def train(epoch):
         output = model(features, adj)
 
     loss_val = loss_func(output[idx_val], labels[idx_val])
-    f1_micro_val = f1_score(labels[idx_val].cpu(), pred[idx_val.cpu()], average="micro")
-    f1_macro_val = f1_score(labels[idx_val].cpu(), pred[idx_val.cpu()], average="macro")
+    f1_micro_val = f1_score(labels[idx_val].cpu(),
+                            pred[idx_val.cpu()], average="micro")
+    f1_macro_val = f1_score(labels[idx_val].cpu(),
+                            pred[idx_val.cpu()], average="macro")
+
     print('Epoch: {:04d}'.format(epoch+1),
           'loss_train: {:.4f}'.format(loss_train.item()),
           'f1_train: {:.4f} {:.4f}'.format(f1_micro_train, f1_macro_train),
@@ -109,11 +109,14 @@ def test():
     output = model(features, adj)
     pred = np.where(output.cpu() > -1.0, 1, 0)
     loss_test = loss_func(output[idx_test], labels[idx_test])
-    f1_micro_test = f1_score(labels[idx_test].cpu(), pred[idx_test.cpu()], average="micro")
-    f1_macro_test = f1_score(labels[idx_test].cpu(), pred[idx_test.cpu()], average="macro")
+    f1_micro_test = f1_score(labels[idx_test].cpu(),
+                             pred[idx_test.cpu()], average="micro")
+    f1_macro_test = f1_score(labels[idx_test].cpu(), pred[idx_test.cpu()],
+                             average="macro")
     print("Test set results:",
           "loss = {:.4f}".format(loss_test.item()),
-          "f1_micro_test = {:.4f} f1_macro_test = {:.4f}".format(f1_micro_test, f1_macro_test))
+          "f1_macro_test = {:.4f} f1_micro_test = {:.4f}".format
+          (f1_macro_test, f1_micro_test))
 
 
 # Train model
