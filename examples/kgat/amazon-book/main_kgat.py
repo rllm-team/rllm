@@ -16,13 +16,13 @@ from tqdm import tqdm
 import torch
 import numpy as np
 import torch.optim as optim
-from model.KGAT import KGAT
-from parser.parser_kgat import parse_kgat_args
-from data_loader.loader_kgat import DataLoaderKGAT
 
 sys.path.append("../../kgat")
+from model.KGAT import KGAT
+from parsers.parser_kgat import parse_kgat_args_amz
 from utils.log_helper import create_log_id, logging_config
 from utils.metrics import calc_metrics_at_k
+from data_loader.loader_kgat import DataLoaderKGAT
 import logging
 from utils.model_helper import load_model, save_model, early_stopping
 
@@ -348,6 +348,6 @@ def predict(args):
 
 
 if __name__ == '__main__':
-    args = parse_kgat_args()
+    args = parse_kgat_args_amz()
     train(args)
     # predict(args)
