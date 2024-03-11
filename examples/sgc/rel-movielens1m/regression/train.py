@@ -3,22 +3,20 @@
 # Test MSE Loss: 1.3562
 # Runtime: 19.1168s (on a single 32G GPU)
 # Cost: N/A
-# Description: Simply apply SGC to movielens. Graph was obtained by sampling from foreign keys. Features were llm embeddings from table data to vectors.
+# Description: Simply apply SGC to movielens.
+# Movies are linked iff a certain number of users rate them samely.
+# Features were llm embeddings from table data to vectors.
 
-# Comment: Over-smoothing is significant.
 
 from __future__ import division
 from __future__ import print_function
 
-import sys 
+import sys
 
+from random import random
 import time
 import argparse
 import numpy as np
-
-
-sys.path.append("../../../../rllm/dataloader")
-from load_data import load_data
 
 # import math
 import torch
@@ -28,6 +26,12 @@ import torch.optim as optim
 
 from models import Model
 
+
+path = "../../../../rllm/dataloader"
+sys.path.append(path)
+from load_data import load_data
+
+t_total = time.time()
 # Training settings
 parser = argparse.ArgumentParser()
 parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -45,8 +49,7 @@ parser.add_argument('--hidden', type=int, default=16,
                     help='Number of hidden units.')
 parser.add_argument('--dropout', type=float, default=0.5,
                     help='Dropout rate (1 - keep probability).')
-# parser.add_argument('--degree', type=int, default=2,
-#                         help='degree of the approximation.')
+
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -57,21 +60,12 @@ torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
-t_total = time.time()
-
 # Load data
-data, adj, features, labels, idx_train, idx_val, idx_test = load_data('movielens-regression', device=device)
-
-# features = sgc_precompute(features, adj, args.degree)
-def sgc_precompute(features, adj, degree=2):
-    for i in range(degree):
-        features = torch.spmm(adj, features)
-    return features
-
-features = sgc_precompute(features, adj)
+data, adj, features, labels, \
+    idx_train, idx_val, idx_test \
+    = load_data('movielens-regression', device=device)
 
 
-from random import random
 adj_drop = torch.zeros_like(adj.to_dense())
 for i in range(adj.indices().shape[1]):
     if random() < 0.01:
@@ -83,7 +77,6 @@ model = Model(nfeat=features.shape[1],
               nhid=args.hidden).to(device)
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr, weight_decay=args.weight_decay)
-
 
 
 loss_func = nn.MSELoss()
@@ -108,7 +101,6 @@ for epoch in range(args.epochs):
     model.train()
     optimizer.zero_grad()
     output = model(features, adj, adj_drop)
-    # print(output[[0, 1, 2, 3, 4, 5]])
     loss_train = loss_func(output[idx_train], labels[idx_train])
     loss_train.backward()
     optimizer.step()
@@ -128,7 +120,7 @@ for epoch in range(args.epochs):
     if loss_val < best_loss:
         best_loss = loss_val
         best_epoch = epoch
-        
+
     if epoch > best_epoch + early_stop:
         print('BREAK. There is no improvment for {} steps'.format(early_stop))
         break

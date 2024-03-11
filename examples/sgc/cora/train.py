@@ -8,9 +8,6 @@
 from __future__ import division
 from __future__ import print_function
 
-import sys 
-sys.path.append("../../../rllm/dataloader")
-
 import time
 import argparse
 import numpy as np
@@ -20,10 +17,11 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-# from utils import load_data
-
-from load_data import load_data
 from models import SGC
+
+import sys
+sys.path.append("../../../rllm/dataloader")
+from load_data import load_data
 
 t_total = time.time()
 
@@ -55,16 +53,11 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 # Load data
-data, adj, features, labels, idx_train, idx_val, idx_test = load_data('cora', device=device)
+data, adj, features, \
+    labels, idx_train, idx_val, idx_test \
+    = load_data('cora', device=device)
 labels = labels.argmax(dim=-1)
-# print(adj)
 
-def sgc_precompute(features, adj, degree=2):
-    for i in range(degree):
-        features = torch.spmm(adj, features)
-    return features
-
-features = sgc_precompute(features, adj)
 
 # Model and optimizer
 model = SGC(nfeat=features.shape[1],
@@ -72,18 +65,20 @@ model = SGC(nfeat=features.shape[1],
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr, weight_decay=args.weight_decay)
 
+
 def accuracy(output, labels):
     preds = output.max(1)[1].type_as(labels)
     correct = preds.eq(labels).double()
     correct = correct.sum()
     return correct / len(labels)
 
+
 def train(epoch):
     t = time.time()
     model.train()
     optimizer.zero_grad()
     output = model(features, adj)
-    loss_train = F.cross_entropy(output[idx_train], labels[idx_train]) #F.nll_loss
+    loss_train = F.cross_entropy(output[idx_train], labels[idx_train])
     acc_train = accuracy(output[idx_train], labels[idx_train])
     loss_train.backward()
     optimizer.step()
@@ -94,7 +89,7 @@ def train(epoch):
         model.eval()
         output = model(features, adj)
 
-    loss_val = F.cross_entropy(output[idx_val], labels[idx_val]) #F.nll_loss
+    loss_val = F.cross_entropy(output[idx_val], labels[idx_val])
     acc_val = accuracy(output[idx_val], labels[idx_val])
     print('Epoch: {:04d}'.format(epoch+1),
           'loss_train: {:.4f}'.format(loss_train.item()),
@@ -107,7 +102,7 @@ def train(epoch):
 def test():
     model.eval()
     output = model(features, adj)
-    loss_test = F.cross_entropy(output[idx_test], labels[idx_test]) #F.nll_loss
+    loss_test = F.cross_entropy(output[idx_test], labels[idx_test])
     acc_test = accuracy(output[idx_test], labels[idx_test])
     print("Test set results:",
           "loss = {:.4f}".format(loss_test.item()),

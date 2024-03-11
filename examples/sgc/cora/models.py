@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.nn import Module
-import torch.nn.functional as F
-import math
+
 
 class SGC(nn.Module):
     """
@@ -14,5 +12,11 @@ class SGC(nn.Module):
 
         self.W = nn.Linear(nfeat, nclass)
 
+    def sgc_precompute(self, features, adj, degree=2):
+        for i in range(degree):
+            features = torch.spmm(adj, features)
+        return features
+
     def forward(self, x, adj):
+        x = self.sgc_precompute(x, adj)
         return self.W(x)
