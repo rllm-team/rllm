@@ -1,15 +1,13 @@
-# This file creates knowledge graph needed to run classification task, the output files are:
-# train_category.txt, test_category.txt, val_category.txt: movie-category of train/test/val set
 import sys
 sys.path.append("../../../../rllm/dataloader")
 sys.path.append("../../../kgat")
 
-import pandas as pd
-import torch
+# import pandas as pd
+# import torch
 # from utils import load_data
 
 from load_data import load_data
-from utils.sample import adj_matrix_to_list, value_matrix_to_list
+# from utils.sample import adj_matrix_to_list, value_matrix_to_list
 
 # Load data
 data, adj, features, labels, idx_train, idx_val, idx_test = \
@@ -38,7 +36,7 @@ for i, label in labels.nonzero():
             val_cat_dict[i.item()].append(label.item())
 print("writing train category")
 # Open a text file to write
-with open('train_category.txt', 'w') as file:
+with open('../datasets/rel-movielens/train_category.txt', 'w') as file:
     for key, values in train_cat_dict.items():
         # Create a string
         # where the key is followed by all the values separated by spaces
@@ -47,7 +45,7 @@ with open('train_category.txt', 'w') as file:
         file.write(line)
 print("writing test category")
 # Open a text file to write
-with open('test_category.txt', 'w') as file:
+with open('../datasets/rel-movielens/test_category.txt', 'w') as file:
     for key, values in test_cat_dict.items():
         # Create a string
         # where the key is followed by all the values separated by spaces
@@ -56,7 +54,7 @@ with open('test_category.txt', 'w') as file:
         file.write(line)
 print("writing val category")
 # Open a text file to write
-with open('val_category.txt', 'w') as file:
+with open('../datasets/rel-movielens/val_category.txt', 'w') as file:
     for key, values in val_cat_dict.items():
         # Create a string where the key is followed by
         # all the values separated by spaces
