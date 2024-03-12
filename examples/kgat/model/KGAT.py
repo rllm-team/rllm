@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.metrics import f1_score
 from tqdm import tqdm
 
+
 def _L2_loss_mean(x):
     return torch.mean(torch.sum(torch.pow(x, 2), dim=1, keepdim=False) / 2.)
 
@@ -341,6 +342,7 @@ class MLP(nn.Module):
 
     def forward(self, x):
         return self.net(x)
+
 
 class MLP_KGAT(nn.Module):
 

@@ -1,6 +1,3 @@
-# This file creates knowledge graph needed to run regression task, the output files are:
-# train.txt, test.txt, val.txt: User/Movie interactions of train/test/val set
-# test_rating.txt, val_rating.txt: User-rating-movie triplets of test/val set
 import sys
 sys.path.append("../../../../rllm/dataloader")
 sys.path.append("../../../kgat")
@@ -28,7 +25,9 @@ df = pd.DataFrame({
     'r': relation,      # Relations
     't': head_tail[1, :]   # Second row of heads_tails tensor
 })
-df.to_csv('kg_final.txt', sep=' ', index=False, header=False)
+df.to_csv(
+    '../datasets/rel-movielens/kg_final.txt',
+    sep=' ', index=False, header=False)
 
 # train_interaction = adj.indices()[:, idx_train]
 # test_interaction = adj.indices()[:, idx_test]
@@ -82,7 +81,7 @@ def shift_movie_idx(value):
 print("writing train_interaction")
 
 # Open a text file to write
-with open('train.txt', 'w') as file:
+with open('../datasets/rel-movielens/train.txt', 'w') as file:
     for key, values in train_interaction.items():
         if key >= movie_shift:
             continue
@@ -95,7 +94,7 @@ print("writing test_interaction")
 
 
 # Open a text file to write
-with open('test.txt', 'w') as file:
+with open('../datasets/rel-movielens/test.txt', 'w') as file:
     for key, values in test_interaction.items():
         if key >= movie_shift:
             continue
@@ -106,7 +105,7 @@ with open('test.txt', 'w') as file:
         file.write(line)
 print("writing test_rating")
 # Open a text file to write
-with open('test_rating.txt', 'w') as file:
+with open('../datasets/rel-movielens/test_rating.txt', 'w') as file:
     for key, values in test_rating.items():
         if key >= movie_shift:
             continue
@@ -117,7 +116,7 @@ with open('test_rating.txt', 'w') as file:
         file.write(line)
 print("writing val_interaction")
 # Open a text file to write
-with open('val.txt', 'w') as file:
+with open('../datasets/rel-movielens/val.txt', 'w') as file:
     for key, values in val_interaction.items():
         if key >= movie_shift:
             continue
@@ -128,7 +127,7 @@ with open('val.txt', 'w') as file:
         file.write(line)
 print("writing val_rating")
 # Open a text file to write
-with open('val_rating.txt', 'w') as file:
+with open('../datasets/rel-movielens/val_rating.txt', 'w') as file:
     for key, values in val_rating.items():
         if key >= movie_shift:
             continue

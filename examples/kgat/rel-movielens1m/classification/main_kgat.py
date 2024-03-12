@@ -112,15 +112,15 @@ def train(args):
     model.to(device)
 
     cf_optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    kg_optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    # kg_optimizer = optim.Adam(model.parameters(), lr=args.lr)
     classifier_optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    epoch_list = []
+    # epoch_list = []
 
     # train model
     for epoch in range(1, args.n_epoch + 1):
         logging.info(f"MSE: {evaluate(model, device)}")
-        time0 = time()
+        # time0 = time()
         model.train()
 
         # train cf
@@ -251,7 +251,11 @@ def train(args):
     #         logging.info(metrics_dict)
 
     #         epoch_list.append(epoch)
-    model.train_classifier(labels.to(device), idx_train.to(device), idx_test.to(device), classifier_optimizer)
+    model.train_classifier(
+        labels.to(device),
+        idx_train.to(device),
+        idx_test.to(device),
+        classifier_optimizer)
     torch.save(model, 'trained_model/KGAT/rel-movielens/kgat.pth')
 
 

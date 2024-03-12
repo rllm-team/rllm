@@ -106,14 +106,14 @@ def train(args):
     model.to(device)
 
     cf_optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    kg_optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    # kg_optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    epoch_list = []
+    # epoch_list = []
 
     # train model
     for epoch in range(1, args.n_epoch + 1):
         logging.info(f"MSE: {evaluate(model, device)}")
-        time0 = time()
+        # time0 = time()
         model.train()
 
         # train cf
