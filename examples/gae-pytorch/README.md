@@ -9,7 +9,7 @@ The code in this repo is based on or refers to https://github.com/tkipf/gae, htt
 
 ### Requirements
 - Python 3
-- PyTorch 0.4
+- PyTorch 2
 - install requirements via ```
 pip install -r requirements.txt``` 
 
