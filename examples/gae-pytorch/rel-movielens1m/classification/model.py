@@ -8,9 +8,12 @@ from layers import GraphConvolution
 class GCNModelVAE(nn.Module):
     def __init__(self, input_feat_dim, hidden_dim1, hidden_dim2, dropout):
         super(GCNModelVAE, self).__init__()
-        self.gc1 = GraphConvolution(input_feat_dim, hidden_dim1, dropout, act=F.relu)
-        self.gc2 = GraphConvolution(hidden_dim1, hidden_dim2, dropout, act=lambda x: x)
-        self.gc3 = GraphConvolution(hidden_dim1, hidden_dim2, dropout, act=lambda x: x)
+        self.gc1 = GraphConvolution(input_feat_dim, hidden_dim1,
+                                    dropout, act=F.relu)
+        self.gc2 = GraphConvolution(hidden_dim1, hidden_dim2,
+                                    dropout, act=lambda x: x)
+        self.gc3 = GraphConvolution(hidden_dim1, hidden_dim2,
+                                    dropout, act=lambda x: x)
         self.dc = InnerProductDecoder(dropout, act=lambda x: x)
 
     def encode(self, x, adj):
@@ -44,12 +47,17 @@ class InnerProductDecoder(nn.Module):
         adj = self.act(torch.mm(z, z.t()))
         return adj
 
+
 class GAE_CLASSIFICATION(nn.Module):
-    def __init__(self, input_feat_dim, hidden_dim1, hidden_dim2, num_classes, dropout):
+    def __init__(self, input_feat_dim, hidden_dim1, hidden_dim2,
+                 num_classes, dropout):
         super(GAE_CLASSIFICATION, self).__init__()
-        self.gc1 = GraphConvolution(input_feat_dim, hidden_dim1, dropout, act=F.relu)
-        self.gc2 = GraphConvolution(hidden_dim1, hidden_dim2, dropout, act=lambda x: x)
-        self.gc3 = GraphConvolution(hidden_dim1, hidden_dim2, dropout, act=lambda x: x)
+        self.gc1 = GraphConvolution(input_feat_dim, hidden_dim1,
+                                    dropout, act=F.relu)
+        self.gc2 = GraphConvolution(hidden_dim1, hidden_dim2,
+                                    dropout, act=lambda x: x)
+        self.gc3 = GraphConvolution(hidden_dim1, hidden_dim2,
+                                    dropout, act=lambda x: x)
         self.fc_out = nn.Linear(hidden_dim2, num_classes)
 
     def encode(self, x, adj):
