@@ -1,12 +1,14 @@
-# Naive FT-transformer for classification task in rel-movielens1M
-# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021).
-# Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
+# Naive FT-transformer for regression task in rel-movielens1M
+# Paper: Yury Gorishniy etc. (2021).
+# Revisiting Deep Learning Models for Tabular Data
+# arXiv preprint arXiv:2106.11959
 # Test f1_score micro: 0.3240, macro: 0.1457
 # Runtime: 16.655s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40)
 # Cost: N/A
 # Description: Simply apply FT-transformer to movielens.
-import sys
 import os.path
+import sys
+
 current_file_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.dirname(current_file_dir)
 sys.path.append(project_dir + "/../")
@@ -14,9 +16,12 @@ sys.path.append(project_dir + "/../")
 import math
 import warnings
 from typing import Dict, Literal
+
 import torch
+
 warnings.simplefilter("ignore")
-import utils
+import time
+
 import numpy as np
 import pandas as pd
 import sklearn.datasets
@@ -25,11 +30,12 @@ import sklearn.model_selection
 import sklearn.preprocessing
 import torch.nn.functional as F
 import torch.optim
+import utils
+from sklearn.metrics import f1_score
+from sklearn.preprocessing import MultiLabelBinarizer, StandardScaler
 from torch import Tensor
 from tqdm.std import tqdm
-from sklearn.preprocessing import MultiLabelBinarizer, StandardScaler
-from sklearn.metrics import f1_score
-import time
+
 warnings.resetwarnings()
 
 from rtdl_revisiting_models import FTTransformer
@@ -95,29 +101,9 @@ data_numpy = {
 train_idx = range(len(train_df))
 
 # Preprocessing
-# >>> Feature preprocessing.
-# NOTE
-# The choice between preprocessing strategies depends on a task and a model.
-
-# (A) Simple preprocessing strategy.
 preprocessing = sklearn.preprocessing.StandardScaler().fit(
     data_numpy['train']['x_cont']
 )
-
-# (B) Fancy preprocessing strategy. NOT use because we do not need noise of float.
-# The noise is added to improve the output of QuantileTransformer in some cases.
-# X_cont_train_numpy = data_numpy["train"]["x_cont"]
-# noise = (
-#     np.random.default_rng(0)
-#     .normal(0.0, 1e-5, X_cont_train_numpy.shape)
-#     .astype(X_cont_train_numpy.dtype)
-# )
-# preprocessing = sklearn.preprocessing.QuantileTransformer(
-#     n_quantiles=max(min(len(train_idx) // 30, 1000), 10),
-#     output_distribution="normal",
-#     subsample=10**9,
-# ).fit(X_cont_train_numpy + noise)
-# del X_cont_train_numpy
 
 for part in data_numpy:
     data_numpy[part]["x_cont"] = preprocessing.transform(
