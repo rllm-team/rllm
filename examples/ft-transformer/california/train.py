@@ -1,12 +1,14 @@
-# Naive FT-transformer for regression task in california housing dataset(sklearn builtin dataset)
-# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021).
-# Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
+# Naive FT-transformer for regression task in rel-movielens1M
+# Paper: Yury Gorishniy etc. (2021).
+# Revisiting Deep Learning Models for Tabular Data
+# arXiv preprint arXiv:2106.11959
 # Test RMSE Loss: 0.4814
 # Runtime: 95.000s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40)
 # Cost: N/A
 # Description: Simply apply FT-transformer to california.
-import sys
 import os.path
+import sys
+
 current_file_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.dirname(current_file_dir)
 sys.path.append(project_dir)
@@ -16,7 +18,6 @@ import warnings
 from typing import Dict, Literal
 
 warnings.simplefilter("ignore")
-import utils
 import numpy as np
 import scipy.special
 import sklearn.datasets
@@ -26,12 +27,14 @@ import sklearn.preprocessing
 import torch
 import torch.nn.functional as F
 import torch.optim
+import utils
 from torch import Tensor
 from tqdm.std import tqdm
 
 warnings.resetwarnings()
 
 from rtdl_revisiting_models import FTTransformer
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Set random seeds in all libraries.
 utils.random.seed(0)

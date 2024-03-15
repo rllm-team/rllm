@@ -1,12 +1,14 @@
 # Naive FT-transformer for regression task in rel-movielens1M
-# Paper: Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko (2021).
-# Revisiting Deep Learning Models for Tabular Data arXiv preprint arXiv:2106.11959
+# Paper: Yury Gorishniy etc. (2021).
+# Revisiting Deep Learning Models for Tabular Data
+# arXiv preprint arXiv:2106.11959
 # Test MSE Loss: 1.0725
 # Runtime: 2772.838s on a 12GB GPU (NVIDIA(R) Tesla(TM) M40)
 # Cost: N/A
 # Description: Simply apply FT-transformer to movielens.
-import sys
 import os.path
+import sys
+
 current_file_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.dirname(current_file_dir)
 sys.path.append(project_dir + "/../")
@@ -14,9 +16,12 @@ sys.path.append(project_dir + "/../")
 import math
 import warnings
 from typing import Dict, Literal
+
 import torch
+
 warnings.simplefilter("ignore")
-import utils
+import time
+
 import numpy as np
 import pandas as pd
 import scipy.special
@@ -24,9 +29,9 @@ import sklearn.datasets
 import sklearn.metrics
 import sklearn.model_selection
 import sklearn.preprocessing
-import time
 import torch.nn.functional as F
 import torch.optim
+import utils
 from torch import Tensor
 from tqdm.std import tqdm
 
@@ -85,17 +90,6 @@ data_numpy = {
 train_idx = range(len(train_df))
 
 # Preprocessing
-# >>> Feature preprocessing.
-# NOTE
-# The choice between preprocessing strategies depends on a task and a model.
-
-# (A) Simple preprocessing strategy.
-# preprocessing = sklearn.preprocessing.StandardScaler().fit(
-#     data_numpy['train']['x_cont']
-# )
-
-# (B) Fancy preprocessing strategy.
-# The noise is added to improve the output of QuantileTransformer in some cases.
 X_cont_train_numpy = data_numpy["train"]["x_cont"]
 noise = (
     np.random.default_rng(0)
