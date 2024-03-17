@@ -18,6 +18,7 @@ class GraphConvolution(Module):
         self.act = act
         self.weight = Parameter(torch.FloatTensor(in_features, out_features))
         self.reset_parameters()
+        self.bn = torch.nn.BatchNorm1d(out_features)
 
     def reset_parameters(self):
         torch.nn.init.xavier_uniform_(self.weight)
@@ -26,13 +27,8 @@ class GraphConvolution(Module):
         input = F.dropout(input, self.dropout, self.training)
         support = torch.mm(input, self.weight)
         output = torch.spmm(adj, support)
-        output = self.act(output)
-        return output
-
-    def __repr__(self):
-        return self.__class__.__name__ + ' (' \
-               + str(self.in_features) + ' -> ' \
-               + str(self.out_features) + ')'
+        output = self.bn(output)
+        return self.act(output)
 
 
 class RegressionDecoder(nn.Module):
@@ -57,18 +53,16 @@ class GAE_REGRESSION(nn.Module):
                                     dropout, act=F.relu)
         self.gc2 = GraphConvolution(hidden_dim1, hidden_dim2,
                                     dropout, act=lambda x: x)
-        self.gc3 = GraphConvolution(hidden_dim1, hidden_dim2,
-                                    dropout, act=lambda x: x)
-        # self.regression_decoder = nn.Linear(hidden_dim2, num_classes)
+        # self.gc3 = GraphConvolution(hidden_dim1, hidden_dim2,
+        #                             dropout, act=lambda x: x)
         self.regression_decoder = RegressionDecoder(hidden_dim2,
                                                     num_classes, dropout)
 
     def encode(self, x, adj):
         hidden1 = self.gc1(x, adj)
-        return self.gc2(hidden1, adj), self.gc3(hidden1, adj)
+        return self.gc2(hidden1, adj), self.gc2(hidden1, adj)
 
     def reparameterize(self, mu, logvar):
-
         if self.training:
             std = torch.exp(logvar)
             eps = torch.randn_like(std)
@@ -77,9 +71,14 @@ class GAE_REGRESSION(nn.Module):
             return mu
 
     def forward(self, x, adj):
-        # print("mu, logvar")
         mu, logvar = self.encode(x, adj)
-        # print("reparameterize")
-        h = logvar.mean(dim=0)
-        # print("return")
-        return self.regression_decoder(h), mu, logvar
+        z = self.reparameterize(mu, logvar)
+        return self.regression_decoder(z), mu, logvar
+
+    # def forward(self, x, adj):
+    #     # print("mu, logvar")
+    #     mu, logvar = self.encode(x, adj)
+    #     # print("reparameterize")
+    #     h = logvar.mean(dim=0)
+    #     # print("return")
+    #     return self.regression_decoder(h), mu, logvar

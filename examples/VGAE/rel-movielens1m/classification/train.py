@@ -75,6 +75,7 @@ def adj_matrix_to_list(adj_matrix):
             adj_list[i] = [adj_list[i]]
     return adj_list
 
+
 # Function to convert adjacency matrix to networkx graph
 def change_to_matrix(adj):
     adj_sparse = adj.to_sparse()

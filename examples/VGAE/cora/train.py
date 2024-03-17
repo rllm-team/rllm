@@ -10,7 +10,11 @@ import torch
 from torch import optim
 import torch.nn.functional as F
 from model import GCNModelVAE
-from utils import load_data, mask_test_edges, preprocess_graph, get_roc_score
+from utils import mask_test_edges, preprocess_graph, get_roc_score
+import sys
+import networkx as nx
+sys.path.append("../../../rllm/dataloader")
+from load_data import load_data
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', type=str, default='gcn_vae', help="models used")
@@ -36,9 +40,22 @@ def loss_function(preds, labels, mu, logvar, n_nodes, norm, pos_weight):
         1 + 2 * logvar - mu.pow(2) - logvar.exp().pow(2), 1))
     return cost + KLD
 
+
+def change_to_matrix(adj):
+    adj_sparse = adj.to_sparse()
+    graph = nx.Graph()
+    graph.add_nodes_from(range(adj_sparse.shape[0]))
+    edges = adj_sparse.coalesce().indices().t().tolist()
+    graph.add_edges_from(edges)
+    adj = nx.adjacency_matrix(graph)
+    return adj
+
+
 def gae_for(args):
     print("Using {} dataset".format(args.dataset_str))
-    adj, features = load_data(args.dataset_str)
+    # adj, features = load_data(args.dataset_str)
+    data, adj, features, labels, idx_train, idx_val, idx_test = load_data('cora')
+    adj = change_to_matrix(adj)
     n_nodes, feat_dim = features.shape
 
     # Store original adjacency matrix (without diagonal entries) for later
