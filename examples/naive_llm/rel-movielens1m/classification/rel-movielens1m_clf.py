@@ -12,6 +12,7 @@
 import sys
 sys.path.append("../../../../")
 import time
+import argparse
 
 import pandas as pd
 
@@ -23,6 +24,12 @@ from langchain.prompts import PromptTemplate
 from langchain.schema import BaseOutputParser
 
 from rllm.utils import macro_f1_score, micro_f1_score, get_llm_chat_cost
+
+##### Parse argument
+parser = argparse.ArgumentParser()
+parser.add_argument('--prompt', choices=['title', 'all'], 
+                    default='title', help='Choose prompt type.')
+args = parser.parse_args()
 
 ##### Start time
 time_start = time.time()
@@ -56,7 +63,7 @@ class GenreOutputParser(BaseOutputParser):
 output_parser = GenreOutputParser()
 
 # Construct prompt
-prompt_zero_shot_classification = """Q: Now I have a movie name: {movie_name}. What's the genres it may belong to? 
+prompt_title = """Q: Now I have a movie name: {movie_name}. What's the genres it may belong to? 
 Note: 
 1. Give the answer as following format:
 movie_name:: genre_1, genre_2..., genre_n
@@ -64,25 +71,57 @@ movie_name:: genre_1, genre_2..., genre_n
 3. Don't saying anything else.
 A: 
 """
-prompt_template = PromptTemplate(
-    input_variables=["movie_name"], template=prompt_zero_shot_classification
+
+prompt_all = """Q: Now I have a movie description: The movie titled '{Title}' is directed by {Director} and was released in {Year}. The genre of this movie is {Genre}, with main cast including {Cast}. It has a runtime of {Runtime} and languages used including {Languages}, with a Certificate rating of {Certificate}. The plot summary is as follows: {Plot} What's the genres it may belong to? 
+Note: 
+1. Give the answer as following format:
+movie_name:: genre_1, genre_2..., genre_n
+2. The answer must only be chosen from followings:'Documentary', 'Adventure', 'Comedy', 'Horror', 'War', 'Sci-Fi', 'Drama', 'Mystery', 'Western', 'Action', "Children's", 'Musical', 'Thriller', 'Crime', 'Film-Noir', 'Romance', 'Animation', 'Fantasy'
+3. Don't saying anything else.
+A: """
+
+prompt_title_template = PromptTemplate(
+    input_variables=["movie_name"], template=prompt_title
 )
 
+prompt_all_template = PromptTemplate(
+    input_variables=["Title", "Director", "Year", "Genre", "Cast", "Runtime", "Languages", "Certificate", "Plot"], 
+    template=prompt_all
+)
 # Construct chain
-chain = prompt_template | llm | output_parser
+if args.prompt == 'title':
+    chain = prompt_title_template | llm | output_parser
+else:
+    chain = prompt_all_template | llm | output_parser
 
 ##### 2. LLM prediction
 movie_df = pd.read_csv(test_path)
-movie_names = movie_df["Title"]
 
 pred_genre_list = []
-for movie_name in tqdm(movie_names, total=len(movie_names), desc="Processing Movies"):
-    total_cost = total_cost + get_llm_chat_cost(prompt_template.invoke({"movie_name": movie_name}).text, 'input')
+if args.prompt == 'title':
+    for index, row in tqdm(movie_df.iterrows(), total=len(movie_df), desc="Processing Movies"):
+        total_cost = total_cost + get_llm_chat_cost(prompt_title_template.invoke({"movie_name": row['Title']}).text, 'input')
 
-    pred = chain.invoke({"movie_name": movie_name})
-    pred_genre_list.append(pred)
+        pred = chain.invoke({"movie_name": row['Title']})
+        pred_genre_list.append(pred)
 
-    total_cost = total_cost + get_llm_chat_cost(','.join(pred), 'output')
+        total_cost = total_cost + get_llm_chat_cost(','.join(pred), 'output')
+else:
+    for index, row in tqdm(movie_df.iterrows(), total=len(movie_df), desc="Processing Movies"):
+        total_cost = total_cost + \
+            get_llm_chat_cost(prompt_all_template.invoke(
+                {"Title": row['Title'], "Director": row['Director'], "Year": row['Year'], 
+                 "Genre": row['Genre'], "Cast": row['Cast'], "Runtime": row['Runtime'], 
+                 "Languages": row['Languages'], "Certificate": row['Certificate'], 
+                 "Plot": row['Plot']}).text, 'input')
+        
+        pred = chain.invoke({"Title": row['Title'], "Director": row['Director'], "Year": row['Year'], 
+                 "Genre": row['Genre'], "Cast": row['Cast'], "Runtime": row['Runtime'], 
+                 "Languages": row['Languages'], "Certificate": row['Certificate'], 
+                 "Plot": row['Plot']})
+        pred_genre_list.append(pred)
+
+        total_cost = total_cost + get_llm_chat_cost(','.join(pred), 'output')
 
 ##### 3. Calculate macro f1 score
 # Get all genres
