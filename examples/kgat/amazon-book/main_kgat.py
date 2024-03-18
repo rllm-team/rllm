@@ -16,7 +16,6 @@ from tqdm import tqdm
 import torch
 import numpy as np
 import torch.optim as optim
-import os
 
 sys.path.append("../../kgat")
 from model.KGAT import KGAT
@@ -177,7 +176,7 @@ def train(args):
             if (iter % args.cf_print_every) == 0:
                 logging.info(
                     'CF Training: Epoch {:04d} Iter {:04d} / {:04d} | \
-                        Time {:.1f}s | Iter Loss {:.4f} | Iter Mean \
+                        Time {:.1f}s/Iter | Iter Loss {:.4f} | Iter Mean \
                             Loss {:.4f}'.format(
                                 epoch,
                                 iter,
@@ -231,7 +230,7 @@ def train(args):
 
             if (iter % args.kg_print_every) == 0:
                 logging.info('KG Training: Epoch {:04d} Iter {:04d} / {:04d} \
-                    | Time {:.1f}s | Iter Loss {:.4f} | Iter Mean \
+                    | Time {:.1f}s/Iter | Iter Loss {:.4f} | Iter Mean \
                         Loss {:.4f}'.format(
                             epoch,
                             iter,

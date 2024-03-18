@@ -1,4 +1,5 @@
 import sys
+import os
 sys.path.append("../../../../rllm/dataloader")
 sys.path.append("../../../kgat")
 
@@ -25,6 +26,7 @@ df = pd.DataFrame({
     'r': relation,      # Relations
     't': head_tail[1, :]   # Second row of heads_tails tensor
 })
+os.makedirs("../datasets/rel-movielens/", exist_ok=True)
 df.to_csv(
     '../datasets/rel-movielens/kg_final.txt',
     sep=' ', index=False, header=False)
