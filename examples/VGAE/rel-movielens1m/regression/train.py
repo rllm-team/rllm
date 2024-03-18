@@ -15,6 +15,7 @@ import scipy.sparse as sp
 from torch import optim
 from model import GAE_REGRESSION
 import sys
+import random
 sys.path.append("../../../../rllm/dataloader")
 
 import time
@@ -110,8 +111,8 @@ def gae_for(args):
     # print("build model")
     # model = GAE_REGRESSION(feat_dim, args.hidden1, args.hidden2, args.dropout)
     model = GAE_REGRESSION(feat_dim, args.hidden1, args.hidden2, num_classes, args.dropout)
-    # optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = optim.SGD(model.parameters(), lr=args.lr)
+    # optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     loss_function = nn.MSELoss()
 
     # training loop
@@ -145,6 +146,7 @@ def gae_for(args):
     print("Test set results:",
           "loss= {:.4f}".format(loss_test.item())
           )
+
 
 
 if __name__ == '__main__':
