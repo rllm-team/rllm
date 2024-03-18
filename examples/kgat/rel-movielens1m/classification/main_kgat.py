@@ -2,7 +2,7 @@
 # KGAT: Knowledge Graph Attention Network for Recommendation
 # https://arxiv.org/abs/1905.07854
 # F1-Ma: 0.1542642875096072 F1-Mi: 0.16810245995610731
-# about 690s on Tesla V100-SXM2
+# about 645.8s on Tesla V100-SXM2
 # N/A
 # python main_kgat.py
 import sys
@@ -115,12 +115,9 @@ def train(args):
     # kg_optimizer = optim.Adam(model.parameters(), lr=args.lr)
     classifier_optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    total_time = 0.
-
     # train model
     for epoch in range(1, args.n_epoch + 1):
         logging.info(f"MSE: {evaluate(model, device)}")
-        epoch_start = time()
         model.train()
 
         # train cf
@@ -173,22 +170,22 @@ def train(args):
                 logging.info(
                     'CF Training: Epoch {:04d} Iter {:04d} / {:04d} | \
                         loss {:04f} \
-                        Time {:.1f}s'
+                        Time {:.1f}s/Iter'
                     .format(
                         epoch, iter, n_cf_batch, cf_batch_loss.item(),
                         time() - time2)
                     )
-        total_time += time() - epoch_start
 
     model.train_classifier(
         labels.to(device),
         idx_train.to(device),
         idx_test.to(device),
         classifier_optimizer)
-    print(f"Total training time: {total_time} s")
     torch.save(model, 'trained_model/KGAT/rel-movielens/kgat.pth')
 
 
 if __name__ == '__main__':
+    train_start = time()
     train(args)
+    print(f"Total training time {time() - train_start}")
     # predict(args)

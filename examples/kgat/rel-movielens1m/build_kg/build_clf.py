@@ -1,4 +1,5 @@
 import sys
+import os
 sys.path.append("../../../../rllm/dataloader")
 sys.path.append("../../../kgat")
 
@@ -36,6 +37,7 @@ for i, label in labels.nonzero():
             val_cat_dict[i.item()].append(label.item())
 print("writing train category")
 # Open a text file to write
+os.makedirs("../datasets/rel-movielens/", exist_ok=True)
 with open('../datasets/rel-movielens/train_category.txt', 'w') as file:
     for key, values in train_cat_dict.items():
         # Create a string
