@@ -15,7 +15,7 @@ class DataLoaderKGAT(DataLoaderBase):
         super().__init__(args, logging)
 
         self.cf_batch_size = args.cf_batch_size
-        self.kg_batch_size = args.kg_batch_size
+        # self.kg_batch_size = args.kg_batch_size
         self.test_batch_size = args.test_batch_size
 
         cache_path = "../datasets/rel-movielens/cache_dict.pkl"

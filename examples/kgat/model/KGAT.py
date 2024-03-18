@@ -98,8 +98,8 @@ class KGAT(nn.Module):
         self.mess_dropout = eval(args.mess_dropout)
         self.n_layers = len(eval(args.conv_dim_list))
 
-        self.kg_l2loss_lambda = args.kg_l2loss_lambda
-        self.cf_l2loss_lambda = args.cf_l2loss_lambda
+        self.kg_l2loss_lambda = 1e-5
+        self.cf_l2loss_lambda = 1e-5
 
         self.entity_user_embed = \
             nn.Embedding(self.n_entities + self.n_users, self.embed_dim)
@@ -365,7 +365,7 @@ class MLP_KGAT(nn.Module):
         self.mess_dropout = eval(args.mess_dropout)
         self.n_layers = len(eval(args.conv_dim_list))
 
-        self.kg_l2loss_lambda = args.kg_l2loss_lambda
+        # self.kg_l2loss_lambda = args.kg_l2loss_lambda
         self.cf_l2loss_lambda = args.cf_l2loss_lambda
 
         self.entity_user_embed = nn.Embedding(

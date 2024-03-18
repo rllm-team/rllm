@@ -108,12 +108,12 @@ def train(args):
     cf_optimizer = optim.Adam(model.parameters(), lr=args.lr)
     # kg_optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    # epoch_list = []
+    total_time = 0.
 
     # train model
     for epoch in range(1, args.n_epoch + 1):
         logging.info(f"MSE: {evaluate(model, device)}")
-        # time0 = time()
+        epoch_start = time()
         model.train()
 
         # train cf
@@ -122,11 +122,7 @@ def train(args):
         n_cf_batch = data.n_cf_train // data.cf_batch_size + 1
 
         for iter in range(1, n_cf_batch + 1):
-            # for iter in range(1, 100 + 1):
             time2 = time()
-            # cf_batch_user, cf_batch_pos_item,
-            # cf_batch_neg_item = data.generate_cf_batch
-            # (data.train_user_dict, data.cf_batch_size)
             cf_batch_user, cf_batch_relation, \
                 cf_batch_pos_item, cf_batch_neg_item = \
                 data.generate_kg_batch(
@@ -174,76 +170,8 @@ def train(args):
                         epoch, iter, n_cf_batch, time() - time2,
                         cf_batch_loss.item() - mse.item(), mse.item())
                     )
-    #     continue
-    #     # train kg
-
-    #     kg_total_loss = 0
-    #     n_kg_batch = data.n_kg_train // data.kg_batch_size + 1
-
-    #     for iter in range(1, n_kg_batch + 1):
-    #         # for iter in range(1, 200 + 1):
-    #         time4 = time()
-    #         kg_batch_head, kg_batch_relation, kg_batch_pos_tail, \
-    #             kg_batch_neg_tail = \
-    #             data.generate_kg_batch(
-    #                 data.train_kg_dict,
-    #                 data.kg_batch_size,
-    #                 data.n_users_entities)
-    #         kg_batch_head = kg_batch_head.to(device)
-    #         kg_batch_relation = kg_batch_relation.to(device)
-    #         kg_batch_relation[kg_batch_relation > data.type_of_scores] = \
-    #             kg_batch_relation[
-    #                 kg_batch_relation > data.type_of_scores
-    #             ] - data.type_of_scores
-    #         kg_batch_pos_tail = kg_batch_pos_tail.to(device)
-    #         kg_batch_neg_tail = kg_batch_neg_tail.to(device)
-
-    #         kg_batch_loss = model(
-    #             kg_batch_head, kg_batch_relation, kg_batch_pos_tail,
-    #             kg_batch_neg_tail, mode='train_kg')
-    #         mse = mse_loss(
-    #             model, kg_batch_head, kg_batch_pos_tail, kg_batch_relation)
-    #         kg_batch_loss += mse
-
-    #         if np.isnan(kg_batch_loss.cpu().detach().numpy()):
-    #             logging.info(
-    #                 'ERROR (KG Training): Epoch {:04d} \
-    #                 Iter {:04d} / {:04d} Loss is \
-    #                 nan.'.format(epoch, iter, n_kg_batch))
-    #             sys.exit()
-
-    #         kg_batch_loss.backward()
-    #         kg_optimizer.step()
-    #         kg_optimizer.zero_grad()
-    #         kg_total_loss += kg_batch_loss.item()
-
-    #         if (iter % args.kg_print_every) == 0:
-    #             logging.info(
-    #                 'KG Training: Epoch {:04d} Iter {:04d} / {:04d} | \
-    #                 Time {:.1f}s | Iter Loss {:.4f} | MSE {:.4f}'.format(
-    #                     epoch, iter, n_kg_batch, time() - time4,
-    #                     kg_batch_loss.item() - mse.item(), mse.item())
-    #             )
-
-    #     # update attention
-    #     time5 = time()
-    #     h_list = data.h_list.to(device)
-    #     t_list = data.t_list.to(device)
-    #     r_list = data.r_list.to(device)
-    #     relations = list(data.laplacian_dict.keys())
-    #     model(h_list, t_list, r_list, relations, mode='update_att')
-    #     logging.info('Update Attention: Epoch {:04d} | \
-    #         Total Time {:.1f}s'.format(epoch, time() - time5))
-
-    #     logging.info('CF + KG Training: Epoch {:04d} | \
-    #         Total Time {:.1f}s'.format(epoch, time() - time0))
-
-    #     # evaluate cf
-    #     if (epoch % args.evaluate_every) == 0 or epoch == args.n_epoch:
-    #         metrics_dict = evaluate(model, device)
-    #         logging.info(metrics_dict)
-
-    #         epoch_list.append(epoch)
+            total_time += time() - epoch_start
+    print(f"Total training time: {total_time} s")
     torch.save(model, 'trained_model/KGAT/rel-movielens/kgat.pth')
 
 
