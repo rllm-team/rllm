@@ -16,6 +16,7 @@ from tqdm import tqdm
 import torch
 import numpy as np
 import torch.optim as optim
+import os
 
 sys.path.append("../../kgat")
 from model.KGAT import KGAT
@@ -25,6 +26,7 @@ from utils.metrics import calc_metrics_at_k
 from data_loader.loader_kgat import DataLoaderKGAT
 import logging
 from utils.model_helper import load_model, save_model, early_stopping
+from download_dataset import download_dataset
 
 
 def evaluate(model, dataloader, Ks, device):
@@ -349,5 +351,7 @@ def predict(args):
 
 if __name__ == '__main__':
     args = parse_kgat_args_amz()
+    # if not os.listdir("datasets/amazon-book"):
+    download_dataset()
     train(args)
     # predict(args)
