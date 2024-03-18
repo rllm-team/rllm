@@ -8,7 +8,7 @@
 # Description: Simply apply DANet to movielens.
 
 
-from DAN_Task import DANetClassifier, DANetRegressor
+from model.DAN_Task import DANetClassifier, DANetRegressor
 import argparse
 import os
 import torch.distributed

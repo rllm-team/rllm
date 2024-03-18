@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from scipy.special import softmax
 from lib.utils import PredictDataset
-from abstract_model import DANsModel
+from model.abstract_model import DANsModel
 from lib.multiclass_utils import infer_output_dim, check_output_dim
 from torch.utils.data import DataLoader
 from torch.nn.functional import cross_entropy, mse_loss
