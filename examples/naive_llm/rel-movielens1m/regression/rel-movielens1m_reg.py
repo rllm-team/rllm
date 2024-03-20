@@ -4,7 +4,7 @@
 # Paper:
 # MAE: 1.143
 # Runtime: 26737s (on a single 6G GPU (Not applicable in practice))
-# Cost: 6.9917 US Dollar
+# Cost: $6.9917
 # Description: Use random 5 history rating to predict given user-movie rating by llm.
 # Usage: python rel-movielens1m_reg.py
 
