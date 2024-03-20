@@ -7,7 +7,7 @@
 # Runtime: Title only: 2990s; Full info: 6757s (on a single 6G GPU)
 # Cost: Title only: $0.2722; Full info: $0.5996
 # Description: Give llm movie name and limited genres, then ask llm which genres the movie should belong to.
-# Usage: python rel-movielens1m_clf.py
+# Usage: python rel-movielens1m_clf.py --prompt title/all
 
 # Append rllm to search path
 import sys
