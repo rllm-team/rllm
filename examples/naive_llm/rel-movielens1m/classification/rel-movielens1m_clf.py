@@ -2,9 +2,10 @@
 
 # Naive llm pipeline for classification task in rel-movielens1M
 # Paper: 
-# macro_f1: 0.415, micro_f1: 0.494
-# Runtime: 6097s (on a single 6G GPU)
-# Cost: 0.2532 US Dollar
+# Title only: macro_f1: 0.251, micro_f1: 0.387
+# Full info: macro_f1: 0.892, micro_f1: 0.884
+# Runtime: Title only: 2990s; Full info: 6757s (on a single 6G GPU)
+# Cost: Title only: $0.2722; Full info: $0.5996
 # Description: Give llm movie name and limited genres, then ask llm which genres the movie should belong to.
 # Usage: python rel-movielens1m_clf.py
 
