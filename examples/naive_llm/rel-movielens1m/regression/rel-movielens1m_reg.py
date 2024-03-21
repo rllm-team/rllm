@@ -2,9 +2,9 @@
 
 # Naive llm pipeline for regression task in rel-movielens1M
 # Paper:
-# MAE: 1.047
-# Runtime: 97200s (on a single 6G GPU (Not applicable in practice))
-# Cost: 7.6494 US Dollar
+# MAE: 1.143
+# Runtime: 26737s (on a single 6G GPU (Not applicable in practice))
+# Cost: $6.9917
 # Description: Use random 5 history rating to predict given user-movie rating by llm.
 # Usage: python rel-movielens1m_reg.py
 
