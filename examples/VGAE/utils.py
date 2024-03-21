@@ -5,51 +5,8 @@ import numpy as np
 import scipy.sparse as sp
 import torch
 from sklearn.metrics import roc_auc_score, average_precision_score
-
-
-def load_data(dataset):
-    # load the data: x, tx, allx, graph
-    names = ['x', 'tx', 'allx', 'graph']
-    objects = []
-    for i in range(len(names)):
-        '''
-        fix Pickle incompatibility of numpy arrays between Python 2 and 3
-        https://stackoverflow.com/questions/11305790/pickle-incompatibility-of-numpy-arrays-between-python-2-and-3
-        '''
-        with open("data/ind.{}.{}".format(dataset, names[i]), 'rb') as rf:
-            u = pkl._Unpickler(rf)
-            u.encoding = 'latin1'
-            cur_data = u.load()
-            objects.append(cur_data)
-        # objects.append(
-        #     pkl.load(open("data/ind.{}.{}".format(dataset, names[i]), 'rb')))
-    x, tx, allx, graph = tuple(objects)
-    test_idx_reorder = parse_index_file(
-        "data/ind.{}.test.index".format(dataset))
-    test_idx_range = np.sort(test_idx_reorder)
-
-    if dataset == 'citeseer':
-        # Fix citeseer dataset (there are some isolated nodes in the graph)
-        # Find isolated nodes, add them as zero-vecs into the right position
-        test_idx_range_full = range(
-            min(test_idx_reorder), max(test_idx_reorder) + 1)
-        tx_extended = sp.lil_matrix((len(test_idx_range_full), x.shape[1]))
-        tx_extended[test_idx_range - min(test_idx_range), :] = tx
-        tx = tx_extended
-
-    features = sp.vstack((allx, tx)).tolil()
-    features[test_idx_reorder, :] = features[test_idx_range, :]
-    features = torch.FloatTensor(np.array(features.todense()))
-    adj = nx.adjacency_matrix(nx.from_dict_of_lists(graph))
-
-    return adj, features
-
-
-def parse_index_file(filename):
-    index = []
-    for line in open(filename):
-        index.append(int(line.strip()))
-    return index
+import torch.nn.functional as F
+from scipy.sparse import coo_matrix
 
 
 def sparse_to_tuple(sparse_mx):
@@ -186,3 +143,73 @@ def get_roc_score(emb, adj_orig, edges_pos, edges_neg):
     ap_score = average_precision_score(labels_all, preds_all)
 
     return roc_score, ap_score
+
+
+def adj_matrix_to_list(adj_matrix):
+    """
+    This function converts adjacency matrices to adjacency lists
+    Args:
+        adj_matrix (COO Sparse Tensor): The adjacency matrix representing the connections between nodes.
+    """
+    adj_list = {}
+    adj_matrix = adj_matrix.to_dense()
+    for i in range(adj_matrix.size(0)):
+        adj_list[i] = (
+            adj_matrix[i] > 0
+            ).nonzero(as_tuple=False).squeeze().tolist()
+        # Ensure each value is a list, even if there's only one neighbor
+        if not isinstance(adj_list[i], list):
+            adj_list[i] = [adj_list[i]]
+    return adj_list
+
+
+# Function to convert adjacency matrix to networkx graph
+def change_to_matrix(adj):
+    adj_sparse = adj.to_sparse()
+    graph = nx.Graph()
+    graph.add_nodes_from(range(adj_sparse.shape[0]))
+    edges = adj_sparse.coalesce().indices().t().tolist()
+    graph.add_edges_from(edges)
+    adj = nx.adjacency_matrix(graph)
+    return adj
+
+
+def add_self_loops(adj_matrix):
+    num_nodes = adj_matrix.shape[0]
+    identity = coo_matrix((np.ones(num_nodes), (range(num_nodes), range(num_nodes))), shape=(num_nodes, num_nodes))
+    adj_matrix_with_loops = adj_matrix + identity
+    return adj_matrix_with_loops
+
+
+def loss_function(preds, labels, mu, logvar, n_nodes, norm, pos_weight):
+    pos_weight_tensor = torch.tensor(pos_weight, dtype=torch.float64)
+    cost = norm * F.binary_cross_entropy_with_logits(preds, labels, pos_weight=pos_weight_tensor)
+
+    # see Appendix B from VAE paper:
+    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
+    # https://arxiv.org/abs/1312.6114
+    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
+    KLD = -0.5 / n_nodes * torch.mean(torch.sum(
+        1 + 2 * logvar - mu.pow(2) - logvar.exp().pow(2), 1))
+    return cost + KLD
+
+# the loss function for classification task
+def combined_classification_loss(preds, labels, mu, logvar, n_nodes, norm, pos_weight, preds_logits, labels_binary):
+    loss1 = loss_function(preds, labels, mu, logvar, n_nodes, norm, pos_weight)
+    bce_loss = F.binary_cross_entropy_with_logits(preds_logits, labels_binary)
+    epsilon = 1e-8
+    alpha = 100
+    # 计算对数之和
+    log_sum_loss = (torch.log(loss1 + epsilon)+torch.log(bce_loss + epsilon)*alpha)/alpha
+    return log_sum_loss
+
+
+# the loss function for regression task
+def combined_regression_loss(preds, labels, mu, logvar, n_nodes, norm, pos_weight, preds_logits, labels_binary):
+    loss1 = loss_function(preds, labels, mu, logvar, n_nodes, norm, pos_weight)
+    bce_loss = F.mse_loss(preds_logits, labels_binary)
+    epsilon = 1e-8
+    alpha = 100
+    # 计算对数之和
+    log_sum_loss = (torch.log(loss1 + epsilon)+torch.log(bce_loss + epsilon)*alpha)/alpha
+    return log_sum_loss

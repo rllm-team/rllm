@@ -1,7 +1,7 @@
 # Naive GAE for classification task in rel-movielens1M
 # Paper: T. N. Kipf, M. Welling, Variational Graph Auto-Encoders ArXiv:1611.07308
-# Test f1_score micro: 0.3933, macro: 0.0762
-# Runtime: 19.89
+# Test f1_score micro: 0.2842, macro: 0.1267
+# Runtime: 34.29
 # Cost: N/A
 # Description: Simply apply GAE to movielens. Movies are linked iff a certain number of users rate them samely. Features were llm embeddings from table data to vectors.
 
@@ -10,7 +10,6 @@ from __future__ import print_function
 
 import argparse
 import torch
-import torch.nn as nn
 import numpy as np
 import scipy.sparse as sp
 from torch import optim
@@ -19,10 +18,10 @@ from model import GAE_CLASSIFICATION
 from sklearn.metrics import f1_score
 import sys
 sys.path.append("../../../../rllm/dataloader")
-
 import time
 from load_data import load_data
-import networkx as nx
+sys.path.append("../..")
+from utils import sparse_mx_to_torch_sparse_tensor, preprocess_graph, adj_matrix_to_list, change_to_matrix, add_self_loops, combined_classification_loss
 
 time_start = time.time()
 # Define command-line arguments using argparse
@@ -37,55 +36,6 @@ parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight dec
 
 args = parser.parse_args()
 
-def sparse_mx_to_torch_sparse_tensor(sparse_mx):
-    """Convert a scipy sparse matrix to a torch sparse tensor."""
-    sparse_mx = sparse_mx.tocoo().astype(np.float32)
-    indices = torch.from_numpy(
-        np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
-    values = torch.from_numpy(sparse_mx.data)
-    shape = torch.Size(sparse_mx.shape)
-    return torch.sparse_coo_tensor(indices, values, shape)
-
-
-def preprocess_graph(adj):
-    """Preprocess the adjacency matrix for graph-based tasks."""
-    adj = sp.coo_matrix(adj)
-    adj_ = adj + sp.eye(adj.shape[0])
-    rowsum = np.array(adj_.sum(1))
-    degree_mat_inv_sqrt = sp.diags(np.power(rowsum, -0.5).flatten())
-    adj_normalized = adj_.dot(degree_mat_inv_sqrt).transpose().dot(degree_mat_inv_sqrt).tocoo()
-    # return sparse_to_tuple(adj_normalized)
-    return sparse_mx_to_torch_sparse_tensor(adj_normalized)
-
-
-def adj_matrix_to_list(adj_matrix):
-    """
-    This function converts adjacency matrices to adjacency lists
-    Args:
-        adj_matrix (COO Sparse Tensor): The adjacency matrix representing the connections between nodes.
-    """
-    adj_list = {}
-    adj_matrix = adj_matrix.to_dense()
-    for i in range(adj_matrix.size(0)):
-        adj_list[i] = (
-            adj_matrix[i] > 0
-            ).nonzero(as_tuple=False).squeeze().tolist()
-        # Ensure each value is a list, even if there's only one neighbor
-        if not isinstance(adj_list[i], list):
-            adj_list[i] = [adj_list[i]]
-    return adj_list
-
-
-# Function to convert adjacency matrix to networkx graph
-def change_to_matrix(adj):
-    adj_sparse = adj.to_sparse()
-    graph = nx.Graph()
-    graph.add_nodes_from(range(adj_sparse.shape[0]))
-    edges = adj_sparse.coalesce().indices().t().tolist()
-    graph.add_edges_from(edges)
-    adj = nx.adjacency_matrix(graph)
-    return adj
-
 
 def gae_for(args):
     print("Using {} dataset".format("movielens-classification"))
@@ -93,16 +43,17 @@ def gae_for(args):
     data, adj, features, labels, idx_train, idx_val, idx_test = load_data('movielens-classification')
     n_nodes, feat_dim = features.shape
     # convert adj to networkx graph
-    adj = change_to_matrix(adj)
-
-    # Store original adjacency matrix (without diagonal entries) for later
-    adj_orig = adj
-    adj_orig = adj_orig - sp.dia_matrix((adj_orig.diagonal()[np.newaxis, :], [0]), shape=adj_orig.shape)
-    adj_orig.eliminate_zeros()
-
+    adj_matrix = change_to_matrix(adj)
+    adj_train = add_self_loops(adj_matrix)
+    adj = adj_train
     # Some preprocessing
-    adj_norm = preprocess_graph(adj)
+    # adj_norm = preprocess_graph(adj)
+    adj_label = adj_train + sp.eye(adj_train.shape[0])
+    adj_label = torch.FloatTensor(adj_label.toarray())
 
+    pos_weight = float(adj.shape[0] * adj.shape[0] - adj.sum()) / adj.sum()
+    norm = adj.shape[0] * adj.shape[0] / float((adj.shape[0] * adj.shape[0] - adj.sum()) * 2)
+    adj_norm = preprocess_graph(adj)
     num_classes = labels.shape[1]
 
     # build the GAE_CLASSIFICATION model and optimizer
@@ -110,14 +61,16 @@ def gae_for(args):
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     # optimizer = optim.Adam(model.parameters(), lr=args.lr)
     # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
-    loss_function = nn.BCEWithLogitsLoss()
     # training loop
     for epoch in range(args.epochs):
         t = time.time()
         model.train()
         optimizer.zero_grad()
-        recovered, mu, logvar = model(features, adj_norm)
-        loss = loss_function(recovered[idx_train], labels[idx_train])
+        recovered, aaa, mu, logvar = model(features, adj_norm)
+        loss = combined_classification_loss(preds=aaa, labels=adj_label,
+                             mu=mu, logvar=logvar, n_nodes=n_nodes,
+                             norm=norm, pos_weight=pos_weight, preds_logits=recovered[idx_train], labels_binary=labels[idx_train])
+        # loss = loss_f(recovered[idx_train], labels[idx_train])
         loss.backward()
         cur_loss = loss.item()
         optimizer.step()
@@ -137,8 +90,10 @@ def gae_for(args):
     print("Total time elapsed:", time_end - time_start)
     # test the model
     model.eval()
-    recovered, mu, logvar = model(features, adj_norm)
-    loss_test = loss_function(recovered[idx_test], labels[idx_test])
+    recovered, aaa, mu, logvar = model(features, adj_norm)
+    loss_test = combined_classification_loss(preds=aaa, labels=adj_label,
+                             mu=mu, logvar=logvar, n_nodes=n_nodes,
+                             norm=norm, pos_weight=pos_weight, preds_logits=recovered[idx_test], labels_binary=labels[idx_test])
     # Calculate F1 scores for the test set
     pred_test = np.where(recovered[idx_test].detach().numpy() > -1.0, 1, 0)
     f1_micro_test = f1_score(labels[idx_test].detach().numpy(), pred_test, average="micro")
