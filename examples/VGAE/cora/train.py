@@ -10,8 +10,9 @@ import torch
 from torch import optim
 import torch.nn.functional as F
 from model import GCNModelVAE
-from utils import mask_test_edges, preprocess_graph, get_roc_score
 import sys
+sys.path.append("../")
+from utils import mask_test_edges, preprocess_graph, get_roc_score, loss_function, change_to_matrix
 import networkx as nx
 sys.path.append("../../../rllm/dataloader")
 from load_data import load_data
@@ -27,29 +28,6 @@ parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 -
 parser.add_argument('--dataset-str', type=str, default='cora', help='type of dataset.')
 
 args = parser.parse_args()
-
-def loss_function(preds, labels, mu, logvar, n_nodes, norm, pos_weight):
-    pos_weight_tensor = torch.tensor(pos_weight, dtype=torch.float64)
-    cost = norm * F.binary_cross_entropy_with_logits(preds, labels, pos_weight=pos_weight_tensor)
-
-    # see Appendix B from VAE paper:
-    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-    # https://arxiv.org/abs/1312.6114
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD = -0.5 / n_nodes * torch.mean(torch.sum(
-        1 + 2 * logvar - mu.pow(2) - logvar.exp().pow(2), 1))
-    return cost + KLD
-
-
-def change_to_matrix(adj):
-    adj_sparse = adj.to_sparse()
-    graph = nx.Graph()
-    graph.add_nodes_from(range(adj_sparse.shape[0]))
-    edges = adj_sparse.coalesce().indices().t().tolist()
-    graph.add_edges_from(edges)
-    adj = nx.adjacency_matrix(graph)
-    return adj
-
 
 def gae_for(args):
     print("Using {} dataset".format(args.dataset_str))
