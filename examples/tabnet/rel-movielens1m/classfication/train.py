@@ -1,7 +1,7 @@
 # Tabnet for classification task in rel-movielens1M
 # Paper: TabNet: Attentive Interpretable Tabular Learning  https://doi.org/10.1609/aaai.v35i8.16826
 # arxiv : https://arxiv.org/abs/1908.07442
-# macro_f1:0.133 , micro_f1: 0.205
+# macro_f1:0.062 , micro_f1: 0.130
 # Runtime: 5.36s on single CPU (AMD Ryzen 5 5600U with Radeon Graphics 2.3Ghz)
 # Cost: N/A
 # Description: Simply apply TabNet to movielens.
@@ -80,11 +80,11 @@ cat_dims = [categorical_dims[f]
 # Network parameters
 clf = TabNetMultiTaskClassifier(cat_idxs=cat_idxs,
                                 cat_dims=cat_dims,
-                                cat_emb_dim=2,
+                                cat_emb_dim=1,
                                 optimizer_fn=torch.optim.Adam,
-                                optimizer_params=dict(lr=1e-4),
+                                optimizer_params=dict(lr=2e-2),
                                 scheduler_params={"step_size": 50,
-                                                  "gamma": 0.99},
+                                                  "gamma": 0.9},
                                 scheduler_fn=torch.optim.lr_scheduler.StepLR,
                                 mask_type='entmax'  # "sparsemax"
                                 )
@@ -119,8 +119,7 @@ preds = clf.predict_proba(X_test)
 predict_classes = clf.predict(X_test)
 predict_classes = np.transpose(predict_classes)
 predict_classes = predict_classes.astype(int)
-print("y_test:",y_test)
-print("Predict_classes:",predict_classes)
+
 macro_f1 = f1_score(y_test, predict_classes, average='macro')
 micro_f1 = f1_score(y_test, predict_classes, average='micro')
 
