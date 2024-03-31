@@ -20,8 +20,13 @@ code：h2um
 Unzip and put the unzipped repo in ./data, you'll have structure stated below:
 
 -data
+
 --movie_cla
+
 --movie_reg
+
 --MSLR-WEB10K
+
 --data_util.py
+
 --dataset.py
