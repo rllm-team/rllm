@@ -3,7 +3,7 @@
 # https://arxiv.org/abs/2112.02962
 # For classification f1_score micro: 0.302, macro: 0.035
 # For regression mse: 0.996
-# Runtime: 30s for classification and 15s for regression
+# Runtime: 15s for classification and 30s for regression
 # Cost: N/A
 # Description: Simply apply DANet to movielens.
 
@@ -14,12 +14,13 @@ import os
 import torch.distributed
 import numpy as np
 import torch.backends.cudnn
-from sklearn.metrics import accuracy_score, mean_squared_error, f1_score, mean_absolute_error
+from sklearn.metrics import f1_score, mean_absolute_error
 from data.dataset import get_data
 from lib.utils import normalize_reg_label
 from qhoptim.pyt import QHAdam
 from config.default import cfg
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+
 
 def get_args():
     parser = argparse.ArgumentParser(description='PyTorch v1.4, DANet Task Training')
@@ -34,18 +35,21 @@ def get_args():
     cfg.freeze()
     task = cfg.task
     seed = cfg.seed
-    train_config = {'dataset': cfg.dataset, 'resume_dir': cfg.resume_dir, 'logname': cfg.logname}
+    train_config = {'dataset': cfg.dataset,
+                    'resume_dir': cfg.resume_dir, 'logname': cfg.logname}
     fit_config = dict(cfg.fit)
     model_config = dict(cfg.model)
     print('Using config: ', cfg)
 
     return train_config, fit_config, model_config, task, seed, len(args.gpu_id)
 
+
 def set_task_model(task, std=None, seed=1):
     if task == 'classification':
         clf = DANetClassifier(
             optimizer_fn=QHAdam,
-            optimizer_params=dict(lr=fit_config['lr'], weight_decay=1e-5, nus=(0.8, 1.0)),
+            optimizer_params=dict(lr=fit_config['lr'],
+                                  weight_decay=1e-5, nus=(0.8, 1.0)),
             scheduler_params=dict(gamma=0.95, step_size=20),
             scheduler_fn=torch.optim.lr_scheduler.StepLR,
             layer=model_config['layer'],
@@ -60,7 +64,8 @@ def set_task_model(task, std=None, seed=1):
         clf = DANetRegressor(
             std=std,
             optimizer_fn=QHAdam,
-            optimizer_params=dict(lr=fit_config['lr'], weight_decay=1e-5, nus=(0.8, 1.0)),
+            optimizer_params=dict(lr=fit_config['lr'],
+                                  weight_decay=1e-5, nus=(0.8, 1.0)),
             scheduler_params=dict(gamma=0.95, step_size=20),
             scheduler_fn=torch.optim.lr_scheduler.StepLR,
             layer=model_config['layer'],
@@ -70,6 +75,7 @@ def set_task_model(task, std=None, seed=1):
         )
         eval_metric = ['mse']
     return clf, eval_metric
+
 
 if __name__ == '__main__':
 
@@ -93,8 +99,10 @@ if __name__ == '__main__':
         eval_set=[(X_valid, y_valid)],
         eval_name=['valid'],
         eval_metric=eval_metric,
-        max_epochs=fit_config['max_epochs'], patience=fit_config['patience'],
-        batch_size=fit_config['batch_size'], virtual_batch_size=fit_config['virtual_batch_size'],
+        max_epochs=fit_config['max_epochs'],
+        patience=fit_config['patience'],
+        batch_size=fit_config['batch_size'],
+        virtual_batch_size=fit_config['virtual_batch_size'],
         logname=logname,
         resume_dir=train_config['resume_dir'],
         n_gpu=n_gpu

@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class AcceleratedCreator(object):
     def __init__(self, input_dim, base_out_dim, k):
         super(AcceleratedCreator, self).__init__()
@@ -83,9 +84,9 @@ class CompressAbstractLayer(nn.Module):
         self.f_bias = nn.Parameter(f_b[None, :, :])
 
     def forward(self, x):
-        att = torch.sigmoid(torch.einsum('poi,bi->bpo', self.att_w, x) + self.att_bias) # (2 * i + 2) * p * o
-        y = torch.einsum('poi,bi->bpo', self.f_w, x) + self.f_bias # (2 * i + 1) * p * o
-        return torch.sum(F.relu(att * y), dim=-2, keepdim=False) # 3 * p * o
+        att = torch.sigmoid(torch.einsum('poi,bi->bpo', self.att_w, x) + self.att_bias)  # (2 * i + 2) * p * o
+        y = torch.einsum('poi,bi->bpo', self.f_w, x) + self.f_bias  # (2 * i + 1) * p * o
+        return torch.sum(F.relu(att * y), dim=-2, keepdim=False)  # 3 * p * o
 
 
 if __name__ == '__main__':
