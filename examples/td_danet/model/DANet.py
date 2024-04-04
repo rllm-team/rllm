@@ -4,10 +4,12 @@ import numpy as np
 import torch.nn.functional as F
 import examples.td_danet.lib.sparsemax as sparsemax
 
+
 def initialize_glu(module, input_dim, output_dim):
     gain_value = np.sqrt((input_dim + output_dim) / np.sqrt(input_dim))
     torch.nn.init.xavier_normal_(module.weight, gain=gain_value)
     return
+
 
 class GBN(torch.nn.Module):
     """
@@ -21,15 +23,15 @@ class GBN(torch.nn.Module):
         self.bn = nn.BatchNorm1d(self.input_dim)
 
     def forward(self, x):
-        if self.training == True:
+        if self.training is True:
             chunks = x.chunk(int(np.ceil(x.shape[0] / self.virtual_batch_size)), 0)
             res = [self.bn(x_) for x_ in chunks]
             return torch.cat(res, dim=0)
         else:
             return self.bn(x)
 
-class LearnableLocality(nn.Module):
 
+class LearnableLocality(nn.Module):
     def __init__(self, input_dim, k):
         super(LearnableLocality, self).__init__()
         self.register_parameter('weight', nn.Parameter(torch.rand(k, input_dim)))
@@ -39,6 +41,7 @@ class LearnableLocality(nn.Module):
         mask = self.smax(self.weight)
         masked_x = torch.einsum('nd,bd->bnd', mask, x)  # [B, k, D]
         return masked_x
+
 
 class AbstractLayer(nn.Module):
     def __init__(self, base_input_dim, base_output_dim, k, virtual_batch_size, bias=True):
@@ -72,7 +75,7 @@ class BasicBlock(nn.Module):
         )
 
     def forward(self, x, pre_out=None):
-        if pre_out == None:
+        if pre_out is None:
             pre_out = x
         out = self.conv1(pre_out)
         out = self.conv2(out)

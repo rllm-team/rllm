@@ -1,16 +1,12 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import QuantileTransformer, LabelEncoder, MultiLabelBinarizer
+from sklearn.preprocessing import QuantileTransformer, LabelEncoder
 from sklearn.model_selection import train_test_split
-from category_encoders import LeaveOneOutEncoder
-import sys 
+import sys
 import os
 current_path = os.path.dirname(__file__)
 sys.path.append(current_path + '/../data')
 
-import pandas as pd
-import numpy as np
-import torch
 
 def remove_unused_column(data):
     unused_list = []
@@ -65,10 +61,8 @@ def MSLR():
     return X_train, y_train, X_valid, y_valid, X_test, y_test
 
 
-
 def cardio():
     target = 'cardio'
-    data = pd.read_csv('./data/dataset/cardio/cardiovascular-disease.csv', delimiter=';').drop(['id'], axis=1)
     train = pd.read_csv('./data/cardio/train_idx.csv', delimiter=';')
     valid = pd.read_csv('./data/cardio/valid_idx.csv', delimiter=';')
     test = pd.read_csv('./data/cardio/test_idx.csv', delimiter=';')
@@ -81,34 +75,30 @@ def cardio():
     X_train, X_valid, X_test = quantile_transform(train, valid, test)
     return X_train, y_train, X_valid, y_valid, X_test, y_test
 
+
 def movielens_regression():
     net_path = './data/movie_reg'
     target = 'Rating'
-
     test = pd.read_csv(net_path + '/test.csv')
     train = pd.read_csv(net_path + '/train.csv')
     valid = pd.read_csv(net_path + '/valid.csv')
-
     y_train = train[target].values
     y_valid = valid[target].values
     y_test = test[target].values
-    
     X_train = np.array(train[['UserID', 'Timestamp']])
-    X_valid = np.array(valid[['UserID', 'Timestamp' ]])
+    X_valid = np.array(valid[['UserID', 'Timestamp']])
     X_test = np.array(test[['UserID', 'Timestamp']])
 
     return X_train, y_train, X_valid, y_valid, X_test, y_test
 
 
 def movielens_classification():
-    print("yes")
     net_path = './data/movie_cla'
-    target = 'Genre'  
     test = pd.read_csv(net_path + '/test.csv')
     train = pd.read_csv(net_path + '/train.csv')
     valid = pd.read_csv(net_path + '/valid.csv')
     X_train = np.array(train[['Year', 'MovielensID']])
-    X_valid = np.array(valid[['Year','MovielensID' ]])
+    X_valid = np.array(valid[['Year', 'MovielensID']])
     X_test = np.array(test[['Year', 'MovielensID']])
     train_genres = train['Genre']
     validation_genres = valid['Genre']
@@ -131,6 +121,6 @@ def get_data(datasetname):
     elif datasetname == 'movielens_cls':
         return movielens_classification()
 
+
 if __name__ == '__main__':
     movielens_classification()
-

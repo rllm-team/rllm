@@ -7,6 +7,7 @@ from lib.multiclass_utils import infer_output_dim, check_output_dim
 from torch.utils.data import DataLoader
 from torch.nn.functional import cross_entropy, mse_loss
 
+
 class DANetClassifier(DANsModel):
     def __post_init__(self):
         super(DANetClassifier, self).__post_init__()
@@ -125,7 +126,6 @@ class DANetRegressor(DANsModel):
             raise ValueError(msg)
         self.output_dim = y_train.shape[1]
         self.preds_mapper = None
-
 
     def predict_func(self, outputs):
         return outputs

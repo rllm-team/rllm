@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Any, Dict
+from typing import Any, Dict
 import torch
 import torch.cuda
 from torch.nn.utils import clip_grad_norm_
@@ -26,6 +26,7 @@ from model.DANet import DANet
 from model.AcceleratedModule import AcceleratedCreator
 from sklearn.base import BaseEstimator
 from sklearn.utils import check_array
+
 
 @dataclass
 class DANsModel(BaseEstimator):
@@ -135,10 +136,8 @@ class DANsModel(BaseEstimator):
         if resume_dir:
             start_epoch, self.network, self._optimizer, best_value, best_epoch = self.log.load_checkpoint(self._optimizer)
 
-
         # Call method on_train_begin for all callbacks
         self._callback_container.on_train_begin()
-        best_epoch = 1
         start_epoch = 1
         best_value = -float('inf') if self._task == 'classification' else float('inf')
 
@@ -156,7 +155,7 @@ class DANsModel(BaseEstimator):
             # Call method on_epoch_end for all callbacks
             self._callback_container.on_epoch_end(epoch_idx, logs=self.history.epoch_metrics)
 
-            #save checkpoint
+            # save checkpoint
             self.save_check()
             print('LR: ' + str(self._optimizer.param_groups[0]['lr']))
             if self._stop_training:
@@ -204,7 +203,6 @@ class DANsModel(BaseEstimator):
             "best_epoch": self._callback_container.callbacks[1].best_epoch
         }
         torch.save(save_dict, self.log.log_dir + '/checkpoint.pth')
-
 
     def load_model(self, filepath, input_dim, output_dim, n_gpu=1):
         """Load DANet model.
@@ -471,7 +469,6 @@ class DANsModel(BaseEstimator):
             self.batch_size
         )
         return train_dataloader, valid_dataloaders
-
 
     def _update_network_params(self):
         self.network.virtual_batch_size = self.virtual_batch_size
