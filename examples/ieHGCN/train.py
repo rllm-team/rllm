@@ -6,6 +6,7 @@
 # Description: apply ieHGCN to a DBLP, classification
 # comment: 
 
+# 1. import library
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -25,6 +26,7 @@ t_start = time.time()
 
 
 
+# 2. define train and test function
 def train(epoch):
 
 	model.train()
@@ -122,9 +124,12 @@ if __name__ == '__main__':
 
 		hid_layer_dim = [64,32,16,8]  # dblp4area4057
 		epochs = 200
+
+		# 3. load data
 		label, ft_dict, adj_dict = load_dblp4area4057()
+
+		# after load data
 		output_layer_shape = dict.fromkeys(ft_dict.keys(), 4)
-		# print(output_layer_shape)
 
 
 		layer_shape = []
@@ -136,9 +141,8 @@ if __name__ == '__main__':
 		layer_shape.append(output_layer_shape)
 
 
-		# Model and optimizer
+		# 4. define Model and optimizer
 		net_schema = dict([(k, list(adj_dict[k].keys())) for k in adj_dict.keys()])
-		# print(net_schema)
 		model = HGCN(
 					net_schema=net_schema,
 					layer_shape=layer_shape,
@@ -148,7 +152,7 @@ if __name__ == '__main__':
 					)
 		optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-
+		# 5. load data to cuda
 		if cuda and torch.cuda.is_available():
 			model.cuda()
 
@@ -161,9 +165,11 @@ if __name__ == '__main__':
 				for i in range(len(label[k])):
 					label[k][i] = label[k][i].cuda()
 
+		# 6. train
 		for epoch in range(epochs):
 			train(epoch)
 
+		# 7. test
 		(micro_f1, macro_f1) = test()
 
 		t_end = time.time()

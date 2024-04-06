@@ -5,6 +5,8 @@
 # Cost: N/A
 # Description: apply ieHGCN to rel-movielenslm, classification
 
+
+# 1. import
 import pandas as pd
 import numpy as np
 import sys
@@ -22,12 +24,11 @@ current_path = os.path.dirname(__file__)
 warnings.filterwarnings("ignore", category=sklearn.exceptions.UndefinedMetricWarning)
 
 import time
-
-from util import *
 from model import HGCN
 
 t_start = time.time()
 
+# 2. load data
 train_df = pd.read_csv(
 	current_path + '/../../../../rllm/datasets/rel-movielens1m/classification/movies/train.csv')
 test_df = pd.read_csv(
@@ -41,9 +42,7 @@ rating = pd.read_csv(
     current_path + '/../../../../rllm/datasets/rel-movielens1m/classification/ratings.csv')
 
 
-### CLASSIFICATION
-
-import torch
+# 3. data preprocess for CLASSIFICATION
 
 def _get_id_mapping(ids):
     r"""
@@ -57,21 +56,10 @@ def _get_id_mapping(ids):
     return mapping
 
 
-# pandas generate a huge table with train, test, val labels 
 movie_all = pd.concat([test_df, train_df, validation_df])
 
-
-# movie id to index
 mmap = _get_id_mapping(movie_all['MovielensID'])
-
-# user id to user index
 umap = _get_id_mapping(user['UserID'])
-
-# find the label of all (edge(u, m) to value) 
-# todo how to get value of edge(u, m)
-
-# tensor([[   0,    0,    0,  ..., 6039, 6039, 6039],
-#         [ 163,  206,  270,  ..., 3830, 3841, 3882]]) tensor([3., 5., 3.,  ..., 5., 4., 4.])
 
 u = [umap[_] for _ in rating['UserID'].values]
 m = [mmap[_] for _ in rating['MovieID'].values]
@@ -111,7 +99,7 @@ idx_val = torch.LongTensor([mmap[i] for i in validid])
 idx_test = torch.LongTensor([mmap[i] for i in testid])
 
 
-
+# 3. define train and test function
 
 def train(epoch):
 
@@ -222,6 +210,7 @@ if __name__ == '__main__':
 
 		net_schema = dict([(k, list(adj_dict[k].keys())) for k in adj_dict.keys()])
 
+		# 4. define Model and optimizer
 		model = HGCN(
 					net_schema=net_schema,
 					layer_shape=layer_shape,
@@ -231,6 +220,7 @@ if __name__ == '__main__':
 					)
 		optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
+		# 5. load data to cuda
 		if cuda and torch.cuda.is_available():
 			model.cuda()
 
@@ -243,9 +233,11 @@ if __name__ == '__main__':
 				for i in range(len(label[k])):
 					label[k][i] = label[k][i].cuda()
 
+		# 6. train
 		for epoch in range(epochs):
 			train(epoch)
 
+		# 7. test
 		(micro_f1, macro_f1) = test()
 
 		t_end = time.time()

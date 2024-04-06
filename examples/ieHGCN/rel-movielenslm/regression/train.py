@@ -5,6 +5,8 @@
 # Cost: N/A
 # Description: apply ieHGCN to rel-movielenslm, regression
 
+
+# 1. import
 import pandas as pd
 import numpy as np
 import sys
@@ -17,18 +19,14 @@ import warnings
 import sklearn.exceptions
 import os
 current_path = os.path.dirname(__file__)
-# sys.path.append(current_path + '/../../../../rllm/')
-# from dataloader.movielens_classification import load
 
 warnings.filterwarnings("ignore", category=sklearn.exceptions.UndefinedMetricWarning)
 
 import time
-
-# from util import *
 from model import HGCN
 t_start = time.time()
-# movie data 
-# test h
+
+# 2. load data
 train_df = pd.read_csv(
 	current_path + '/../../../../rllm/datasets/rel-movielens1m/regression/ratings/train.csv')
 test_df = pd.read_csv(
@@ -42,9 +40,7 @@ movie = pd.read_csv(
     current_path + '/../../../../rllm/datasets/rel-movielens1m/regression/movies.csv')
 
 
-### REGRESSION
-
-import torch
+# 3. data preprocess for REGRESSION
 
 def _get_id_mapping(ids):
     r"""
@@ -68,26 +64,13 @@ mmap = _get_id_mapping(movie['MovielensID'])
 # user id to user index
 umap = _get_id_mapping(user['UserID'])
 
-# find the label of all (edge(u, m) to value) 
-# todo how to get value of edge(u, m)
-
-# # tensor([[   0,    0,    0,  ..., 6039, 6039, 6039],
-# #         [ 163,  206,  270,  ..., 3830, 3841, 3882]]) tensor([3., 5., 3.,  ..., 5., 4., 4.])
-
 u = [umap[_] for _ in rating_all['UserID'].values]
 m = [mmap[_] for _ in rating_all['MovieID'].values]
-# print(len(u), len(m))
 
 edge_weight = np.array(rating_all['Rating'])
 
 edge_tensor = torch.tensor(edge_weight)
-# print(np.array(edge_weight))
-# # for i in range(len(u)):
-# #     if(u[i] == 6039 and m[i]==3882):
-# #         print(edge_weight[i])
-# hi = torch.tensor([u, m])
-# hello = torch.tensor(np.array(edge_weight))
-# print(hi, hello)
+
 u2m = torch.sparse_coo_tensor(torch.tensor([u, m]), edge_tensor)
 m2u = torch.sparse_coo_tensor(torch.tensor([m, u]), edge_tensor)
 adj_dict = {"u": {"m": u2m.type(torch.FloatTensor).to("cuda")}, "m": {"u": m2u.type(torch.FloatTensor).to("cuda")}}
@@ -104,16 +87,12 @@ mapping = {'F': 0, 'M': 1}
 user['Gender'] = user['Gender'].replace(mapping)
 # # find the features of users 
 user_good = user[["Gender" ,"Age" ,"Occupation"]]
-# # print(user_good.values)
 user_good['Age'] = user_good["Age"] / user_good["Age"].abs().max()
 user_good['Occupation'] = user_good["Occupation"] / user_good["Occupation"].abs().max()
-# print(user_good.values)
 user_ft = torch.tensor(user_good.values)
 
 ft_dict = {"m": torch.tensor(ft).type(torch.FloatTensor).to("cuda"), "u": user_ft.type(torch.FloatTensor).to("cuda")}
-# # data = load()
 
-print(label, adj_dict, ft_dict)
 
 trainid = train_df['MovieID'].values
 validid = validation_df['MovieID'].values
@@ -123,7 +102,7 @@ idx_val = torch.LongTensor([mmap[i] for i in validid])
 idx_test = torch.LongTensor([mmap[i] for i in testid])
 
 
-
+# 3. define train and test function
 
 def train(epoch):
 
@@ -234,7 +213,7 @@ if __name__ == '__main__':
 		layer_shape.extend(hidden_layer_shape)
 		layer_shape.append(output_layer_shape)
 
-		# Model and optimizer
+		# 4. define Model and optimizer
 		net_schema = dict([(k, list(adj_dict[k].keys())) for k in adj_dict.keys()])
 		model = HGCN(
 					net_schema=net_schema,
@@ -244,8 +223,8 @@ if __name__ == '__main__':
 					type_att_size=type_att_size,
 					)
 		optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-		# print("hi3")
 
+		# 5. load data to cuda
 		if cuda and torch.cuda.is_available():
 			model.cuda()
 
@@ -258,9 +237,11 @@ if __name__ == '__main__':
 				for i in range(len(label[k])):
 					label[k][i] = label[k][i].cuda()
 
+		# 6. train
 		for epoch in range(epochs):
 			train(epoch)
 
+		# 7. test
 		MAE_test = test()
 
 		t_end = time.time()
