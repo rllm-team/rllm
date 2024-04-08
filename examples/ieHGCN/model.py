@@ -4,16 +4,16 @@ import torch.nn.functional as F
 
 class HeteGCNLayer(nn.Module):
 
-	def __init__(self, net_schema, in_layer_shape, out_layer_shape, type_fusion, type_att_size):
+	def __init__(self, net_schem, input_layer_shape, out_layer_shape, type_fusion, type_attention_size):
 		super(HeteGCNLayer, self).__init__()
 		
-		self.net_schema = net_schema
-		self.in_layer_shape = in_layer_shape
+		self.net_schem = net_schem
+		self.input_layer_shape = input_layer_shape
 		self.out_layer_shape = out_layer_shape
 
 		self.hete_agg = nn.ModuleDict()
-		for k in net_schema:
-			self.hete_agg[k] = HeteAggregateLayer(k, net_schema[k], in_layer_shape, out_layer_shape[k], type_fusion, type_att_size)
+		for k in net_schem:
+			self.hete_agg[k] = HeteAggregateLayer(k, net_schem[k], input_layer_shape, out_layer_shape[k], type_fusion, type_attention_size)
 
 
 	def forward(self, x_dict, adj_dict):
@@ -28,7 +28,7 @@ class HeteGCNLayer(nn.Module):
 
 class HeteAggregateLayer(nn.Module):
 	
-	def __init__(self, curr_k, nb_list, in_layer_shape, out_shape, type_fusion, type_att_size):
+	def __init__(self, curr_k, nb_list, input_layer_shape, output_shape, type_fusion, type_attention_size):
 		super(HeteAggregateLayer, self).__init__()
 		
 		self.nb_list = nb_list
@@ -37,21 +37,21 @@ class HeteAggregateLayer(nn.Module):
 		
 		self.W_rel = nn.ParameterDict()
 		for k in nb_list:
-			self.W_rel[k] = nn.Parameter(torch.FloatTensor(in_layer_shape[k], out_shape))
+			self.W_rel[k] = nn.Parameter(torch.FloatTensor(input_layer_shape[k], output_shape))
 			nn.init.xavier_uniform_(self.W_rel[k].data, gain=1.414)
 		
-		self.w_self = nn.Parameter(torch.FloatTensor(in_layer_shape[curr_k], out_shape))
+		self.w_self = nn.Parameter(torch.FloatTensor(input_layer_shape[curr_k], output_shape))
 		nn.init.xavier_uniform_(self.w_self.data, gain=1.414)
 
-		self.bias = nn.Parameter(torch.FloatTensor(1, out_shape))
+		self.bias = nn.Parameter(torch.FloatTensor(1, output_shape))
 		nn.init.xavier_uniform_(self.bias.data, gain=1.414)
 
 		if type_fusion == 'att':
-			self.w_query = nn.Parameter(torch.FloatTensor(out_shape, type_att_size))
+			self.w_query = nn.Parameter(torch.FloatTensor(output_shape, type_attention_size))
 			nn.init.xavier_uniform_(self.w_query.data, gain=1.414)
-			self.w_keys = nn.Parameter(torch.FloatTensor(out_shape, type_att_size))
+			self.w_keys = nn.Parameter(torch.FloatTensor(output_shape, type_attention_size))
 			nn.init.xavier_uniform_(self.w_keys.data, gain=1.414)
-			self.w_att = nn.Parameter(torch.FloatTensor(2*type_att_size, 1))
+			self.w_att = nn.Parameter(torch.FloatTensor(2*type_attention_size, 1))
 			nn.init.xavier_uniform_(self.w_att.data, gain=1.414)
 
 
@@ -88,13 +88,13 @@ class HeteAggregateLayer(nn.Module):
 
 class HGCN(nn.Module):
 	
-	def __init__(self, net_schema, layer_shape, label_keys, type_fusion='att', type_att_size=64):
+	def __init__(self, net_schem, layer_shape, label_keys, type_fusion='att', type_attention_size=64):
 		super(HGCN, self).__init__()
 		
-		self.hgc1 = HeteGCNLayer(net_schema, layer_shape[0], layer_shape[1], type_fusion, type_att_size)
-		self.hgc2 = HeteGCNLayer(net_schema, layer_shape[1], layer_shape[2], type_fusion, type_att_size)
-		self.hgc3 = HeteGCNLayer(net_schema, layer_shape[2], layer_shape[3], type_fusion, type_att_size)
-		self.hgc4 = HeteGCNLayer(net_schema, layer_shape[3], layer_shape[4], type_fusion, type_att_size)
+		self.hgc1 = HeteGCNLayer(net_schem, layer_shape[0], layer_shape[1], type_fusion, type_attention_size)
+		self.hgc2 = HeteGCNLayer(net_schem, layer_shape[1], layer_shape[2], type_fusion, type_attention_size)
+		self.hgc3 = HeteGCNLayer(net_schem, layer_shape[2], layer_shape[3], type_fusion, type_attention_size)
+		self.hgc4 = HeteGCNLayer(net_schem, layer_shape[3], layer_shape[4], type_fusion, type_attention_size)
 		
 
 		self.embd2class = nn.ParameterDict()

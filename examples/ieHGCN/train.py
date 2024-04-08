@@ -1,10 +1,11 @@
 # ieHGCN for classification task in DBLP
-# Paper: Yaming Yang, Ziyu Guan, Jianxin Li, Wei Zhao, Jiangtao Cui, Quan Wang Interpretable and Efficient Heterogeneous Graph Convolutional Network  https://arxiv.org/abs/2005.13183
+# Paper: Yaming Yang, Ziyu Guan, Jianxin Li, Wei Zhao, Jiangtao Cui, Quan Wang Interpretable and Efficient Heterogeneous Graph Convolutional Network 
+# Arxiv: https://arxiv.org/abs/2005.13183
 # f1_micro_test: 0.9427 f1_macro_test: 0.9393
 # Runtime: 22.092s on  GPU
 # Cost: N/A
 # Description: apply ieHGCN to a DBLP, classification
-# comment: 
+# Usage: python train.py
 
 # 1. import library
 import numpy as np
@@ -144,11 +145,11 @@ if __name__ == '__main__':
 		# 4. define Model and optimizer
 		net_schema = dict([(k, list(adj_dict[k].keys())) for k in adj_dict.keys()])
 		model = HGCN(
-					net_schema=net_schema,
+					net_schem=net_schema,
 					layer_shape=layer_shape,
 					label_keys=list(label.keys()),
 					type_fusion=type_fusion,
-					type_att_size=type_att_size,
+					type_attention_size=type_att_size,
 					)
 		optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 

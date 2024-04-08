@@ -1,10 +1,11 @@
 # ieHGCN for classification task in rel-movielenslm
-# Paper: Yaming Yang, Ziyu Guan, Jianxin Li, Wei Zhao, Jiangtao Cui, Quan Wang Interpretable and Efficient Heterogeneous Graph Convolutional Network  https://arxiv.org/abs/2005.13183
+# Paper: Yaming Yang, Ziyu Guan, Jianxin Li, Wei Zhao, Jiangtao Cui, Quan Wang Interpretable and Efficient Heterogeneous Graph Convolutional Network 
+# Arxiv: https://arxiv.org/abs/2005.13183
 # test micro f1 a: 0.3363 test macro f1 a: 0.0341 (depend on random seed, but if you run it a couple of times you should be able to recreate the result)
-# Runtime: 62.993s on GPU (with data loading) 56.977s on GPU (also depend on seed, sometimes the plateau is reached much faster, around 20s, 300 epochs are chosen to ensure the likelihood of recreating the result)
+# Runtime: 62.993s on GPU (with data loading) 56.977s on GPU (without data loading also depend on seed, sometimes the plateau is reached much faster, around 20s, 300 epochs are chosen to ensure the likelihood of recreating the result)
 # Cost: N/A
 # Description: apply ieHGCN to rel-movielenslm, classification
-
+# Usage: python train.py
 
 # 1. import
 import pandas as pd
@@ -212,11 +213,11 @@ if __name__ == '__main__':
 
 		# 4. define Model and optimizer
 		model = HGCN(
-					net_schema=net_schema,
+					net_schem=net_schema,
 					layer_shape=layer_shape,
 					label_keys=list(label.keys()),
 					type_fusion=type_fusion,
-					type_att_size=type_att_size,
+					type_attention_size=type_att_size,
 					)
 		optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
