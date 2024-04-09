@@ -23,7 +23,7 @@ from sentence_transformers import SentenceTransformer
 
 ## 1. Start clock
 t_start = time.time()
-np.random.seed(0)
+np.random.seed(int(t_start))
 
 
 ## 2. Load data

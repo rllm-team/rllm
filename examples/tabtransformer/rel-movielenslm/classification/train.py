@@ -21,8 +21,9 @@ from sentence_transformers import SentenceTransformer
 
 
 ## 1. Start clock
-np.random.seed(0)
+
 t_start = time.time()
+np.random.seed(int(t_start))
 
 ## 2. load data
 current_path = 'f:\\ie\\example\\tabtransformer\\rel-movielenslm\\classification'

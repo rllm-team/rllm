@@ -17,7 +17,7 @@ from sklearn.preprocessing import LabelEncoder
 import time
 
 t_start = time.time()
-np.random.seed(0)
+np.random.seed(int(t_start))
 
 ## load data
 train = pd.read_csv('F:\\rllm\\examples\\tabtransformer\\dataset\\adult.data', header=None)
