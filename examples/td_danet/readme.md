@@ -21,12 +21,12 @@ Unzip and put the unzipped repo in ./data, you'll have structure stated below:
 
 -data
 
---movie_cla
+|--movie_cla
 
---movie_reg
+|--movie_reg
 
---MSLR-WEB10K
+|--MSLR-WEB10K
 
---data_util.py
+|--data_util.py
 
---dataset.py
+|--dataset.py
