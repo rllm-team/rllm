@@ -1,4 +1,4 @@
-# GNN-FiLM for classification task in PPI dataset
+# GMT for classification task in TUDataset dataset
 # Paper: Baek, J., Kang, M., & Hwang, S. J. (2021). Accurate learning of graph representations with graph multiset pooling. arXiv preprint arXiv:2102.11533.
 # Test f1_score micro: 0.43037974683544306; macro: 0.15178571428571427
 # Runtime: 6.8501s on a single GPU
