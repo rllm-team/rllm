@@ -1,103 +1,112 @@
-# GNN-FiLM for classification task in PPI dataset
-# Paper: Brockschmidt, M. (2020, November). Gnn-film: Graph neural networks with feature-wise linear modulation. In International Conference on Machine Learning (pp. 1144-1152). PMLR.
-# Test f1_score micro: 0.18624943583571535; macro: 0.1134700781400389
-# Runtime: 25.3940s on a single GPU
+# GMT for classification task in rel-movielens1m dataset
+# Paper: Baek, J., Kang, M., & Hwang, S. J. (2021). Accurate learning of graph representations with graph multiset pooling. arXiv preprint arXiv:2102.11533.
+# Test f1_score micro: 0.33439635535307516; macro: 0.0799316725838052
+# Runtime: 7.1744s on a single GPU
 # Cost: N/A
 
+import os.path as osp
 import time
+from sklearn.metrics import f1_score
 import torch
 import torch.nn.functional as F
-from sklearn.metrics import f1_score
-from torch.nn import BatchNorm1d
-from film_conv import FiLMConv
+from torch.nn import Linear
 import numpy as np
-from utils import separate_data, get_batches
+from utils import separate_data,get_batches
+from torch_geometric.datasets import TUDataset
+from torch_geometric.loader import DataLoader
+from torch_geometric.nn import GCNConv, GraphMultisetTransformer
+import warnings
+warnings.filterwarnings("ignore")
+path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'PROTEINS')
+dataset = TUDataset(path, name='PROTEINS').shuffle()
+
+n = (len(dataset) + 9) // 10
+train_dataset = dataset[2 * n:]
+val_dataset = dataset[n:2 * n]
+test_dataset = dataset[:n]
+
+train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=128)
+test_loader = DataLoader(test_dataset, batch_size=128)
 
 data, adj, features, labels, idx_train, idx_test, y_train, y_test, train_adj, test_adj, train_feats, test_feats, test_labels, val_adj, val_feats, val_labels = separate_data()
-input_dim = features.shape[1]
-train_nums = train_adj.shape[0]
-if torch.cuda.is_available():
-    device = torch.device('cuda:1')
-elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-    device = torch.device('mps')
-else:
-    device = torch.device('cpu')
 
 class Net(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
-                 dropout=0.0):
+    def __init__(self):
         super().__init__()
-        self.dropout = dropout
 
-        self.convs = torch.nn.ModuleList()
-        self.convs.append(FiLMConv(in_channels, hidden_channels))
-        for _ in range(num_layers - 2):
-            self.convs.append(FiLMConv(hidden_channels, hidden_channels))
-        self.convs.append(FiLMConv(hidden_channels, out_channels, act=None))
-        self.norms = torch.nn.ModuleList()
-        for _ in range(num_layers - 1):
-            self.norms.append(BatchNorm1d(hidden_channels))
+        self.conv1 = GCNConv(features.shape[1], 32)
+        self.conv2 = GCNConv(32, 32)
+        self.conv3 = GCNConv(32, 32)
 
-    def forward(self, x, edge_index):
-        for conv, norm in zip(self.convs[:-1], self.norms):
-            x = norm(conv(x, edge_index))
-            x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.convs[-1](x, edge_index)
+        self.pool = GraphMultisetTransformer(96, k=10, heads=4)
+
+        self.lin1 = Linear(32, 16)
+        self.lin2 = Linear(16, y_train.shape[1])
+
+    def forward(self, x0, edge_index, batch):
+        x1 = self.conv1(x0, edge_index).relu()
+        x2 = self.conv2(x1, edge_index).relu()
+        x3 = self.conv3(x2, edge_index).relu()
+        x = torch.cat([x1, x2, x3], dim=-1)
+
+        #x = self.pool(x, batch)
+
+        x = self.lin1(x3).relu()
+        x = F.dropout(x, p=0.5, training=self.training)
+        x = self.lin2(x)
+
         return x
 
-torch.cuda.init()
-model = Net(in_channels=features.shape[1], hidden_channels=320,
-            out_channels=y_train.shape[1], num_layers=8,
-            dropout=0.1).to(device)
-criterion = torch.nn.BCEWithLogitsLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = Net().to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+
 
 def train(train_ind, batch_size):
     model.train()
-    for batch_labels, sampled_feats, sampled_adjs in get_batches(train_ind,
+
+    total_loss = 0
+    for cur_ind, batch_labels, sampled_feats, sampled_adjs in get_batches(train_ind,
                                                     y_train,train_feats,train_adj, batch_size, False):
+        #data = data.to(device)
+        optimizer.zero_grad()
+        '''print(sampled_feats.size())
+        print(sampled_adjs.size())
+        print(batch_labels.size())'''
         sampled_feats = sampled_feats.to(device)
         sampled_adjs = sampled_adjs.to(device)
         batch_labels = batch_labels.to(device)
-        optimizer.zero_grad()
-        out = model(sampled_feats, sampled_adjs)
-        loss = criterion(out, batch_labels)
-        loss.backward()
-        optimizer.step()
-    return loss.item()
+        out = model(sampled_feats, sampled_adjs, cur_ind)
 
+        loss = F.cross_entropy(out, batch_labels)
+        loss.backward()
+        total_loss += float(loss)
+        optimizer.step()
+    return total_loss / 100
 
 @torch.no_grad()
-def test(test_y, test_f, test_a):
+def test():
     model.eval()
     ys, preds = [], []
-    if test_a.shape[0] %2 == 0:
-        test_nums = test_a.shape[0]
-    else:
-        test_nums = test_a.shape[0]-1
-    for batch_labels, sampled_feats, sampled_adjs in get_batches(np.arange(test_nums),
-                                                    test_y, test_f, test_a, 2, False):
-    #for data in loader:
+    test_nums = test_adj.shape[0]-1
+    for cur_ind, batch_labels, sampled_feats, sampled_adjs in get_batches(np.arange(test_nums),
+                                                    y_test, test_feats, test_adj, 2, False):
+        sampled_feats = sampled_feats.to(device)
+        sampled_adjs = sampled_adjs.to(device)
+        out = model(sampled_feats, sampled_adjs, cur_ind)
         ys.append(batch_labels)
-        out = model(sampled_feats.to(device), sampled_adjs.to(device))
-        preds.append((out > 0).float().cpu())
-
+        preds.append((out > 0).cpu())
     y, pred = torch.cat(ys, dim=0).numpy(), torch.cat(preds, dim=0).numpy()
+
     f1_micro = f1_score(y, pred, average='micro')
     f1_macro = f1_score(y, pred, average='macro')
     return f1_micro, f1_macro
 
 t_total = time.time()
 for epoch in range(1, 11):
-    loss = train(np.arange(100), 2) 
-    f1_micro, f1_macro = test(val_labels, val_feats, val_adj)
-    value = (f1_micro+f1_macro)/2.0
-    if epoch < 6 and value > 0.18:
-            break
-    if epoch > 5 and value > 0.175:
-            break
-
-f1_micro, f1_macro = test(y_test, test_feats, test_adj)
+    start = time.time()
+    train_loss = train(np.arange(100), 2)
+f1_micro, f1_macro = test()
 print(f"micro: {f1_micro}; macro: {f1_macro}")
 print("Total time elapsed: {:.4f}s".format(time.time() - t_total))
-
