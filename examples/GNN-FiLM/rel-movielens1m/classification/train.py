@@ -1,4 +1,4 @@
-# GNN-FiLM for classification task in PPI dataset
+# GNN-FiLM for classification task in rel-movielens1m dataset
 # Paper: Brockschmidt, M. (2020, November). Gnn-film: Graph neural networks with feature-wise linear modulation. In International Conference on Machine Learning (pp. 1144-1152). PMLR.
 # Test f1_score micro: 0.18624943583571535; macro: 0.1134700781400389
 # Runtime: 25.3940s on a single GPU
