@@ -1,10 +1,10 @@
 # rLLM
 
-**rLLM** (relation LLM) focuses on LLM-based relational data mining, prioritizing: Accuracy, Efficiency, and Economy.
+**rLLM** (relationLLM) focuses on LLM-based relational data learning, prioritizing: Accuracy, Efficiency, and Economy.
 
-- Accuracy: MAE for regression; Micro-F1 and Macro-F1 for classification.
-- Efficiency: Runtime, measured in seconds.
-- Economy: Money, measured in dollars.
+- Accuracy: quality of being true, correct, or exact.
+- Efficiency: running time, measured in seconds.
+- Economy: money cost, measured in dollars.
 
 ## Dependencies
 
@@ -21,8 +21,8 @@
 
 ## LLM models
 
-- We recommmend 4-bit quantized Gemma 2b model, which can be Downloaded from the SJTU cloud storage or [HuggingFace](https://huggingface.co/lmstudio-ai/gemma-2b-it-GGUF/blob/main/gemma-2b-it-q4_k_m.gguf).
+- We recommmend 4-bit quantized Gemma 2b model, which can be Downloaded from [HuggingFace](https://huggingface.co/lmstudio-ai/gemma-2b-it-GGUF/blob/main/gemma-2b-it-q4_k_m.gguf).
 
 ## LM Model
 
-- We recommend a light BERT-like model  all-MiniLM-L6-v2 to make sentence embedding, which can be obtained from the SJTU cloud storage, or directly from [HuggingFace](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2).
+- We recommend a light BERT-like model all-MiniLM-L6-v2 to make sentence embedding, which can be obtained directly from [HuggingFace](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2).
