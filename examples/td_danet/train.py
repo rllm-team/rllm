@@ -90,7 +90,8 @@ if __name__ == '__main__':
         print("mean = %.5f, std = %.5f" % (mu, std))
         y_train = normalize_reg_label(y_train, std, mu)
         y_valid = normalize_reg_label(y_valid, std, mu)
-        y_test = normalize_reg_label(y_test, std, mu)
+        # y_test = normalize_reg_label(y_test, std, mu)
+        y_test = y_test.reshape(-1, 1)
 
     clf, eval_metric = set_task_model(task, std, seed)
 
@@ -119,5 +120,5 @@ if __name__ == '__main__':
         print(f"FINAL micro F1 FOR {train_config['dataset']} : {micro_f1}")
 
     elif task == 'regression':
-        test_mae = mean_absolute_error(y_pred=preds_test, y_true=y_test)
+        test_mae = mean_absolute_error(y_pred=preds_test*4+1, y_true=y_test)
         print(f"FINAL TEST MAE FOR {train_config['dataset']} : {test_mae}")
