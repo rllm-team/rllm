@@ -1,6 +1,6 @@
 # rLLM
 
-**rLLM** (relationLLM) focuses on LLM-based relational data learning, prioritizing: Accuracy, Efficiency, and Economy.
+**rLLM** (relationLLM) focuses on LLM-powered relational data learning, prioritizing: Accuracy, Efficiency, and Economy.
 
 - Accuracy: quality of being true, correct, or exact.
 - Efficiency: running time, measured in seconds.
