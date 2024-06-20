@@ -21,7 +21,7 @@ import pandas as pd
 import os
 import glob
 
-llm_model_path = "/home/qinghua_mao/work/rllm/gemma-2b-it-GGUF/gemma-2b-it-q8_0.gguf"
+llm_model_path = "/home/qinghua_mao/work/rllm/SciPhi-Self-RAG-Mistral-7B-32k-GGUF/sciphi-self-rag-mistral-7b-32k.Q4_K_M.gguf"
 embed_path = "/home/qinghua_mao/work/rllm/all-MiniLM-L6-v2"
 
 local_llm = "mistral"
@@ -95,11 +95,12 @@ urls = glob.glob("/home/qinghua_mao/work/rllm/wikipedia-en/data/*.parquet")  # w
 
 # docs = loader.load()
 
-docs = [ParquetLoader(url).load() for url in urls]
-docs_list = [item for sublist in docs for item in sublist]
+# remove tempororarily
+# docs = [ParquetLoader(url).load() for url in urls]
+# docs_list = [item for sublist in docs for item in sublist]
 
-text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(chunk_size=250, chunk_overlap=0)
-doc_splits = text_splitter.split_documents(docs_list)
+# text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(chunk_size=250, chunk_overlap=0)
+# doc_splits = text_splitter.split_documents(docs_list)
 
 model_name = "all-MiniLM-L6-v2.gguf2.f16.gguf"
 gpt4all_kwargs = {'allow_download': 'True'}
@@ -107,12 +108,12 @@ embeddings = GPT4AllEmbeddings(
     model_name = model_name,
     gpt4all_kwargs = gpt4all_kwargs
 )
-vectorstore = Chroma.from_documents(
-    persist_directory="/home/qinghua_mao/work/rllm/chroma_wiki",
-    documents=doc_splits,
-    collection_name="rag-chroma", 
-    embedding=embeddings)
-# vectorstore = Chroma(persist_directory="/home/qinghua_mao/work/rllm/chroma", collection_name="rag-chroma", embedding_function=embeddings)
+# vectorstore = Chroma.from_documents(
+#     persist_directory="/home/qinghua_mao/work/rllm/chroma_wiki",
+#     documents=doc_splits,
+#     collection_name="rag-chroma", 
+#     embedding=embeddings)
+vectorstore = Chroma(persist_directory="/home/qinghua_mao/work/rllm/chroma_wiki", collection_name="rag-chroma", embedding_function=embeddings)
 
 # retrieve and generate using the relevant snippets of the blog
 retriever = vectorstore.as_retriever()
@@ -122,18 +123,30 @@ retriever = vectorstore.as_retriever()
 from typing import Literal
 from langchain_core.output_parsers import JsonOutputParser
 # load model
-llm_json = LlamaCpp(
-    model_path=llm_model_path,
-    streaming=False,
-    n_gpu_layers=33,
-    verbose=False,
-    temperature=0.2,
-    n_ctx=1024,
-    stop=["\n"],
-    grammar_path="/home/qinghua_mao/work/rllm/json.gbnf",
-)
+# llm_json = LlamaCpp(
+#     model_path=llm_model_path,
+#     streaming=False,
+#     n_gpu_layers=33,
+#     verbose=False,
+#     temperature=0.5,
+#     n_ctx=1024,
+#     stop=["\n"],
+#     grammar_path="/home/qinghua_mao/work/rllm/json.gbnf",
+# )
 
-# llm_json = ChatOllama(model=local_llm, format="json", temperature=0)
+# # LLM
+# llm = LlamaCpp(
+#     model_path=llm_model_path,
+#     streaming=False,
+#     n_gpu_layers=33,
+#     verbose=False,
+#     temperature=0.5,
+#     n_ctx=1024,
+#     stop=["\n"],
+# )
+llm = ChatOllama(model=local_llm, temperature=0)
+
+llm_json = ChatOllama(model=local_llm, format="json", temperature=0)
 
 ### Retrieval Grader
 
@@ -144,17 +157,18 @@ retrieval_prompt = PromptTemplate(
     If the document contains keywords related to the user question, grade it as relevant. \n
     It does not need to be a stringent test. The goal is to filter out erroneous retrievals. \n
     Please give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question. \n
-    Provide the binary score as a JSON with a single key 'score' and no premable or explanation.""",
+    Provide the binary score as a JSON with a single key 'score' and no premable or explanation. You have to output the binary score as a JSON file, even you guess!""",
     input_variables=["question", "document"],
 )
 
 retrieval_grader = retrieval_prompt | llm_json | JsonOutputParser()
-question = "comedy movies"
+question = "Harry Potter"
 docs = retriever.invoke(question)
 doc_txt = docs[1].page_content
+print(doc_txt)
 # docs = get_wiki_info(question)
-print('related', doc_txt)
-print(retrieval_grader.invoke({"question": question, "document": docs}))
+
+print('1', retrieval_grader.invoke({"question": question, "document": docs}))
 
 ### Generate
 
@@ -162,30 +176,31 @@ from langchain import hub
 from langchain_core.output_parsers import StrOutputParser
 
 # Prompt
-prompt = hub.pull("rlm/rag-prompt")
+# prompt = hub.pull("rlm/rag-prompt")
+prompt_title = """Q: Now I have a movie name: {question}. Here is the retrieved information: {context}. What's the genres it may belong to? 
+        Note: 
+        1. Give the answer as following format:
+        movie_name:: genre_1, genre_2..., genre_n
+        2. The answer must only be chosen from followings:'Documentary', 'Adventure', 'Comedy', 'Horror', 'War', 'Sci-Fi', 'Drama', 'Mystery', 'Western', 'Action', "Children's", 'Musical', 'Thriller', 'Crime', 'Film-Noir', 'Romance', 'Animation', 'Fantasy'
+        3. Don't saying anything else.
+        A: 
+        """
+prompt = PromptTemplate(
+    input_variables=["question", "context"], template=prompt_title
+)
 
 # Post-processing
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
-# LLM
-llm = LlamaCpp(
-    model_path=llm_model_path,
-    streaming=False,
-    n_gpu_layers=33,
-    verbose=False,
-    temperature=0.2,
-    n_ctx=2048,
-    stop=["\n"],
-)
-# llm = ChatOllama(model=local_llm, temperature=0)
+
 
 # Chain
 rag_chain = prompt | llm | StrOutputParser()
 
 # Run
 generation = rag_chain.invoke({"context": docs, "question": question})
-print(generation)
+print('2', generation)
 
 ### Hallucination Grader
 
@@ -198,12 +213,12 @@ hallu_prompt = PromptTemplate(
     \n ------- \n
     Here is the answer: {generation}
     Give a binary score 'yes' or 'no' score to indicate whether the answer is grounded in / supported by a set of facts. \n
-    Provide the binary score as a JSON with a single key 'score' and no preamble or explanation.""",
+    Provide the binary score as a JSON with a single key 'score' and no preamble or explanation. You have to output the binary score as a JSON file, even you guess!""",
     input_variables=["generation", "documents"],
 )
 
 hallucination_grader = hallu_prompt | llm_json | JsonOutputParser()
-hallucination_grader.invoke({"documents": docs, "generation": generation})
+print('3', hallucination_grader.invoke({"documents": docs, "generation": generation}))
 
 ### Answer Grader
 
@@ -216,12 +231,12 @@ answer_prompt = PromptTemplate(
     \n ------- \n
     Here is the question: {question}
     Give a binary score 'yes' or 'no' to indicate whether the answer is useful to resolve a question. \n
-    Provide the binary score as a JSON with a single key 'score' and no preamble or explanation.""",
+    Provide the binary score as a JSON with a single key 'score' and no preamble or explanation. You have to output the binary score as a JSON file, even you guess!""",
     input_variables=["generation", "question"],
 )
 
 answer_grader = answer_prompt | llm_json | JsonOutputParser()
-answer_grader.invoke({"question": question, "generation": generation})
+print('4', answer_grader.invoke({"question": question, "generation": generation}))
 
 
 ### Question Re-writer
@@ -235,7 +250,7 @@ re_write_prompt = PromptTemplate(
 )
 
 question_rewriter = re_write_prompt | llm | StrOutputParser()
-question_rewriter.invoke({"question": question})
+print('5', question_rewriter.invoke({"question": question}))
 
 from typing_extensions import TypedDict
 from typing import List
@@ -273,9 +288,10 @@ def retrieve(state):
     """
     print("---RETRIEVE---")
     question = state["question"]
+    print('q: ', question)
 
     # Retrieval
-    documents = retriever.get_relevant_documents(question)
+    documents = retriever.invoke(question)
     return {"documents": documents, "question": question}
 
 
@@ -316,6 +332,7 @@ def grade_documents(state):
     # Score each doc
     filtered_docs = []
     for d in documents:
+        print(d.page_content)
         score = retrieval_grader.invoke(
             {"question": question, "document": d.page_content}
         )
@@ -456,7 +473,7 @@ app = workflow.compile()
 from pprint import pprint
 
 # Run
-inputs = {"question": "could you please provide two classic comedy movies?"}
+inputs = {"question": "Harry Potter"}
 for output in app.stream(inputs):
     for key, value in output.items():
         # Node

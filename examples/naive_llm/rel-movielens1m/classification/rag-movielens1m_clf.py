@@ -23,14 +23,14 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from langchain_community.llms import LlamaCpp
 from langchain.prompts import PromptTemplate
 from langchain.schema import BaseOutputParser
-
+from itertools import islice
 import bs4
 from langchain import hub
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_chroma import Chroma
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings, GPT4AllEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from rllm.utils import macro_f1_score, micro_f1_score, get_llm_chat_cost
 from rllm.selfrag_func import self_rag
@@ -46,6 +46,12 @@ time_start = time.time()
 ##### Global variables
 total_cost = 0
 test_path = "/home/qinghua_mao/work/rllm/rllm/datasets/rel-movielens1m/classification/movies/test.csv"
+
+def parse(text: str):
+    """Parse the output of LLM call."""
+    genres = text.split('::')[-1]
+    genre_list = [genre.strip() for genre in genres.split(',')]
+    return genre_list
 
 class GenreOutputParser(BaseOutputParser):
     """Parse the output of LLM to a genre list"""
@@ -65,7 +71,7 @@ embeddings = GPT4AllEmbeddings(
     model_name = model_name,
     gpt4all_kwargs = gpt4all_kwargs
 )
-vectorstore = Chroma(persist_directory="/home/qinghua_mao/work/rllm/chroma", collection_name="rag-chroma", embedding_function=embeddings)
+vectorstore = Chroma(persist_directory="/home/qinghua_mao/work/rllm/chroma_wiki", collection_name="rag-chroma", embedding_function=embeddings)
 
 # retrieve and generate using the relevant snippets of the blog
 retriever = vectorstore.as_retriever()
@@ -75,27 +81,27 @@ movie_df = pd.read_csv(test_path)
 
 pred_genre_list = []
 if args.prompt == 'title':
-    for index, row in tqdm(movie_df.iterrows(), total=len(movie_df), desc="Processing Movies"):
+    for index, row in tqdm(islice(movie_df.iterrows(),300), total=min(len(movie_df),300), desc="Processing Movies"):
         pred, prompt_cost = self_rag(movie_name=row['Title'], prompt="title", retriever=retriever)
         total_cost = total_cost + prompt_cost
-        pred_genre_list.append(pred)
+        pred_genre_list.append(parse(pred))
 
-        total_cost = total_cost + get_llm_chat_cost(','.join(pred), 'output')
+        total_cost = total_cost + get_llm_chat_cost(','.join(parse(pred)), 'output')
 else:
-    for index, row in tqdm(movie_df.iterrows(), total=len(movie_df), desc="Processing Movies"):
+    for index, row in tqdm(islice(movie_df.iterrows(),300), total=min(len(movie_df),300), desc="Processing Movies"):
         
-        pred, prompt_cost = self_rag(prompt="all", retriever=retriever, {"Title": row['Title'], "Director": row['Director'], "Year": row['Year'], 
-                 "Genre": row['Genre'], "Cast": row['Cast'], "Runtime": row['Runtime'], 
-                 "Languages": row['Languages'], "Certificate": row['Certificate'], 
-                 "Plot": row['Plot']})
+        pred, prompt_cost = self_rag_all(prompt="all", retriever=retriever, Title=row['Title'], Director=row['Director'], Year=row['Year'], 
+                 Genre=row['Genre'], Cast=row['Cast'], Runtime=row['Runtime'], 
+                 Languages=row['Languages'], Certificate=row['Certificate'], 
+                 Plot=row['Plot'])
         total_cost = total_cost + prompt_cost
-        pred_genre_list.append(pred)
+        pred_genre_list.append(parse(pred))
 
-        total_cost = total_cost + get_llm_chat_cost(','.join(pred), 'output')
+        total_cost = total_cost + get_llm_chat_cost(','.join(parse(pred)), 'output')
 
 ##### 3. Calculate macro f1 score
 # Get all genres
-movie_genres = movie_df["Genre"].str.split("|")
+movie_genres = movie_df["Genre"].iloc[:300].str.split("|")
 all_genres = list(set([genre for genres in movie_genres for genre in genres]))
 
 mlb = MultiLabelBinarizer(classes=all_genres)

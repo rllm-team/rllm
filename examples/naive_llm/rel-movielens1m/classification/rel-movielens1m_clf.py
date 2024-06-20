@@ -24,6 +24,14 @@ from langchain_community.llms import LlamaCpp
 from langchain.prompts import PromptTemplate
 from langchain.schema import BaseOutputParser
 
+import bs4
+from langchain import hub
+from langchain_community.document_loaders import WebBaseLoader
+from langchain_chroma import Chroma
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from rllm.utils import macro_f1_score, micro_f1_score, get_llm_chat_cost
 
 ##### Parse argument
@@ -37,8 +45,23 @@ time_start = time.time()
 
 ##### Global variables
 total_cost = 0
-test_path = "your/test_file/path"
-llm_model_path = "your/llm/path"
+test_path = "/home/qinghua_mao/work/rllm/rllm/datasets/rel-movielens1m/classification/movies/test.csv"
+llm_model_path = "/home/qinghua_mao/work/rllm/gemma-2b-it-GGUF/gemma-2b-it-q4_k_m.gguf"
+embed_path = "/home/qinghua_mao/work/rllm/all-MiniLM-L6-v2"
+
+from langchain.embeddings.base import Embeddings
+from sentence_transformers import SentenceTransformer
+from typing import List
+
+class CustomEmbeddings(Embeddings):
+    def __init__(self, model_name: str):
+        self.model = SentenceTransformer(model_name)
+
+    def embed_documents(self, documents: List[str]) -> List[List[float]]:
+        return [self.model.encode(d).tolist() for d in documents]
+
+    def embed_query(self, query: str) -> List[float]:
+        return self.model.encode([query])[0].tolist()
 
 ##### 1. Construct LLM chain
 # Load model
@@ -104,6 +127,7 @@ if args.prompt == 'title':
         total_cost = total_cost + get_llm_chat_cost(prompt_title_template.invoke({"movie_name": row['Title']}).text, 'input')
 
         pred = chain.invoke({"movie_name": row['Title']})
+        print(pred)
         pred_genre_list.append(pred)
 
         total_cost = total_cost + get_llm_chat_cost(','.join(pred), 'output')

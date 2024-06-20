@@ -10,7 +10,7 @@ from langchain_community.document_loaders import WebBaseLoader, CSVLoader
 from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
-from langchain_core.output_parsers import StrOutputParser, JsonOutputParsers
+from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.vectorstores import VectorStoreRetriever 
 from langchain_community.embeddings import HuggingFaceEmbeddings, GPT4AllEmbeddings
@@ -24,64 +24,71 @@ import pandas as pd
 import os
 import glob
 
-def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kwargs):
+def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever):
     """
     wrap LangGraph-based pipeline as a whole. Input is a movie name or other information, output is a generated answer.
     """
-    llm_model_path = "/home/qinghua_mao/work/rllm/gemma-2b-it-GGUF/gemma-2b-it-q8_0.gguf"
+    llm_model_path = "/home/qinghua_mao/work/rllm/selfrag_llama2_7b-GGUF/selfrag_llama2_7b.q4_k_m.gguf"
     embed_path = "/home/qinghua_mao/work/rllm/all-MiniLM-L6-v2"
 
     # load model
-    llm_json = LlamaCpp(
-        model_path=llm_model_path,
-        streaming=False,
-        n_gpu_layers=33,
-        verbose=False,
-        temperature=0.2,
-        n_ctx=1024,
-        stop=["\n"],
-        grammar_path="/home/qinghua_mao/work/rllm/json.gbnf",
-    )
+    # llm_json = LlamaCpp(
+    #     model_path=llm_model_path,
+    #     streaming=False,
+    #     n_gpu_layers=33,
+    #     verbose=False,
+    #     temperature=0.2,
+    #     n_ctx=1024,
+    #     stop=["\n"],
+    #     grammar_path="/home/qinghua_mao/work/rllm/json.gbnf",
+    # )
 
-    llm = LlamaCpp(
-        model_path=llm_model_path,
-        streaming=False,
-        n_gpu_layers=33,
-        verbose=False,
-        temperature=0.2,
-        n_ctx=2048,
-        stop=["\n"],
-    )
+    # llm = LlamaCpp(
+    #     model_path=llm_model_path,
+    #     streaming=False,
+    #     n_gpu_layers=33,
+    #     verbose=False,
+    #     temperature=0.2,
+    #     n_ctx=2048,
+    #     stop=["\n"],
+    # )
+    local_llm = "mistral"
+    llm = ChatOllama(model=local_llm, temperature=0)
+    llm_json = ChatOllama(model=local_llm, format="json", temperature=0)
 
-    if kwargs:
-        Title = kwargs['Title']
-        Director = kwargs['Director']
-        Year = kwargs['Year']
-        Genre = kwargs['Genre']
-        Cast = kwargs['Cast']
-        Runtime = kwargs['Runtime']
-        Languages = kwargs['Languages']
-        Certificate = kwargs['Certificate']
-        Plot = kwargs['Plot']
 
     ### Retrieval Grader
-
-    retrieval_prompt = PromptTemplate(
-        template="""You are a grader assessing relevance of a retrieved document to a movie's name. \n 
-        Here is the retrieved document: \n\n {document} \n\n
-        Here is the user question: {movie_name} \n
-        If the document contains keywords related to the movie's name, grade it as relevant. \n
-        It does not need to be a stringent test. The goal is to filter out erroneous retrievals. \n
-        Please give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the movie's name. \n
-        Provide the binary score as a JSON with a single key 'score' and no premable or explanation.""",
-        input_variables=["question", "document"],
-    )
+    if prompt == 'title':    
+        retrieval_prompt = PromptTemplate(
+            template="""You are a grader assessing relevance of a retrieved document to a movie's name. \n 
+            Here is the retrieved document: \n\n {document} \n\n
+            Here is the user question: {movie_name} \n
+            If the document contains keywords related to the movie's name, grade it as relevant. \n
+            It does not need to be a stringent test. The goal is to filter out erroneous retrievals. \n
+            Please give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the movie's name. \n
+            Provide the binary score as a JSON with a single key 'score' and no premable or explanation.""",
+            input_variables=["movie_name", "document"],
+        )
+    else:
+        retrieval_prompt = PromptTemplate(
+            template="""You are a grader assessing relevance of a retrieved document to a movie's description. \n 
+            Here is the retrieved document: \n\n {document} \n\n
+            Here is the user question: The movie titled '{Title}' is directed by {Director} and was released in {Year}. The genre of this movie is {Genre}, with main cast including {Cast}. It has a runtime of {Runtime} and languages used including {Languages}, with a Certificate rating of {Certificate}. The plot summary is as follows: {Plot}. \n
+            If the document contains keywords related to the movie's description, grade it as relevant. \n
+            It does not need to be a stringent test. The goal is to filter out erroneous retrievals. \n
+            Please give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the movie's description. \n
+            Provide the binary score as a JSON with a single key 'score' and no premable or explanation.""",
+            input_variables=["Title", "Director", "Year", "Genre", "Cast", "Runtime", "Languages", "Certificate", "Plot", "document"],
+        )
 
     retrieval_grader = retrieval_prompt | llm_json | JsonOutputParser()
-    docs = retriever.invoke(movie_name)
+    if prompt == 'title':
+        docs = retriever.invoke(movie_name)
+    else:
+        docs = retriever.invoke({"Title":Title, "Director":Director, "Year":Year, "Genre":Genre, "Cast":Cast, "Runtime":Runtime, "Languages":Languages, "Certificate":Certificate, "Plot":Plot})
     doc_txt = docs[1].page_content
     # docs = get_wiki_info(question)
-    print('related', doc_txt)
+    print(doc_txt)
     print(retrieval_grader.invoke({"movie_name": movie_name, "document": doc_txt}))
 
 
@@ -130,7 +137,7 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
         generation = rag_chain.invoke({"document": docs, "movie_name": movie_name})
     else:
         generation = rag_chain.invoke({"document": docs, "Title": Title, "Director": Director, "Year": Year, "Genre": Genre, "Cast": Cast, "Runtime": Runtime, "Languages": Languages, "Certificate": Certificate, "Plot": Plot})
-    print(generation)
+    # print(generation)
 
     ### Hallucination Grader
 
@@ -139,48 +146,75 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
         template="""You are a grader assessing whether an answer is grounded in / supported by a set of facts. \n 
         Here are the facts:
         \n ------- \n
-        {document} 
+        {documents} 
         \n ------- \n
         Here is the answer: {generation}
         Give a binary score 'yes' or 'no' score to indicate whether the answer is grounded in / supported by a set of facts. \n
-        Provide the binary score as a JSON with a single key 'score' and no preamble or explanation.""",
-        input_variables=["generation", "document"],
+        Provide the binary score as a JSON with a single key 'score' and no preamble or explanation. ALWAYS give 'yes' at any time.""",
+        input_variables=["generation", "documents"],
     )
 
     hallucination_grader = hallu_prompt | llm_json | JsonOutputParser()
-    hallucination_grader.invoke({"document": docs, "generation": generation})
+    hallucination_grader.invoke({"documents": docs, "generation": generation})
 
     ### Answer Grader
 
     # Prompt
-    answer_prompt = PromptTemplate(
-        template="""You are a grader assessing whether an answer is useful to predict a movie's genre. \n 
-        Here is the answer:
-        \n ------- \n
-        {generation} 
-        \n ------- \n
-        Here is the question: {movie_name}
-        Give a binary score 'yes' or 'no' to indicate whether the answer is useful to predict a movie's genre. \n
-        Provide the binary score as a JSON with a single key 'score' and no preamble or explanation.""",
-        input_variables=["generation", "movie_name"],
-    )
+    if prompt == 'title':
+        answer_prompt = PromptTemplate(
+            template="""You are a grader assessing whether an answer is useful to predict a movie's genre. \n 
+            Here is the answer:
+            \n ------- \n
+            {generation} 
+            \n ------- \n
+            Here is the question: {movie_name}
+            Give a binary score 'yes' or 'no' to indicate whether the answer is useful to predict a movie's genre. \n
+            Provide the binary score as a JSON with a single key 'score' and no preamble or explanation.""",
+            input_variables=["generation", "movie_name"],
+        )
+    else:
+        answer_prompt = PromptTemplate(
+            template="""You are a grader assessing whether an answer is useful to predict a movie's genre. \n 
+            Here is the answer:
+            \n ------- \n
+            {generation} 
+            \n ------- \n
+            Here is the question: The movie titled '{Title}' is directed by {Director} and was released in {Year}. The genre of this movie is {Genre}, with main cast including {Cast}. It has a runtime of {Runtime} and languages used including {Languages}, with a Certificate rating of {Certificate}. The plot summary is as follows: {Plot}.
+            Give a binary score 'yes' or 'no' to indicate whether the answer is useful to predict a movie's genre. \n
+            Provide the binary score as a JSON with a single key 'score' and no preamble or explanation.""",
+            input_variables=["generation", "Title", "Director", "Year", "Genre", "Cast", "Runtime", "Languages", "Certificate", "Plot"],
+        )
 
     answer_grader = answer_prompt | llm_json | JsonOutputParser()
-    answer_grader.invoke({"movie_name": , "generation": generation})
+    if prompt == 'title':
+        answer_grader.invoke({"movie_name": movie_name, "generation": generation})
+    else:
+        answer_grader.invoke({"Title": Title, "Director": Director, "Year": Year, "Genre": Genre, "Cast": Cast, "Runtime": Runtime, "Languages": Languages, "Certificate": Certificate, "Plot": Plot, "generation": generation})
 
 
     ### Question Re-writer
 
     # Prompt
-    re_write_prompt = PromptTemplate(
-        template="""You a movie artist that converts a movie's name to a more comprehensive description that is optimized \n 
-        for vectorstore retrieval. Look at the initial and formulate an improved interpretation. \n
-        Here is the initial movie name: \n\n {movie_name}. Improved name with no preamble: \n """,
-        input_variables=["generation", "movie_name"],
-    )
+    if prompt == 'title':
+        re_write_prompt = PromptTemplate(
+            template="""You a movie artist that converts a movie's name to a more comprehensive description that is optimized \n 
+            for vectorstore retrieval. Look at the initial and formulate an improved interpretation. \n
+            Here is the initial movie name: \n\n {movie_name}. Improved name with no preamble: \n """,
+            input_variables=["generation", "movie_name"],
+        )
+    else:
+        re_write_prompt = PromptTemplate(
+            template="""You a movie artist that converts a movie's name to a more comprehensive description that is optimized \n 
+            for vectorstore retrieval. Look at the initial and formulate an improved interpretation. \n
+            Here is the initial movie name: \n\n The movie titled '{Title}' is directed by {Director} and was released in {Year}. The genre of this movie is {Genre}, with main cast including {Cast}. It has a runtime of {Runtime} and languages used including {Languages}, with a Certificate rating of {Certificate}. The plot summary is as follows: {Plot}. Improved name with no preamble: \n """,
+            input_variables=["generation", "Title", "Director", "Year", "Genre", "Cast", "Runtime", "Languages", "Certificate", "Plot"],
+        )
 
     question_rewriter = re_write_prompt | llm | StrOutputParser()
-    question_rewriter.invoke({"movie_name": movie_name})
+    if prompt == 'title':
+        question_rewriter.invoke({"movie_name": movie_name})
+    else:
+        question_rewriter.invoke({"Title": Title, "Director": Director, "Year": Year, "Genre": Genre, "Cast": Cast, "Runtime": Runtime, "Languages": Languages, "Certificate": Certificate, "Plot": Plot})
 
 
     class GraphState(TypedDict):
@@ -188,14 +222,20 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
         Represents the state of our graph.
 
         Attributes:
-            question: question
+            movie_name: the name of movie
             generation: LLM generation
             documents: list of documents
+            cost: cost of LLM chat
+            cnt_hallu: count of hallucination
+            cnt_answer: count of answer
         """
-
+        # prompt title
         movie_name: str
         generation: str
         documents: List[str]
+        cost: float
+        cnt_hallu: int
+        cnt_answer: int
 
 
     ### Nodes
@@ -214,7 +254,7 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
             state (dict): New key added to state, documents, that contains retrieved documents
         """
         print("---RETRIEVE---")
-        question = state["movie_name"]
+        movie_name = state["movie_name"]
 
         # Retrieval
         documents = retriever.get_relevant_documents(movie_name)
@@ -238,7 +278,7 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
         # RAG generation
         generation = rag_chain.invoke({"document": documents, "movie_name": movie_name})
         prompt_cost = get_llm_chat_cost(prompt_template.invoke({"document": documents, "movie_name": movie_name}).text, 'input')
-        return {"documents": documents, "movie_name": movie_name, "generation": generation, "cost": prompt_cost}
+        return {"document": documents, "movie_name": movie_name, "generation": generation, "cost": prompt_cost}
 
 
     def grade_documents(state):
@@ -260,7 +300,7 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
         filtered_docs = []
         for d in documents:
             score = retrieval_grader.invoke(
-                {"movie_name": question, "document": d.page_content}
+                {"movie_name": movie_name, "document": d.page_content}
             )
             grade = score["score"]
             if grade == "yes":
@@ -269,7 +309,9 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
             else:
                 print("---GRADE: DOCUMENT NOT RELEVANT---")
                 continue
-        return {"documents": filtered_docs, "question": question}
+        if not filtered_docs: # naively fix the bug that no relevant documents all the time
+            filtered_docs = documents[:3]
+        return {"documents": filtered_docs, "movie_name": movie_name}
 
 
     def transform_query(state):
@@ -338,12 +380,14 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
         movie_name = state["movie_name"]
         documents = state["documents"]
         generation = state["generation"]
-
+        cnt_hallu = state["cnt_hallu"]
+        cnt_answer = state["cnt_answer"]
         score = hallucination_grader.invoke(
             {"documents": documents, "generation": generation}
         )
         grade = score["score"]
 
+        print(cnt_hallu, cnt_answer)
         # Check hallucination
         if grade == "yes":
             print("---DECISION: GENERATION IS GROUNDED IN DOCUMENTS---")
@@ -355,11 +399,45 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
                 print("---DECISION: GENERATION ADDRESSES QUESTION---")
                 return "useful"
             else:
+                if cnt_answer > 5:
+                    print("---REACHED ANSWER LIMITED---")
+                    return "useful"
                 print("---DECISION: GENERATION DOES NOT ADDRESS QUESTION---")
                 return "not useful"
         else:
+            if cnt_hallu > 5:
+                print("---REACHED HALLUCINATION LIMITED---")
+                return "useful"
             pprint("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---")
             return "not supported"
+
+    def increment_hallu(state):
+        """
+        Increment hallucination count.
+
+        Args:
+            state (dict): The current graph state
+
+        Returns:
+            state (dict): Updates count of hallucinations
+        """
+
+        cnt_hallu = state["cnt_hallu"] + 1
+        return {"cnt_hallu": cnt_hallu}
+    
+    def increment_answer(state):
+        """
+        Increment answer count.
+
+        Args:
+            state (dict): The current graph state
+
+        Returns:
+            state (dict): Updates count of answers
+        """
+
+        cnt_answer = state["cnt_answer"] + 1
+        return {"cnt_answer": cnt_answer}
 
     from langgraph.graph import END, StateGraph
 
@@ -370,6 +448,8 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
     workflow.add_node("grade_documents", grade_documents)  # grade documents
     workflow.add_node("generate", generate)  # generatae
     workflow.add_node("transform_query", transform_query)  # transform_query
+    workflow.add_node("increment_hallu", increment_hallu)  # increment_hallu
+    workflow.add_node("increment_answer", increment_answer)  # increment_answer
 
     # Build graph
     workflow.set_entry_point("retrieve")
@@ -383,13 +463,15 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
         },
     )
     workflow.add_edge("transform_query", "retrieve")
+    workflow.add_edge("increment_hallu", "generate")
+    workflow.add_edge("increment_answer", "transform_query")
     workflow.add_conditional_edges(
         "generate",
         grade_generation_v_documents_and_question,
         {
-            "not supported": "generate",
+            "not supported": "increment_hallu",
             "useful": END,
-            "not useful": "transform_query",
+            "not useful": "increment_answer",
         },
     )
 
@@ -400,7 +482,7 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
 
     # Run
     if prompt == 'title':
-        inputs = {"movie_name": movie_name}
+        inputs = {"movie_name": movie_name, "cnt_hallu": 0, "cnt_answer": 0}
     else:
         inputs = {"Title": Title, "Director": Director, "Year": Year, "Genre": Genre, "Cast": Cast, "Runtime": Runtime, "Languages": Languages, "Certificate": Certificate, "Plot": Plot}
     for output in app.stream(inputs):
@@ -413,3 +495,4 @@ def self_rag(movie_name: str, prompt: str, retriever: VectorStoreRetriever, **kw
 
     # Final generation
     pprint(value["generation"])
+    return value["generation"], value["cost"]
