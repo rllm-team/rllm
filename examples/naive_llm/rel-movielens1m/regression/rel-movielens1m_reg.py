@@ -27,11 +27,25 @@ time_start = time.time()
 
 ##### Global variables
 total_cost = 0
-train_path = "your/train_file/path"
-movie_path = "your/movie_file/path"
-test_path = "your/test_file/path"
-llm_model_path = "your/llm/path"
+train_path = "/home/qinghua_mao/work/rllm/rllm/datasets/rel-movielens1m/regression/ratings/train.csv"
+movie_path = "/home/qinghua_mao/work/rllm/rllm/datasets/rel-movielens1m/regression/movies.csv"
+test_path = "/home/qinghua_mao/work/rllm/rllm/datasets/rel-movielens1m/regression/ratings/test.csv"
+llm_model_path = "/home/qinghua_mao/work/rllm/gemma-2b-it-GGUF/gemma-2b-it-q4_k_m.gguf"
+embed_path = "/home/qinghua_mao/work/rllm/all-MiniLM-L6-v2"
 
+from langchain.embeddings.base import Embeddings
+from sentence_transformers import SentenceTransformer
+from typing import List
+
+class CustomEmbeddings(Embeddings):
+    def __init__(self, model_name: str):
+        self.model = SentenceTransformer(model_name)
+
+    def embed_documents(self, documents: List[str]) -> List[List[float]]:
+        return [self.model.encode(d).tolist() for d in documents]
+
+    def embed_query(self, query: str) -> List[float]:
+        return self.model.encode([query])[0].tolist()
 
 ##### 1. Construct LLM chain
 # Load model
