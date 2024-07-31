@@ -21,7 +21,7 @@
 
 ## LLM models
 
-- We recommmend 4-bit quantized Gemma 2b model, which can be Downloaded from [HuggingFace](https://huggingface.co/lmstudio-ai/gemma-2b-it-GGUF/blob/main/gemma-2b-it-q4_k_m.gguf).
+- We recommend 4-bit quantized Gemma 2b model, which can be Downloaded from [HuggingFace](https://huggingface.co/lmstudio-ai/gemma-2b-it-GGUF/blob/main/gemma-2b-it-q4_k_m.gguf).
 
 ## LM Model
 
