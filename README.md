@@ -12,19 +12,22 @@ Note: we will release our first version (v0.1) at August 11, 2024.
 </p>
 
 ### How to Try:
-Let's run a RTL-type method [BRIDGE](./examples/bridge) as an example:
+Let's run an RTL-type method [BRIDGE](./examples/bridge) as an example:
 
 ```bash
 # cd ./examples
 # set parameters if necessary
-python bridge.py
+
+python bridge_tacm12k.py
+python bridge_tlf2k.py
+python bridge_tml1m.py
 ```
 
 
 ### Highlight Features: 
 - **LLM-friendly:** Modular interface designed for LLM-oriented applications, integrating smoothly with LangChain and Hugging Face transformers.
 - **One-Fit-All Potential:**  Processes various graphs (like Social/Citation/E-commerce Networks) by treating them as multiple tables linked by foreigner keys. 
-- **Novel Datasets:**  Introduces two new relational table datasets (rllm.datasets) useful for model design. Includes standard tasks like classification and regression, with examples and baseline results.
+- **Novel Datasets:**  Introduces three new relational table datasets useful for RTL model design. Includes the standard classification task, with examples.
 - **Community Support:**  Maintained by students and teachers from Shanghai Jiao Tong University and Tsinghua University. Supports the SJTU undergraduate course "Content Understanding (NIS4301)" and the graduate course "Social Network Analysis (NIS8023)".
 
 
