@@ -24,7 +24,9 @@ We have implemented a simple LLM mechanism composed of three parts: Prompt, LLM,
     output = llm.predict(prompt, topic='dogs')
     print(output)
 
-We have also implemented two utility classes: Predictor(跳转) and Enhancer(跳转). The former can annotate data with pseudo-labels, while the latter can generate explanations for the data to obtain information, or embed the additional information. The data needs to be organized in the form of a pandas.DataFrame(跳转).
+We have also implemented two utility classes: :class:`~rllm.llm.Predictor` and :class:`~rllm.llm.Enhancer`. The former can annotate data with pseudo-labels, while the latter can generate explanations for the data to obtain information, or embed the additional information. The data needs to be organized in the form of a `pandas.DataFrame`_.
+
+.. _pandas.DataFrame: http://pandas.pydata.org/pandas-docs/dev/reference/api/pandas.DataFrame.html#pandas.DataFrame
 
 .. code-block:: python
 
@@ -63,7 +65,7 @@ We have also implemented two utility classes: Predictor(跳转) and Enhancer(跳
     import pandas as pd
 
     from langchain_openai import OpenAI
-    from rllm.llm import LangChainLLM, BaseOutputParser, Predictor
+    from rllm.llm import LangChainLLM, BaseOutputParser, Enhancer
 
     data = {
         "title": ["The Shawshank Redemption", "Farewell My Concubine"],
@@ -81,3 +83,38 @@ We have also implemented two utility classes: Predictor(跳转) and Enhancer(跳
     # parameter `cols` to identify which columns should be embedded.
     output = enhancer(df, scenario='movie explanation')
     print(output)
+
+Enhancer
+-------------
+In this section, we will show how to use the enhancer to augment table information with textual enhancements and encode it into vectors.
+
+First, we need to initialize the large language models for interpreting the tables and performing encoding:
+
+.. code-block:: python
+
+    from langchain_openai import OpenAI, OpenAIEmbeddings
+    from rllm.llm import LangChainLLM
+
+    llm = LangChainLLM(OpenAI(openai_api_key="YOUR_API_KEY"))
+    llm_embed = LangChainLLM(OpenAIEmbeddings(openai_api_key="YOUR_API_KEY"))
+
+Next, initialize the enhancer instance:
+
+.. code-block:: python
+
+    import pandas as pd
+    from rllm.llm import Enhancer
+
+    data = pd.read_csv('data.csv')
+    scenario = 'Your_task_description'
+    enhancer = Enhancer(llm=llm, llm_embed=llm_embed, type='explanation|embedding')
+
+Finally, simply pass the data to the enhancer to quickly obtain interpreted and encoded semantic vectors of the tabular data!
+
+.. code-block:: python
+
+    import pandas as pd
+
+    data = pd.read_csv('data.csv')
+    scenario = 'Your_task_description'
+    outputs = enhancer(data.head(10), scenario=scenario)
