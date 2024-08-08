@@ -27,7 +27,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest
         pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
-        pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.1.0+cpu.html
+        pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.3.0+cpu.html
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -45,7 +45,7 @@ jobs:
         python ogc.py
         python han.py
         python gcn.py --epochs 1
-        # python gat.py --epochs 1
+        python gat.py --epochs 1
         python bridge/bridge_tacm12k.py --epochs 1
         python bridge/bridge_tlf2k.py --epochs 1
         python bridge/bridge_tml1m.py --epochs 1
