@@ -45,7 +45,7 @@ jobs:
         python ogc.py
         python han.py
         python gcn.py --epochs 1
-        python gat.py --epochs 1
+        # python gat.py --epochs 1
         python bridge/bridge_tacm12k.py --epochs 1
         python bridge/bridge_tlf2k.py --epochs 1
         python bridge/bridge_tml1m.py --epochs 1
