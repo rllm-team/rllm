@@ -1,4 +1,4 @@
-# rLLM (**[Documentation](https:/)**|**[Paper](https://arxiv.org/abs/2407.20157)**)
+# rLLM (**[Documentation](https://relationllm.readthedocs.io/en/latest/)**|**[Paper](https://arxiv.org/abs/2407.20157)**)
 
 Note: we will release our first version (v0.1) at August 11, 2024.
 

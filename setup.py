@@ -1,3 +1,4 @@
+# Only for docs so far
 from setuptools import setup
 
 setup(
