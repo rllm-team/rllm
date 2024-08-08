@@ -1,3 +1,8 @@
+# The BRIDGE method from the "rLLM: Relational Table Learning with LLMs" paper.
+# ArXiv: https://arxiv.org/abs/2407.20157
+
+# Datasets  TACM12K
+# Acc       0.201
 import time
 import argparse
 import os.path as osp

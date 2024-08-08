@@ -58,5 +58,5 @@ def gcn_norm(adj: Tensor):
         deg_sqrt_inv = sp.diags(deg_sqrt_inv)
 
         # filters
-        filters = sp.coo_matrix(deg_sqrt_inv * adj_sp * deg_sqrt_inv)
+        filters = sp.coo_matrix(deg_sqrt_inv * adj_sl_sp * deg_sqrt_inv)
         return sparse_mx_to_torch_sparse_tensor(filters).to(device)
