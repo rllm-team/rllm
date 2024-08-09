@@ -10,7 +10,7 @@ from rllm.utils.sparse import (
 )
 
 
-def gcn_norm(adj: Tensor):
+def gcn_norm(adj: Tensor, norm: str):
     r"""Normalize the sparse adjacency matrix from the "Semi-supervised
     Classification with Graph Convolutional
     Networks" <https://arxiv.org/abs/1609.02907>.
@@ -58,5 +58,9 @@ def gcn_norm(adj: Tensor):
         deg_sqrt_inv = sp.diags(deg_sqrt_inv)
 
         # filters
-        filters = sp.coo_matrix(deg_sqrt_inv * adj_sl_sp * deg_sqrt_inv)
+        if norm == 'loop':
+            filters = sp.coo_matrix(deg_sqrt_inv * adj_sl_sp * deg_sqrt_inv)
+            return sparse_mx_to_torch_sparse_tensor(filters).to(device)
+        filters = sp.coo_matrix(deg_sqrt_inv * adj_sp * deg_sqrt_inv)
         return sparse_mx_to_torch_sparse_tensor(filters).to(device)
+        
