@@ -1,3 +1,11 @@
+# The BRIDGE method from the
+# "Semi-Supervised Classification with Graph Convolutional Networks" paper.
+# ArXiv: https://arxiv.org/abs/1609.02907
+
+# Datasets  CiteSeer    Cora      PubMed
+# Acc       0.712       0.816     0.787
+# Time      8.9s        4.0s      12.6s
+
 import argparse
 import os.path as osp
 import time
@@ -12,11 +20,13 @@ from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.conv.gcn_conv import GCNConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, default='cora')
-parser.add_argument('--hidden_channels', type=int, default=32)
-parser.add_argument('--lr', type=float, default=0.01)
-parser.add_argument('--wd', type=float, default=5e-4)
-parser.add_argument('--epochs', type=int, default=200)
+parser.add_argument('--dataset', type=str, default='cora',
+                    choices=['citeseer, cora, pubmed'])
+parser.add_argument('--hidden_channels', type=int, default=16,
+                    help="Hidden channel")
+parser.add_argument('--lr', type=float, default=0.01, help='Learning rate')
+parser.add_argument('--wd', type=float, default=5e-4, help='Weight decay')
+parser.add_argument('--epochs', type=int, default=200, help="Training epochs")
 args = parser.parse_args()
 
 transform = T.Compose([
@@ -82,6 +92,7 @@ def test():
 
 best_val_acc = best_test_acc = 0
 times = []
+st = time.time()
 for epoch in range(1, args.epochs + 1):
     start = time.time()
     train_loss = train()
@@ -90,5 +101,7 @@ for epoch in range(1, args.epochs + 1):
         best_val_acc = val_acc
         best_test_acc = test_acc
     times.append(time.time() - start)
+et = time.time()
 print(f'Mean time per epoch: {torch.tensor(times).mean():.4f}s')
+print(f'Total time: {et-st}s')
 print(f'Best test acc: {best_test_acc:.4f}')
