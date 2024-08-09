@@ -2,8 +2,9 @@
 # Graph-based Semi-Supervised Learning Revisited" paper.
 # ArXiv: https://arxiv.org/abs/2309.13599
 
-# Datasets  CiteSeer  Cora   PubMed
-# Acc       0.770     0.859  0.822
+# Datasets  CiteSeer    Cora      PubMed
+# Acc       0.773       0.869     0.837
+# Time      3.7s        2.3s      4.3s
 
 import argparse
 import os.path as osp
@@ -30,7 +31,8 @@ max_sim_tol = 0.995  # max label prediction similarity between iterations
 max_patience = 2  # tolerance for consecutive similar test predictions
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, default='cora')
+parser.add_argument('--dataset', type=str, default='cora',
+                    choices=['citeseer, cora, pubmed'])
 args = parser.parse_args()
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
