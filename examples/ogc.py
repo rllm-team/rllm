@@ -38,7 +38,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')
 
 transform = T.Compose([
     T.NormalizeFeatures('sum'),
-    T.GCNNorm()
+    T.GCNNorm('loop')
 ])
 
 dataset = PlanetoidDataset(path, args.dataset, transform, force_reload=True)
