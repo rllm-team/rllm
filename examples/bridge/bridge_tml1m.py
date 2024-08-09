@@ -2,7 +2,7 @@
 # ArXiv: https://arxiv.org/abs/2407.20157
 
 # Datasets  TML1M
-# Acc       0.364
+# Acc       0.361
 
 import time
 import argparse
@@ -59,7 +59,7 @@ graph = build_homo_graph(
     n_tgt=len_movie,
     x=x,
     y=user_table.y.long(),
-    transform=T.GCNNorm(),
+    transform=T.GCNNorm(loop=False),
 )
 graph.user_table = user_table
 graph.movie_table = movie_table

@@ -31,7 +31,7 @@ args = parser.parse_args()
 
 transform = T.Compose([
     T.NormalizeFeatures('l1'),
-    T.GCNNorm('loop')
+    T.GCNNorm()
 ])
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')
