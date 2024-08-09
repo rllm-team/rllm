@@ -60,7 +60,7 @@ graph = build_homo_graph(
     n_tgt=len_user,
     x=x,
     y=artist_table.y.long(),
-    transform=T.GCNNorm(),
+    transform=T.GCNNorm(loop=False),
 )
 graph.artist_table = artist_table
 graph = graph.to(device)
