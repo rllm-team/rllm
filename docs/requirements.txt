@@ -13,3 +13,4 @@ sphinx_copybutton
 nbsphinx
 nbsphinx_link
 furo
+torch==2.1.2
