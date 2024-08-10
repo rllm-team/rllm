@@ -1,14 +1,14 @@
 version: 2
 
 build:
-  os: ubuntu-22.04
-  tools:
-    python:
-      version: "3.8"
-      install:
-        - method: pip
-          packages:
-            - torch==2.1.2
-            - -r docs/requirements.txt
+   os: ubuntu-22.04
+   tools:
+      python: "3.8"
+
+python:
+   install:
+      - requirements: docs/requirements.txt
+      - method: pip
+        path: .
 
 formats: []
