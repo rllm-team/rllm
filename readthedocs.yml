@@ -1,14 +1,14 @@
 version: 2
 
 build:
-   os: ubuntu-22.04
-   tools:
-      python: "3.8"
-
-python:
-    install:
-        - pip install torch==2.1.2
-        - pip install -r docs/requirements.txt
-        - pip install torch-sparse==0.6.18
+  os: ubuntu-22.04
+  tools:
+    python:
+      version: "3.8"
+      install:
+        - method: pip
+          packages:
+            - torch==2.1.2
+            - -r docs/requirements.txt
 
 formats: []
