@@ -1,4 +1,4 @@
-# The BRIDGE method from the
+# The GCN method from the
 # "Semi-Supervised Classification with Graph Convolutional Networks" paper.
 # ArXiv: https://arxiv.org/abs/1609.02907
 
