@@ -14,3 +14,4 @@ sphinx_copybutton
 nbsphinx
 nbsphinx_link
 furo
+torch-sparse
