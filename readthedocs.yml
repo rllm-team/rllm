@@ -7,7 +7,7 @@ build:
 
 python:
    install:
-     - method: conda
-       path: docs/environment.yml
-
+     - method: pip
+       path: docs/requirements.txt
+       
 formats: []
