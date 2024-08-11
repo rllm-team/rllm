@@ -13,6 +13,7 @@ def build_homo_graph(
     x: Tensor,
     y: Optional[Tensor] = None,
     transform: Optional[Callable] = None,
+    edge_per_node: Optional[int] = None,
 ):
     r"""Use the given dataframe to construct a simple undirected and
         unweighted graph with only two types of nodes and one type of edge.
@@ -32,6 +33,8 @@ def build_homo_graph(
         transform (Optional[Callable]):
             A function/transform that takes in a :obj:`GraphData`
             and returns a transformed version.
+        edge_per_node (Optional[int]):
+            specifying the maximum numberof edges to keep for each node.
     """
 
     n_all = n_src + n_tgt
@@ -46,6 +49,27 @@ def build_homo_graph(
         ],
         dim=1,
     )
+
+    if edge_per_node is not None:
+        unique_nodes = torch.unique(indices)
+        mask = torch.zeros(indices.shape[1], dtype=torch.bool)
+
+        for node in unique_nodes:
+            # Find neighbors
+            node_mask = (indices[0] == node) | (indices[1] == node)
+            node_edges = torch.nonzero(node_mask).squeeze()
+
+            # Randomly select `edge_per_node` edges
+            if node_edges.numel() > edge_per_node:
+                selected_edges = node_edges[
+                    torch.randperm(node_edges.numel())[:edge_per_node]
+                ]
+                mask[selected_edges] = True
+            else:
+                mask[node_edges] = True
+
+        indices = indices[:, mask]
+    
     values = torch.ones((indices.shape[1],), dtype=torch.float32)
     adj = torch.sparse_coo_tensor(indices, values, (n_all, n_all))
 
