@@ -18,9 +18,9 @@ Let's run an RTL-type method [BRIDGE](./examples/bridge) as an example:
 # cd ./examples
 # set parameters if necessary
 
-python bridge_tacm12k.py
-python bridge_tlf2k.py
-python bridge_tml1m.py
+python bridge/bridge_tacm12k.py
+python bridge/bridge_tlf2k.py
+python bridge/bridge_tml1m.py
 ```
 
 
