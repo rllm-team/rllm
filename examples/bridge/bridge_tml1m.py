@@ -60,6 +60,7 @@ graph = build_homo_graph(
     x=x,
     y=user_table.y.long(),
     transform=T.GCNNorm(loop=False),
+    edge_per_node=30,
 )
 graph.user_table = user_table
 graph.movie_table = movie_table
