@@ -27,10 +27,11 @@ parser.add_argument('--hidden_channels', type=int, default=16,
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate')
 parser.add_argument('--wd', type=float, default=5e-4, help='Weight decay')
 parser.add_argument('--epochs', type=int, default=200, help="Training epochs")
+parser.add_argument('--dropout', type=float, default=0.5, help='Graph Dropout')
 args = parser.parse_args()
 
 transform = T.Compose([
-    T.NormalizeFeatures('l1'),
+    T.NormalizeFeatures('l2'),
     T.GCNNorm()
 ])
 
@@ -40,15 +41,16 @@ data = dataset[0]
 
 
 class GCN(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels):
+    def __init__(self, in_channels, hidden_channels, out_channels, dropout):
         super().__init__()
+        self.dropout = dropout
         self.conv1 = GCNConv(in_channels, hidden_channels)
         self.conv2 = GCNConv(hidden_channels, out_channels)
 
     def forward(self, x, adj):
-        x = F.dropout(x, p=0.5, training=self.training)
+        x = F.dropout(x, p=self.dropout, training=self.training)
         x = F.relu(self.conv1(x, adj))
-        x = F.dropout(x, p=0.5, training=self.training)
+        x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.conv2(x, adj)
         return x
 
@@ -57,6 +59,7 @@ model = GCN(
     in_channels=data.x.shape[1],
     hidden_channels=args.hidden_channels,
     out_channels=data.num_classes,
+    dropout=args.dropout,
 )
 
 optimizer = torch.optim.Adam(
