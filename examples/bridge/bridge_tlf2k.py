@@ -24,8 +24,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--tab_dim", type=int, default=64,
                     help="Tab Transformer categorical embedding dim")
 parser.add_argument("--gcn_dropout", type=float, default=0.5,
-                    help="Droupout for GCN")
-
+                    help="Dropout for GCN")
 parser.add_argument("--epochs", type=int, default=200,
                     help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001,
