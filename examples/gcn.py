@@ -21,7 +21,7 @@ from rllm.nn.conv.gcn_conv import GCNConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='cora',
-                    choices=['citeseer, cora, pubmed'])
+                    choices=['citeseer', 'cora', 'pubmed'])
 parser.add_argument('--hidden_channels', type=int, default=16,
                     help="Hidden channel")
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate')

@@ -14,18 +14,18 @@ class GCNNorm(BaseTransform):
         \mathbf{\hat{A}} = \mathbf{\hat{D}}^{-1/2} (\mathbf{A} + \mathbf{I})
         \mathbf{\hat{D}}^{-1/2}
     """
-    def __init__(self, loop: bool = True):
-        self.loop = loop
+    def __init__(self):
+        pass
 
     def forward(self, data: Union[GraphData, HeteroGraphData]):
         if isinstance(data, GraphData):
             assert data.adj is not None
-            data.adj = gcn_norm(data.adj, self.loop)
+            data.adj = gcn_norm(data.adj)
         elif isinstance(data, HeteroGraphData):
             if 'adj' in data:
-                data.adj = gcn_norm(data.adj, self.loop)
+                data.adj = gcn_norm(data.adj)
             for store in data.edge_stores:
                 if 'adj' not in store or store.is_bipartite():
                     continue
-                store.adj = gcn_norm(store.adj, self.loop)
+                store.adj = gcn_norm(store.adj)
         return data
