@@ -59,7 +59,7 @@ graph = build_homo_graph(
     n_tgt=len_movie,
     x=x,
     y=user_table.y.long(),
-    transform=T.GCNNorm(loop=False),
+    transform=T.GCNNorm(),
 )
 graph.user_table = user_table
 graph.movie_table = movie_table
@@ -113,6 +113,8 @@ def test_epoch():
 model = Bridge(
     table_hidden_dim=args.tab_dim,
     table_output_dim=emb_size,
+    graph_layers=2,
+    graph_hidden_dim=emb_size,
     graph_output_dim=output_dim,
     stats_dict=graph.user_table.stats_dict,
     graph_dropout=args.gcn_dropout,
