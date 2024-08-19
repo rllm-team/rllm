@@ -32,9 +32,9 @@ class GAT(torch.nn.Module):
         self.conv2 = GATConv(hidden_channels, out_channels)
 
     def forward(self, x, adj):
-        x = F.dropout(x, p=0.5, training=self.training)
+        x = F.dropout(x, p=0.6, training=self.training)
         x = F.relu(self.conv1(x, adj))
-        x = F.dropout(x, p=0.5, training=self.training)
+        x = F.dropout(x, p=0.6, training=self.training)
         x = self.conv2(x, adj)
         return x
 

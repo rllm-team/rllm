@@ -1,7 +1,7 @@
 import argparse
 import copy
 import os.path as osp
-
+import time
 import torch
 from sklearn.linear_model import LogisticRegression
 
@@ -52,14 +52,15 @@ criterion = torch.nn.MSELoss(reduction='mean')
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-4)
 
 model.train()
-for epoch in range(1, 201):
+st = time.time()
+for epoch in range(1, 51):
     optimizer.zero_grad()
     out = model(zs_data.x, zs_data.adj)
     loss = criterion(out[zs_data.train_mask], zs_data.y)
     loss.backward()
     optimizer.step()
-    print(f'Epoch {epoch:03d}, Loss {loss:.4f}')
-
+    # print(f'Epoch {epoch:03d}, Loss {loss:.4f}')
+et = time.time()
 model.eval()
 with torch.no_grad():
     h = model.embed(zs_data.x, zs_data.adj).cpu()
@@ -67,4 +68,5 @@ with torch.no_grad():
 reg = LogisticRegression()
 reg.fit(h[data.train_mask].numpy(), data.y[data.train_mask].numpy())
 test_acc = reg.score(h[data.test_mask].numpy(), data.y[data.test_mask].numpy())
-print(f'Test Acc: {test_acc:.4f}')
+print(f'Total Time  : {et-st:.4f}s')
+print(f'Test Acc    : {test_acc:.4f}')
