@@ -17,6 +17,7 @@ parser.add_argument('--hidden_channels', type=int, default=16)
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--wd', type=float, default=0.0)
 parser.add_argument('--epochs', type=int, default=500)
+parser.add_argument('--dropout', type=float, default=0.6, help='Graph Dropout')
 args = parser.parse_args()
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')
