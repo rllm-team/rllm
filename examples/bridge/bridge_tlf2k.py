@@ -2,7 +2,7 @@
 # ArXiv: https://arxiv.org/abs/2407.20157
 
 # Datasets  TLF2K
-# Acc       0.357
+# Acc       0.494
 
 import time
 import argparse
