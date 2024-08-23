@@ -145,5 +145,5 @@ def ogc() -> float:
 
 start_time = time.time()
 test_acc = ogc()
-print(f'Total Time: {time.time() - start_time:.4f}s')
 print(f'Test Accuracy: {test_acc:.4f}')
+print(f'Total Time: {time.time() - start_time:.4f}s')
