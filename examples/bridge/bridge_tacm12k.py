@@ -22,13 +22,13 @@ from rllm.nn.models import Bridge
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--tab_dim", type=int, default=128,
+    "--tab_dim", type=int, default=64,
     help="Tab Transformer categorical embedding dim")
 parser.add_argument("--gcn_dropout", type=float, default=0.5,
                     help="Dropout for GCN")
-parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
+parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
-parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
+parser.add_argument("--wd", type=float, default=1e-4, help="Weight decay")
 args = parser.parse_args()
 
 # Prepare datasets
@@ -126,11 +126,11 @@ optimizer = torch.optim.Adam(
 for epoch in range(1, args.epochs + 1):
     train_loss = train_epoch()
     train_acc, val_acc, test_acc = test_epoch()
-    print(
-        f"Epoch: [{epoch}/{args.epochs}]"
-        f"Loss: {train_loss:.4f} train_acc: {train_acc:.4f} "
-        f"val_acc: {val_acc:.4f} test_acc: {test_acc:.4f} "
-    )
+    # print(
+    #     f"Epoch: [{epoch}/{args.epochs}]"
+    #     f"Loss: {train_loss:.4f} train_acc: {train_acc:.4f} "
+    #     f"val_acc: {val_acc:.4f} test_acc: {test_acc:.4f} "
+    # )
     if val_acc > best_val_acc:
         best_val_acc = val_acc
         best_test_acc = test_acc
