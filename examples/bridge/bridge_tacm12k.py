@@ -2,7 +2,7 @@
 # ArXiv: https://arxiv.org/abs/2407.20157
 
 # Datasets  TACM12K
-# Acc       0.221
+# Acc       0.254
 
 import time
 import argparse
@@ -24,7 +24,7 @@ from rllm.nn.models import Bridge
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--tab_dim", type=int, default=128,
+    "--tab_dim", type=int, default=256,
     help="Tab Transformer categorical embedding dim")
 parser.add_argument("--gcn_dropout", type=float, default=0.5,
                     help="Dropout for GCN")
