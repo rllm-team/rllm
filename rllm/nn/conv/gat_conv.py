@@ -1,5 +1,4 @@
 from typing import Union, Tuple
-from sympy import primefactors
 from torch import Tensor
 import torch
 import torch.nn as nn
@@ -182,7 +181,7 @@ class GATConv(torch.nn.Module):
             attentions_edge, p=0.6, training=self.training)
 
         # Element-wise product. Operator * does the same thing as torch.mul
-        # shape = (E, NH, F_OUT) * (E, NH, 1) -> (E, NH, F_OUT)
+        # shape = (E, H, F_OUT) * (E, H, 1) -> (E, H, F_OUT)
         # 1 gets broadcast into F_OUT
         nodes_features_weighted = nodes_features_selected * attentions_edge
 
@@ -199,7 +198,7 @@ class GATConv(torch.nn.Module):
 
     def aggregate_neighborhoods(self, nodes_features, idx_target, num_nodes):
         size = list(nodes_features.shape)
-        size[self.nodes_dim] = num_nodes  # shape = (N, NH, FOUT)
+        size[self.nodes_dim] = num_nodes  # shape = (N, H, FOUT)
         nodes_features_aggregated = torch.zeros(
             size, dtype=nodes_features.dtype, device=nodes_features.device
         )
@@ -240,9 +239,12 @@ class GATConv(torch.nn.Module):
         idx_target,
         num_nodes
     ):
-        # The shape must be the same as in scores_edge_exp (required by scatter_add_) i.e. from E -> (E, NH)
+        # The shape must be the same as in scores_edge_exp (required by scatter_add_)
+        # i.e. from E -> (E, H)
         idx_target_broadcasted = self.expand_dim(idx_target, scores_edge_exp)
-        # shape = (N, NH), where N is the number of nodes and NH the number of attention heads
+
+        # shape = (N, H), where N is the number of nodes
+        # H the number of attention heads
         size = list(
             scores_edge_exp.shape
         )  # convert to list otherwise assignment is not possible
@@ -254,7 +256,7 @@ class GATConv(torch.nn.Module):
             self.nodes_dim, idx_target_broadcasted, scores_edge_exp
         )
 
-        # shape = (N, NH) -> (E, NH)
+        # shape = (N, H) -> (E, H)
         return neighborhood_sums.index_select(self.nodes_dim, idx_target)
 
     def expand_dim(self, src, trg):
