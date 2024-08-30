@@ -26,7 +26,7 @@ def test_gat():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.75
+    assert float(stdout[-9:]) > 0.82
 
 
 def test_han():
@@ -36,7 +36,7 @@ def test_han():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.54
+    assert float(stdout[-9:]) > 0.56
 
 
 def test_rect():
