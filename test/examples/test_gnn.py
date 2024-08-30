@@ -29,14 +29,14 @@ def test_gat():
     assert float(stdout[-9:]) > 0.82
 
 
-# def test_han():
-#     script = os.path.join(EXAMPLE_ROOT, "han.py")
-#     out = subprocess.run(["python", str(script)], capture_output=True)
-#     assert (
-#         out.returncode == 0
-#     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
-#     stdout = out.stdout.decode("utf-8")
-#     assert float(stdout[-9:]) > 0.54
+def test_han():
+    script = os.path.join(EXAMPLE_ROOT, "han.py")
+    out = subprocess.run(["python", str(script)], capture_output=True)
+    assert (
+        out.returncode == 0
+    ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
+    stdout = out.stdout.decode("utf-8")
+    assert float(stdout[-9:]) > 0.54
 
 
 def test_rect():
