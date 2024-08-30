@@ -1,9 +1,9 @@
-# The GCN method from the
+# The GAT method from the
 # "Graph Attention Networks" paper.
 # ArXiv: https://arxiv.org/abs/1710.10903
 
 # Datasets  CiteSeer    Cora      PubMed
-# Acc       0.717       0.825     0.778
+# Acc       0.717       0.823     0.778
 # Time      16.6s       8.4s      15.6s
 
 import argparse
