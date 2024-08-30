@@ -1,4 +1,5 @@
 from typing import Union, Tuple
+from sympy import primefactors
 from torch import Tensor
 import torch
 import torch.nn as nn
@@ -78,11 +79,21 @@ class GATConv(torch.nn.Module):
         self.concat = concat
         self.skip_connection = skip_connection
 
-        self.linear = nn.Linear(
-            in_channels, heads * out_channels, bias=False)
+        if isinstance(in_channels, int):
+            self.lin_src = self.lin_tgt = torch.nn.Linear(
+                in_channels, heads * out_channels, bias=False
+            )
+        else:
+            self.lin_src = torch.nn.Linear(
+                in_channels[0], heads * out_channels, bias=False
+            )
+            self.lin_tgt = torch.nn.Linear(
+                in_channels[1], heads * out_channels, bias=False
+            )
+
         if self.skip_connection:
             self.skip = nn.Linear(
-                in_channels, heads * out_channels, bias=False)
+                in_channels[1], heads * out_channels, bias=False)
 
         # Define the attention source/target weights as a learnable parameter.
         # Shape: (1, heads, out_channels), where:
@@ -112,18 +123,31 @@ class GATConv(torch.nn.Module):
         nn.init.xavier_uniform_(self.attention_target)
         nn.init.xavier_uniform_(self.attention_source)
 
-    def forward(self, inputs: Tensor, adj: Tensor):
+    def forward(
+        self,
+        inputs: Union[Tensor, Tuple[Tensor, Tensor]],
+        adj: Tensor
+    ):
+
+        if isinstance(inputs, Tensor):
+            inputs = (inputs, inputs)
 
         # The node features are linearly varied to obtain the features of
         # the number of attention heads * the number of hidden units.
         # shape = (N, F_IN) -> (N, H, F_OUT)
-        num_nodes = inputs.size(0)
-        nodes_features = self.linear(inputs).view(
-            -1, self.heads, self.out_channels)
+        num_nodes = inputs[1].size(0)
+        nodes_features_src = self.lin_src(inputs[0]).view(
+            -1, self.heads, self.out_channels
+        )
+        nodes_features_tgt = self.lin_tgt(inputs[1]).view(
+            -1, self.heads, self.out_channels
+        )
 
         # shape = (N, H, F_OUT) * (1, H, F_OUT) -> (N, H, F_OUT) -> (N, H)
-        scores_source = (nodes_features * self.attention_source).sum(dim=-1)
-        scores_target = (nodes_features * self.attention_target).sum(dim=-1)
+        scores_source = (
+            nodes_features_src * self.attention_source).sum(dim=-1)
+        scores_target = (
+            nodes_features_tgt * self.attention_target).sum(dim=-1)
 
         # Gets the source and target of each edge
         idx_source = adj.coalesce().indices()[0]
@@ -136,7 +160,7 @@ class GATConv(torch.nn.Module):
             self.nodes_dim, idx_source)
         scores_target_selected = scores_target.index_select(
             self.nodes_dim, idx_target)
-        nodes_features_selected = nodes_features.index_select(
+        nodes_features_selected = nodes_features_src.index_select(
             self.nodes_dim, idx_source)
 
         # leakyReLU + softmax
