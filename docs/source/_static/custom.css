@@ -23,10 +23,5 @@
 .custom-table th:first-child,
 .custom-table td:first-child {
     text-align: left;
-}
-
-/* 自定义表格第二列及之后的表格内容居中 */
-.custom-table th:not(:first-child),
-.custom-table td:not(:first-child) {
-    text-align: center;
+    width: 150px; /* 固定宽度，可以根据需要调整 */
 }
