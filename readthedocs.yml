@@ -4,13 +4,12 @@ build:
    os: ubuntu-22.04
    tools:
       python: "3.8"
-   commands:
-    # 在安装主包之前手动安装 torch-sparse
-    - pip install torch-sparse==0.6.12
-
+      
 python:
    install:
       - requirements: docs/requirements.txt
+      - pip: 
+        - torch-sparse==0.6.12
       - method: pip
         path: .
 
