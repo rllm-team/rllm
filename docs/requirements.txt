@@ -14,4 +14,4 @@ nbsphinx
 nbsphinx_link
 furo
 torch==2.1.2
-torch-sparse==0.6.12
+
