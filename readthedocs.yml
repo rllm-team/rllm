@@ -11,17 +11,9 @@ python:
       - method: pip
         path: .
 
-# 在安装主包之前手动安装 torch-sparse，确保顺序正确
+# 使用 build.commands 在主安装之前手动安装 torch-sparse
 build:
-  os: ubuntu-22.04
-
-conda: null
-
-sphinx:
-  builder: html
-
-# 在 main install 之前安装 torch-sparse
-pre_install:
-  - pip install torch-sparse==0.6.12
+  commands:
+    - pip install torch-sparse==0.6.12
 
 formats: []
