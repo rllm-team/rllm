@@ -3,7 +3,9 @@ from typing import List, Optional
 
 import torch
 from torch import Tensor
+from torch_sparse import SparseTensor
 
+from rllm.utils.sparse import is_torch_sparse_tensor
 
 class NeighborSampler(torch.utils.data.DataLoader):
     r"""The neighbor sampler from the `"Inductive Representation Learning on
