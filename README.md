@@ -28,6 +28,11 @@ python bridge/bridge_tacm12k.py
 - **Novel Datasets:**  Introduces three new relational table datasets useful for RTL model design. Includes the standard classification task, with examples.
 - **Community Support:**  Maintained by students and teachers from Shanghai Jiao Tong University and Tsinghua University. Supports the SJTU undergraduate course "Content Understanding (NIS4301)" and the graduate course "Social Network Analysis (NIS8023)".
 
+### Todo List: 
+- Code structure optimization
+- Large-scale RTL training
+- LLM prompt optimization
+- Support for more TNNs
 
 ## Citation
 ```
