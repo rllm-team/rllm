@@ -112,7 +112,7 @@ class TACM12KDataset(Dataset):
         path = osp.join(self.raw_dir, self.raw_filenames[0])
         paper_df = pd.read_csv(path, index_col=['paper_id'])
         col_types = {
-            "year": ColType.NUMERICAL,
+            "year": ColType.CATEGORICAL,
             "conference": ColType.CATEGORICAL,
             "title": ColType.CATEGORICAL,
             "abstract": ColType.CATEGORICAL,
