@@ -2,12 +2,11 @@
 # ArXiv: https://arxiv.org/abs/2407.20157
 
 # Datasets  TACM12K
-# Acc       0.254
+# Acc       0.324
 
 import time
 import argparse
 import os.path as osp
-from numpy import dtype, size
 import pandas as pd
 import sys
 sys.path.append('../')
