@@ -1,4 +1,14 @@
-# rLLM (**[Documentation](https://relationllm.readthedocs.io/en/latest/)**|**[Paper](https://arxiv.org/abs/2407.20157)**)
+<!-- # rLLM (**[Documentation](https://relationllm.readthedocs.io/en/latest/)**|**[Paper](https://arxiv.org/abs/2407.20157)**) -->
+
+<p align="center"><img src="docs/source/_static/rllm.png" alt="rLLM logo" width="300px" /></p>
+<p align="center">
+|  <a href="https://relationllm.readthedocs.io/en/latest/"><b>Documentation</b></a>  
+|  <a href="https://rllm-project.github.io/"><b>Blog</b></a>  
+|  <a href="https://arxiv.org/abs/2407.20157"><b>Paper</b></a>  
+|  <a href="https://zhengwang100.github.io/pdf/rllm_introduction240811.pdf"><b>Slide</b></a>  |
+</p>
+
+----
 
 **rLLM** (relationLLM) is an easy-to-use Pytorch library for Relational Table Learning (RTL) with LLMs, by performing two key functions:
 1. Breaks down state-of-the-art GNNs, LLMs, and TNNs as standardized modules.
