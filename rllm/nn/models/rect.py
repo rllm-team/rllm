@@ -3,7 +3,7 @@ from torch import Tensor
 from torch.nn import Linear
 import torch.nn.functional as F
 
-from rllm.nn.conv.gcn_conv import GCNConv
+from rllm.nn.conv.graph_conv import GCNConv
 
 
 class RECT_L(torch.nn.Module):
