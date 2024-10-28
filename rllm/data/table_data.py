@@ -7,7 +7,7 @@ import torch
 import numpy as np
 from pandas import DataFrame
 from torch import Tensor
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import LabelEncoder
 
 from rllm.data.storage import BaseStorage
@@ -312,6 +312,21 @@ class TableData(BaseTable):
             )
         )
 
+    def get_dataloader(
+        self,
+        train_split: int | float,
+        val_split: int | float,
+        test_split: int | float,
+        batch_size: int,
+        shuffle: bool = False,
+    ) -> Tuple[TableDataset, TableDataset, TableDataset]:
+        train_dataset, val_dataset, test_dataset = self.get_dataset(train_split, val_split, test_split)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle)
+        return train_loader, val_loader, test_loader
+        
+        
     # Get table tensor #########################################
     def _generate_feat_dict(
         self,
