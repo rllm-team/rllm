@@ -17,7 +17,7 @@ from torch import Tensor
 
 import sys
 sys.path.append("../")
-import rllm.transforms as T
+import rllm.transforms.graph_transforms as T
 from rllm.data import GraphData
 from rllm.datasets import PlanetoidDataset
 

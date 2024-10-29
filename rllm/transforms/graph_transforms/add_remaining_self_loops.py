@@ -2,7 +2,7 @@ from typing import Any, Union
 
 from rllm.transforms.utils import add_remaining_self_loops
 from rllm.data.graph_data import GraphData, HeteroGraphData
-from rllm.transforms.base_transform import BaseTransform
+from rllm.transforms.graph_transforms import BaseTransform
 
 
 class AddRemainingSelfLoops(BaseTransform):

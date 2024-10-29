@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 from rllm.data.graph_data import GraphData, HeteroGraphData
-from rllm.transforms.base_transform import BaseTransform
+from rllm.transforms.graph_transforms import BaseTransform
 from rllm.utils.sparse import (
     sparse_mx_to_torch_sparse_tensor
 )

@@ -19,10 +19,9 @@ import os.path as osp
 import time
 import torch
 from sklearn.linear_model import LogisticRegression
-
 import sys
 sys.path.append('../')
-import rllm.transforms as T
+import rllm.transforms.graph_transforms as T
 from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.models.rect import RECT_L
 

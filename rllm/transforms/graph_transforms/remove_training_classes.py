@@ -2,7 +2,7 @@ from typing import List
 
 from rllm.transforms.utils import remove_training_classes
 from rllm.data.graph_data import GraphData
-from rllm.transforms.base_transform import BaseTransform
+from rllm.transforms.graph_transforms import BaseTransform
 
 
 class RemoveTrainingClasses(BaseTransform):
