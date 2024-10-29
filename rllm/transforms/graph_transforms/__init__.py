@@ -11,39 +11,21 @@ from .build_homo_graph import build_homo_graph  # noqa
 from .gdc import GDC
 
 
-general_transforms = [
+__all__ = [
+    # general transforms
     'BaseTransform',
     'Compose',
     'NormalizeFeatures',
     'SVDFeatureReduction',
     'RemoveTrainingClasses',
-]
 
-graph_transforms = [
+    # graph transforms
     'AddRemainingSelfLoops',
     'RemoveSelfLoops',
     'KNNGraph',
     'GCNNorm',
     'GDC',
-]
 
-graph_builders = [
+    # graph builders
     'build_homo_graph',
 ]
-
-
-__all__ = general_transforms + graph_transforms + graph_builders
-
-# __all__ = [
-#     'BaseTransform',
-#     'Compose',
-#     'NormalizeFeatures',
-#     'SVDFeatureReduction',
-#     'RemoveTrainingClasses',
-#     'AddRemainingSelfLoops',
-#     'RemoveSelfLoops',
-#     'KNNGraph',
-#     'GCNNorm',
-#     'GDC',
-#     'build_homo_graph',
-# ]
