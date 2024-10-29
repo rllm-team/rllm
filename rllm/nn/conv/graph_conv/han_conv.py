@@ -5,7 +5,7 @@ from torch import Tensor
 from torch.nn import Parameter
 import torch.nn.functional as F
 
-from rllm.nn.conv.gat_conv import GATConv
+from rllm.nn.conv.graph_conv.gat_conv import GATConv
 
 
 class HANConv(torch.nn.Module):

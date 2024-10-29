@@ -4,8 +4,9 @@ import torch
 import torch.nn.functional as F
 
 from rllm.types import ColType
-from rllm.nn.models import TabTransformer
-from rllm.nn.conv import GCNConv
+from rllm.transforms.table_transforms import FTTransformerTransform
+from rllm.nn.conv.table_conv import TabTransformerConv
+from rllm.nn.conv.graph_conv import GCNConv
 
 
 class Bridge(torch.nn.Module):
@@ -31,44 +32,60 @@ class Bridge(torch.nn.Module):
     def __init__(
         self,
         table_hidden_dim: int,
-        table_output_dim: int,
         stats_dict: Dict[ColType, List[Dict[str, Any]]],
         graph_output_dim: int,
         graph_hidden_dim: Optional[int] = None,
         table_layers: int = 2,
         graph_layers: int = 1,
-        table_heads: int = 8,
         graph_dropout: int = 0.5,
     ):
+        if graph_hidden_dim is None:
+            self.graph_hidden_dim = table_hidden_dim
+        else:
+            self.graph_hidden_dim = graph_hidden_dim
         super().__init__()
         self.dropout = graph_dropout
-        self.table_encoder = TabTransformer(
-            hidden_dim=table_hidden_dim,  # embedding dimension
-            output_dim=table_output_dim,  # multi-class prediction
-            layers=table_layers,  # depth
-            heads=table_heads,  # heads
+        self.table_transform = FTTransformerTransform(
+            out_dim=table_hidden_dim,
             col_stats_dict=stats_dict,
         )
+        self.table_encoder = torch.nn.ModuleList([
+            TabTransformerConv(
+                dim=table_hidden_dim,
+            ) for _ in range(table_layers)
+        ])
+        # self.table_encoder = TabTransformer(
+        #     hidden_dim=table_hidden_dim,  # embedding dimension
+        #     output_dim=table_output_dim,  # multi-class prediction
+        #     layers=table_layers,  # depth
+        #     heads=table_heads,  # heads
+        #     col_stats_dict=stats_dict,
+        # )
 
         layers = []
         if graph_layers >= 2:
-            layers.append(GCNConv(table_output_dim, graph_hidden_dim))
+            layers.append(GCNConv(table_hidden_dim, self.graph_hidden_dim))
             for _ in range(graph_layers - 2):
-                layers.append(GCNConv(graph_hidden_dim, graph_hidden_dim))
-            layers.append(GCNConv(graph_hidden_dim, graph_output_dim))
+                layers.append(GCNConv(self.graph_hidden_dim, self.graph_hidden_dim))
+            layers.append(GCNConv(self.graph_hidden_dim, graph_output_dim))
         else:
-            layers.append(GCNConv(table_output_dim, graph_output_dim))
+            layers.append(GCNConv(table_hidden_dim, graph_output_dim))
         self.graph_encoder = torch.nn.ModuleList(layers)
 
     def forward(self, table, x, adj, valid, total):
         feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
-        x_valid = self.table_encoder(feat_dict)
+        x_valid, _ = self.table_transform(feat_dict)
+        for layer in self.table_encoder:
+            x_valid = layer(x_valid)
+
+        x_valid = x_valid.mean(dim=1)
         x = torch.cat([x_valid, x[valid:total, :]], dim=0)
 
         for layer in self.graph_encoder[:-1]:
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = layer(x, adj)
             x = F.relu(x)
-        x = F.dropout(x, p=0.5, training=self.training)
+        # Last layer without relu
+        x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.graph_encoder[-1](x, adj)
         return x[:valid, :]  # Only return valid sample embedding.

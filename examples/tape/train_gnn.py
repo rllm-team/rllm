@@ -1,12 +1,10 @@
 from core.config import cfg, update_cfg
 from core.GNNs.ensemble_trainer import EnsembleTrainer
 import pandas as pd
-
 import time
-
-
 import sys
 sys.path.append('../../')
+
 
 def run(cfg):
     seeds = [cfg.seed] if cfg.seed is not None else range(cfg.runs)

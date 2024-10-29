@@ -5,6 +5,7 @@ import pandas as pd
 import sys
 sys.path.append('../../')
 
+
 def run(cfg):
     seeds = [cfg.seed] if cfg.seed is not None else range(cfg.runs)
     all_acc = []

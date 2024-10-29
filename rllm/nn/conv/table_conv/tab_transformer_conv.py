@@ -158,10 +158,10 @@ class TabTransformerConv(nn.Module):
     def __init__(
         self,
         dim,
-        heads,
-        dim_head,
-        attn_dropout,
-        ff_dropout
+        heads: int = 8,
+        dim_head: int = 16,
+        attn_dropout: float = 0.,
+        ff_dropout: float = 0.,
     ):
         super().__init__()
         self.attn = PreNorm(dim, SelfAttention(

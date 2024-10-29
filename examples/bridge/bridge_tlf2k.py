@@ -14,10 +14,10 @@ sys.path.append('../../')
 import torch
 import torch.nn.functional as F
 
-import rllm.transforms as T
+import rllm.transforms.graph_transforms as T
 from rllm.datasets import TLF2KDataset
 from rllm.nn.models import Bridge
-from rllm.transforms import build_homo_graph
+from rllm.transforms.graph_transforms import build_homo_graph
 
 
 parser = argparse.ArgumentParser()
@@ -112,10 +112,8 @@ def test_epoch():
 
 
 model = Bridge(
-    table_hidden_dim=args.tab_dim,
-    table_output_dim=emb_size,
+    table_hidden_dim=emb_size,
     graph_layers=2,
-    graph_hidden_dim=emb_size,
     graph_output_dim=output_dim,
     stats_dict=graph.artist_table.stats_dict,
     graph_dropout=args.gcn_dropout,
