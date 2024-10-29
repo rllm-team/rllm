@@ -16,12 +16,13 @@ import torch.nn.functional as F
 from torch import Tensor
 
 import sys
+
 sys.path.append("../")
 import rllm.transforms.graph_transforms as T
 from rllm.data import GraphData
 from rllm.datasets import PlanetoidDataset
 
-warnings.filterwarnings('ignore', '.*Sparse CSR tensor support.*')
+warnings.filterwarnings("ignore", ".*Sparse CSR tensor support.*")
 
 decline = 0.9  # decline rate
 eta_sup = 0.001  # learning rate for supervised loss
@@ -31,17 +32,15 @@ max_sim_tol = 0.995  # max label prediction similarity between iterations
 max_patience = 2  # tolerance for consecutive similar test predictions
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, default='cora',
-                    choices=['citeseer, cora, pubmed'])
+parser.add_argument(
+    "--dataset", type=str, default="cora", choices=["citeseer, cora, pubmed"]
+)
 args = parser.parse_args()
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 
-transform = T.Compose([
-    T.NormalizeFeatures('sum'),
-    T.GCNNorm()
-])
+transform = T.Compose([T.NormalizeFeatures("sum"), T.GCNNorm()])
 
 dataset = PlanetoidDataset(path, args.dataset, transform, force_reload=True)
 data = dataset[0].to(device)
@@ -87,9 +86,9 @@ class LinearNeuralNetwork(torch.nn.Module):
         self.train()
         optimizer.zero_grad()
         pred = self(U)
-        loss = F.mse_loss(pred[data.trainval_mask], y_one_hot[
-            data.trainval_mask,
-        ], reduction='sum')
+        loss = F.mse_loss(
+            pred[data.trainval_mask], y_one_hot[data.trainval_mask,], reduction="sum"
+        )
         loss.backward()
         optimizer.step()
         return self(U).data, self.W.weight.data
@@ -129,13 +128,15 @@ def ogc() -> float:
         U = update_U(U, y_one_hot, pred, W)
 
         loss, trainval_acc, test_acc, pred = model.test(U, y_one_hot, data)
-        print(f'Epoch: {i:02d}, Loss: {loss:.4f}, '
-              f'Train+Val Acc: {trainval_acc:.4f} Test Acc {test_acc:.4f}')
+        print(
+            f"Epoch: {i:02d}, Loss: {loss:.4f}, "
+            f"Train+Val Acc: {trainval_acc:.4f} Test Acc {test_acc:.4f}"
+        )
 
         sim_rate = float((pred == last_pred).sum()) / pred.size(0)
-        if (sim_rate > max_sim_tol):
+        if sim_rate > max_sim_tol:
             patience += 1
-            if (patience > max_patience):
+            if patience > max_patience:
                 break
 
         last_acc, last_pred = test_acc, pred
@@ -145,5 +146,5 @@ def ogc() -> float:
 
 start_time = time.time()
 test_acc = ogc()
-print(f'Total Time: {time.time() - start_time:.4f}s')
-print(f'Test Accuracy: {test_acc:.4f}')
+print(f"Total Time: {time.time() - start_time:.4f}s")
+print(f"Test Accuracy: {test_acc:.4f}")

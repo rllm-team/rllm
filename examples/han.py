@@ -11,36 +11,44 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 import sys
-sys.path.append('../')
+
+sys.path.append("../")
 from rllm.datasets.imdb import IMDB
 from rllm.nn.conv.graph_conv import HANConv
 
 
-path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')
+path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = IMDB(path)
 data = dataset[0]
 
 
 class HAN(nn.Module):
-    def __init__(self, in_channels: Union[int, Dict[str, int]],
-                 out_channels: int, hidden_channels=128, heads=8):
+    def __init__(
+        self,
+        in_channels: Union[int, Dict[str, int]],
+        out_channels: int,
+        hidden_channels=128,
+        heads=8,
+    ):
         super().__init__()
-        self.han_conv = HANConv(in_channels, hidden_channels, heads=heads,
-                                dropout=0.6, metadata=data.metadata())
+        self.han_conv = HANConv(
+            in_channels,
+            hidden_channels,
+            heads=heads,
+            dropout=0.6,
+            metadata=data.metadata(),
+        )
         self.lin = nn.Linear(hidden_channels, out_channels)
 
     def forward(self, x_dict, adj_dict):
         out = self.han_conv(x_dict, adj_dict)
-        out = self.lin(out['movie'])
+        out = self.lin(out["movie"])
         return out
 
 
-in_channels = {
-    node_type: data[node_type].x.shape[1]
-    for node_type in data.node_types
-}
+in_channels = {node_type: data[node_type].x.shape[1] for node_type in data.node_types}
 model = HAN(in_channels=in_channels, out_channels=3)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 data, model = data.to(device), model.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=0.001)
@@ -51,7 +59,7 @@ def train() -> float:
     optimizer.zero_grad()
     out = model(data.x_dict(), data.adj_dict())
     mask = data.train_mask
-    loss = F.cross_entropy(out[mask], data['movie'].y[mask])
+    loss = F.cross_entropy(out[mask], data["movie"].y[mask])
     loss.backward()
     optimizer.step()
     return float(loss)
@@ -63,10 +71,10 @@ def test() -> List[float]:
     pred = model(data.x_dict(), data.adj_dict()).argmax(dim=-1)
 
     accs = []
-    for split in ['train_mask', 'val_mask', 'test_mask']:
+    for split in ["train_mask", "val_mask", "test_mask"]:
         # mask = data[split]
         mask = getattr(data, split)
-        acc = (pred[mask] == data['movie'].y[mask]).sum() / mask.sum()
+        acc = (pred[mask] == data["movie"].y[mask]).sum() / mask.sum()
         accs.append(float(acc))
     return accs
 
@@ -78,8 +86,10 @@ for epoch in range(1, 200):
 
     loss = train()
     train_acc, val_acc, test_acc = test()
-    print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}, Train: {train_acc:.4f}, '
-          f'Val: {val_acc:.4f}, Test: {test_acc:.4f}')
+    print(
+        f"Epoch: {epoch:03d}, Loss: {loss:.4f}, Train: {train_acc:.4f}, "
+        f"Val: {val_acc:.4f}, Test: {test_acc:.4f}"
+    )
 
     if best_val_acc <= val_acc:
         patience = start_patience
@@ -89,9 +99,11 @@ for epoch in range(1, 200):
         patience -= 1
 
     if patience <= 0:
-        print('Stopping training as validation accuracy did not improve '
-              f'for {start_patience} epochs')
+        print(
+            "Stopping training as validation accuracy did not improve "
+            f"for {start_patience} epochs"
+        )
         break
 
 
-print(f'Best test acc: {best_test_acc:.4f}')
+print(f"Best test acc: {best_test_acc:.4f}")

@@ -93,7 +93,7 @@ optimizer = torch.optim.Adam(
     model.parameters(),
     lr=args.lr,
     weight_decay=args.wd,
-    )
+)
 
 
 def train(epoch: int) -> float:

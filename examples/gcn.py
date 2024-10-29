@@ -14,28 +14,26 @@ import torch
 import torch.nn.functional as F
 
 import sys
-sys.path.append('../')
+
+sys.path.append("../")
 import rllm.transforms.graph_transforms as T
 from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.conv.graph_conv import GCNConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, default='cora',
-                    choices=['citeseer', 'cora', 'pubmed'])
-parser.add_argument('--hidden_channels', type=int, default=16,
-                    help="Hidden channel")
-parser.add_argument('--lr', type=float, default=0.01, help='Learning rate')
-parser.add_argument('--wd', type=float, default=5e-4, help='Weight decay')
-parser.add_argument('--epochs', type=int, default=200, help="Training epochs")
-parser.add_argument('--dropout', type=float, default=0.5, help='Graph Dropout')
+parser.add_argument(
+    "--dataset", type=str, default="cora", choices=["citeseer", "cora", "pubmed"]
+)
+parser.add_argument("--hidden_channels", type=int, default=16, help="Hidden channel")
+parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
+parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
+parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
+parser.add_argument("--dropout", type=float, default=0.5, help="Graph Dropout")
 args = parser.parse_args()
 
-transform = T.Compose([
-    T.NormalizeFeatures('l2'),
-    T.GCNNorm()
-])
+transform = T.Compose([T.NormalizeFeatures("l2"), T.GCNNorm()])
 
-path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')
+path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = PlanetoidDataset(path, args.dataset, transform=transform)
 data = dataset[0]
 
@@ -63,9 +61,7 @@ model = GCN(
 )
 
 optimizer = torch.optim.Adam(
-    model.parameters(),
-    lr=args.lr,
-    weight_decay=args.wd
+    model.parameters(), lr=args.lr, weight_decay=args.wd
 )  # Only perform weight-decay on first convolution.
 loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -105,6 +101,6 @@ for epoch in range(1, args.epochs + 1):
         best_test_acc = test_acc
     times.append(time.time() - start)
 et = time.time()
-print(f'Mean time per epoch: {torch.tensor(times).mean():.4f}s')
-print(f'Total time: {et-st}s')
-print(f'Best test acc: {best_test_acc:.4f}')
+print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
+print(f"Total time: {et-st}s")
+print(f"Best test acc: {best_test_acc:.4f}")
