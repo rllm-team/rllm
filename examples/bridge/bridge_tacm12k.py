@@ -9,8 +9,9 @@ import argparse
 import os.path as osp
 import pandas as pd
 import sys
-sys.path.append('../')
-sys.path.append('../../')
+
+sys.path.append("../")
+sys.path.append("../../")
 
 import torch
 import torch.nn.functional as F
@@ -23,10 +24,9 @@ from rllm.transforms.graph_transforms import build_homo_graph
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--tab_dim", type=int, default=256,
-    help="Tab Transformer categorical embedding dim")
-parser.add_argument("--gcn_dropout", type=float, default=0.5,
-                    help="Dropout for GCN")
+    "--tab_dim", type=int, default=256, help="Tab Transformer categorical embedding dim"
+)
+parser.add_argument("--gcn_dropout", type=float, default=0.5, help="Dropout for GCN")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
@@ -45,21 +45,17 @@ dataset = TACM12KDataset(cached_dir=path, force_reload=True)
     author_embeddings,
 ) = dataset.data_list
 
-cite = cite_table.df.assign(
-    Target=cite_table.df["paper_id_cited"]
-    )
+cite = cite_table.df.assign(Target=cite_table.df["paper_id_cited"])
 author2id = {
-    author_id: idx+paper_embeddings.size(0) for idx, author_id in enumerate(author_table.df.index.to_numpy())
+    author_id: idx + paper_embeddings.size(0)
+    for idx, author_id in enumerate(author_table.df.index.to_numpy())
 }
-writed = writing_table.df.assign(
-    Target=writing_table.df["author_id"].map(author2id)
-)
+writed = writing_table.df.assign(Target=writing_table.df["author_id"].map(author2id))
 
 # Get relation with cite_table and writing_table
 relation_df = pd.concat(
-    [cite.iloc[:, [0, 2]], writed.iloc[:, [0, 2]]],
-    axis=0,
-    ignore_index=True)
+    [cite.iloc[:, [0, 2]], writed.iloc[:, [0, 2]]], axis=0, ignore_index=True
+)
 x = torch.cat([paper_embeddings, author_embeddings], dim=0)
 
 # Making graph
@@ -134,13 +130,8 @@ start_time = time.time()
 best_val_acc = best_test_acc = 0
 optimizer = torch.optim.Adam(
     [
-        dict(
-            params=model.table_encoder.parameters(),
-            lr=0.001),
-        dict(
-            params=model.graph_encoder.parameters(),
-            lr=0.01,
-            weight_decay=1e-4),
+        dict(params=model.table_encoder.parameters(), lr=0.001),
+        dict(params=model.graph_encoder.parameters(), lr=0.01, weight_decay=1e-4),
     ]
     # model.parameters(),
     # lr=args.lr,

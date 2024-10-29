@@ -1,7 +1,8 @@
 import argparse
 import os.path as osp
 import sys
-sys.path.append('../')
+
+sys.path.append("../")
 
 import torch
 from torch import Tensor
@@ -17,27 +18,36 @@ from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import FTTransformerConvs
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, default='titanic',
-                    choices=["titanic",])
-parser.add_argument('--dim', help='embedding dim.', type=int, default=32)
-parser.add_argument('--num_layers', type=int, default=3)
-parser.add_argument('--batch_size', type=int, default=128)
-parser.add_argument('--lr', type=float, default=0.001)
-parser.add_argument('--epochs', type=int, default=50)
-parser.add_argument('--seed', type=int, default=42)
-parser.add_argument('--wd', type=float, default=5e-4)
+parser.add_argument(
+    "--dataset",
+    type=str,
+    default="titanic",
+    choices=[
+        "titanic",
+    ],
+)
+parser.add_argument("--dim", help="embedding dim.", type=int, default=32)
+parser.add_argument("--num_layers", type=int, default=3)
+parser.add_argument("--batch_size", type=int, default=128)
+parser.add_argument("--lr", type=float, default=0.001)
+parser.add_argument("--epochs", type=int, default=50)
+parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--wd", type=float, default=5e-4)
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Prepare datasets
-path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')
+path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = Titanic(cached_dir=path)[0]
 dataset.to(device)
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
-train_loader, val_loader, test_loader = dataset.get_dataloader(0.8, 0.1, 0.1, batch_size=args.batch_size)
+train_loader, val_loader, test_loader = dataset.get_dataloader(
+    0.8, 0.1, 0.1, batch_size=args.batch_size
+)
+
 
 # Set up model and optimizer
 class FTTransformer(torch.nn.Module):
@@ -66,6 +76,7 @@ class FTTransformer(torch.nn.Module):
         out = self.fc(x_cls)
         return out
 
+
 model = FTTransformer(
     hidden_dim=args.dim,
     output_dim=dataset.num_classes,
@@ -73,13 +84,17 @@ model = FTTransformer(
     col_stats_dict=dataset.stats_dict,
 ).to(device)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=args.lr,
+    weight_decay=args.wd,
+    )
 
 
 def train(epoch: int) -> float:
     model.train()
     loss_accum = total_count = 0
-    for batch in tqdm(train_loader, desc=f'Epoch: {epoch}'):
+    for batch in tqdm(train_loader, desc=f"Epoch: {epoch}"):
         x, y = batch
         pred = model.forward(x)
         loss = F.cross_entropy(pred, y.long())
@@ -109,7 +124,7 @@ def test(loader: DataLoader) -> float:
     return overall_auc
 
 
-metric = 'AUC'
+metric = "AUC"
 best_val_metric = 0
 best_test_metric = 0
 for epoch in range(1, args.epochs + 1):
@@ -122,9 +137,13 @@ for epoch in range(1, args.epochs + 1):
         best_val_metric = val_metric
         best_test_metric = test_metric
 
-    print(f'Train Loss: {train_loss:.4f}, Train {metric}: {train_metric:.4f}, '
-          f'Val {metric}: {val_metric:.4f}, Test {metric}: {test_metric:.4f}')
+    print(
+        f"Train Loss: {train_loss:.4f}, Train {metric}: {train_metric:.4f}, "
+        f"Val {metric}: {val_metric:.4f}, Test {metric}: {test_metric:.4f}"
+    )
     optimizer.step()
 
-print(f'Best Val {metric}: {best_val_metric:.4f}, '
-      f'Best Test {metric}: {best_test_metric:.4f}')
+print(
+    f"Best Val {metric}: {best_val_metric:.4f}, "
+    f"Best Test {metric}: {best_test_metric:.4f}"
+)
