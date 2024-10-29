@@ -7,7 +7,7 @@ from torch import Tensor
 from torch.nn import Module, ModuleDict
 
 from rllm.types import ColType, StatType
-from rllm.nn.encoder.coltype_encoder import ColTypeTransform
+from rllm.transforms.table_transforms import ColTypeTransform
 
 
 class TableTypeTransform(Module):
@@ -15,7 +15,7 @@ class TableTypeTransform(Module):
     performs the final concatenation.
 
     Args:
-        out_channels (int): Output dimensionality.
+        out_dim (int): Output dimensionality.
         col_stats_dict
             (Dict[class:`rllm.types.ColType`, List[dict[StatType, Any]]):
             A dictionary that maps column type into stats.
@@ -29,7 +29,7 @@ class TableTypeTransform(Module):
     """
     def __init__(
         self,
-        out_channels: int,
+        out_dim: int,
         col_stats_dict: dict[ColType, list[dict[str, Any]]],
         col_types_transform_dict: dict[ColType, ColTypeTransform],
     ) -> None:
@@ -57,7 +57,8 @@ class TableTypeTransform(Module):
                 stats_list = col_stats_dict[col_type]
                 # Set attributes
                 col_types_transform.col_type = col_type
-                col_types_transform.out_channels = out_channels
+                if col_types_transform.out_dim is None:
+                    col_types_transform.out_dim = out_dim
                 col_types_transform.stats_list = stats_list
                 self.transform_dict[col_type.value] = col_types_transform
                 col_types_transform.post_init()

@@ -12,26 +12,26 @@ import time
 import torch
 import torch.nn.functional as F
 import sys
-sys.path.append('../')
-import rllm.transforms as T
+
+sys.path.append("../")
+import rllm.transforms.graph_transforms as T
 from rllm.datasets.planetoid import PlanetoidDataset
-from rllm.nn.conv.gat_conv import GATConv
+from rllm.nn.conv.graph_conv import GATConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, default='cora',
-                    choices=['citeseer', 'cora', 'pubmed'])
-parser.add_argument('--hidden_channels', type=int, default=8)
-parser.add_argument('--heads', type=int, default=8, help="Attention heads")
-parser.add_argument('--lr', type=float, default=5e-3, help='Learning rate')
-parser.add_argument('--wd', type=float, default=5e-4, help='Weight decay')
-parser.add_argument('--epochs', type=int, default=200, help="Training epochs")
-parser.add_argument('--dropout', type=float, default=0.6, help='Graph Dropout')
+parser.add_argument(
+    "--dataset", type=str, default="cora", choices=["citeseer", "cora", "pubmed"]
+)
+parser.add_argument("--hidden_channels", type=int, default=8)
+parser.add_argument("--heads", type=int, default=8, help="Attention heads")
+parser.add_argument("--lr", type=float, default=5e-3, help="Learning rate")
+parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
+parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
+parser.add_argument("--dropout", type=float, default=0.6, help="Graph Dropout")
 args = parser.parse_args()
 
-path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')
-dataset = PlanetoidDataset(path,
-                           args.dataset,
-                           transform=T.NormalizeFeatures('sum'))
+path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
+dataset = PlanetoidDataset(path, args.dataset, transform=T.NormalizeFeatures("sum"))
 data = dataset[0]
 data.adj = torch.eye(data.adj.size(0)) + data.adj
 indices = torch.nonzero(data.adj, as_tuple=False)
@@ -41,17 +41,20 @@ data.adj = sparse_tensor
 
 
 class GAT(torch.nn.Module):
-    def __init__(self,
-                 in_channels,
-                 hidden_channels,
-                 out_channels,
-                 dropout: float = 0.,
-                 heads: int = 8):
+    def __init__(
+        self,
+        in_channels,
+        hidden_channels,
+        out_channels,
+        dropout: float = 0.0,
+        heads: int = 8,
+    ):
         super().__init__()
         self.dropout = dropout
         self.conv1 = GATConv(in_channels, hidden_channels, heads)
-        self.conv2 = GATConv(hidden_channels*heads, out_channels,
-                             heads=1, concat=False)
+        self.conv2 = GATConv(
+            hidden_channels * heads, out_channels, heads=1, concat=False
+        )
 
     def forward(self, x, adj):
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -70,9 +73,7 @@ model = GAT(
 )
 
 optimizer = torch.optim.Adam(
-    model.parameters(),
-    lr=args.lr,
-    weight_decay=args.wd
+    model.parameters(), lr=args.lr, weight_decay=args.wd
 )  # Only perform weight-decay on first convolution.
 loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -115,5 +116,5 @@ for epoch in range(1, args.epochs + 1):
         f"val_acc: {val_acc:.4f} test_acc: {test_acc:.4f} "
     )
     times.append(time.time() - start)
-print(f'Mean time per epoch: {torch.tensor(times).mean():.4f}s')
-print(f'Best test acc: {best_test_acc:.4f}')
+print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
+print(f"Best test acc: {best_test_acc:.4f}")
