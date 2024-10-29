@@ -4,14 +4,17 @@ import sys
 sys.path.append('../')
 
 import torch
+from torch import Tensor
 import torch.nn.functional as F
+from torch.nn import LayerNorm, Linear, ReLU, Sequential
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import ExponentialLR
 from tqdm import tqdm
 
+from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
-from rllm.nn.models.ft_transformer import FTTransformer
+from rllm.transforms.table_transforms import FTTransformerTransform
+from rllm.nn.conv.table_conv import FTTransformerConvs
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='titanic',
@@ -22,7 +25,7 @@ parser.add_argument('--batch_size', type=int, default=128)
 parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--epochs', type=int, default=50)
 parser.add_argument('--seed', type=int, default=42)
-parser.add_argument('--compile', action='store_true')
+parser.add_argument('--wd', type=float, default=5e-4)
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -32,18 +35,36 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')
 dataset = Titanic(cached_dir=path)[0]
 dataset.to(device)
-dataset.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
-train_dataset, val_dataset, test_dataset = dataset.get_dataset(0.8, 0.1, 0.1)
-train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
-                          shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=args.batch_size)
-test_loader = DataLoader(test_dataset, batch_size=args.batch_size)
+train_loader, val_loader, test_loader = dataset.get_dataloader(0.8, 0.1, 0.1, batch_size=args.batch_size)
 
 # Set up model and optimizer
-cat_dims = tuple(dataset.count_categorical_features().values())
-cont_nums = len(dataset.count_numerical_features())
+class FTTransformer(torch.nn.Module):
+    def __init__(
+        self,
+        hidden_dim: int,
+        output_dim: int,
+        layers: int,
+        col_stats_dict: dict[ColType, list[dict[str,]]],
+    ):
+        super().__init__()
+        self.transform = FTTransformerTransform(
+            out_dim=hidden_dim,
+            col_stats_dict=col_stats_dict,
+        )
+        self.convs = FTTransformerConvs(dim=hidden_dim, layers=layers)
+        self.fc = self.decoder = Sequential(
+            LayerNorm(hidden_dim),
+            ReLU(),
+            Linear(hidden_dim, output_dim),
+        )
+
+    def forward(self, x) -> Tensor:
+        x, _ = self.transform(x)
+        x, x_cls = self.convs(x)
+        out = self.fc(x_cls)
+        return out
 
 model = FTTransformer(
     hidden_dim=args.dim,
@@ -52,19 +73,15 @@ model = FTTransformer(
     col_stats_dict=dataset.stats_dict,
 ).to(device)
 
-
-model = torch.compile(model, dynamic=True) if args.compile else model
-optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-# optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-lr_scheduler = ExponentialLR(optimizer, gamma=0.95)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
 
 
 def train(epoch: int) -> float:
     model.train()
     loss_accum = total_count = 0
     for batch in tqdm(train_loader, desc=f'Epoch: {epoch}'):
-        feat_dict, y = batch
-        pred = model.forward(feat_dict)
+        x, y = batch
+        pred = model.forward(x)
         loss = F.cross_entropy(pred, y.long())
         optimizer.zero_grad()
         loss.backward()
@@ -80,8 +97,8 @@ def test(loader: DataLoader) -> float:
     all_preds = []
     all_labels = []
     for batch in loader:
-        feat_dict, y = batch
-        pred = model.forward(feat_dict)
+        x, y = batch
+        pred = model.forward(x)
         all_labels.append(y.cpu())
         all_preds.append(pred[:, 1].detach().cpu())
     all_labels = torch.cat(all_labels).numpy()
@@ -107,7 +124,7 @@ for epoch in range(1, args.epochs + 1):
 
     print(f'Train Loss: {train_loss:.4f}, Train {metric}: {train_metric:.4f}, '
           f'Val {metric}: {val_metric:.4f}, Test {metric}: {test_metric:.4f}')
-    lr_scheduler.step()
+    optimizer.step()
 
 print(f'Best Val {metric}: {best_val_metric:.4f}, '
       f'Best Test {metric}: {best_test_metric:.4f}')
