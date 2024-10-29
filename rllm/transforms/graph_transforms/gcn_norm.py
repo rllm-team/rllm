@@ -2,7 +2,7 @@ from typing import Union
 
 from rllm.transforms.utils import gcn_norm
 from rllm.data.graph_data import GraphData, HeteroGraphData
-from rllm.transforms.base_transform import BaseTransform
+from rllm.transforms.graph_transforms import BaseTransform
 
 
 class GCNNorm(BaseTransform):

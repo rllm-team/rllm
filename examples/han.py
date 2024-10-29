@@ -13,7 +13,7 @@ from torch import nn
 import sys
 sys.path.append('../')
 from rllm.datasets.imdb import IMDB
-from rllm.nn.conv.han_conv import HANConv
+from rllm.nn.conv.graph_conv import HANConv
 
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')

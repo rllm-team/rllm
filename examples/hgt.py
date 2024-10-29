@@ -14,12 +14,13 @@ import sys
 sys.path.append('../')
 from rllm.data import HeteroGraphData
 from rllm.datasets.imdb import IMDB
-from rllm.nn.conv.hgt_conv import HGTConv
+from rllm.nn.conv.graph_conv import HGTConv
 
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')
 dataset = IMDB(path)
 data = dataset[0]
+
 
 class HGT(nn.Module):
     def __init__(self, hidden_channels: int,

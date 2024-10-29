@@ -4,7 +4,7 @@ from rllm.transforms.utils import knn_graph
 from rllm.types import ColType
 from rllm.data.graph_data import GraphData
 from rllm.data.table_data import TableData
-from rllm.transforms.base_transform import BaseTransform
+from rllm.transforms.graph_transforms import BaseTransform
 
 
 class KNNGraph(BaseTransform):  # TODO: add force_undirected option.

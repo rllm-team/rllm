@@ -15,9 +15,9 @@ import torch.nn.functional as F
 
 import sys
 sys.path.append('../')
-import rllm.transforms as T
+import rllm.transforms.graph_transforms as T
 from rllm.datasets.planetoid import PlanetoidDataset
-from rllm.nn.conv.gcn_conv import GCNConv
+from rllm.nn.conv.graph_conv import GCNConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='cora',
