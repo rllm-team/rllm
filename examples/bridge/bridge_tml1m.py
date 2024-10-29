@@ -14,10 +14,10 @@ sys.path.append('../../')
 import torch
 import torch.nn.functional as F
 
-import rllm.transforms as T
+import rllm.transforms.graph_transforms as T
 from rllm.datasets import TML1MDataset
 from rllm.nn.models import Bridge
-from rllm.transforms import build_homo_graph
+from rllm.transforms.graph_transforms import build_homo_graph
 
 
 parser = argparse.ArgumentParser()
@@ -70,7 +70,6 @@ train_mask, val_mask, test_mask = (
 )
 output_dim = graph.user_table.num_classes
 
-
 def accuracy_score(preds, truth):
     return (preds == truth).sum(dim=0) / len(truth)
 
@@ -110,10 +109,8 @@ def test_epoch():
 
 
 model = Bridge(
-    table_hidden_dim=args.tab_dim,
-    table_output_dim=emb_size,
+    table_hidden_dim=emb_size,
     graph_layers=2,
-    graph_hidden_dim=emb_size,
     graph_output_dim=output_dim,
     stats_dict=graph.user_table.stats_dict,
     graph_dropout=args.gcn_dropout,

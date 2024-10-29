@@ -9,8 +9,10 @@ from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
-from rllm.nn.models.tabnet import TabNet
+from rllm.transforms.table_transforms import TabNetTransform
+from rllm.nn.models import TabNet
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='titanic',
@@ -40,10 +42,32 @@ val_loader = DataLoader(val_dataset, batch_size=args.batch_size)
 test_loader = DataLoader(test_dataset, batch_size=args.batch_size)
 
 # Set up model and optimizer
+class TabNetModel(torch.nn.Module):
+    def __init__(
+        self,
+        hidden_dim: int,
+        output_dim: int,
+        col_stats_dict: dict[ColType, list[dict[str,]]],
+    ):
+        super().__init__()
+        self.transform = TabNetTransform(
+            out_dim=hidden_dim,
+            col_stats_dict=col_stats_dict,
+        )
+        self.backbone = TabNet(    
+            output_dim=output_dim, #dataset.num_classes,
+            cat_emb_dim=hidden_dim, #args.dim,
+            col_stats_dict=dataset.stats_dict
+        )
 
-model = TabNet(
+    def forward(self, x):
+        x, _ = self.transform(x)
+        out = self.backbone(x)
+        return out
+
+model = TabNetModel(
     output_dim=dataset.num_classes,
-    cat_emb_dim=args.dim,
+    hidden_dim=args.dim,
     col_stats_dict=dataset.stats_dict
 ).to(device)
 
