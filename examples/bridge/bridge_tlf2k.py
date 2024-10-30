@@ -8,8 +8,9 @@ import time
 import argparse
 import os.path as osp
 import sys
-sys.path.append('../')
-sys.path.append('../../')
+
+sys.path.append("../")
+sys.path.append("../../")
 
 import torch
 import torch.nn.functional as F
@@ -21,16 +22,13 @@ from rllm.transforms.graph_transforms import build_homo_graph
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--tab_dim", type=int, default=64,
-                    help="Tab Transformer categorical embedding dim")
-parser.add_argument("--gcn_dropout", type=float, default=0.5,
-                    help="Dropout for GCN")
-parser.add_argument("--epochs", type=int, default=200,
-                    help="Training epochs")
-parser.add_argument("--lr", type=float, default=0.001,
-                    help="Learning rate")
-parser.add_argument("--wd", type=float, default=1e-4,
-                    help="Weight decay")
+parser.add_argument(
+    "--tab_dim", type=int, default=64, help="Tab Transformer categorical embedding dim"
+)
+parser.add_argument("--gcn_dropout", type=float, default=0.5, help="Dropout for GCN")
+parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
+parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
+parser.add_argument("--wd", type=float, default=1e-4, help="Weight decay")
 args = parser.parse_args()
 
 # Prepare datasets
@@ -43,16 +41,16 @@ artist_table, ua_table, uu_table = dataset.data_list
 # We assume it a homogeneous graph,
 # so we need to reorder the user and artist id.
 ordered_ua = ua_table.df.assign(
-    artistID=ua_table.df['artistID']-1,
-    userID=ua_table.df['userID']+len(artist_table)-1,
+    artistID=ua_table.df["artistID"] - 1,
+    userID=ua_table.df["userID"] + len(artist_table) - 1,
 )
 
 # Making graph
 emb_size = 384  # Since user doesn't have an embedding, randomly select a dim.
 len_artist = len(artist_table)
-len_user = ua_table.df['userID'].max()
+len_user = ua_table.df["userID"].max()
 # Randomly initialize the embedding, artist embedding will be further trained
-x = torch.randn(len_artist+len_user, emb_size)
+x = torch.randn(len_artist + len_user, emb_size)
 graph = build_homo_graph(
     df=ordered_ua,
     n_src=len_artist,
@@ -66,7 +64,7 @@ graph = graph.to(device)
 train_mask, val_mask, test_mask = (
     graph.artist_table.train_mask,
     graph.artist_table.val_mask,
-    graph.artist_table.test_mask
+    graph.artist_table.test_mask,
 )
 output_dim = graph.artist_table.num_classes
 
@@ -79,15 +77,9 @@ def train_epoch() -> float:
     model.train()
     optimizer.zero_grad()
     logits = model(
-        graph.artist_table,
-        graph.x,
-        graph.adj,
-        len_artist,
-        len_artist+len_user
+        graph.artist_table, graph.x, graph.adj, len_artist, len_artist + len_user
     )
-    loss = F.cross_entropy(
-        logits[train_mask].squeeze(), graph.y[train_mask]
-    )
+    loss = F.cross_entropy(logits[train_mask].squeeze(), graph.y[train_mask])
     loss.backward()
     optimizer.step()
     return loss.item()
@@ -97,11 +89,7 @@ def train_epoch() -> float:
 def test_epoch():
     model.eval()
     logits = model(
-        graph.artist_table,
-        graph.x,
-        graph.adj,
-        len_artist,
-        len_artist+len_user
+        graph.artist_table, graph.x, graph.adj, len_artist, len_artist + len_user
     )
     preds = logits.argmax(dim=1)
     y = graph.y
@@ -122,11 +110,7 @@ model = Bridge(
 
 start_time = time.time()
 best_val_acc = best_test_acc = 0
-optimizer = torch.optim.Adam(
-    model.parameters(),
-    lr=args.lr,
-    weight_decay=args.wd
-)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
 for epoch in range(1, args.epochs + 1):
     train_loss = train_epoch()
     train_acc, val_acc, test_acc = test_epoch()
@@ -138,9 +122,10 @@ for epoch in range(1, args.epochs + 1):
     if val_acc > best_val_acc:
         best_val_acc = val_acc
         best_test_acc = test_acc
+
+print(f"Total Time: {time.time() - start_time:.4f}s")
 print(
     "Bridge result: "
     f"Best Val acc: {best_val_acc:.4f}, "
     f"Best Test acc: {best_test_acc:.4f}"
 )
-print(f"Total Time: {time.time() - start_time:.4f}s")
