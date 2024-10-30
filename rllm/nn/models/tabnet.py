@@ -42,6 +42,73 @@ def check_list_groups(list_groups, input_dim):
     return
 
 
+def create_group_matrix(list_groups, input_dim):
+    """
+    Create the group matrix corresponding to the given list_groups
+
+    """
+    check_list_groups(list_groups, input_dim)
+
+    if len(list_groups) == 0:
+        group_matrix = torch.eye(input_dim)
+        return group_matrix
+    else:
+        n_groups = input_dim - int(np.sum([len(gp) - 1 for gp in list_groups]))
+        group_matrix = torch.zeros((n_groups, input_dim))
+
+        remaining_features = [feat_idx for feat_idx in range(input_dim)]
+
+        current_group_idx = 0
+        for group in list_groups:
+            group_size = len(group)
+            for elem_idx in group:
+                # add importrance of element in group matrix and
+                # corresponding group
+                group_matrix[current_group_idx, elem_idx] = 1 / group_size
+                # remove features from list of features
+                remaining_features.remove(elem_idx)
+            # move to next group
+            current_group_idx += 1
+        # features not mentionned in list_groups will
+        # get assigned their own group of singleton
+        for remaining_feat_idx in remaining_features:
+            group_matrix[current_group_idx, remaining_feat_idx] = 1
+            current_group_idx += 1
+        return group_matrix
+
+
+def create_emb_group_matrix(
+        group_matrix,
+        cat_idxs,
+        input_dim,
+        cat_emb_dim,
+        post_embed_dim
+):
+    # record continuous indices
+    continuous_idx = torch.ones(input_dim, dtype=torch.bool)
+    continuous_idx[cat_idxs] = 0
+
+    # update group matrix
+    n_groups = group_matrix.shape[0]
+    embedding_group_matrix = torch.empty(
+        (n_groups, post_embed_dim),
+        device=group_matrix.device
+    )
+    for group_idx in range(n_groups):
+        post_emb_idx = 0
+        for init_feat_idx in range(input_dim):
+            if continuous_idx[init_feat_idx] == 1:
+                # this means that no embedding is applied to this column
+                embedding_group_matrix[group_idx, post_emb_idx] = group_matrix[group_idx, init_feat_idx]  # noqa
+                post_emb_idx += 1
+            else:
+                # a categorical feature which creates multiple embeddings
+                n_embeddings = cat_emb_dim
+                embedding_group_matrix[group_idx, post_emb_idx:post_emb_idx+n_embeddings] = group_matrix[group_idx, init_feat_idx] / n_embeddings  # noqa
+                post_emb_idx += n_embeddings
+    return embedding_group_matrix
+
+
 def initialize_non_glu(module, input_dim, output_dim):
     gain_value = np.sqrt((input_dim + output_dim) / np.sqrt(4 * input_dim))
     torch.nn.init.xavier_normal_(module.weight, gain=gain_value)
@@ -142,7 +209,7 @@ class TabNetEncoder(torch.nn.Module):
         self.feat_transformers = torch.nn.ModuleList()
         self.att_transformers = torch.nn.ModuleList()
 
-        for _ in range(n_steps):
+        for step in range(n_steps):
             transformer = FeatTransformer(
                 self.input_dim,
                 n_d + n_a,
@@ -376,10 +443,43 @@ class TabNet(torch.nn.Module):
             raise ValueError("n_shared and n_independent can't be both zero.")
         self.virtual_batch_size = virtual_batch_size
 
+        # Create catrgorical transform
+        # if ColType.CATEGORICAL in self.col_stats_dict.keys():
+        #     categorical_stats_list = self.col_stats_dict[ColType.CATEGORICAL]
+        #     self.category_transform = EmbeddingEncoder(
+        #             out_dim=cat_emb_dim,
+        #             stats_list=categorical_stats_list,
+        #             col_type=ColType.CATEGORICAL,
+        #             na_mode=NAMode.MOST_FREQUENT,
+        #         )
+        #     self.category_transform.post_init()
+
+        # Create numeric transform
+        # if ColType.NUMERICAL in self.col_stats_dict.keys():
+        #     numerical_stats_list = self.col_stats_dict[ColType.NUMERICAL]
+        #     self.numeric_transform = StackEncoder(
+        #         out_dim=1,
+        #         stats_list=numerical_stats_list,
+        #         col_type=ColType.NUMERICAL,
+        #         na_mode=NAMode.MEAN,
+        #     )
+        #     self.numeric_transform.post_init()
+
+        # Initialize group_matrix and emb_group_matrix
+        group_attention_matrix = create_group_matrix(
+            self.grouped_features,
+            self.input_dim
+        )
         self.post_embed_dim = self.input_dim - \
             len(self.col_stats_dict[ColType.CATEGORICAL]) + \
             len(self.col_stats_dict[ColType.CATEGORICAL]) * cat_emb_dim
-    
+        emb_group_matrix = create_emb_group_matrix(
+            group_attention_matrix,
+            self.cat_idxs,
+            self.input_dim,
+            self.cat_emb_dim,
+            self.post_embed_dim
+        )
         # Initialize TabNet network
         self.tabnet = TabNetNoEmbeddings(
             self.post_embed_dim,
@@ -393,12 +493,47 @@ class TabNet(torch.nn.Module):
             epsilon,
             virtual_batch_size,
             momentum,
+            emb_group_matrix,
         )
 
     def forward(self, x):
+        # xs = []
+        # if ColType.CATEGORICAL in self.col_stats_dict.keys():
+        #     x_category = feat_dict[ColType.CATEGORICAL]
+        #     category_embedding = self.category_transform(x_category)
+        #     flatten_category = category_embedding.reshape(
+        #         category_embedding.size(0), -1
+        #     )
+        #     xs.append(flatten_category)
+
+        # if ColType.NUMERICAL in self.col_stats_dict.keys():
+        #     x_numeric = feat_dict[ColType.NUMERICAL]
+        #     numerical_embedding = self.numeric_transform(x_numeric)
+        #     flatten_numeric = numerical_embedding.reshape(
+        #         numerical_embedding.size(0), -1
+        #     )
+        #     xs.append(flatten_numeric)
+        # x = torch.cat(xs, dim=-1)
         return self.tabnet(x)
 
     def forward_masks(self, x):
+        # xs = []
+        # if ColType.CATEGORICAL in self.col_stats_dict.keys():
+        #     x_category = feat_dict[ColType.CATEGORICAL]
+        #     category_embedding = self.category_transform(x_category)
+        #     flatten_category = category_embedding.reshape(
+        #         category_embedding.size(0), -1,
+        #     )
+        #     xs.append(flatten_category)
+
+        # if ColType.NUMERICAL in self.col_stats_dict.keys():
+        #     x_numeric = feat_dict[ColType.NUMERICAL]
+        #     numerical_embedding = self.numeric_transform(x_numeric)
+        #     flatten_numeric = numerical_embedding.reshape(
+        #         numerical_embedding.size(0), -1,
+        #     )
+        #     xs.append(flatten_numeric)
+        # x = torch.cat(xs, dim=-1)
         return self.tabnet.forward_masks(x)
 
 
