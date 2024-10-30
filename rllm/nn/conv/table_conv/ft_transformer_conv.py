@@ -12,7 +12,7 @@ from torch.nn import (
 )
 
 
-class FTTransformerConvs(torch.nn.Module):
+class FTTransformerConv(torch.nn.Module):
     r"""The FT-Transformer backbone in the
     `"Revisiting Deep Learning Models for Tabular Data"
     <https://arxiv.org/abs/2106.11959>`_ paper.
@@ -33,6 +33,7 @@ class FTTransformerConvs(torch.nn.Module):
         dropout (int): The dropout value (default: 0.1)
         activation (str): The activation function (default: :obj:`relu`)
     """
+
     def __init__(
         self,
         dim: int,
@@ -41,7 +42,7 @@ class FTTransformerConvs(torch.nn.Module):
         layers: int = 3,
         heads: int = 8,
         dropout: float = 0.2,
-        activation: str = 'relu',
+        activation: str = "relu",
     ):
         super().__init__()
 
@@ -56,9 +57,9 @@ class FTTransformerConvs(torch.nn.Module):
             batch_first=True,
         )
         encoder_norm = LayerNorm(dim)
-        self.transformer = TransformerEncoder(encoder_layer=encoder_layer,
-                                              num_layers=layers,
-                                              norm=encoder_norm)
+        self.transformer = TransformerEncoder(
+            encoder_layer=encoder_layer, num_layers=layers, norm=encoder_norm
+        )
         self.cls_embedding = Parameter(torch.empty(dim))
         self.reset_parameters()
 

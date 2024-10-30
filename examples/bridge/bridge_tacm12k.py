@@ -149,9 +149,10 @@ for epoch in range(1, args.epochs + 1):
     if val_acc > best_val_acc:
         best_val_acc = val_acc
         best_test_acc = test_acc
+
+print(f"Total Time: {time.time() - start_time:.4f}s")
 print(
     "Bridge result: "
     f"Best Val acc: {best_val_acc:.4f}, "
     f"Best Test acc: {best_test_acc:.4f}"
 )
-print(f"Total Time: {time.time() - start_time:.4f}s")
