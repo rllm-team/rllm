@@ -16,14 +16,6 @@ from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--dataset",
-    type=str,
-    default="titanic",
-    choices=[
-        "titanic",
-    ],
-)
 parser.add_argument("--dim", help="transform dim", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=6)
 parser.add_argument("--num_heads", type=int, default=8)

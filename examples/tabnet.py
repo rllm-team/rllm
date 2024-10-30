@@ -16,20 +16,11 @@ from rllm.transforms.table_transforms import TabNetTransform
 from rllm.nn.models import TabNet
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--dataset",
-    type=str,
-    default="titanic",
-    choices=[
-        "titanic",
-    ],
-)
 parser.add_argument("--dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--seed", type=int, default=42)
-parser.add_argument("--compile", action="store_true")
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -41,11 +32,10 @@ dataset = Titanic(cached_dir=path)[0]
 dataset.to(device)
 dataset.shuffle()
 
-# Split dataset, here the ratio of train-val-test is 20%-40%-40%
-train_dataset, val_dataset, test_dataset = dataset.get_dataset(0.8, 0.1, 0.1)
-train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=args.batch_size)
-test_loader = DataLoader(test_dataset, batch_size=args.batch_size)
+# Split dataset, here the ratio of train-val-test is 80%-10%-10%
+train_loader, val_loader, test_loader = dataset.get_dataloader(
+    0.8, 0.1, 0.1, batch_size=args.batch_size
+)
 
 
 # Set up model and optimizer
@@ -79,7 +69,6 @@ model = TabNetModel(
     col_stats_dict=dataset.stats_dict,
 ).to(device)
 
-model = torch.compile(model, dynamic=True) if args.compile else model
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 
@@ -87,8 +76,8 @@ def train(epoch: int, lambda_sparse: float = 1e-4) -> float:
     model.train()
     loss_accum = total_count = 0
     for batch in tqdm(train_loader, desc=f"Epoch: {epoch}"):
-        feat_dict, y = batch
-        pred, M_loss = model.forward(feat_dict)
+        x, y = batch
+        pred, M_loss = model.forward(x)
         loss = F.cross_entropy(pred, y.long())
         loss = loss - lambda_sparse * M_loss
         optimizer.zero_grad()
@@ -105,8 +94,8 @@ def test(loader: DataLoader) -> float:
     all_preds = []
     all_labels = []
     for batch in loader:
-        feat_dict, y = batch
-        pred, M_loss = model.forward(feat_dict)
+        x, y = batch
+        pred, _ = model.forward(x)
         all_labels.append(y.cpu())
         all_preds.append(pred[:, 1].detach().cpu())
     all_labels = torch.cat(all_labels).numpy()
