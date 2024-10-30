@@ -209,7 +209,7 @@ class TabNetEncoder(torch.nn.Module):
         self.feat_transformers = torch.nn.ModuleList()
         self.att_transformers = torch.nn.ModuleList()
 
-        for step in range(n_steps):
+        for _ in range(n_steps):
             transformer = FeatTransformer(
                 self.input_dim,
                 n_d + n_a,
@@ -555,7 +555,7 @@ class AttentiveTransformer(torch.nn.Module):
         self,
         input_dim,
         group_dim,
-        group_matrix,
+        # group_matrix,
         virtual_batch_size=128,
         momentum=0.02,
     ):
