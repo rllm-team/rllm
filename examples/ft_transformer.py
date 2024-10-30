@@ -15,7 +15,7 @@ from tqdm import tqdm
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
 from rllm.transforms.table_transforms import FTTransformerTransform
-from rllm.nn.conv.table_conv import FTTransformerConvs
+from rllm.nn.conv.table_conv import FTTransformerConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -63,7 +63,7 @@ class FTTransformer(torch.nn.Module):
             out_dim=hidden_dim,
             col_stats_dict=col_stats_dict,
         )
-        self.convs = FTTransformerConvs(dim=hidden_dim, layers=layers)
+        self.convs = FTTransformerConv(dim=hidden_dim, layers=layers)
         self.fc = self.decoder = Sequential(
             LayerNorm(hidden_dim),
             ReLU(),
