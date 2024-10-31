@@ -21,6 +21,7 @@ parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--wd", type=float, default=5e-4)
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -69,7 +70,11 @@ model = TabNetModel(
     col_stats_dict=dataset.stats_dict,
 ).to(device)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=args.lr,
+    weight_decay=args.wd,
+)
 
 
 def train(epoch: int, lambda_sparse: float = 1e-4) -> float:

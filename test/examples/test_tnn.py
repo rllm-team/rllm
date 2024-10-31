@@ -19,7 +19,7 @@ def test_ft_transformer():
     assert float(stdout[-9:]) > 0.80
 
 
-def test_gat():
+def test_tab_transformer():
     script = os.path.join(EXAMPLE_ROOT, "tab_transformer.py")
     out = subprocess.run(["python", str(script)], capture_output=True)
     assert (
@@ -29,7 +29,7 @@ def test_gat():
     assert float(stdout[-9:]) > 0.80
 
 
-def test_han():
+def test_tabnet():
     script = os.path.join(EXAMPLE_ROOT, "tabnet.py")
     out = subprocess.run(["python", str(script)], capture_output=True)
     assert (

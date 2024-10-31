@@ -1,7 +1,4 @@
 from __future__ import annotations
-
-from typing import Any
-
 import torch
 from torch import Tensor
 from torch.nn import Module, ModuleDict
@@ -17,7 +14,7 @@ class TableTypeTransform(Module):
     Args:
         out_dim (int): Output dimensionality.
         col_stats_dict
-            (Dict[class:`rllm.types.ColType`, List[dict[StatType, Any]]):
+            (Dict[class:`rllm.types.ColType`, List[dict[StatType]]):
             A dictionary that maps column type into stats.
         col_types_transform_dict
             (Dict[:class:`rllm.types.ColType`,
@@ -27,10 +24,11 @@ class TableTypeTransform(Module):
             parent :class:`stypes <rllm.types.ColType>` are supported
             as keys.
     """
+
     def __init__(
         self,
         out_dim: int,
-        col_stats_dict: dict[ColType, list[dict[str, Any]]],
+        col_stats_dict: dict[ColType, list[dict[str,]]],
         col_types_transform_dict: dict[ColType, ColTypeTransform],
     ) -> None:
         super().__init__()
@@ -49,8 +47,7 @@ class TableTypeTransform(Module):
         for col_type, col_types_transform in col_types_transform_dict.items():
             if col_type not in col_types_transform.supported_types:
                 raise ValueError(
-                    f"{col_types_transform} does not "
-                    f"support encoding {col_type}."
+                    f"{col_types_transform} does not " f"support encoding {col_type}."
                 )
 
             if col_type in col_stats_dict.keys():
@@ -67,10 +64,7 @@ class TableTypeTransform(Module):
         for col_type in self.col_stats_dict.keys():
             self.transform_dict[col_type.value].reset_parameters()
 
-    def forward(
-        self,
-        feat_dict: dict[ColType, Tensor]
-    ) -> tuple[Tensor, list[str]]:
+    def forward(self, feat_dict: dict[ColType, Tensor]) -> tuple[Tensor, list[str]]:
         all_col_names = []
         xs = []
         for col_type in feat_dict.keys():

@@ -1,5 +1,5 @@
 import copy
-from typing import (Any, Optional, Union, Callable, Mapping, Tuple, List)
+from typing import Any, List, Optional, Union, Callable, Mapping, Tuple
 from itertools import chain
 
 import torch
@@ -10,6 +10,7 @@ from rllm.data.storage import BaseStorage, NodeStorage, EdgeStorage
 
 class BaseGraph:
     """An abstract base class for graph data storage."""
+
     def __getattr__(self, key: str):
         raise NotImplementedError
 
@@ -42,22 +43,25 @@ class BaseGraph:
         r"""Performs cloning of tensors for the ones given in `*args`"""
         return copy.copy(self).apply(lambda x: x.clone(), *args)
 
-    def to(self, device: Union[int, str], *args: str,
-           non_blocking: bool = False):
+    def to(self, device: Union[int, str], *args: str, non_blocking: bool = False):
         r"""Performs device conversion of the whole dataset."""
         return self.apply(
-            lambda x: x.to(device=device, non_blocking=non_blocking), *args)
+            lambda x: x.to(device=device, non_blocking=non_blocking), *args
+        )
 
     def cpu(self, *args: str):
         r"""Moves the dataset to CPU memory."""
         return self.apply(lambda x: x.cpu(), *args)
 
-    def cuda(self, device: Optional[Union[int, str]] = None, *args: str,
-             non_blocking: bool = False):
+    def cuda(
+        self,
+        device: Optional[Union[int, str]] = None,
+        *args: str,
+        non_blocking: bool = False
+    ):
         r"""Moves the dataset toto CUDA memory."""
-        device = 'cuda' if device is None else device
-        return self.apply(lambda x: x.cuda(device, non_blocking=non_blocking),
-                          *args)
+        device = "cuda" if device is None else device
+        return self.apply(lambda x: x.cuda(device, non_blocking=non_blocking), *args)
 
     def pin_memory(self, *args: str):
         return self.apply(lambda x: x.pin_memory(), *args)
@@ -93,11 +97,14 @@ class GraphData(BaseGraph):
         x: (num_nodes, num_node_features)
         y: (num_nodes,)
     """
-    def __init__(self,
-                 x: Optional[Tensor] = None,
-                 y: Optional[Tensor] = None,
-                 adj: Optional[torch.sparse.FloatTensor] = None,
-                 **kwargs):
+
+    def __init__(
+        self,
+        x: Optional[Tensor] = None,
+        y: Optional[Tensor] = None,
+        adj: Optional[torch.sparse.FloatTensor] = None,
+        **kwargs
+    ):
         self._mapping = BaseStorage()
 
         if x is not None:
@@ -122,23 +129,23 @@ class GraphData(BaseGraph):
 
     def __getattr__(self, key: str):
         # avoid infinite loop.
-        if key == '_mapping':
-            self.__dict__['_mapping'] = BaseStorage()
-            return self.__dict__['_mapping']
+        if key == "_mapping":
+            self.__dict__["_mapping"] = BaseStorage()
+            return self.__dict__["_mapping"]
 
         return getattr(self._mapping, key)
 
     def __setattr__(self, key: str, value: Any):
         propobj = getattr(self.__class__, key, None)
-        if propobj is not None and getattr(propobj, 'fset', None) is not None:
+        if propobj is not None and getattr(propobj, "fset", None) is not None:
             propobj.fset(self, value)
-        elif key[:1] == '_':
+        elif key[:1] == "_":
             self.__dict__[key] = value
         else:
             setattr(self._mapping, key, value)
 
     def __delattr__(self, key: str):
-        if key[:1] == '_':
+        if key[:1] == "_":
             del self.__dict__[key]
         else:
             del self._mapping[key]
@@ -165,16 +172,16 @@ class GraphData(BaseGraph):
 
     @property
     def num_nodes(self):
-        if 'num_nodes' in self._mapping:
-            return self._mapping['num_nodes']
+        if "num_nodes" in self._mapping:
+            return self._mapping["num_nodes"]
         return len(self.y)
 
     @property
     def num_classes(self):
-        if 'num_classes' in self._mapping:
-            return self._mapping['num_classes']
-        self._mapping['num_classes'] = int(self.y.max()+1)
-        return self._mapping['num_classes']
+        if "num_classes" in self._mapping:
+            return self._mapping["num_classes"]
+        self._mapping["num_classes"] = int(self.y.max() + 1)
+        return self._mapping["num_classes"]
 
     @property
     def stores(self):
@@ -184,11 +191,13 @@ class GraphData(BaseGraph):
     def __len__(self):
         return len(self.x)
 
-    def to_hetero(self,
-                  node_type: Optional[Tensor] = None,
-                  edge_type: Optional[Tensor] = None,
-                  node_type_names: Optional[List[str]] = None,
-                  edge_type_names: Optional[Tuple] = None):
+    def to_hetero(
+        self,
+        node_type: Optional[Tensor] = None,
+        edge_type: Optional[Tensor] = None,
+        node_type_names: Optional[List[str]] = None,
+        edge_type_names: Optional[Tuple] = None,
+    ):
         r"""Converts a `GraphData` to a `HeteroGraphData`.
         Node and edge attributes are splitted as the
         `node_type` and `edge_type` vectors.
@@ -203,6 +212,7 @@ class GraphData(BaseGraph):
         """
 
         from rllm.utils.sparse import get_indices
+
         if node_type_names is None:
             node_type_names = [str(i) for i in node_type.unique().tolist()]
 
@@ -218,16 +228,23 @@ class GraphData(BaseGraph):
                         "Could not construct a `HeteroGraphData` "
                         "object from the `GraphData` object "
                         "because single edge types span over "
-                        "multiple node types")
-                edge_type_names.append((node_type_names[src_types[0]], str(i),
-                                        node_type_names[tgt_types[0]]))
+                        "multiple node types"
+                    )
+                edge_type_names.append(
+                    (
+                        node_type_names[src_types[0]],
+                        str(i),
+                        node_type_names[tgt_types[0]],
+                    )
+                )
 
         # `index_map`` will be used when reorder edge_index
         node_ids, index_map = {}, torch.empty_like(node_type)
         for i in range(len(node_type_names)):
             node_ids[i] = (node_type == i).nonzero(as_tuple=False).view(-1)
-            index_map[node_ids[i]] = torch.arange(len(node_ids[i]),
-                                                  device=index_map.device)
+            index_map[node_ids[i]] = torch.arange(
+                len(node_ids[i]), device=index_map.device
+            )
 
         edge_ids = {}
         for i in range(len(edge_type_names)):
@@ -250,14 +267,11 @@ class GraphData(BaseGraph):
             new_edges[0] = index_map[new_edges[0]]
             new_edges[1] = index_map[new_edges[1]]
             new_adj = torch.sparse_coo_tensor(
-                new_edges, values[edge_ids[i]],
-                (num_src, num_tgt)
+                new_edges, values[edge_ids[i]], (num_src, num_tgt)
             )
             hetero_data[key].adj = new_adj
 
-        exclude_keys = set(hetero_data.keys()) | {
-            'x', 'y', 'adj'
-        }
+        exclude_keys = set(hetero_data.keys()) | {"x", "y", "adj"}
         for attr, value in self.items():
             if attr in exclude_keys:
                 continue
@@ -306,9 +320,8 @@ class HeteroGraphData(BaseGraph):
     Key of node type:
     data['node type'] = {'x': x}
     """
-    def __init__(self,
-                 mapping: Optional[Mapping[str, Any]] = None,
-                 **kwargs):
+
+    def __init__(self, mapping: Optional[Mapping[str, Any]] = None, **kwargs):
         self._mapping = BaseStorage()
         self._nodes = {}
         self._edges = {}
@@ -324,9 +337,9 @@ class HeteroGraphData(BaseGraph):
         mapping = torch.load(path)
         out = cls()
         for key, value in mapping.items():
-            if key == '_mapping':
+            if key == "_mapping":
                 # load global variables
-                out.__dict__['_mapping'] = BaseStorage(value)
+                out.__dict__["_mapping"] = BaseStorage(value)
             else:
                 # load nodes and edges
                 out[key] = value
@@ -334,31 +347,30 @@ class HeteroGraphData(BaseGraph):
 
     def to_dict(self):
         out_dict = {}
-        out_dict['_mapping'] = self._mapping.to_dict()
-        for key, store in chain(self._nodes.items(),
-                                self._edges.items()):
+        out_dict["_mapping"] = self._mapping.to_dict()
+        for key, store in chain(self._nodes.items(), self._edges.items()):
             out_dict[key] = store.to_dict()
         return out_dict
 
     def __getattr__(self, key: str):
         # avoid infinite loop.
-        if key == '_mapping':
-            self.__dict__['_mapping'] = BaseStorage()
-            return self.__dict__['_mapping']
+        if key == "_mapping":
+            self.__dict__["_mapping"] = BaseStorage()
+            return self.__dict__["_mapping"]
 
         return getattr(self._mapping, key)
 
     def __setattr__(self, key: str, value: Any):
         propobj = getattr(self.__class__, key, None)
-        if propobj is not None and getattr(propobj, 'fset', None) is not None:
+        if propobj is not None and getattr(propobj, "fset", None) is not None:
             propobj.fset(self, value)
-        elif key[:1] == '_':
+        elif key[:1] == "_":
             self.__dict__[key] = value
         else:
             setattr(self._mapping, key, value)
 
     def __delattr__(self, key: str):
-        if key[:1] == '_':
+        if key[:1] == "_":
             del self.__dict__[key]
         else:
             del self._mapping[key]
@@ -403,19 +415,17 @@ class HeteroGraphData(BaseGraph):
             del self._mapping[key]
 
     def _to_regulate(self, key: Union[str, Tuple]):
-        if isinstance(key, str) and '__' in key:
-            key = tuple(key.split('__'))
+        if isinstance(key, str) and "__" in key:
+            key = tuple(key.split("__"))
         return key
 
     @property
     def num_nodes(self):
-        if 'num_nodes' in self._mapping:
-            return self._mapping['num_nodes']
+        if "num_nodes" in self._mapping:
+            return self._mapping["num_nodes"]
 
-        self._mapping['num_nodes'] = sum(
-            x.num_nodes for x in self._nodes.values()
-        )
-        return self._mapping['num_nodes']
+        self._mapping["num_nodes"] = sum(x.num_nodes for x in self._nodes.values())
+        return self._mapping["num_nodes"]
 
     @property
     def node_types(self):
@@ -456,7 +466,7 @@ class HeteroGraphData(BaseGraph):
         return {
             node_type: store.x
             for node_type, store in self._nodes.items()
-            if hasattr(store, 'x')
+            if hasattr(store, "x")
         }
 
     def adj_dict(self):
@@ -464,7 +474,7 @@ class HeteroGraphData(BaseGraph):
         return {
             edge_type: store.adj
             for edge_type, store in self._edges.items()
-            if hasattr(store, 'adj')
+            if hasattr(store, "adj")
         }
 
     def metadata(self):

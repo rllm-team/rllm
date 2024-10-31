@@ -6,9 +6,7 @@ from torch import Tensor
 
 from rllm.data.graph_data import GraphData, HeteroGraphData
 from rllm.transforms.graph_transforms import BaseTransform
-from rllm.utils.sparse import (
-    sparse_mx_to_torch_sparse_tensor
-)
+from rllm.utils.sparse import sparse_mx_to_torch_sparse_tensor
 
 
 class GDC(BaseTransform):
@@ -44,14 +42,15 @@ class GDC(BaseTransform):
             (default: :obj:`dict(method='threshold', avg_degree=64)`)
 
     """
+
     def __init__(
         self,
-        self_loop_weight: float = 1.,
-        normalize_in: str = 'sym',
-        normalize_out: str = 'col',
-        diffusion: Dict[str, Any] = dict(method='ppr', alpha=0.15),
+        self_loop_weight: float = 1.0,
+        normalize_in: str = "sym",
+        normalize_out: str = "col",
+        diffusion: Dict[str, Any] = dict(method="ppr", alpha=0.15),
         sparsification: Dict[str, Any] = dict(
-            method='threshold',
+            method="threshold",
             avg_degree=64,
         ),
     ) -> None:
@@ -69,7 +68,7 @@ class GDC(BaseTransform):
             assert data.adj is not None
             adj = data.adj
         elif isinstance(data, HeteroGraphData):
-            if 'adj' in data:
+            if "adj" in data:
                 adj = data.adj
         if self.self_loop_weight:
             adj = self.add_weighted_self_loop(adj, self.self_loop_weight)
@@ -78,29 +77,29 @@ class GDC(BaseTransform):
         trans_matrix = self.get_transition_matrix(adj, self.normalize_in)
 
         # 2.Sum over T^k, generalized graph diffusion
-        diff_matrix = self.diffusion_matrix(
-            trans_matrix, **self.diffusion)
+        diff_matrix = self.diffusion_matrix(trans_matrix, **self.diffusion)
 
         # 3.sparsify the graph
         diff_matrix_sparsified = self.sparsify_matrix(
-            diff_matrix, **self.sparsification)
+            diff_matrix, **self.sparsification
+        )
 
         # 4.get transition matrix on ~s
         data.adj = self.get_transition_matrix(
-            diff_matrix_sparsified.to_sparse_coo(), self.normalize_out)
+            diff_matrix_sparsified.to_sparse_coo(), self.normalize_out
+        )
 
         return data
 
     def add_weighted_self_loop(
         self,
         adj: Tensor,
-        weight: float = 1.,
+        weight: float = 1.0,
     ) -> Tensor:
         adj = torch.eye(adj.size(0)) * weight + adj
         indices = torch.nonzero(adj, as_tuple=False)
         values = adj[indices[:, 0], indices[:, 1]]
-        sparse_tensor = torch.sparse_coo_tensor(
-            indices.t(), values, adj.size())
+        sparse_tensor = torch.sparse_coo_tensor(indices.t(), values, adj.size())
         return sparse_tensor
 
     def get_transition_matrix(
@@ -125,21 +124,18 @@ class GDC(BaseTransform):
 
         # D
         adj_data = adj.values()
-        adj_sp = sp.csr_matrix(
-            (adj_data, (indices[0], indices[1])),
-            shape=adj.shape
-        )
+        adj_sp = sp.csr_matrix((adj_data, (indices[0], indices[1])), shape=adj.shape)
 
-        if normalize == 'sym':
+        if normalize == "sym":
             # D-1/2
             deg = np.array(adj_sp.sum(axis=1)).flatten()
             deg[deg == 0] = 1e-10
             deg_sqrt_inv = np.power(deg, -0.5)
-            deg_sqrt_inv[deg_sqrt_inv == 100000.] = 0.0
+            deg_sqrt_inv[deg_sqrt_inv == 100000.0] = 0.0
             deg_sqrt_inv = sp.diags(deg_sqrt_inv)
             adj = sp.coo_matrix(deg_sqrt_inv * adj_sp * deg_sqrt_inv)
 
-        elif normalize == 'col':
+        elif normalize == "col":
             deg = np.array(adj_sp.sum(axis=1)).flatten()
             deg[deg == 0] = 1e-10
             deg_sqrt_inv = np.power(deg, -1)
@@ -147,7 +143,7 @@ class GDC(BaseTransform):
             deg_sqrt_inv = sp.diags(deg_sqrt_inv)
             adj = sp.coo_matrix(adj_sp * deg_sqrt_inv)
 
-        elif normalize == 'row':
+        elif normalize == "row":
             deg = np.array(adj_sp.sum(axis=0)).flatten()
             deg[deg == 0] = 1e-10
             deg_sqrt_inv = np.power(deg, -1)
@@ -165,7 +161,7 @@ class GDC(BaseTransform):
         self,
         adj: Tensor,
         method: str,
-        **kwargs: Any,
+        **kwargs,
     ) -> Tensor:
         r"""Get the diffusion of the given sparse graph.
 
@@ -183,20 +179,20 @@ class GDC(BaseTransform):
                 2. :obj:`"heat"`: Use heat kernel diffusion.
                    Additionally expects the parameter:
 
-                   - **t** (*float*) - Time of diffusion. 
+                   - **t** (*float*) - Time of diffusion.
                      default:obj:`[2, 10]`.
 
         """
-        if method == 'ppr':
+        if method == "ppr":
             # α (I_n + (α - 1) A)^-1
-            diff_matrix = (kwargs['alpha'] - 1) * adj
+            diff_matrix = (kwargs["alpha"] - 1) * adj
             diff_matrix = self.add_weighted_self_loop(diff_matrix).to_dense()
-            diff_matrix = kwargs['alpha'] * torch.inverse(diff_matrix)
+            diff_matrix = kwargs["alpha"] * torch.inverse(diff_matrix)
 
-        elif method == 'heat':
+        elif method == "heat":
             # exp(t (A - I_n))
             diff_matrix = self.add_weighted_self_loop(adj, -1)
-            diff_matrix = kwargs['t'] * diff_matrix
+            diff_matrix = kwargs["t"] * diff_matrix
             diff_matrix = diff_matrix.exp()
 
         else:
@@ -208,7 +204,7 @@ class GDC(BaseTransform):
         self,
         mx: Tensor,
         method: str,
-        **kwargs: Any,
+        **kwargs,
     ) -> Tensor:
         r"""Sparsifies the given sparse graph.
 
@@ -235,39 +231,31 @@ class GDC(BaseTransform):
                    - **dim** (*int*) - The dim along which to take the top.
 
         """
-        if method == 'threshold':
-            if 'eps' not in kwargs.keys():
-                kwargs['eps'] = self.__calculate_eps__(
+        if method == "threshold":
+            if "eps" not in kwargs.keys():
+                kwargs["eps"] = self.__calculate_eps__(
                     mx,
-                    kwargs['avg_degree'],
+                    kwargs["avg_degree"],
                 )
-            mx[mx < kwargs['eps']] = 0
-        elif method == 'topk':
-            k, dim = min(mx.size(0), kwargs['k']), kwargs['dim']
+            mx[mx < kwargs["eps"]] = 0
+        elif method == "topk":
+            k, dim = min(mx.size(0), kwargs["k"]), kwargs["dim"]
             assert dim in [0, 1]
             sort_idx = torch.argsort(mx, dim=dim, descending=True)
             if dim == 0:
                 top_idx = sort_idx[:k]
-                edge_weight = torch.gather(mx, dim=dim,
-                                           index=top_idx).flatten()
-                row_idx = torch.arange(
-                    mx.size(0), device=mx.device).repeat(k)
+                edge_weight = torch.gather(mx, dim=dim, index=top_idx).flatten()
+                row_idx = torch.arange(mx.size(0), device=mx.device).repeat(k)
                 mx = torch.sparse_coo_tensor(
-                    torch.stack(
-                        [row_idx, top_idx.flatten()]),
-                    edge_weight,
-                    mx.size())
+                    torch.stack([row_idx, top_idx.flatten()]), edge_weight, mx.size()
+                )
             else:
                 top_idx = sort_idx[:, :k]
-                edge_weight = torch.gather(mx, dim=dim,
-                                           index=top_idx).flatten()
-                col_idx = torch.arange(
-                    mx.size(0), device=mx.device).repeat(k)
+                edge_weight = torch.gather(mx, dim=dim, index=top_idx).flatten()
+                col_idx = torch.arange(mx.size(0), device=mx.device).repeat(k)
                 mx = torch.sparse_coo_tensor(
-                    torch.stack(
-                        [top_idx, col_idx.flatten()]),
-                    edge_weight,
-                    mx.size())
+                    torch.stack([top_idx, col_idx.flatten()]), edge_weight, mx.size()
+                )
         else:
             raise ValueError(f"GDC sparsification '{method}' unknown")
 
@@ -286,8 +274,7 @@ class GDC(BaseTransform):
 
         """
         edge_weights = adj.flatten()
-        sorted_edges = torch.sort(
-            edge_weights.flatten(), descending=True).values
+        sorted_edges = torch.sort(edge_weights.flatten(), descending=True).values
         if avg_degree * adj.size(0) > len(sorted_edges):
             return -np.inf
 
