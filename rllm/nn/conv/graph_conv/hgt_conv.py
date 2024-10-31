@@ -20,8 +20,7 @@ def segment_sum(data, segment_ids, num_segments):
     output = torch.zeros(
         (num_segments, data.size(1)), device=data.device, dtype=data.dtype
     )
-    output.scatter_add_(
-        0, segment_ids.unsqueeze(1).expand(-1, data.size(1)), data)
+    output.scatter_add_(0, segment_ids.unsqueeze(1).expand(-1, data.size(1)), data)
 
     return output
 
@@ -70,8 +69,8 @@ def segment_softmax(data: Tensor, segment_ids: Tensor, num_segments: int):
 class HGTConv(torch.nn.Module):
     def __init__(
         self,
-        in_channels: Union[int, Dict[str, int]],
-        out_channels: int,
+        in_dim: Union[int, Dict[str, int]],
+        out_dim: int,
         metadata: Tuple[List[str], List[Tuple[str, str]]],
         heads: int = 1,
         group: str = "sum",
@@ -79,11 +78,11 @@ class HGTConv(torch.nn.Module):
     ):
         super().__init__()
 
-        if not isinstance(in_channels, dict):
-            in_channels = {node_type: in_channels for node_type in metadata[0]}
+        if not isinstance(in_dim, dict):
+            in_dim = {node_type: in_dim for node_type in metadata[0]}
 
-        self.in_channels = in_channels
-        self.out_channels = out_channels
+        self.in_dim = in_dim
+        self.out_dim = out_dim
         self.heads = heads
         self.group = group
 
@@ -96,39 +95,29 @@ class HGTConv(torch.nn.Module):
         self.dropout = nn.Dropout(self.dropout_rate)
 
         # Initialize parameters for each node type
-        for node_type, in_channels in in_channels.items():
-            self.q_lin[node_type] = nn.Linear(
-                in_features=in_channels, out_features=out_channels
-            )
-            self.k_lin[node_type] = nn.Linear(
-                in_features=in_channels, out_features=out_channels
-            )
-            self.v_lin[node_type] = nn.Linear(
-                in_features=in_channels, out_features=out_channels
-            )
-            self.a_lin[node_type] = nn.Linear(
-                in_features=out_channels, out_features=out_channels
-            )
+        for node_type, in_dim in in_dim.items():
+            self.q_lin[node_type] = nn.Linear(in_features=in_dim, out_features=out_dim)
+            self.k_lin[node_type] = nn.Linear(in_features=in_dim, out_features=out_dim)
+            self.v_lin[node_type] = nn.Linear(in_features=in_dim, out_features=out_dim)
+            self.a_lin[node_type] = nn.Linear(in_features=out_dim, out_features=out_dim)
             self.skip[node_type] = nn.Parameter(torch.tensor(1.0))
 
         self.a_rel = nn.ParameterDict()
         self.m_rel = nn.ParameterDict()
         self.p_rel = nn.ParameterDict()
-        dim = out_channels // heads
+        dim = out_dim // heads
 
         # Initialize parameters for each edge type
         for edge_type in metadata[1]:
             edge_type = "__".join(edge_type)
 
             # Initialize a_rel weights with truncated normal
-            a_weight = nn.Parameter(
-                torch.empty((heads, dim, dim), requires_grad=True))
+            a_weight = nn.Parameter(torch.empty((heads, dim, dim), requires_grad=True))
             nn.init.trunc_normal_(a_weight)
             self.a_rel[edge_type + "a"] = a_weight
 
             # Initialize m_rel weights with truncated normal
-            m_weight = nn.Parameter(
-                torch.empty((heads, dim, dim), requires_grad=True))
+            m_weight = nn.Parameter(torch.empty((heads, dim, dim), requires_grad=True))
             nn.init.trunc_normal_(m_weight)
             self.m_rel[edge_type + "m"] = m_weight
 
@@ -140,7 +129,7 @@ class HGTConv(torch.nn.Module):
         x_dict: Dict[str, Tensor],
         edge_index_dict: Dict[Tuple[str, str], Tensor],  # sparse_coo here!
     ):
-        H, D = self.heads, self.out_channels // self.heads
+        H, D = self.heads, self.out_dim // self.heads
         k_dict, q_dict, v_dict, out_dict = {}, {}, {}, {}
 
         # Prepare q, k, v by node types
@@ -171,7 +160,7 @@ class HGTConv(torch.nn.Module):
             k_j = torch.index_select(k, dim=0, index=src_index)
             v_j = torch.index_select(v, dim=0, index=src_index)
             rel = self.p_rel[edge_type]
-            # out: (N'[N after deduplication], out_channels)
+            # out: (N'[N after deduplication], out_dim)
             out = self.propagate(
                 edge_index=edge_index,
                 aggr="sum",
@@ -185,19 +174,19 @@ class HGTConv(torch.nn.Module):
 
         for node_type, outs in out_dict.items():
             outs = torch.stack(outs)
-            # out: (N', out_channels)
+            # out: (N', out_dim)
             out = torch.sum(outs, dim=0, keepdim=False)
-            # out: (N', out_channels)
+            # out: (N', out_dim)
             out = self.a_lin[node_type](out)
             alpha = torch.sigmoid(self.skip[node_type])
             # print(self.skip[node_type])
             # print(alpha)
             # print(out.shape)
             # print(x_dict[node_type].shape)
-            # out: (N', out_channels)
+            # out: (N', out_dim)
             out = alpha * out + (1 - alpha) * x_dict[node_type]
             out_dict[node_type] = out
-        # out_dict: (Num_node_type, N', out_channels)
+        # out_dict: (Num_node_type, N', out_dim)
         return out_dict
 
     def propagate(
@@ -210,9 +199,8 @@ class HGTConv(torch.nn.Module):
         rel: Tensor,
         num_nodes: int,
     ):
-        msg = self.message(
-            q_i, k_j, v_j, rel, edge_index.indices()[1], num_nodes)
-        # x: (N'[N after deduplication], out_channels)
+        msg = self.message(q_i, k_j, v_j, rel, edge_index.indices()[1], num_nodes)
+        # x: (N'[N after deduplication], out_dim)
         # print(msg)
         # print(edge_index.indices()[1])
         x = self.aggregate(msg, edge_index.indices()[1], num_nodes, aggr)
@@ -225,7 +213,7 @@ class HGTConv(torch.nn.Module):
         alpha = self.dropout(segment_softmax(alpha, tgt_index, num_nodes))
         # out: (N, H, D)
         out = v_j * alpha.unsqueeze(-1)
-        return out.view(-1, self.out_channels)  # (N, out_channels[H*D])
+        return out.view(-1, self.out_dim)  # (N, out_dim[H*D])
 
     def aggregate(self, msg, tgt_index, num_nodes, aggr):
         if aggr == "sum":

@@ -15,8 +15,8 @@ class GCNConv(torch.nn.Module):
         \mathbf{X}^{\prime} = \mathbf{\hat{A}} \mathbf{X} \mathbf{W}
 
     Args:
-        in_channels (int): Size of each input sample.
-        out_channels (int): Size of each output sample.
+        in_dim (int): Size of each input sample.
+        out_dim (int): Size of each output sample.
         bias (bool): If set to `False`,
             no bias terms are added into the final output.
 
@@ -33,19 +33,16 @@ class GCNConv(torch.nn.Module):
             node features :math:`(|\mathcal{V}|, F_{out})`
     """
 
-    def __init__(self,
-                 in_channels: int,
-                 out_channels: int,
-                 bias: bool = True):
+    def __init__(self, in_dim: int, out_dim: int, bias: bool = True):
         super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.weight = Parameter(torch.empty(in_channels, out_channels))
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.weight = Parameter(torch.empty(in_dim, out_dim))
 
         if bias:
-            self.bias = Parameter(torch.empty(out_channels))
+            self.bias = Parameter(torch.empty(out_dim))
         else:
-            self.register_parameter('bias', None)
+            self.register_parameter("bias", None)
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
@@ -62,5 +59,4 @@ class GCNConv(torch.nn.Module):
             return output
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__}({self.in_channels}, '
-                f'{self.out_channels})')
+        return f"{self.__class__.__name__}({self.in_dim}, " f"{self.out_dim})"
