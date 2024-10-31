@@ -25,20 +25,20 @@ data = dataset[0]
 class HAN(nn.Module):
     def __init__(
         self,
-        in_channels: Union[int, Dict[str, int]],
-        out_channels: int,
-        hidden_channels=128,
+        in_dim: Union[int, Dict[str, int]],
+        out_dim: int,
+        hidden_dim=128,
         heads=8,
     ):
         super().__init__()
         self.han_conv = HANConv(
-            in_channels,
-            hidden_channels,
+            in_dim,
+            hidden_dim,
             heads=heads,
             dropout=0.6,
             metadata=data.metadata(),
         )
-        self.lin = nn.Linear(hidden_channels, out_channels)
+        self.lin = nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x_dict, adj_dict):
         out = self.han_conv(x_dict, adj_dict)
@@ -46,8 +46,8 @@ class HAN(nn.Module):
         return out
 
 
-in_channels = {node_type: data[node_type].x.shape[1] for node_type in data.node_types}
-model = HAN(in_channels=in_channels, out_channels=3)
+in_dim = {node_type: data[node_type].x.shape[1] for node_type in data.node_types}
+model = HAN(in_dim=in_dim, out_dim=3)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 data, model = data.to(device), model.to(device)
 
