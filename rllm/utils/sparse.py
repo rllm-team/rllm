@@ -1,6 +1,5 @@
-from typing import Any
-
 import numpy as np
+
 # import scipy.sparse as sp
 
 import torch
@@ -18,7 +17,7 @@ def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     return torch.sparse_coo_tensor(indices, values, shape)
 
 
-def is_torch_sparse_tensor(src: Any):
+def is_torch_sparse_tensor(src):
     r"""Return `True` if the input is a class `torch.sparse.Tensor`."""
     sparse_types = [torch.sparse_coo, torch.sparse_csr, torch.sparse_csc]
     if isinstance(src, torch.Tensor):

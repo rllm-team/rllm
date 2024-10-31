@@ -29,13 +29,12 @@ class LangChainLLM(LLM):
         response_gen = llm.complete("What is the meaning of life?")
         ```
     """
+
     def __init__(
         self,
         llm: "BaseLanguageModel",
         system_prompt: Optional[str] = None,
-        messages_to_prompt: Optional[
-            Callable[[Sequence[ChatMessage]], str]
-        ] = None,
+        messages_to_prompt: Optional[Callable[[Sequence[ChatMessage]], str]] = None,
         completion_to_prompt: Optional[Callable[[str], str]] = None,
         output_parser: Optional[BaseOutputParser] = None,
     ) -> None:
@@ -61,10 +60,7 @@ class LangChainLLM(LLM):
 
         return get_llm_metadata(self._llm)
 
-    def chat(
-        self, messages: Sequence[ChatMessage],
-        **kwargs: Any
-    ) -> ChatResponse:
+    def chat(self, messages: Sequence[ChatMessage], **kwargs) -> ChatResponse:
         from rllm.llm.llm_module.langchain_utils import (
             from_lc_messages,
             to_lc_messages,
@@ -72,9 +68,7 @@ class LangChainLLM(LLM):
 
         if not self.metadata.is_chat_model:
             prompt = self.messages_to_prompt(messages)
-            completion_response = self.complete(
-                prompt, formatted=True, **kwargs
-            )
+            completion_response = self.complete(prompt, formatted=True, **kwargs)
             return completion_response_to_chat_response(completion_response)
 
         lc_messages = to_lc_messages(messages)
@@ -83,7 +77,7 @@ class LangChainLLM(LLM):
         return ChatResponse(message=message)
 
     def complete(
-        self, prompt: str, formatted: bool = False, **kwargs: Any
+        self, prompt: str, formatted: bool = False, **kwargs
     ) -> CompletionResponse:
         if not formatted:
             prompt = self.completion_to_prompt(prompt)
@@ -92,9 +86,10 @@ class LangChainLLM(LLM):
         return CompletionResponse(text=output_str)
 
     def embedding(self, inputs):
-        assert hasattr(self._llm, 'embed_documents'), \
-            "An embedding model should be provided!" \
-            "See https://python.langchain.com/v0.1/docs/integrations/text_embedding/"  # noqa
+        assert hasattr(self._llm, "embed_documents"), (
+            "An embedding model should be provided!"
+            "See https://python.langchain.com/v0.1/docs/integrations/text_embedding/"
+        )  # noqa
         if isinstance(inputs, str):
             inputs = [inputs]
         return self._llm.embed_documents(inputs)

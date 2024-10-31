@@ -6,6 +6,7 @@ from rllm.types import ColType, NAMode
 from rllm.transforms.table_transforms import ColTypeTransform, TableTypeTransform
 from rllm.nn.pre_encoder import EmbeddingEncoder, StackEncoder
 
+
 class TabNetTransform(TableTypeTransform):
     def __init__(
         self,
@@ -14,7 +15,7 @@ class TabNetTransform(TableTypeTransform):
         col_types_transform_dict: dict[ColType, ColTypeTransform] = None,
     ) -> None:
         if col_types_transform_dict is None:
-            col_types_transform_dict={
+            col_types_transform_dict = {
                 ColType.CATEGORICAL: EmbeddingEncoder(
                     na_mode=NAMode.MOST_FREQUENT,
                 ),
@@ -30,7 +31,9 @@ class TabNetTransform(TableTypeTransform):
         all_col_names = []
         if ColType.CATEGORICAL in self.col_stats_dict.keys():
             x_category = feat_dict[ColType.CATEGORICAL]
-            category_embedding = self.transform_dict[ColType.CATEGORICAL.value](x_category)
+            category_embedding = self.transform_dict[ColType.CATEGORICAL.value](
+                x_category
+            )
             flatten_category = category_embedding.reshape(
                 category_embedding.size(0), -1
             )
@@ -40,7 +43,9 @@ class TabNetTransform(TableTypeTransform):
 
         if ColType.NUMERICAL in self.col_stats_dict.keys():
             x_numeric = feat_dict[ColType.NUMERICAL]
-            numerical_embedding = self.transform_dict[ColType.NUMERICAL.value](x_numeric)
+            numerical_embedding = self.transform_dict[ColType.NUMERICAL.value](
+                x_numeric
+            )
             flatten_numeric = numerical_embedding.reshape(
                 numerical_embedding.size(0), -1
             )
@@ -50,5 +55,3 @@ class TabNetTransform(TableTypeTransform):
         x = torch.cat(xs, dim=-1)
 
         return x, all_col_names
-
-

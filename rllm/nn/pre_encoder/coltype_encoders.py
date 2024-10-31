@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 from typing import Any
-
 import torch
 from torch import Tensor
 from torch.nn import (
@@ -30,13 +28,7 @@ class EmbeddingEncoder(ColTypeTransform):
         post_module: Module | None = None,
         na_mode: NAMode | None = None,
     ) -> None:
-        super().__init__(
-            out_dim,
-            stats_list,
-            col_type,
-            post_module,
-            na_mode
-        )
+        super().__init__(out_dim, stats_list, col_type, post_module, na_mode)
 
     def post_init(self):
         r"""This is the actual initialization function."""
@@ -56,10 +48,7 @@ class EmbeddingEncoder(ColTypeTransform):
         self.register_buffer(
             "offset",
             torch.cumsum(
-                torch.tensor(
-                    num_categories_list[:-1],
-                    dtype=torch.long
-                ), dim=0
+                torch.tensor(num_categories_list[:-1], dtype=torch.long), dim=0
             ),
         )
         self.reset_parameters()
@@ -102,23 +91,13 @@ class LinearEncoder(ColTypeTransform):
         post_module: Module | None = None,
         na_mode: NAMode | None = None,
     ):
-        super().__init__(
-            out_dim,
-            stats_list,
-            col_type,
-            post_module,
-            na_mode
-        )
+        super().__init__(out_dim, stats_list, col_type, post_module, na_mode)
 
     def post_init(self):
         r"""This is the actual initialization function."""
-        mean = torch.tensor(
-            [stats[StatType.MEAN] for stats in self.stats_list]
-        )
+        mean = torch.tensor([stats[StatType.MEAN] for stats in self.stats_list])
         self.register_buffer("mean", mean)
-        std = torch.tensor(
-            [stats[StatType.STD] for stats in self.stats_list]
-        ) + 1e-6
+        std = torch.tensor([stats[StatType.STD] for stats in self.stats_list]) + 1e-6
         self.register_buffer("std", std)
         num_cols = len(self.stats_list)
         self.weight = Parameter(torch.empty(num_cols, self.out_dim))
@@ -162,20 +141,12 @@ class StackEncoder(ColTypeTransform):
         post_module: Module | None = None,
         na_mode: NAMode | None = None,
     ) -> None:
-        super().__init__(
-            out_dim,
-            stats_list,
-            col_type,
-            post_module,
-            na_mode
-        )
+        super().__init__(out_dim, stats_list, col_type, post_module, na_mode)
 
     def post_init(self) -> None:
-        mean = torch.tensor(
-            [stats[StatType.MEAN] for stats in self.stats_list])
+        mean = torch.tensor([stats[StatType.MEAN] for stats in self.stats_list])
         self.register_buffer("mean", mean)
-        std = (torch.tensor([stats[StatType.STD]
-                             for stats in self.stats_list]) + 1e-6)
+        std = torch.tensor([stats[StatType.STD] for stats in self.stats_list]) + 1e-6
         self.register_buffer("std", std)
 
     def reset_parameters(self) -> None:
