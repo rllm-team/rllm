@@ -54,14 +54,11 @@ class TML1MDataset(Dataset):
             Name        Ratings     Features
             nodes       1,000,209   4
     """
+
     url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/main/sjtutables/TML1M.zip"  # noqa
 
-    def __init__(
-        self,
-        cached_dir: str,
-        force_reload: Optional[bool] = False
-    ) -> None:
-        self.name = 'Table-MovieLens1M'
+    def __init__(self, cached_dir: str, force_reload: Optional[bool] = False) -> None:
+        self.name = "Table-MovieLens1M"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
@@ -70,27 +67,16 @@ class TML1MDataset(Dataset):
             TableData.load(self.processed_paths[1]),
             TableData.load(self.processed_paths[2]),
             # TODO: Get this movie embedding from movie TableData
-            torch.from_numpy(np.load(
-                osp.join(self.raw_dir, "embeddings.npy")
-            )),
+            torch.from_numpy(np.load(osp.join(self.raw_dir, "embeddings.npy"))),
         ]
 
     @property
     def raw_filenames(self):
-        return [
-            'users.csv',
-            'movies.csv',
-            'ratings.csv',
-            'masks.pt'
-        ]
+        return ["users.csv", "movies.csv", "ratings.csv", "masks.pt"]
 
     @property
     def processed_filenames(self):
-        return [
-            'user_data.pt',
-            'movie_data.pt',
-            'rating_data.pt'
-        ]
+        return ["user_data.pt", "movie_data.pt", "rating_data.pt"]
 
     def process(self):
         r"""
@@ -99,7 +85,7 @@ class TML1MDataset(Dataset):
         os.makedirs(self.processed_dir, exist_ok=True)
         # Users Data
         path = osp.join(self.raw_dir, self.raw_filenames[0])
-        user_df = pd.read_csv(path, index_col=['UserID'])
+        user_df = pd.read_csv(path, index_col=["UserID"])
         col_types = {
             "Gender": ColType.CATEGORICAL,
             "Age": ColType.CATEGORICAL,
@@ -108,7 +94,7 @@ class TML1MDataset(Dataset):
         }
         # Create masks
         masks_path = osp.join(self.raw_dir, self.raw_filenames[3])
-        masks = torch.load(masks_path)
+        masks = torch.load(masks_path, weights_only=False)
         TableData(
             df=user_df,
             col_types=col_types,
@@ -120,15 +106,12 @@ class TML1MDataset(Dataset):
 
         # Movies Data
         path = osp.join(self.raw_dir, self.raw_filenames[1])
-        movie_df = pd.read_csv(path, index_col=['MovieID'])
+        movie_df = pd.read_csv(path, index_col=["MovieID"])
         # TODO: Use Text data in movies.csv to get embeddings.
         col_types = {
             "Year": ColType.NUMERICAL,
         }
-        TableData(
-            df=movie_df,
-            col_types=col_types
-        ).save(self.processed_paths[1])
+        TableData(df=movie_df, col_types=col_types).save(self.processed_paths[1])
 
         # Ratings Data
         path = osp.join(self.raw_dir, self.raw_filenames[2])
@@ -138,14 +121,11 @@ class TML1MDataset(Dataset):
             "MovieID": ColType.NUMERICAL,
             "Rating": ColType.NUMERICAL,
         }
-        TableData(
-            df=rating_df,
-            col_types=col_types
-        ).save(self.processed_paths[2])
+        TableData(df=rating_df, col_types=col_types).save(self.processed_paths[2])
 
     def download(self):
         os.makedirs(self.raw_dir, exist_ok=True)
-        path = download_url(self.url, self.raw_dir, 'TML1M.zip')
+        path = download_url(self.url, self.raw_dir, "TML1M.zip")
         extract_zip(path, self.raw_dir)
         os.remove(path)
 

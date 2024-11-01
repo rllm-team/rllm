@@ -113,7 +113,7 @@ class TACM12KDataset(Dataset):
 
         # Create masks
         masks_path = osp.join(self.raw_dir, self.raw_filenames[4])
-        masks = torch.load(masks_path)
+        masks = torch.load(masks_path, weights_only=False)
         TableData(
             df=paper_df,
             col_types=col_types,
