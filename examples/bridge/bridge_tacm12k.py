@@ -18,7 +18,7 @@ import torch.nn.functional as F
 import rllm.transforms.graph_transforms as T
 from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.conv.graph_conv import GCNConv
+from rllm.nn.conv.graph_conv import GCNConv, GATConv
 from rllm.datasets import TACM12KDataset
 from utils import build_homo_graph
 
@@ -50,6 +50,8 @@ graph = build_homo_graph(
     x=x,
     transform=T.GCNNorm(),
 )
+graph.target_table = paper_table
+graph.y = paper_table.y.long()
 graph = graph.to(device)
 
 train_mask, val_mask, test_mask = (
@@ -58,8 +60,6 @@ train_mask, val_mask, test_mask = (
     paper_table.test_mask,
 )
 output_dim = paper_table.num_classes
-graph.target_table = paper_table
-graph.y = paper_table.y.long()
 
 
 class GraphEncoder(torch.nn.Module):
