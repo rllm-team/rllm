@@ -7,7 +7,6 @@
 import time
 import argparse
 import os.path as osp
-import pandas as pd
 import sys
 
 sys.path.append("../")
@@ -17,14 +16,16 @@ import torch
 import torch.nn.functional as F
 
 import rllm.transforms.graph_transforms as T
+from rllm.transforms.table_transforms import FTTransformerTransform
+from rllm.nn.conv.table_conv import TabTransformerConv
+from rllm.nn.conv.graph_conv import GCNConv
 from rllm.datasets import TACM12KDataset
-from rllm.nn.models import Bridge
-from rllm.transforms.graph_transforms import build_homo_graph
+from utils import build_homo_graph
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--tab_dim", type=int, default=256, help="Tab Transformer categorical embedding dim"
+    "--tab_dim", type=int, default=256, help="TabTransformer categorical embedding dim"
 )
 parser.add_argument("--gcn_dropout", type=float, default=0.5, help="Dropout for GCN")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
@@ -36,47 +37,84 @@ args = parser.parse_args()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 dataset = TACM12KDataset(cached_dir=path, force_reload=True)
-(
-    paper_table,
-    author_table,
-    cite_table,
-    writing_table,
-    paper_embeddings,
-    author_embeddings,
-) = dataset.data_list
 
-cite = cite_table.df.assign(Target=cite_table.df["paper_id_cited"])
-author2id = {
-    author_id: idx + paper_embeddings.size(0)
-    for idx, author_id in enumerate(author_table.df.index.to_numpy())
-}
-writed = writing_table.df.assign(Target=writing_table.df["author_id"].map(author2id))
-
-# Get relation with cite_table and writing_table
-relation_df = pd.concat(
-    [cite.iloc[:, [0, 2]], writed.iloc[:, [0, 2]]], axis=0, ignore_index=True
-)
-x = torch.cat([paper_embeddings, author_embeddings], dim=0)
+paper_table, author_table, _, _, _, _ = dataset.data_list
+# get the homogeneous data converted from the original data
+x, relation_df = dataset.homo_data()
 
 # Making graph
-emb_size = x.size(1)
 graph = build_homo_graph(
     df=relation_df,
     n_src=len(paper_table),
     n_tgt=len(author_table),
     x=x,
-    y=paper_table.y.long(),
     transform=T.GCNNorm(),
 )
-graph.paper_table = paper_table
-graph.author_table = author_table
 graph = graph.to(device)
+
 train_mask, val_mask, test_mask = (
-    graph.paper_table.train_mask,
-    graph.paper_table.val_mask,
-    graph.paper_table.test_mask,
+    paper_table.train_mask,
+    paper_table.val_mask,
+    paper_table.test_mask,
 )
-output_dim = graph.paper_table.num_classes
+output_dim = paper_table.num_classes
+graph.target_table = paper_table
+graph.y = paper_table.y.long()
+
+
+class GraphEncoder(torch.nn.Module):
+    def __init__(self, in_dim, hidden_dim, out_dim, dropout) -> None:
+        super().__init__()
+        self.dropout = dropout
+        self.conv1 = GCNConv(in_dim, hidden_dim)
+        self.conv2 = GCNConv(hidden_dim, out_dim)
+
+    def forward(self, x, adj):
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = F.relu(self.conv1(x, adj))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.conv2(x, adj)
+        return x
+
+
+class TableEncoder(torch.nn.Module):
+    def __init__(
+        self,
+        hidden_dim,
+        stats_dict,
+    ) -> None:
+        super().__init__()
+        self.table_transform = FTTransformerTransform(
+            out_dim=hidden_dim,
+            col_stats_dict=stats_dict,
+        )
+        self.conv = TabTransformerConv(
+            dim=hidden_dim,
+        )
+
+    def forward(self, table):
+        feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
+        x, _ = self.table_transform(feat_dict)
+        x = self.conv(x)
+        x = x.mean(dim=1)
+        return x
+
+
+class Bridge(torch.nn.Module):
+    def __init__(
+        self,
+        table_encoder,
+        graph_encoder,
+    ) -> None:
+        super().__init__()
+        self.table_encoder = table_encoder
+        self.graph_encoder = graph_encoder
+
+    def forward(self, target_table, x, adj):
+        target_emb = self.table_encoder(target_table)
+        x = torch.cat([target_emb, x[len(target_table) :, :]], dim=0)
+        x = self.graph_encoder(x, adj)
+        return x[: len(target_table), :]
 
 
 def accuracy_score(preds, truth):
@@ -87,11 +125,9 @@ def train_epoch() -> float:
     model.train()
     optimizer.zero_grad()
     logits = model(
-        graph.paper_table,
-        graph.x,
-        graph.adj,
-        len(paper_table),
-        len(paper_table) + len(author_table),
+        target_table=graph.target_table,
+        x=graph.x,
+        adj=graph.adj,
     )
     loss = F.cross_entropy(logits[train_mask].squeeze(), graph.y[train_mask])
     loss.backward()
@@ -103,11 +139,9 @@ def train_epoch() -> float:
 def test_epoch():
     model.eval()
     logits = model(
-        graph.paper_table,
-        graph.x,
-        graph.adj,
-        len(paper_table),
-        len(paper_table) + len(author_table),
+        target_table=graph.target_table,
+        x=graph.x,
+        adj=graph.adj,
     )
     preds = logits.argmax(dim=1)
     y = graph.y
@@ -117,13 +151,19 @@ def test_epoch():
     return train_acc.item(), val_acc.item(), test_acc.item()
 
 
+t_encoder = TableEncoder(
+    hidden_dim=graph.x.size(1),
+    stats_dict=paper_table.stats_dict,
+)
+g_encoder = GraphEncoder(
+    in_dim=graph.x.size(1),
+    hidden_dim=128,
+    out_dim=output_dim,
+    dropout=args.gcn_dropout,
+)
 model = Bridge(
-    table_hidden_dim=emb_size,
-    graph_output_dim=output_dim,
-    stats_dict=graph.paper_table.stats_dict,
-    graph_dropout=args.gcn_dropout,
-    graph_layers=2,
-    graph_hidden_dim=128,
+    table_encoder=t_encoder,
+    graph_encoder=g_encoder,
 ).to(device)
 
 start_time = time.time()
@@ -133,9 +173,6 @@ optimizer = torch.optim.Adam(
         dict(params=model.table_encoder.parameters(), lr=0.001),
         dict(params=model.graph_encoder.parameters(), lr=0.01, weight_decay=1e-4),
     ]
-    # model.parameters(),
-    # lr=args.lr,
-    # weight_decay=args.wd
 )
 
 for epoch in range(1, args.epochs + 1):
