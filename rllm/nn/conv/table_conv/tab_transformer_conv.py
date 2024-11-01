@@ -1,7 +1,5 @@
-from torch import Tensor
 import torch.nn.functional as F
-from torch import nn, einsum
-import torch
+from torch import Tensor, nn, einsum
 
 
 def _exists(val):
@@ -133,10 +131,9 @@ class SelfAttention(nn.Module):
         q = self._rearrange_qkv(q)
         k = self._rearrange_qkv(k)
         v = self._rearrange_qkv(v)
-        sim = torch.einsum("b h i d, b h j d -> b h i j", q, k)
-        mask = self.get_attention_mask(sim.size(), sim.device)
-        attn = (sim + mask) * self.scale
-        attn = attn.softmax(dim=-1)
+        sim = einsum("b h i d, b h j d -> b h i j", q, k) * self.scale
+
+        attn = sim.softmax(dim=-1)
         dropped_attn = self.dropout(attn)
 
         out = einsum("b h i j, b h j d -> b h i d", dropped_attn, v)

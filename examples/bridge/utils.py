@@ -69,12 +69,13 @@ def build_homo_graph(
                 mask[node_edges] = True
 
         indices = indices[:, mask]
-    
+
     values = torch.ones((indices.shape[1],), dtype=torch.float32)
     adj = torch.sparse_coo_tensor(indices, values, (n_all, n_all))
 
     # Construct graph
     graph = GraphData(x=x, y=y, adj=adj)
+
     # Use transform
     if transform:
         graph = transform(graph)
