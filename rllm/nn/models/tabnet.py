@@ -444,28 +444,6 @@ class TabNet(torch.nn.Module):
             raise ValueError("n_shared and n_independent can't be both zero.")
         self.virtual_batch_size = virtual_batch_size
 
-        # Create catrgorical transform
-        # if ColType.CATEGORICAL in self.col_stats_dict.keys():
-        #     categorical_stats_list = self.col_stats_dict[ColType.CATEGORICAL]
-        #     self.category_transform = EmbeddingEncoder(
-        #             out_dim=cat_emb_dim,
-        #             stats_list=categorical_stats_list,
-        #             col_type=ColType.CATEGORICAL,
-        #             na_mode=NAMode.MOST_FREQUENT,
-        #         )
-        #     self.category_transform.post_init()
-
-        # Create numeric transform
-        # if ColType.NUMERICAL in self.col_stats_dict.keys():
-        #     numerical_stats_list = self.col_stats_dict[ColType.NUMERICAL]
-        #     self.numeric_transform = StackEncoder(
-        #         out_dim=1,
-        #         stats_list=numerical_stats_list,
-        #         col_type=ColType.NUMERICAL,
-        #         na_mode=NAMode.MEAN,
-        #     )
-        #     self.numeric_transform.post_init()
-
         # Initialize group_matrix and emb_group_matrix
         group_attention_matrix = create_group_matrix(
             self.grouped_features, self.input_dim
@@ -499,43 +477,9 @@ class TabNet(torch.nn.Module):
         )
 
     def forward(self, x):
-        # xs = []
-        # if ColType.CATEGORICAL in self.col_stats_dict.keys():
-        #     x_category = feat_dict[ColType.CATEGORICAL]
-        #     category_embedding = self.category_transform(x_category)
-        #     flatten_category = category_embedding.reshape(
-        #         category_embedding.size(0), -1
-        #     )
-        #     xs.append(flatten_category)
-
-        # if ColType.NUMERICAL in self.col_stats_dict.keys():
-        #     x_numeric = feat_dict[ColType.NUMERICAL]
-        #     numerical_embedding = self.numeric_transform(x_numeric)
-        #     flatten_numeric = numerical_embedding.reshape(
-        #         numerical_embedding.size(0), -1
-        #     )
-        #     xs.append(flatten_numeric)
-        # x = torch.cat(xs, dim=-1)
         return self.tabnet(x)
 
     def forward_masks(self, x):
-        # xs = []
-        # if ColType.CATEGORICAL in self.col_stats_dict.keys():
-        #     x_category = feat_dict[ColType.CATEGORICAL]
-        #     category_embedding = self.category_transform(x_category)
-        #     flatten_category = category_embedding.reshape(
-        #         category_embedding.size(0), -1,
-        #     )
-        #     xs.append(flatten_category)
-
-        # if ColType.NUMERICAL in self.col_stats_dict.keys():
-        #     x_numeric = feat_dict[ColType.NUMERICAL]
-        #     numerical_embedding = self.numeric_transform(x_numeric)
-        #     flatten_numeric = numerical_embedding.reshape(
-        #         numerical_embedding.size(0), -1,
-        #     )
-        #     xs.append(flatten_numeric)
-        # x = torch.cat(xs, dim=-1)
         return self.tabnet.forward_masks(x)
 
 
