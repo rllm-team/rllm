@@ -16,9 +16,11 @@ import torch
 import torch.nn.functional as F
 
 import rllm.transforms.graph_transforms as T
+from rllm.transforms.table_transforms import FTTransformerTransform
+from rllm.nn.conv.table_conv import TabTransformerConv
+from rllm.nn.conv.graph_conv import GCNConv
 from rllm.datasets import TLF2KDataset
-from rllm.nn.models import Bridge
-from rllm.transforms.graph_transforms import build_homo_graph
+from utils import build_homo_graph
 
 
 parser = argparse.ArgumentParser()
@@ -69,6 +71,61 @@ train_mask, val_mask, test_mask = (
 output_dim = graph.artist_table.num_classes
 
 
+class GraphEncoder(torch.nn.Module):
+    def __init__(self, in_dim, hidden_dim, out_dim, dropout) -> None:
+        super().__init__()
+        self.dropout = dropout
+        self.conv1 = GCNConv(in_dim, hidden_dim)
+        self.conv2 = GCNConv(hidden_dim, out_dim)
+
+    def forward(self, x, adj):
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = F.relu(self.conv1(x, adj))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.conv2(x, adj)
+        return x
+
+
+class TableEncoder(torch.nn.Module):
+    def __init__(
+        self,
+        hidden_dim,
+        stats_dict,
+    ) -> None:
+        super().__init__()
+        self.table_transform = FTTransformerTransform(
+            out_dim=hidden_dim,
+            col_stats_dict=stats_dict,
+        )
+        self.conv = TabTransformerConv(
+            dim=hidden_dim,
+        )
+
+    def forward(self, table):
+        feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
+        x, _ = self.table_transform(feat_dict)
+        x = self.conv(x)
+        x = x.mean(dim=1)
+        return x
+
+
+class Bridge(torch.nn.Module):
+    def __init__(
+        self,
+        table_encoder,
+        graph_encoder,
+    ) -> None:
+        super().__init__()
+        self.table_encoder = table_encoder
+        self.graph_encoder = graph_encoder
+
+    def forward(self, target_table, x, adj):
+        target_emb = self.table_encoder(target_table)
+        x = torch.cat([target_emb, x[len(target_table) :, :]], dim=0)
+        x = self.graph_encoder(x, adj)
+        return x[: len(target_table), :]
+
+
 def accuracy_score(preds, truth):
     return (preds == truth).sum(dim=0) / len(truth)
 
@@ -99,12 +156,19 @@ def test_epoch():
     return train_acc.item(), val_acc.item(), test_acc.item()
 
 
+t_encoder = TableEncoder(
+    hidden_dim=graph.x.size(1),
+    stats_dict=paper_table.stats_dict,
+)
+g_encoder = GraphEncoder(
+    in_dim=graph.x.size(1),
+    hidden_dim=128,
+    out_dim=output_dim,
+    dropout=args.gcn_dropout,
+)
 model = Bridge(
-    table_hidden_dim=emb_size,
-    graph_layers=2,
-    graph_output_dim=output_dim,
-    stats_dict=graph.artist_table.stats_dict,
-    graph_dropout=args.gcn_dropout,
+    table_encoder=t_encoder,
+    graph_encoder=g_encoder,
 ).to(device)
 
 

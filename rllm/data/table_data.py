@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import (Any, Dict, Union, Tuple, Callable, Optional)
+from typing import Any, Dict, List, Union, Tuple, Callable, Optional
 
 import torch
 import numpy as np
@@ -16,6 +16,7 @@ from rllm.types import ColType, TaskType, StatType
 
 class BaseTable:
     r"""An abstract base class for table data storage."""
+
     @classmethod
     def load(cls, path: str):
         data = torch.load(path)
@@ -30,19 +31,22 @@ class BaseTable:
     def apply(self, func: Callable, *args: str):
         raise NotImplementedError
 
-    def to(self, device: Union[int, str], *args: str,
-           non_blocking: bool = False):
+    def to(self, device: Union[int, str], *args: str, non_blocking: bool = False):
         return self.apply(
-            lambda x: x.to(device=device, non_blocking=non_blocking), *args)
+            lambda x: x.to(device=device, non_blocking=non_blocking), *args
+        )
 
     def cpu(self, *args: str):
         return self.apply(lambda x: x.cpu(), *args)
 
-    def cuda(self, device: Optional[Union[int, str]] = None, *args: str,
-             non_blocking: bool = False):
-        device = 'cuda' if device is None else device
-        return self.apply(lambda x: x.cuda(device, non_blocking=non_blocking),
-                          *args)
+    def cuda(
+        self,
+        device: Optional[Union[int, str]] = None,
+        *args: str,
+        non_blocking: bool = False,
+    ):
+        device = "cuda" if device is None else device
+        return self.apply(lambda x: x.cuda(device, non_blocking=non_blocking), *args)
 
     def pin_memory(self, *args: str):
         return self.apply(lambda x: x.pin_memory(), *args)
@@ -50,6 +54,7 @@ class BaseTable:
 
 class TableDataset(Dataset):
     r"""Table dataset inherited from :class:`torch.utils.data.Dataset`"""
+
     def __init__(self, feat_dict, y):
         self.feat_dict = feat_dict
         self.y = y
@@ -58,10 +63,7 @@ class TableDataset(Dataset):
         return self.y.size(0)
 
     def __getitem__(self, idx):
-        return {
-            key: tensor[idx]
-            for key, tensor in self.feat_dict.items()
-        }, self.y[idx]
+        return {key: tensor[idx] for key, tensor in self.feat_dict.items()}, self.y[idx]
 
 
 class TableData(BaseTable):
@@ -74,6 +76,7 @@ class TableData(BaseTable):
         target_col (str, optional): The column used as target.
             (default: :obj:`None`)
     """
+
     def __init__(
         self,
         df: DataFrame,
@@ -82,7 +85,7 @@ class TableData(BaseTable):
         # TODO: The following variables should not be explicitly defined
         feat_dict: Dict[ColType, Tensor] = None,
         y: Tensor = None,
-        stats_dict: dict[ColType, list[dict[str, Any]]] | None = None,
+        stats_dict: Dict[ColType, List[dict[str, Any]]] | None = None,
         **kwargs,
     ):
         self._mapping = BaseStorage()
@@ -106,7 +109,7 @@ class TableData(BaseTable):
     def load(cls, path: str) -> TableData:
         data = torch.load(path)
         # TODO: Delete this
-        key_mapping = {'get_split_func': 'get_split'}
+        key_mapping = {"get_split_func": "get_split"}
 
         for old_key, new_key in key_mapping.items():
             if old_key in data.keys():
@@ -123,23 +126,23 @@ class TableData(BaseTable):
 
     def __getattr__(self, key: str):
         # avoid infinite loop.
-        if key == '_mapping':
-            self.__dict__['_mapping'] = BaseStorage()
-            return self.__dict__['_mapping']
+        if key == "_mapping":
+            self.__dict__["_mapping"] = BaseStorage()
+            return self.__dict__["_mapping"]
 
         return getattr(self._mapping, key)
 
     def __setattr__(self, key: str, value: Any):
         propobj = getattr(self.__class__, key, None)
-        if propobj is not None and getattr(propobj, 'fset', None) is not None:
+        if propobj is not None and getattr(propobj, "fset", None) is not None:
             propobj.fset(self, value)
-        elif key[:1] == '_':
+        elif key[:1] == "_":
             self.__dict__[key] = value
         else:
             setattr(self._mapping, key, value)
 
     def __delattr__(self, key: str):
-        if key[:1] == '_':
+        if key[:1] == "_":
             del self.__dict__[key]
         else:
             del self[key]
@@ -159,7 +162,7 @@ class TableData(BaseTable):
             return self.feat_dict[index]
 
     @property
-    def feat_cols(self) -> list[str]:
+    def feat_cols(self) -> List[str]:
         r"""The input feature columns of the dataset."""
         cols = list(self.col_types.keys())
         if self.target_col is not None:
@@ -198,11 +201,11 @@ class TableData(BaseTable):
         return num_classes
 
     def get_feat_dict(
-        self,
-        start: int | float = 0.0,
-        end: int | float = 1.0
+        self, start: int | float = 0.0, end: int | float = 1.0
     ) -> dict[ColType, Tensor]:
-        assert isinstance(start, type(end)), "`start` and `end` must \
+        assert isinstance(
+            start, type(end)
+        ), "`start` and `end` must \
             be same type! \
             Integers correspond to actual rows, \
             while floats correspond to proportions."
@@ -210,7 +213,9 @@ class TableData(BaseTable):
             start_row = start
             end_row = end
         if isinstance(start, float):
-            assert start >= 0 and end <= 1, "when start and end are ratios, \
+            assert (
+                start >= 0 and end <= 1
+            ), "when start and end are ratios, \
                 they must be between 0 and 1!"
             start_row = int(round(self.num_rows * start))
             end_row = int(start + round(self.num_rows * (end - start)))
@@ -220,10 +225,7 @@ class TableData(BaseTable):
             feat_dict[col_type] = self.feat_dict[col_type][start_row:end_row]
         return feat_dict
 
-    def get_feat_dict_from_mask(
-        self,
-        mask: Tensor
-    ) -> dict[ColType, Tensor]:
+    def get_feat_dict_from_mask(self, mask: Tensor) -> dict[ColType, Tensor]:
         feat_dict = {}
         for col_type in self.feat_dict.keys():
             feat_dict[col_type] = self.feat_dict[col_type][mask]
@@ -262,14 +264,15 @@ class TableData(BaseTable):
         val_split: int | float,
         test_split: int | float,
     ) -> Tuple[TableDataset, TableDataset, TableDataset]:
-        assert isinstance(train_split, type(val_split)) and \
-            isinstance(val_split, type(test_split)), \
-            "train_split, val_split and test_split must besame type! \
+        assert isinstance(train_split, type(val_split)) and isinstance(
+            val_split, type(test_split)
+        ), "train_split, val_split and test_split must besame type! \
                 Integers correspond to actual rows, \
                 while floats correspond to proportions."
         if isinstance(train_split, float):
-            assert abs(train_split + val_split + test_split - 1.0) < 1e-9, \
-                "train, val and test ratio must sum up to 1.0!"
+            assert (
+                abs(train_split + val_split + test_split - 1.0) < 1e-9
+            ), "train, val and test ratio must sum up to 1.0!"
             train_split = round(self.num_rows * train_split)
             val_split = train_split + round(self.num_rows * val_split)
         else:
@@ -277,18 +280,14 @@ class TableData(BaseTable):
             # "train, val, and test rows must sum up to total rows!"
             val_split = train_split + val_split
         return (
-            TableDataset(
-                self.get_feat_dict(0, train_split),
-                self.y[:train_split]
-            ),
+            TableDataset(self.get_feat_dict(0, train_split), self.y[:train_split]),
             TableDataset(
                 self.get_feat_dict(train_split, val_split),
-                self.y[train_split:val_split]
+                self.y[train_split:val_split],
             ),
             TableDataset(
-                self.get_feat_dict(val_split, self.num_rows),
-                self.y[val_split:]
-            )
+                self.get_feat_dict(val_split, self.num_rows), self.y[val_split:]
+            ),
         )
 
     def get_dataset_from_mask(
@@ -298,18 +297,9 @@ class TableData(BaseTable):
         test_mask: Tensor,
     ) -> Tuple[TableDataset, TableDataset, TableDataset]:
         return (
-            TableDataset(
-                self.get_feat_dict_from_mask(train_mask),
-                self.y[train_mask]
-            ),
-            TableDataset(
-                self.get_feat_dict_from_mask(val_mask),
-                self.y[val_mask]
-            ),
-            TableDataset(
-                self.get_feat_dict_from_mask(test_mask),
-                self.y[test_mask]
-            )
+            TableDataset(self.get_feat_dict_from_mask(train_mask), self.y[train_mask]),
+            TableDataset(self.get_feat_dict_from_mask(val_mask), self.y[val_mask]),
+            TableDataset(self.get_feat_dict_from_mask(test_mask), self.y[test_mask]),
         )
 
     def get_dataloader(
@@ -320,13 +310,14 @@ class TableData(BaseTable):
         batch_size: int,
         shuffle: bool = False,
     ) -> Tuple[TableDataset, TableDataset, TableDataset]:
-        train_dataset, val_dataset, test_dataset = self.get_dataset(train_split, val_split, test_split)
+        train_dataset, val_dataset, test_dataset = self.get_dataset(
+            train_split, val_split, test_split
+        )
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle)
         return train_loader, val_loader, test_loader
-        
-        
+
     # Get table tensor #########################################
     def _generate_feat_dict(
         self,
@@ -352,14 +343,10 @@ class TableData(BaseTable):
 
         # TODO: Change hard-coding here
         if ColType.CATEGORICAL in feat_dict.keys():
-            feat_dict[ColType.CATEGORICAL] = \
-                feat_dict[ColType.CATEGORICAL].int()
+            feat_dict[ColType.CATEGORICAL] = feat_dict[ColType.CATEGORICAL].int()
         self.feat_dict = feat_dict
 
-    def _generate_column_tensor(
-        self,
-        col: str = None
-    ):
+    def _generate_column_tensor(self, col: str = None):
         col_types = self.col_types[col]
         col_copy = self.df[col].copy()
 
@@ -404,8 +391,7 @@ class TableData(BaseTable):
             col_types_count[col_type] = col_types_count[col_type] + 1
             for stat_type in stats_to_compute:
                 sub_stats_list[stat_type] = StatType.compute(
-                    self.feat_dict[col_type][:, current_col_index],
-                    stat_type
+                    self.feat_dict[col_type][:, current_col_index], stat_type
                 )
 
             # 3. Update stats_dict

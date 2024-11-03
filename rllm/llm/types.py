@@ -80,7 +80,7 @@ class ChatResponse:
         message: ChatMessage,
         raw: Optional[dict] = None,
         delta: Optional[str] = None,
-        additional_kwargs: dict = None,
+        additional_kwargs: Dict = None,
     ):
         self.message = message
         self.raw = raw

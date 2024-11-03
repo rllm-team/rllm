@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Dict, List
 from abc import ABC, abstractmethod
 import torch
 from torch import Tensor
@@ -38,7 +39,7 @@ class ColTypeTransform(Module, ABC):
 
     Args:
         out_dim (int): The output dim dimensionality
-        stats_list (list[dict[StatType]]): The list
+        stats_list (List[Dict[StatType]]): The list
             of stats for each column within the same column type.
         col_type (stype): The stype of the Transform input.
         post_module (Module, optional): The post-hoc module applied to the
@@ -54,7 +55,7 @@ class ColTypeTransform(Module, ABC):
     def __init__(
         self,
         out_dim: int | None = None,
-        stats_list: list[dict[StatType]] | None = None,
+        stats_list: List[Dict[StatType]] | None = None,
         col_type: ColType | None = None,
         post_module: Module | None = None,
         na_mode: NAMode | None = None,
@@ -97,7 +98,7 @@ class ColTypeTransform(Module, ABC):
     def forward(
         self,
         feat: Tensor,
-        col_names: list[str] | None = None,
+        col_names: List[str] | None = None,
     ) -> Tensor:
         if col_names is not None:
             num_cols = feat.shape[1]
@@ -120,7 +121,7 @@ class ColTypeTransform(Module, ABC):
     def encode_forward(
         self,
         feat: Tensor,
-        col_names: list[str] | None = None,
+        col_names: List[str] | None = None,
     ) -> Tensor:
         r"""The main forward function. Maps input :obj:`feat` from feat_dict
         (shape [batch_size, num_cols]) into output :obj:`x` of shape

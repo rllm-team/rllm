@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, Optional
 
 import sklearn
 import sklearn.neighbors
@@ -10,12 +10,12 @@ from rllm.utils.sparse import sparse_mx_to_torch_sparse_tensor
 def knn_graph(
     x: Tensor,
     k: Optional[int] = 6,
-    mode: Optional[str] = 'connectivity',
-    metric: Optional[str] = 'minkowski',
+    mode: Optional[str] = "connectivity",
+    metric: Optional[str] = "minkowski",
     p: Optional[int] = 2,
-    metric_params: Optional[dict] = None,
+    metric_params: Optional[Dict] = None,
     include_self: Optional[bool] = False,
-    n_jobs: int = 1
+    n_jobs: int = 1,
 ):
     r"""Creates a k-NN graph based on node features
     Args:
@@ -42,14 +42,14 @@ def knn_graph(
     """
 
     adj = sklearn.neighbors.kneighbors_graph(
-            X=x,
-            n_neighbors=k,
-            mode=mode,
-            metric=metric,
-            p=p,
-            metric_params=metric_params,
-            include_self=include_self,
-            n_jobs=n_jobs
-        )
+        X=x,
+        n_neighbors=k,
+        mode=mode,
+        metric=metric,
+        p=p,
+        metric_params=metric_params,
+        include_self=include_self,
+        n_jobs=n_jobs,
+    )
     adj_sp = sparse_mx_to_torch_sparse_tensor(adj)
     return adj_sp
