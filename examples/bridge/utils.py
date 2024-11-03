@@ -1,13 +1,18 @@
 from typing import Optional, Callable
 import pandas as pd
 import torch
+import torch.nn.functional as F
 from torch import Tensor
+from torch.nn.modules import conv
 
 from rllm.data import GraphData
+from rllm.nn.conv.graph_conv.gcn_conv import GCNConv
+from rllm.transforms.table_transforms import FTTransformerTransform
+from rllm.nn.conv.table_conv import TabTransformerConv
 
 
 def build_homo_graph(
-    df: pd.DataFrame,
+    relation_df: pd.DataFrame,
     n_src: int,
     n_tgt: int,
     x: Tensor,
@@ -34,14 +39,14 @@ def build_homo_graph(
             A function/transform that takes in a :obj:`GraphData`
             and returns a transformed version.
         edge_per_node (Optional[int]):
-            specifying the maximum numberof edges to keep for each node.
+            specifying the maximum number of edges to keep for each node.
     """
 
-    n_all = n_src + n_tgt
-    assert n_all == x.size(0)
+    # n_all = n_src + n_tgt
+    # assert n_all == x.size(0)
 
     # Get adj
-    src_nodes, tgt_nodes = torch.from_numpy(df.iloc[:, :2].values).t()
+    src_nodes, tgt_nodes = torch.from_numpy(relation_df.iloc[:, :2].values).t()
     indices = torch.cat(
         [
             torch.stack([src_nodes, tgt_nodes], dim=0),  # src -> tgt
@@ -71,7 +76,7 @@ def build_homo_graph(
         indices = indices[:, mask]
 
     values = torch.ones((indices.shape[1],), dtype=torch.float32)
-    adj = torch.sparse_coo_tensor(indices, values, (n_all, n_all))
+    adj = torch.sparse_coo_tensor(indices, values, (x.size(0), x.size(0)))
 
     # Construct graph
     graph = GraphData(x=x, y=y, adj=adj)
@@ -81,3 +86,76 @@ def build_homo_graph(
         graph = transform(graph)
 
     return graph
+
+
+class GraphEncoder(torch.nn.Module):
+    def __init__(
+        self,
+        in_dim,
+        hidden_dim,
+        out_dim,
+        dropout,
+        graph_conv: GCNConv,
+        num_layers: int = 2,
+        activate: str = "relu",
+        **kwargs,
+    ) -> None:
+        super().__init__()
+        self.dropout = dropout
+        self.activate = activate
+        self.num_layers = num_layers
+        self.convs = torch.nn.ModuleList()
+        conv_args = kwargs["conv_params"] if "conv_params" in kwargs.keys() else None
+        if num_layers >= 2:
+            # First layer
+            self.convs.append(graph_conv(in_dim, hidden_dim, conv_args))
+
+            # Intermediate layer
+            for _ in range(num_layers - 2):
+                self.convs.append(graph_conv(hidden_dim, hidden_dim, conv_args))
+
+            # Last layer
+            self.convs.append(graph_conv(hidden_dim, out_dim, conv_args))
+        else:
+            # Only layer
+            self.convs.append(graph_conv(in_dim, out_dim, conv_args))
+
+    def forward(self, x, adj):
+        for layer in range(self.num_layers - 1):
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x = F.relu(self.convs[layer](x, adj))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.convs[-1](x, adj)
+        return x
+
+
+class TableEncoder(torch.nn.Module):
+    def __init__(
+        self,
+        hidden_dim,
+        stats_dict,
+        table_transorm,
+        table_conv,
+        num_layers: int = 1,
+        **kwargs,
+    ) -> None:
+        super().__init__()
+        self.num_layers = num_layers
+
+        self.table_transform = table_transorm(
+            out_dim=hidden_dim,
+            col_stats_dict=stats_dict,
+        )
+
+        conv_args = kwargs["conv_params"] if "conv_params" in kwargs.keys() else None
+        self.convs = torch.nn.ModuleList()
+        for _ in range(self.num_layers):
+            self.convs.append(table_conv(dim=hidden_dim, **conv_args))
+
+    def forward(self, table):
+        feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
+        x, _ = self.table_transform(feat_dict)
+        for table_conv in self.convs:
+            x = table_conv(x)
+        x = x.mean(dim=1)
+        return x

@@ -20,7 +20,7 @@ class TabNetTransform(TableTypeTransform):
                     na_mode=NAMode.MOST_FREQUENT,
                 ),
                 ColType.NUMERICAL: StackEncoder(
-                    out_dim=1,
+                    out_dim=out_dim,
                     na_mode=NAMode.MEAN,
                 ),
             }
@@ -34,10 +34,7 @@ class TabNetTransform(TableTypeTransform):
             category_embedding = self.transform_dict[ColType.CATEGORICAL.value](
                 x_category
             )
-            flatten_category = category_embedding.reshape(
-                category_embedding.size(0), -1
-            )
-            xs.append(flatten_category)
+            xs.append(category_embedding)
             col_names = self.col_names_dict[ColType.CATEGORICAL]
             all_col_names.extend(col_names)
 
@@ -46,12 +43,8 @@ class TabNetTransform(TableTypeTransform):
             numerical_embedding = self.transform_dict[ColType.NUMERICAL.value](
                 x_numeric
             )
-            flatten_numeric = numerical_embedding.reshape(
-                numerical_embedding.size(0), -1
-            )
-            xs.append(flatten_numeric)
+            xs.append(numerical_embedding)
             col_names = self.col_names_dict[ColType.NUMERICAL]
             all_col_names.extend(col_names)
-        x = torch.cat(xs, dim=-1)
-
+        x = torch.cat(xs, dim=1)
         return x, all_col_names

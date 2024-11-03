@@ -55,7 +55,11 @@ class FTTransformer(torch.nn.Module):
             out_dim=hidden_dim,
             col_stats_dict=col_stats_dict,
         )
-        self.convs = FTTransformerConv(dim=hidden_dim, layers=layers)
+        self.convs = FTTransformerConv(
+            dim=hidden_dim,
+            layers=layers,
+            use_cls=True,
+        )
         self.fc = self.decoder = Sequential(
             LayerNorm(hidden_dim),
             ReLU(),
@@ -64,7 +68,7 @@ class FTTransformer(torch.nn.Module):
 
     def forward(self, x) -> Tensor:
         x, _ = self.transform(x)
-        _, x_cls = self.convs(x)
+        x_cls = self.convs(x)
         out = self.fc(x_cls)
         return out
 

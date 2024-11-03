@@ -55,12 +55,13 @@ class TabNetModel(torch.nn.Module):
         self.backbone = TabNet(
             output_dim=output_dim,  # dataset.num_classes,
             cat_emb_dim=hidden_dim,  # args.dim,
+            num_emb_dim=hidden_dim,  # args.dim,
             col_stats_dict=dataset.stats_dict,
         )
 
     def forward(self, x):
         x, _ = self.transform(x)
-        out = self.backbone(x)
+        out = self.backbone(x.reshape(x.size(0), -1))
         return out
 
 

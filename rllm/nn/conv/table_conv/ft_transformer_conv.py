@@ -43,8 +43,10 @@ class FTTransformerConv(torch.nn.Module):
         heads: int = 8,
         dropout: float = 0.2,
         activation: str = "relu",
+        use_cls: bool = False,
     ):
         super().__init__()
+        self.use_cls = use_cls
 
         encoder_layer = TransformerEncoderLayer(
             d_model=dim,
@@ -88,5 +90,6 @@ class FTTransformerConv(torch.nn.Module):
         x_concat = torch.cat([x_cls, x], dim=1)
         # [batch_size, num_cols + 1, dim]
         x_concat = self.transformer(x_concat)
-        x_cls, x = x_concat[:, 0, :], x_concat[:, 1:, :]
-        return x, x_cls
+        if self.use_cls:
+            return x_concat[:, 0, :]
+        return x_concat[:, 1:, :]
