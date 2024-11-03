@@ -49,9 +49,6 @@ paper_table, author_table, citation, _, paper_emb, _ = dataset.data_list
 # Making graph
 graph = build_homo_graph(
     relation_df=citation.df,
-    n_src=len(paper_table),
-    n_tgt=len(paper_table),
-    # n_tgt=len(author_table),
     x=paper_emb,
     transform=T.GCNNorm(),
 )
