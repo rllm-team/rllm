@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any, Dict, List, Tuple
 import torch
 from torch import Tensor
 from torch.nn import Module, ModuleDict
@@ -28,15 +29,15 @@ class TableTypeTransform(Module):
     def __init__(
         self,
         out_dim: int,
-        col_stats_dict: dict[ColType, list[dict[str,]]],
-        col_types_transform_dict: dict[ColType, ColTypeTransform],
+        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
+        col_types_transform_dict: Dict[ColType, ColTypeTransform],
     ) -> None:
         super().__init__()
 
         self.col_stats_dict = col_stats_dict
         self.transform_dict = ModuleDict()
 
-        col_names_dict: dict[ColType, list[str]] = {}
+        col_names_dict: Dict[ColType, list[str]] = {}
         for col_type, stats_list in col_stats_dict.items():
             if col_type not in col_names_dict.keys():
                 col_names_dict[col_type] = []
@@ -64,7 +65,10 @@ class TableTypeTransform(Module):
         for col_type in self.col_stats_dict.keys():
             self.transform_dict[col_type.value].reset_parameters()
 
-    def forward(self, feat_dict: dict[ColType, Tensor]) -> tuple[Tensor, list[str]]:
+    def forward(
+        self,
+        feat_dict: Dict[ColType, Tensor],
+    ) -> Tuple[Tensor, List[str]]:
         all_col_names = []
         xs = []
         for col_type in feat_dict.keys():

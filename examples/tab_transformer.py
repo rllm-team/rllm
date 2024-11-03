@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from typing import Any, Dict, List
 
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
@@ -47,7 +48,7 @@ class TabTransformer(torch.nn.Module):
         output_dim: int,
         layers: int,
         heads: int,
-        col_stats_dict: dict[ColType, list[dict[str,]]],
+        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
         self.transform = TabTransformerTransform(

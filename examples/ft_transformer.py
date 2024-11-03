@@ -11,6 +11,7 @@ from torch.nn import LayerNorm, Linear, ReLU, Sequential
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from typing import Any, Dict, List
 
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
@@ -48,7 +49,7 @@ class FTTransformer(torch.nn.Module):
         hidden_dim: int,
         output_dim: int,
         layers: int,
-        col_stats_dict: dict[ColType, list[dict[str,]]],
+        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
         self.transform = FTTransformerTransform(

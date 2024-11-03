@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any
+from typing import Any, Dict, List
 import torch
 from torch import Tensor
 from torch.nn import (
@@ -23,7 +23,7 @@ class EmbeddingEncoder(ColTypeTransform):
     def __init__(
         self,
         out_dim: int | None = None,
-        stats_list: list[dict[StatType, Any]] | None = None,
+        stats_list: List[Dict[StatType, Any]] | None = None,
         col_type: ColType | None = ColType.CATEGORICAL,
         post_module: Module | None = None,
         na_mode: NAMode | None = None,
@@ -60,7 +60,7 @@ class EmbeddingEncoder(ColTypeTransform):
     def encode_forward(
         self,
         feat: Tensor,
-        col_names: list[str] | None = None,
+        col_names: List[str] | None = None,
     ) -> Tensor:
         # feat: [batch_size, num_cols]
         # Get NaN mask
@@ -86,7 +86,7 @@ class LinearEncoder(ColTypeTransform):
     def __init__(
         self,
         out_dim: int | None = None,
-        stats_list: list[dict[StatType, Any]] | None = None,
+        stats_list: List[Dict[StatType, Any]] | None = None,
         col_type: ColType | None = ColType.NUMERICAL,
         post_module: Module | None = None,
         na_mode: NAMode | None = None,
@@ -112,7 +112,7 @@ class LinearEncoder(ColTypeTransform):
     def encode_forward(
         self,
         feat: Tensor,
-        col_names: list[str] | None = None,
+        col_names: List[str] | None = None,
     ) -> Tensor:
         # feat: [batch_size, num_cols]
         feat = (feat - self.mean) / self.std
@@ -136,7 +136,7 @@ class StackEncoder(ColTypeTransform):
     def __init__(
         self,
         out_dim: int | None = None,
-        stats_list: list[dict[StatType, Any]] | None = None,
+        stats_list: List[Dict[StatType, Any]] | None = None,
         col_type: ColType | None = ColType.NUMERICAL,
         post_module: Module | None = None,
         na_mode: NAMode | None = None,
@@ -155,7 +155,7 @@ class StackEncoder(ColTypeTransform):
     def encode_forward(
         self,
         feat: Tensor,
-        col_names: list[str] | None = None,
+        col_names: List[str] | None = None,
     ) -> Tensor:
         # feat: [batch_size, num_cols]
         feat = (feat - self.mean) / self.std

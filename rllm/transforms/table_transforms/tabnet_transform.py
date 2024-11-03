@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any, Dict, List
 
 import torch
 
@@ -11,8 +12,8 @@ class TabNetTransform(TableTypeTransform):
     def __init__(
         self,
         out_dim: int,
-        col_stats_dict: dict[ColType, list[dict[str,]]],
-        col_types_transform_dict: dict[ColType, ColTypeTransform] = None,
+        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
+        col_types_transform_dict: Dict[ColType, ColTypeTransform] = None,
     ) -> None:
         if col_types_transform_dict is None:
             col_types_transform_dict = {
