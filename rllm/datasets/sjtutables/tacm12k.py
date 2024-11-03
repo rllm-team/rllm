@@ -173,7 +173,6 @@ class TACM12KDataset(Dataset):
             paper_embeddings,
             author_embeddings,
         ) = self.data_list
-
         cite = cite_table.df.assign(Target=cite_table.df["paper_id_cited"])
         author2id = {
             author_id: idx + paper_embeddings.size(0)

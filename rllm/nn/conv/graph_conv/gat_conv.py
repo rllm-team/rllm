@@ -65,7 +65,7 @@ class GATConv(torch.nn.Module):
         in_dim: Union[int, Tuple[int, int]],
         out_dim: int,
         heads: int = 8,
-        concat: bool = True,
+        concat: bool = False,
         negative_slope: float = 0.2,
         skip_connection: bool = False,
         dropout: float = 0.6,

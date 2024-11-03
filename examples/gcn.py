@@ -7,6 +7,7 @@
 # Time      8.9s        4.0s      12.6s
 
 import argparse
+from ast import arg
 import os.path as osp
 import time
 
@@ -29,8 +30,10 @@ parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
 parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
 parser.add_argument("--dropout", type=float, default=0.5, help="Graph Dropout")
+parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
+torch.manual_seed(args.seed)
 transform = T.Compose([T.NormalizeFeatures("l2"), T.GCNNorm()])
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")

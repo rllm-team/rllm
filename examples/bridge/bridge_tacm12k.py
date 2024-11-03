@@ -9,18 +9,20 @@ import argparse
 import os.path as osp
 import sys
 
+
+sys.path.append("./")
 sys.path.append("../")
 sys.path.append("../../")
 
 import torch
 import torch.nn.functional as F
 
-import rllm.transforms.graph_transforms as T
 from rllm.transforms.table_transforms import FTTransformerTransform
+import rllm.transforms.graph_transforms as T
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.conv.graph_conv import GCNConv, GATConv
+from rllm.nn.conv.graph_conv import GCNConv
 from rllm.datasets import TACM12KDataset
-from utils import build_homo_graph
+from utils import build_homo_graph, GraphEncoder, TableEncoder
 
 
 parser = argparse.ArgumentParser()
@@ -31,23 +33,26 @@ parser.add_argument("--gcn_dropout", type=float, default=0.5, help="Dropout for 
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
+parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
 # Prepare datasets
+torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 dataset = TACM12KDataset(cached_dir=path, force_reload=True)
 
-paper_table, author_table, _, _, _, _ = dataset.data_list
+paper_table, author_table, citation, _, paper_emb, _ = dataset.data_list
 # get the homogeneous data converted from the original data
-x, relation_df = dataset.homo_data()
+# x, relation_df = dataset.homo_data()
 
 # Making graph
 graph = build_homo_graph(
-    df=relation_df,
+    relation_df=citation.df,
     n_src=len(paper_table),
-    n_tgt=len(author_table),
-    x=x,
+    n_tgt=len(paper_table),
+    # n_tgt=len(author_table),
+    x=paper_emb,
     transform=T.GCNNorm(),
 )
 graph.target_table = paper_table
@@ -60,44 +65,6 @@ train_mask, val_mask, test_mask = (
     paper_table.test_mask,
 )
 output_dim = paper_table.num_classes
-
-
-class GraphEncoder(torch.nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim, dropout) -> None:
-        super().__init__()
-        self.dropout = dropout
-        self.conv1 = GCNConv(in_dim, hidden_dim)
-        self.conv2 = GCNConv(hidden_dim, out_dim)
-
-    def forward(self, x, adj):
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        x = F.relu(self.conv1(x, adj))
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.conv2(x, adj)
-        return x
-
-
-class TableEncoder(torch.nn.Module):
-    def __init__(
-        self,
-        hidden_dim,
-        stats_dict,
-    ) -> None:
-        super().__init__()
-        self.table_transform = FTTransformerTransform(
-            out_dim=hidden_dim,
-            col_stats_dict=stats_dict,
-        )
-        self.conv = TabTransformerConv(
-            dim=hidden_dim,
-        )
-
-    def forward(self, table):
-        feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
-        x, _ = self.table_transform(feat_dict)
-        x = self.conv(x)
-        x = x.mean(dim=1)
-        return x
 
 
 class Bridge(torch.nn.Module):
@@ -154,12 +121,19 @@ def test_epoch():
 t_encoder = TableEncoder(
     hidden_dim=graph.x.size(1),
     stats_dict=paper_table.stats_dict,
+    table_transorm=FTTransformerTransform,
+    table_conv=TabTransformerConv,
+    conv_params={
+        "attn_dropout": 0.3,
+        "ff_dropout": 0.3,
+    },
 )
 g_encoder = GraphEncoder(
     in_dim=graph.x.size(1),
     hidden_dim=128,
     out_dim=output_dim,
     dropout=args.gcn_dropout,
+    graph_conv=GCNConv,
 )
 model = Bridge(
     table_encoder=t_encoder,
