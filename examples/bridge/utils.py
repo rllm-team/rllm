@@ -13,8 +13,6 @@ from rllm.nn.conv.table_conv import TabTransformerConv
 
 def build_homo_graph(
     relation_df: pd.DataFrame,
-    n_src: int,
-    n_tgt: int,
     x: Tensor,
     y: Optional[Tensor] = None,
     transform: Optional[Callable] = None,
@@ -41,9 +39,6 @@ def build_homo_graph(
         edge_per_node (Optional[int]):
             specifying the maximum number of edges to keep for each node.
     """
-
-    # n_all = n_src + n_tgt
-    # assert n_all == x.size(0)
 
     # Get adj
     src_nodes, tgt_nodes = torch.from_numpy(relation_df.iloc[:, :2].values).t()
