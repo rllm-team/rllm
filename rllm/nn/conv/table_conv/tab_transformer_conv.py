@@ -148,7 +148,7 @@ class SelfAttention(nn.Module):
 
 
 class TabTransformerConv(nn.Module):
-    r"""The TabTransformer Layer introduced in the
+    r"""The TabTransformer LayerConv introduced in the
     `"TabTransformer: Tabular Data Modeling Using Contextual Embeddings"
     <https://arxiv.org/abs/2012.06678>`_ paper.
 
