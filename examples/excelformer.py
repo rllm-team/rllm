@@ -49,7 +49,6 @@ class ExcelFormer(torch.nn.Module):
         self,
         hidden_dim: int,
         output_dim: int,
-        layers: int,
         col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
