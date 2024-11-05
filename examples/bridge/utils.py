@@ -1,14 +1,14 @@
-from typing import Optional, Callable
+from typing import Any, Dict, List, Optional, Callable
 import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch import Tensor
-from torch.nn.modules import conv
 
 from rllm.data import GraphData
 from rllm.nn.conv.graph_conv.gcn_conv import GCNConv
 from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
+from rllm.types import ColType
 
 
 def build_homo_graph(
@@ -84,6 +84,20 @@ def build_homo_graph(
 
 
 class GraphEncoder(torch.nn.Module):
+    r"""GraphEncoder is a submodule of the BRIDGE method,
+    which mainly performs multi-layer convolution of the incoming graph.
+
+    Args:
+        in_dim (int): Size of each input sample.
+        hidden_dim (int): Size of each sample in hidden layer.
+        out_dim (int): Size of each output sample.
+        dropout (float): Dropout probability.
+        graph_conv : Using the graph convolution layer.
+        num_layers (int): The number of layers of the convolution.
+        activate (str):Activate the function.
+        **kwargs: Parameters required for different convolution layers.
+    """
+
     def __init__(
         self,
         in_dim,
@@ -125,12 +139,25 @@ class GraphEncoder(torch.nn.Module):
 
 
 class TableEncoder(torch.nn.Module):
+    r"""TableEncoder is a submodule of the BRIDGE method,
+    which mainly performs multi-layer convolution of the incoming table.
+
+    Args:
+        hidden_dim (int): Size of each sample in hidden layer.
+        stats_dict (Dict[ColType, List[Dict[str, Any]]]):
+            A dictionary that maps column type into stats.
+        table_transorm: The transform method of the table.
+        table_conv: Using the table convolution layer.
+        num_layers (int): The number of layers of the convolution.
+        **kwargs: Parameters required for different convolution layers.
+    """
+
     def __init__(
         self,
         hidden_dim,
-        stats_dict,
-        table_transorm,
-        table_conv,
+        stats_dict: Dict[ColType, List[Dict[str, Any]]],
+        table_transorm: FTTransformerTransform,
+        table_conv: TabTransformerConv,
         num_layers: int = 1,
         **kwargs,
     ) -> None:
