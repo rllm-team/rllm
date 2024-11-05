@@ -2,7 +2,10 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from rllm.types import ColType
-from rllm.transforms.table_transforms import ColTypeTransform, TableTypeTransform
+from rllm.transforms.table_transforms import (
+    ColTypeTransform,
+    TableTypeTransform,
+)
 from rllm.nn.pre_encoder import EmbeddingEncoder, LinearEncoder
 
 
