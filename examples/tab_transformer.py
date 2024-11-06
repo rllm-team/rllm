@@ -46,7 +46,7 @@ class TabTransformer(torch.nn.Module):
         self,
         hidden_dim: int,
         output_dim: int,
-        layers: int,
+        num_layers: int,
         heads: int,
         col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
     ):
@@ -61,7 +61,7 @@ class TabTransformer(torch.nn.Module):
                     dim=hidden_dim,
                     heads=heads,
                 )
-                for _ in range(layers)
+                for _ in range(num_layers)
             ]
         )
         self.fc = torch.nn.Linear(hidden_dim, output_dim)
@@ -77,7 +77,7 @@ class TabTransformer(torch.nn.Module):
 model = TabTransformer(
     hidden_dim=args.dim,
     output_dim=dataset.num_classes,
-    layers=args.num_layers,
+    num_layers=args.num_layers,
     heads=args.num_heads,
     col_stats_dict=dataset.stats_dict,
 ).to(device)

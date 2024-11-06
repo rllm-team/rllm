@@ -23,7 +23,7 @@ parser.add_argument("--dataset", type=str, default="titanic")
 parser.add_argument("--dim", help="embedding dim.", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=3)
 parser.add_argument("--batch_size", type=int, default=128)
-parser.add_argument("--lr", type=float, default=0.001)
+parser.add_argument("--lr", type=float, default=1e-3)
 parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--seed", type=int, default=42)
 parser.add_argument("--wd", type=float, default=5e-4)
@@ -49,6 +49,7 @@ class ExcelFormer(torch.nn.Module):
         self,
         hidden_dim: int,
         output_dim: int,
+        num_layers: int,
         col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
@@ -56,7 +57,9 @@ class ExcelFormer(torch.nn.Module):
             out_dim=hidden_dim,
             col_stats_dict=col_stats_dict,
         )
-        self.convs = ExcelFormerConv(dim=hidden_dim)
+        self.convs = torch.nn.ModuleList(
+            [ExcelFormerConv(dim=hidden_dim) for _ in range(num_layers)]
+        )
         self.fc = self.decoder = Sequential(
             LayerNorm(hidden_dim),
             ReLU(),
@@ -65,7 +68,8 @@ class ExcelFormer(torch.nn.Module):
 
     def forward(self, x) -> Tensor:
         x, _ = self.transform(x)
-        x = self.convs(x)
+        for excel_former_conv in self.convs:
+            x = excel_former_conv(x)
         out = self.fc(x.mean(dim=1))
         return out
 
@@ -73,7 +77,7 @@ class ExcelFormer(torch.nn.Module):
 model = ExcelFormer(
     hidden_dim=args.dim,
     output_dim=dataset.num_classes,
-    layers=args.num_layers,
+    num_layers=args.num_layers,
     col_stats_dict=dataset.stats_dict,
 ).to(device)
 

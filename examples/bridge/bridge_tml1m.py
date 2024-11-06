@@ -20,7 +20,7 @@ from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.datasets import TML1MDataset
-from utils import prepare_homo_data, build_homo_graph, GraphEncoder, TableEncoder
+from utils import get_homo_data, build_homo_graph, GraphEncoder, TableEncoder
 
 
 parser = argparse.ArgumentParser()
@@ -44,7 +44,7 @@ dataset = TML1MDataset(cached_dir=path, force_reload=True)
 user_size = len(user_table)
 emb_size = movie_embeddings.size(1)
 
-x, ordered_rating = prepare_homo_data(
+x, ordered_rating = get_homo_data(
     relation_df=rating_table.df,
     src_col_name="UserID",
     tgt_col_name="MovieID",
@@ -67,6 +67,7 @@ train_mask, val_mask, test_mask = (
     user_table.test_mask,
 )
 output_dim = user_table.num_classes
+
 
 class Bridge(torch.nn.Module):
     def __init__(
