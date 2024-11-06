@@ -129,6 +129,29 @@ class TML1MDataset(Dataset):
         extract_zip(path, self.raw_dir)
         os.remove(path)
 
+    # def homo_data(self):
+    # (
+    #     user_table,
+    #     _,
+    #     rating_table,
+    #     movie_embeddings,
+    # ) = self.data_list
+
+    # # We assume it a homogeneous graph,
+    # # so we need to reorder the user and movie id.
+    # ordered_rating = rating_table.df.assign(
+    #     UserID=rating_table.df["UserID"] - 1,
+    #     MovieID=rating_table.df["MovieID"] + len(user_table) - 1,
+    # )
+
+    # # Making graph
+    # emb_size = movie_embeddings.size(1)
+    # len_user = len(user_table)
+    # # User embeddings will be further trained
+    # user_embeddings = torch.randn(len_user, emb_size)
+    # x = torch.cat([user_embeddings, movie_embeddings], dim=0)
+    # return (x, ordered_rating)
+
     def __len__(self):
         return 3
 
@@ -137,25 +160,4 @@ class TML1MDataset(Dataset):
             raise IndexError
         return self.data_list[index]
 
-    def homo_data(self):
-        (
-            user_table,
-            _,
-            rating_table,
-            movie_embeddings,
-        ) = self.data_list
 
-        # We assume it a homogeneous graph,
-        # so we need to reorder the user and movie id.
-        ordered_rating = rating_table.df.assign(
-            UserID=rating_table.df["UserID"] - 1,
-            MovieID=rating_table.df["MovieID"] + len(user_table) - 1,
-        )
-
-        # Making graph
-        emb_size = movie_embeddings.size(1)
-        len_user = len(user_table)
-        # User embeddings will be further trained
-        user_embeddings = torch.randn(len_user, emb_size)
-        x = torch.cat([user_embeddings, movie_embeddings], dim=0)
-        return (x, ordered_rating)
