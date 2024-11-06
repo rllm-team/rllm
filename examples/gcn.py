@@ -103,6 +103,11 @@ for epoch in range(1, args.epochs + 1):
         best_val_acc = val_acc
         best_test_acc = test_acc
     times.append(time.time() - start)
+    print(
+        f"Epoch: [{epoch}/{args.epochs}]"
+        f"Loss: {train_loss:.4f} train_acc: {train_acc:.4f} "
+        f"val_acc: {val_acc:.4f} test_acc: {test_acc:.4f} "
+    )
 et = time.time()
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
 print(f"Total time: {et-st}s")

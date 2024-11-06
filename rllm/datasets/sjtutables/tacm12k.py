@@ -163,28 +163,3 @@ class TACM12KDataset(Dataset):
         if index < 0 or index > self.__len__():
             raise IndexError
         return self.data_list[index]
-
-    def homo_data(self):
-        (
-            _,
-            author_table,
-            cite_table,
-            writing_table,
-            paper_embeddings,
-            author_embeddings,
-        ) = self.data_list
-        cite = cite_table.df.assign(Target=cite_table.df["paper_id_cited"])
-        author2id = {
-            author_id: idx + paper_embeddings.size(0)
-            for idx, author_id in enumerate(author_table.df.index.to_numpy())
-        }
-        writed = writing_table.df.assign(
-            Target=writing_table.df["author_id"].map(author2id)
-        )
-
-        # Get relation with cite_table and writing_table
-        relation_df = pd.concat(
-            [cite.iloc[:, [0, 2]], writed.iloc[:, [0, 2]]], axis=0, ignore_index=True
-        )
-        x = torch.cat([paper_embeddings, author_embeddings], dim=0)
-        return (x, relation_df)

@@ -126,23 +126,6 @@ class TLF2KDataset(Dataset):
         extract_zip(path, self.raw_dir)
         os.remove(path)
 
-    # def homo_data(self):
-    #     artist_table, ua_table, _ = self.data_list
-    #     # We assume it a homogeneous graph,
-    #     # so we need to reorder the user and artist id.
-    #     ordered_ua = ua_table.df.assign(
-    #         artistID=ua_table.df["artistID"] - 1,
-    #         userID=ua_table.df["userID"] + len(artist_table) - 1,
-    #     )
-
-    #     # Making graph
-    #     emb_size = 384  # Since user doesn't have an embedding, randomly select a dim.
-    #     len_artist = len(artist_table)
-    #     len_user = ua_table.df["userID"].max()
-    #     # Randomly initialize the embedding, artist embedding will be further trained
-    #     x = torch.randn(len_artist + len_user, emb_size)
-    #     return x, ordered_ua
-
     def __len__(self):
         return 3
 
