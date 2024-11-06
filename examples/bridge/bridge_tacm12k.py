@@ -9,7 +9,6 @@ import argparse
 import os.path as osp
 import sys
 
-
 sys.path.append("./")
 sys.path.append("../")
 sys.path.append("../../")
@@ -17,8 +16,8 @@ sys.path.append("../../")
 import torch
 import torch.nn.functional as F
 
-from rllm.transforms.table_transforms import FTTransformerTransform
 import rllm.transforms.graph_transforms as T
+from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.datasets import TACM12KDataset
@@ -26,9 +25,6 @@ from utils import build_homo_graph, GraphEncoder, TableEncoder
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--tab_dim", type=int, default=256, help="TabTransformer categorical embedding dim"
-)
 parser.add_argument("--gcn_dropout", type=float, default=0.5, help="Dropout for GCN")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")

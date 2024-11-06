@@ -11,6 +11,24 @@ from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.types import ColType
 
 
+def prepare_homo_data(
+        relation_df: pd.DataFrame,
+        src_col_name: str,
+        tgt_col_name: str,
+        src_emb: Tensor,
+        tgt_emb: Tensor,
+    ):
+    # Making relationship
+    n_src = src_emb.size(0)
+    ordered_rating = relation_df.assign(
+        **{src_col_name: relation_df[src_col_name] - 1,
+           tgt_col_name: relation_df[tgt_col_name] + n_src - 1})
+
+    # Making embedding
+    x = torch.cat([src_emb, tgt_emb], dim=0)
+    return (x, ordered_rating)
+
+
 def build_homo_graph(
     relation_df: pd.DataFrame,
     x: Tensor,
@@ -181,3 +199,4 @@ class TableEncoder(torch.nn.Module):
             x = table_conv(x)
         x = x.mean(dim=1)
         return x
+

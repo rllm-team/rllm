@@ -20,13 +20,10 @@ from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.datasets import TLF2KDataset
-from utils import build_homo_graph
+from utils import prepare_homo_data, build_homo_graph, GraphEncoder, TableEncoder
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--tab_dim", type=int, default=64, help="Tab Transformer categorical embedding dim"
-)
 parser.add_argument("--gcn_dropout", type=float, default=0.5, help="Dropout for GCN")
 parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
@@ -36,78 +33,36 @@ args = parser.parse_args()
 # Prepare datasets
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
-
 dataset = TLF2KDataset(cached_dir=path, force_reload=True)
-artist_table, ua_table, uu_table = dataset.data_list
 
-# We assume it a homogeneous graph,
-# so we need to reorder the user and artist id.
-ordered_ua = ua_table.df.assign(
-    artistID=ua_table.df["artistID"] - 1,
-    userID=ua_table.df["userID"] + len(artist_table) - 1,
+artist_table, ua_table, _ = dataset.data_list
+artist_size = len(artist_table)
+user_size = ua_table.df["userID"].max()
+emb_size = 384
+
+x, ordered_ua = prepare_homo_data(
+    relation_df=ua_table.df,
+    src_col_name="artistID",
+    tgt_col_name="userID",
+    src_emb=torch.randn(artist_size, emb_size),
+    tgt_emb=torch.randn(user_size, emb_size),
 )
 
-# Making graph
-emb_size = 384  # Since user doesn't have an embedding, randomly select a dim.
-len_artist = len(artist_table)
-len_user = ua_table.df["userID"].max()
-# Randomly initialize the embedding, artist embedding will be further trained
-x = torch.randn(len_artist + len_user, emb_size)
 graph = build_homo_graph(
-    df=ordered_ua,
-    n_src=len_artist,
-    n_tgt=len_user,
+    relation_df=ordered_ua,
     x=x,
-    y=artist_table.y.long(),
     transform=T.GCNNorm(),
 )
-graph.artist_table = artist_table
+graph.y = artist_table.y.long()
+graph.target_table = artist_table
 graph = graph.to(device)
+
 train_mask, val_mask, test_mask = (
-    graph.artist_table.train_mask,
-    graph.artist_table.val_mask,
-    graph.artist_table.test_mask,
+    artist_table.train_mask,
+    artist_table.val_mask,
+    artist_table.test_mask,
 )
-output_dim = graph.artist_table.num_classes
-
-
-class GraphEncoder(torch.nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim, dropout) -> None:
-        super().__init__()
-        self.dropout = dropout
-        self.conv1 = GCNConv(in_dim, hidden_dim)
-        self.conv2 = GCNConv(hidden_dim, out_dim)
-
-    def forward(self, x, adj):
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        x = F.relu(self.conv1(x, adj))
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.conv2(x, adj)
-        return x
-
-
-class TableEncoder(torch.nn.Module):
-    def __init__(
-        self,
-        hidden_dim,
-        stats_dict,
-    ) -> None:
-        super().__init__()
-        self.table_transform = FTTransformerTransform(
-            out_dim=hidden_dim,
-            col_stats_dict=stats_dict,
-        )
-        self.conv = TabTransformerConv(
-            dim=hidden_dim,
-        )
-
-    def forward(self, table):
-        feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
-        x, _ = self.table_transform(feat_dict)
-        x = self.conv(x)
-        x = x.mean(dim=1)
-        return x
-
+output_dim = artist_table.num_classes
 
 class Bridge(torch.nn.Module):
     def __init__(
@@ -134,7 +89,9 @@ def train_epoch() -> float:
     model.train()
     optimizer.zero_grad()
     logits = model(
-        graph.artist_table, graph.x, graph.adj, len_artist, len_artist + len_user
+        target_table=graph.target_table,
+        x=graph.x,
+        adj=graph.adj,
     )
     loss = F.cross_entropy(logits[train_mask].squeeze(), graph.y[train_mask])
     loss.backward()
@@ -146,7 +103,9 @@ def train_epoch() -> float:
 def test_epoch():
     model.eval()
     logits = model(
-        graph.artist_table, graph.x, graph.adj, len_artist, len_artist + len_user
+        target_table=graph.target_table,
+        x=graph.x,
+        adj=graph.adj,
     )
     preds = logits.argmax(dim=1)
     y = graph.y
@@ -158,13 +117,20 @@ def test_epoch():
 
 t_encoder = TableEncoder(
     hidden_dim=graph.x.size(1),
-    stats_dict=paper_table.stats_dict,
+    stats_dict=artist_table.stats_dict,
+    table_transorm=FTTransformerTransform,
+    table_conv=TabTransformerConv,
+    conv_params={
+        "attn_dropout": 0.3,
+        "ff_dropout": 0.3,
+    },
 )
 g_encoder = GraphEncoder(
     in_dim=graph.x.size(1),
     hidden_dim=128,
     out_dim=output_dim,
     dropout=args.gcn_dropout,
+    graph_conv=GCNConv,
 )
 model = Bridge(
     table_encoder=t_encoder,
