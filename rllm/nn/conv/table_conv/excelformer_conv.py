@@ -21,7 +21,7 @@ class ExcelFormerConv(torch.nn.Module):
         dim: int,
         heads: int = 8,
         dim_head: int = 16,
-        dropout: float = 0.3,
+        dropout: float = 0.5,
     ):
         super().__init__()
         self.layer_norm = torch.nn.LayerNorm(dim)
