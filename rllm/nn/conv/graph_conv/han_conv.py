@@ -60,7 +60,7 @@ class HANConv(torch.nn.Module):
             edge_type = "__".join(edge_type)
             self.conv_dict[edge_type] = GATConv(
                 in_dim=(hid_dim, hid_dim),
-                out_dim=hid_dim,
+                out_dim=out_dim,
                 heads=heads,
                 negative_slope=negative_slope,
                 dropout=dropout,

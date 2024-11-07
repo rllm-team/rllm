@@ -13,11 +13,11 @@ from .sage_conv import (
 )
 
 __all__ = [
-    'GATConv',
-    'GCNConv',
-    'HANConv',
-    'HGTConv',
-    'SAGEConv',
+    "GATConv",
+    "GCNConv",
+    "HANConv",
+    "HGTConv",
+    "SAGEConv",
     # 'Aggregator',
     # 'MeanAggregator',
     # 'MaxPoolingAggregator',

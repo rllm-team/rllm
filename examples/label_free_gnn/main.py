@@ -23,7 +23,7 @@ from tqdm import tqdm
 
 sys.path.append("../")
 
-import rllm.transforms as T
+import rllm.transforms.graph_transforms as T
 from annotation.annotation import annotate
 from node_selection.node_selection import active_generate_mask, post_filter
 from rllm.datasets.tagdataset import TAGDataset
@@ -36,24 +36,26 @@ parser.add_argument(
     type=str,
     default="cora",
     choices=["cora", "citeseer", "pubmed"],
-    help="dataset name",
+    help="dataset",
 )
 parser.add_argument(
-    "--hidden_channels", type=int, default=64, help="number of hidden channels in GCN"
+    "--hidden_channels",
+    type=int,
+    default=64,
+    help="number of hidden channels in GCN",
 )
-parser.add_argument("--lr", type=float, default=0.1, help="learning rate")
-parser.add_argument("--wd", type=float, default=5e-4, help="weight decay")
-parser.add_argument("--epochs", type=int, default=150, help="number of training epochs")
-parser.add_argument("--use_cache", type=bool, default=True, help="whether to use cache")
 parser.add_argument(
     "--active_method",
     type=str,
     default="Random",
     choices=["Random", "VertexCover", "FeatProp"],
-    help="method for active node selection",
+    help="active node selection",
 )
 parser.add_argument(
-    "--post_filter", type=bool, default=False, help="whether to perform post filtering"
+    "--post_filter",
+    type=bool,
+    default=False,
+    help="perform post filtering",
 )
 parser.add_argument(
     "--filter_strategy",
@@ -63,17 +65,33 @@ parser.add_argument(
     help="strategy for post filtering",
 )
 parser.add_argument(
-    "--weighted_loss", type=bool, default=False, help="whether to use weighted loss"
+    "--weighted_loss",
+    type=bool,
+    default=False,
+    help="use weighted loss",
 )
 parser.add_argument(
-    "--n_tries", type=int, default=3, help="number of tries when asking LLM"
+    "--n_tries",
+    type=int,
+    default=3,
+    help="number of tries asking LLM",
 )
 parser.add_argument(
-    "--budget", type=int, default=20, help="number of LLM queries per class"
+    "--budget",
+    type=int,
+    default=20,
+    help="number of LLM queries per class",
 )
 parser.add_argument(
-    "--val", type=bool, default=False, help="whether to use validation set"
+    "--lr",
+    type=float,
+    default=0.1,
+    help="learning rate",
 )
+parser.add_argument("--wd", type=float, default=5e-4, help="weight decay")
+parser.add_argument("--epochs", type=int, default=150, help="number of training epochs")
+parser.add_argument("--use_cache", type=bool, default=True, help="use cache")
+parser.add_argument("--val", type=bool, default=False, help="use validation set")
 parser.add_argument("--n_rounds", type=int, default=20, help="number of rounds")
 args = parser.parse_args()
 
@@ -82,7 +100,11 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 
 transform = T.Compose([T.NormalizeFeatures("l2"), T.GCNNorm()])
 dataset = TAGDataset(
-    path, args.dataset, use_cache=args.use_cache, transform=transform, force_reload=True
+    path,
+    args.dataset,
+    use_cache=args.use_cache,
+    transform=transform,
+    force_reload=True,
 )
 data = dataset[0]
 
