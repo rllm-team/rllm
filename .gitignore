@@ -25,6 +25,7 @@ coverage.xml
 *.zip
 *.pt
 *.onnx
+*.exe
 examples/**/*.png
 examples/**/*.pdf
 benchmark/results/
