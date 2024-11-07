@@ -123,19 +123,12 @@ def test_epoch():
 t_encoder = TableEncoder(
     hidden_dim=graph.x.size(1),
     stats_dict=user_table.stats_dict,
-    table_transorm=FTTransformerTransform,
-    table_conv=TabTransformerConv,
-    conv_params={
-        "attn_dropout": 0.3,
-        "ff_dropout": 0.3,
-    },
 )
 g_encoder = GraphEncoder(
     in_dim=graph.x.size(1),
     hidden_dim=128,
     out_dim=output_dim,
     dropout=args.gcn_dropout,
-    graph_conv=GCNConv,
 )
 model = Bridge(
     table_encoder=t_encoder,
