@@ -8,7 +8,6 @@ from rllm.data import GraphData
 from rllm.nn.conv.graph_conv.gcn_conv import GCNConv
 from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.types import ColType
 
 
 def get_homo_data(
@@ -119,43 +118,17 @@ class GraphEncoder(torch.nn.Module):
         **kwargs: Parameters required for different convolution layers.
     """
 
-    def __init__(
-        self,
-        in_dim,
-        hidden_dim,
-        out_dim,
-        dropout,
-        graph_conv: GCNConv,
-        num_layers: int = 2,
-        activate: str = "relu",
-        **kwargs,
-    ) -> None:
+    def __init__(self, in_dim, hidden_dim, out_dim, dropout):
         super().__init__()
         self.dropout = dropout
-        self.activate = activate
-        self.num_layers = num_layers
-        self.convs = torch.nn.ModuleList()
-        conv_args = kwargs["conv_params"] if "conv_params" in kwargs.keys() else None
-        if num_layers >= 2:
-            # First layer
-            self.convs.append(graph_conv(in_dim, hidden_dim, conv_args))
-
-            # Intermediate layer
-            for _ in range(num_layers - 2):
-                self.convs.append(graph_conv(hidden_dim, hidden_dim, conv_args))
-
-            # Last layer
-            self.convs.append(graph_conv(hidden_dim, out_dim, conv_args))
-        else:
-            # Only layer
-            self.convs.append(graph_conv(in_dim, out_dim, conv_args))
+        self.conv1 = GCNConv(in_dim, hidden_dim)
+        self.conv2 = GCNConv(hidden_dim, out_dim)
 
     def forward(self, x, adj):
-        for layer in range(self.num_layers - 1):
-            x = F.dropout(x, p=self.dropout, training=self.training)
-            x = F.relu(self.convs[layer](x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.convs[-1](x, adj)
+        x = F.relu(self.conv1(x, adj))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.conv2(x, adj)
         return x
 
 
@@ -176,29 +149,20 @@ class TableEncoder(torch.nn.Module):
     def __init__(
         self,
         hidden_dim,
-        stats_dict: Dict[ColType, List[Dict[str, Any]]],
-        table_transorm: FTTransformerTransform,
-        table_conv: TabTransformerConv,
-        num_layers: int = 1,
-        **kwargs,
+        stats_dict,
     ) -> None:
         super().__init__()
-        self.num_layers = num_layers
-
-        self.table_transform = table_transorm(
+        self.table_transform = FTTransformerTransform(
             out_dim=hidden_dim,
             col_stats_dict=stats_dict,
         )
-
-        conv_args = kwargs["conv_params"] if "conv_params" in kwargs.keys() else None
-        self.convs = torch.nn.ModuleList()
-        for _ in range(self.num_layers):
-            self.convs.append(table_conv(dim=hidden_dim, **conv_args))
+        self.conv = TabTransformerConv(
+            dim=hidden_dim,
+        )
 
     def forward(self, table):
         feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
         x, _ = self.table_transform(feat_dict)
-        for table_conv in self.convs:
-            x = table_conv(x)
+        x = self.conv(x)
         x = x.mean(dim=1)
         return x

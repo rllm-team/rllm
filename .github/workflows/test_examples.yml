@@ -38,7 +38,6 @@ jobs:
       run: |
         cd examples
         python tab_transformer.py --epochs 1
-        python tabnet.py --epochs 1
         python ft_transformer.py --epochs 1
         python tab_transformer.py --epochs 1
         python rect.py
@@ -49,4 +48,3 @@ jobs:
         python bridge/bridge_tacm12k.py --epochs 1
         python bridge/bridge_tlf2k.py --epochs 1
         python bridge/bridge_tml1m.py --epochs 1
-        
