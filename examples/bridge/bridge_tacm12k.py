@@ -16,16 +16,12 @@ sys.path.append("../../")
 import torch
 import torch.nn.functional as F
 
-import rllm.transforms.graph_transforms as T
-from rllm.transforms.table_transforms import FTTransformerTransform
-from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.conv.graph_conv import GCNConv
+import rllm.transforms.graph_transforms as GT
 from rllm.datasets import TACM12KDataset
 from utils import build_homo_graph, GraphEncoder, TableEncoder
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--gcn_dropout", type=float, default=0.5, help="Dropout for GCN")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
@@ -38,26 +34,31 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 dataset = TACM12KDataset(cached_dir=path, force_reload=True)
 
-paper_table, author_table, citation, _, paper_emb, _ = dataset.data_list
-# get the homogeneous data converted from the original data
-# x, relation_df = dataset.homo_data()
+(
+    papers_table,
+    authors_table,
+    citations_table,
+    _,
+    paper_embeddings,
+    _,
+) = dataset.data_list
 
 # Making graph
 graph = build_homo_graph(
-    relation_df=citation.df,
-    x=paper_emb,
-    transform=T.GCNNorm(),
+    relation_df=citations_table.df,
+    x=paper_embeddings,
+    transform=GT.GCNNorm(),
 )
-graph.target_table = paper_table
-graph.y = paper_table.y.long()
+graph.target_table = papers_table
+graph.y = papers_table.y.long()
 graph = graph.to(device)
 
 train_mask, val_mask, test_mask = (
-    paper_table.train_mask,
-    paper_table.val_mask,
-    paper_table.test_mask,
+    papers_table.train_mask,
+    papers_table.val_mask,
+    papers_table.test_mask,
 )
-output_dim = paper_table.num_classes
+output_dim = papers_table.num_classes
 
 
 class Bridge(torch.nn.Module):
@@ -113,13 +114,11 @@ def test_epoch():
 
 t_encoder = TableEncoder(
     hidden_dim=graph.x.size(1),
-    stats_dict=paper_table.stats_dict,
+    stats_dict=papers_table.stats_dict,
 )
 g_encoder = GraphEncoder(
-    in_dim=graph.x.size(1),
-    hidden_dim=128,
+    hidden_dim=graph.x.size(1),
     out_dim=output_dim,
-    dropout=args.gcn_dropout,
 )
 model = Bridge(
     table_encoder=t_encoder,
