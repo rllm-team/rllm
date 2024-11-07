@@ -18,7 +18,7 @@ import torch.nn.functional as F
 
 import rllm.transforms.graph_transforms as GT
 from rllm.datasets import TACM12KDataset
-from utils import build_homo_graph, GraphEncoder, TableEncoder
+from utils import build_homo_graph, TableEncoder, GraphEncoder
 
 
 parser = argparse.ArgumentParser()

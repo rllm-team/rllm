@@ -1,7 +1,6 @@
 import argparse
 import os.path as osp
 import sys
-from traceback import print_tb
 
 sys.path.append("../")
 
