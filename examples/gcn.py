@@ -17,7 +17,7 @@ import torch.nn.functional as F
 import sys
 
 sys.path.append("../")
-import rllm.transforms.graph_transforms as T
+import rllm.transforms.graph_transforms as GT
 from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.conv.graph_conv import GCNConv
 
@@ -34,7 +34,7 @@ parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
-transform = T.Compose([T.NormalizeFeatures("l2"), T.GCNNorm()])
+transform = GT.Compose([GT.NormalizeFeatures("l2"), GT.GCNNorm()])
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = PlanetoidDataset(path, args.dataset, transform=transform)

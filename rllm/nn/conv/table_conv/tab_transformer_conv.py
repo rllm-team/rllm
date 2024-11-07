@@ -165,8 +165,8 @@ class TabTransformerConv(nn.Module):
         dim,
         heads: int = 8,
         dim_head: int = 16,
-        attn_dropout: float = 0.0,
-        ff_dropout: float = 0.0,
+        attn_dropout: float = 0.3,
+        ff_dropout: float = 0.3,
     ):
         super().__init__()
         self.attn = PreNorm(

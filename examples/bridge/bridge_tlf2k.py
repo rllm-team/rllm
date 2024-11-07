@@ -16,10 +16,7 @@ sys.path.append("../../")
 import torch
 import torch.nn.functional as F
 
-import rllm.transforms.graph_transforms as T
-from rllm.transforms.table_transforms import FTTransformerTransform
-from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.conv.graph_conv import GCNConv
+import rllm.transforms.graph_transforms as GT
 from rllm.datasets import TLF2KDataset
 from utils import get_homo_data, build_homo_graph, GraphEncoder, TableEncoder
 
@@ -52,7 +49,7 @@ x, ordered_ua = get_homo_data(
 graph = build_homo_graph(
     relation_df=ordered_ua,
     x=x,
-    transform=T.GCNNorm(),
+    transform=GT.GCNNorm(),
 )
 graph.y = artist_table.y.long()
 graph.target_table = artist_table
@@ -122,10 +119,8 @@ t_encoder = TableEncoder(
     stats_dict=artist_table.stats_dict,
 )
 g_encoder = GraphEncoder(
-    in_dim=graph.x.size(1),
-    hidden_dim=128,
+    hidden_dim=graph.x.size(1),
     out_dim=output_dim,
-    dropout=args.gcn_dropout,
 )
 model = Bridge(
     table_encoder=t_encoder,
