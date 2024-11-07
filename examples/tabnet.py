@@ -1,6 +1,7 @@
 import argparse
 import os.path as osp
 import sys
+from traceback import print_tb
 
 sys.path.append("../")
 
@@ -108,8 +109,13 @@ def test(loader: DataLoader) -> float:
         all_preds.append(pred[:, 1].detach().cpu())
     all_labels = torch.cat(all_labels).numpy()
     all_preds = torch.cat(all_preds).numpy()
-    if np.isnan(all_labels).any() or np.isnan(all_preds).any():
-        print("NaN found in all_labels or all_preds")
+    if np.isnan(all_labels).any():
+        print("NaN found in all_labels")
+    if np.isnan(all_preds).any():
+        print("NaN found in all_preds")
+    print(all_labels)
+    print(all_preds)
+
     # Compute the overall AUC
     overall_auc = roc_auc_score(all_labels, all_preds)
     return overall_auc
