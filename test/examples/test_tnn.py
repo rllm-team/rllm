@@ -29,7 +29,7 @@ def test_tab_transformer():
     assert float(stdout[-9:]) > 0.80
 
 
-def test_excel_former():
+def test_tabnet():
     script = os.path.join(EXAMPLE_ROOT, "tabnet.py")
     out = subprocess.run(["python", str(script)], capture_output=True)
     assert (
@@ -39,7 +39,7 @@ def test_excel_former():
     assert float(stdout[-9:]) > 0.79
 
 
-def test_tabnet():
+def test_excel_former():
     script = os.path.join(EXAMPLE_ROOT, "excelformer.py")
     out = subprocess.run(["python", str(script)], capture_output=True)
     assert (
