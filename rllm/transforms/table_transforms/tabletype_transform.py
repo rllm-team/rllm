@@ -69,13 +69,11 @@ class TableTypeTransform(Module):
         self,
         feat_dict: Dict[ColType, Tensor],
     ) -> Tuple[Tensor, List[str]]:
-        # all_col_names = []
         xs = []
         for col_type in feat_dict.keys():
             feat = feat_dict[col_type]
             col_names = self.col_names_dict[col_type]
             x = self.transform_dict[col_type.value](feat, col_names)
             xs.append(x)
-            # all_col_names.extend(col_names)
         x = torch.cat(xs, dim=1)
-        return x  # , all_col_names
+        return x
