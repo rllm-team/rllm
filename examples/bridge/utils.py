@@ -19,6 +19,20 @@ def build_homo_data(
     src_emb: Tensor,
     tgt_emb: Tensor,
 ):
+    r"""Constructs a homogeneous data representation for a relationship graph.
+
+    Args:
+        relation_df (pd.DataFrame): DataFrame containing the relationships with source and target columns.
+        src_col_name (str): Name of the source column in the DataFrame.
+        tgt_col_name (str): Name of the target column in the DataFrame.
+        src_emb (Tensor): Tensor of embeddings for source entities.
+        tgt_emb (Tensor): Tensor of embeddings for target entities.
+
+    Returns:
+        Tuple[Tensor, pd.DataFrame]: A tuple containing:
+            - A concatenated tensor of source and target embeddings.
+            - An updated DataFrame with adjusted source and target indices.
+    """
     # Making relationship
     n_src = src_emb.size(0)
     ordered_rating = relation_df.assign(
@@ -139,7 +153,7 @@ class TableEncoder(Module):
 
     def forward(self, table):
         feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
-        x, _ = self.table_transform(feat_dict)
+        x = self.table_transform(feat_dict)
         for table_conv in self.convs:
             x = table_conv(x)
         x = x.mean(dim=1)
