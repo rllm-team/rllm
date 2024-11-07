@@ -62,7 +62,7 @@ class TabNetModel(torch.nn.Module):
         )
 
     def forward(self, x):
-        x, _ = self.transform(x)
+        x = self.transform(x)
         out = self.backbone(x.reshape(x.size(0), -1))
         return out
 
@@ -108,13 +108,10 @@ def test(loader: DataLoader) -> float:
         all_preds.append(pred[:, 1].detach().cpu())
     all_labels = torch.cat(all_labels).numpy()
     all_preds = torch.cat(all_preds).numpy()
-    if np.isnan(all_labels).any():
-        print("NaN found in all_labels")
-    if np.isnan(all_preds).any():
-        print("NaN found in all_preds")
-    print(all_labels)
-    print(all_preds)
-
+    # if np.isnan(all_labels).any():
+    #     print("NaN found in all_labels")
+    # if np.isnan(all_preds).any():
+    #     print("NaN found in all_preds")
     # Compute the overall AUC
     overall_auc = roc_auc_score(all_labels, all_preds)
     return overall_auc
