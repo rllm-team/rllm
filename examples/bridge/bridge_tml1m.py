@@ -9,6 +9,7 @@ import argparse
 import os.path as osp
 import sys
 
+sys.path.append("./")
 sys.path.append("../")
 sys.path.append("../../")
 

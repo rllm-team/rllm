@@ -15,7 +15,7 @@ from tqdm import tqdm
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
 from rllm.transforms.table_transforms import FTTransformerTransform
-from rllm.nn.conv.table_conv.excelformer_conv import ExcelFormerConv
+from rllm.nn.conv.table_conv import ExcelFormerConv
 from typing import Any, Dict, List
 
 parser = argparse.ArgumentParser()
