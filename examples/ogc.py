@@ -18,7 +18,7 @@ from torch import Tensor
 import sys
 
 sys.path.append("../")
-import rllm.transforms.graph_transforms as T
+import rllm.transforms.graph_transforms as GT
 from rllm.data import GraphData
 from rllm.datasets import PlanetoidDataset
 
@@ -40,7 +40,7 @@ args = parser.parse_args()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 
-transform = T.Compose([T.NormalizeFeatures("sum"), T.GCNNorm()])
+transform = GT.Compose([GT.NormalizeFeatures("sum"), GT.GCNNorm()])
 
 dataset = PlanetoidDataset(path, args.dataset, transform, force_reload=True)
 data = dataset[0].to(device)

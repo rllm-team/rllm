@@ -1,13 +1,15 @@
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional, Callable, Type
 import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch import Tensor
+from torch.nn import Module
 
 from rllm.data import GraphData
 from rllm.nn.conv.graph_conv.gcn_conv import GCNConv
 from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
+from rllm.types import ColType
 
 
 def get_homo_data(
@@ -103,7 +105,7 @@ def build_homo_graph(
     return graph
 
 
-class GraphEncoder(torch.nn.Module):
+class GraphEncoder(Module):
     r"""GraphEncoder is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming graph.
 
@@ -118,21 +120,34 @@ class GraphEncoder(torch.nn.Module):
         **kwargs: Parameters required for different convolution layers.
     """
 
-    def __init__(self, in_dim, hidden_dim, out_dim, dropout):
+    def __init__(
+        self,
+        hidden_dim,
+        out_dim,
+        dropout: float = 0.5,
+        graph_conv: Type[Module] = GCNConv,
+        num_layers: int = 2,
+        **kwargs,
+    ) -> None:
         super().__init__()
         self.dropout = dropout
-        self.conv1 = GCNConv(in_dim, hidden_dim)
-        self.conv2 = GCNConv(hidden_dim, out_dim)
+        self.num_layers = num_layers
+        self.convs = torch.nn.ModuleList()
+        conv_args = kwargs["conv_params"] if "conv_params" in kwargs.keys() else None
+        for _ in range(num_layers):
+            self.convs.append(graph_conv(hidden_dim, hidden_dim, conv_args))
+        self.convs.append(graph_conv(hidden_dim, out_dim, conv_args))
 
     def forward(self, x, adj):
+        for layer in range(self.num_layers - 1):
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x = F.relu(self.convs[layer](x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = F.relu(self.conv1(x, adj))
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.conv2(x, adj)
+        x = self.convs[-1](x, adj)
         return x
 
 
-class TableEncoder(torch.nn.Module):
+class TableEncoder(Module):
     r"""TableEncoder is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming table.
 
@@ -149,20 +164,28 @@ class TableEncoder(torch.nn.Module):
     def __init__(
         self,
         hidden_dim,
-        stats_dict,
+        stats_dict: Dict[ColType, List[Dict[str, Any]]],
+        table_transorm: Type[Module] = FTTransformerTransform,
+        table_conv: Type[Module] = TabTransformerConv,
+        num_layers: int = 1,
+        **kwargs,
     ) -> None:
         super().__init__()
-        self.table_transform = FTTransformerTransform(
+        self.num_layers = num_layers
+
+        self.table_transform = table_transorm(
             out_dim=hidden_dim,
             col_stats_dict=stats_dict,
         )
-        self.conv = TabTransformerConv(
-            dim=hidden_dim,
-        )
+
+        self.convs = torch.nn.ModuleList()
+        for _ in range(self.num_layers):
+            self.convs.append(table_conv(dim=hidden_dim))
 
     def forward(self, table):
         feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
         x, _ = self.table_transform(feat_dict)
-        x = self.conv(x)
+        for table_conv in self.convs:
+            x = table_conv(x)
         x = x.mean(dim=1)
         return x
