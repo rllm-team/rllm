@@ -18,7 +18,7 @@ class HANConv(torch.nn.Module):
     that capture both the structure and the multifaceted nature of the graph.
 
     Args:
-        in_channels (int or Dict[str, int]): Size of each input sample of every
+        in_dim (int or Dict[str, int]): Size of each input sample of every
             node type.
         metadata (Tuple[List[str], List[Tuple[str, str, str]]]): The metadata
             of the heterogeneous graph, *i.e.* its node and edge types given
@@ -31,40 +31,43 @@ class HANConv(torch.nn.Module):
             attention coefficients which exposes each node to a stochastically
             sampled neighborhood during training. The default value is 0.
     """
-    def __init__(self,
-                 in_channels: Union[int, Dict[str, int]],
-                 out_channels: int,
-                 metadata: Tuple[List[str], List[Tuple[str, str]]],
-                 heads: int = 1,
-                 negative_slope: float = 0.2,
-                 dropout: float = 0.0):
-        super().__init__()
-        if not isinstance(in_channels, dict):
-            in_channels = {node_type: in_channels for node_type in metadata[0]}
 
-        self.in_channels = in_channels
-        self.out_channels = out_channels
+    def __init__(
+        self,
+        in_dim: Union[int, Dict[str, int]],
+        out_dim: int,
+        metadata: Tuple[List[str], List[Tuple[str, str]]],
+        heads: int = 1,
+        negative_slope: float = 0.2,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        if not isinstance(in_dim, dict):
+            in_dim = {node_type: in_dim for node_type in metadata[0]}
+
+        self.in_dim = in_dim
+        self.out_dim = out_dim
         self.heads = heads
         self.dropout = dropout
 
-        hid_dim = out_channels // heads
+        hid_dim = out_dim // heads
         self.fc_dict = torch.nn.ModuleDict()
-        for node_type, in_dim in self.in_channels.items():
+        for node_type, in_dim in self.in_dim.items():
             self.fc_dict[node_type] = torch.nn.Linear(in_dim, hid_dim)
 
         self.conv_dict = torch.nn.ModuleDict()
         for edge_type in metadata[1]:
-            edge_type = '__'.join(edge_type)
+            edge_type = "__".join(edge_type)
             self.conv_dict[edge_type] = GATConv(
-                in_channels=(hid_dim, hid_dim),
-                out_channels=hid_dim,
+                in_dim=(hid_dim, hid_dim),
+                out_dim=out_dim,
                 heads=heads,
                 negative_slope=negative_slope,
-                dropout=dropout
+                dropout=dropout,
             )
 
-        self.q = Parameter(torch.empty(1, out_channels))
-        self.fc_k = torch.nn.Linear(out_channels, out_channels)
+        self.q = Parameter(torch.empty(1, out_dim))
+        self.fc_k = torch.nn.Linear(out_dim, out_dim)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -72,10 +75,12 @@ class HANConv(torch.nn.Module):
         self.fc_k.reset_parameters()
         # TODO: init dict parameter.
 
-    def forward(self,
-                x_dict: Dict[str, Tensor],
-                adj_dict: Dict[Tuple[str, str], Tensor],
-                return_semantic_att_weights: bool = False):
+    def forward(
+        self,
+        x_dict: Dict[str, Tensor],
+        adj_dict: Dict[Tuple[str, str], Tensor],
+        return_semantic_att_weights: bool = False,
+    ):
         # Embedding node features into semantic space.
         out_node_dict, out_dict = {}, {}
         for node_type, x in x_dict.items():
@@ -89,7 +94,7 @@ class HANConv(torch.nn.Module):
             tgt_type = edge_type[1]
 
             conv_inputs = (out_node_dict[src_type], out_node_dict[tgt_type])
-            out = self.conv_dict['__'.join(edge_type)](conv_inputs, adj)
+            out = self.conv_dict["__".join(edge_type)](conv_inputs, adj)
             out_dict[tgt_type].append(out)
 
         # For different GAT convolution outputs,
@@ -106,9 +111,9 @@ class HANConv(torch.nn.Module):
         return out_dict
 
     def attention(self, xs: Tensor):
-        # [num_edge_types, num_nodes, out_channels*heads]
+        # [num_edge_types, num_nodes, out_dim*heads]
         xs = torch.stack(xs, dim=0)
-        # [num_edge_types, out_channels*heads]
+        # [num_edge_types, out_dim*heads]
         key = torch.tanh(self.fc_k(xs)).mean(1)
         # [num_edge_types]
         attn_score = (self.q * key).sum(-1)

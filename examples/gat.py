@@ -22,14 +22,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--dataset", type=str, default="cora", choices=["citeseer", "cora", "pubmed"]
 )
-parser.add_argument("--hidden_channels", type=int, default=8)
+parser.add_argument("--hidden_dim", type=int, default=8)
 parser.add_argument("--heads", type=int, default=8, help="Attention heads")
 parser.add_argument("--lr", type=float, default=5e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
-parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
-parser.add_argument("--dropout", type=float, default=0.6, help="Graph Dropout")
+parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
+parser.add_argument("--dropout", type=float, default=0.5, help="Graph Dropout")
+parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
+torch.manual_seed(args.seed)
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = PlanetoidDataset(path, args.dataset, transform=T.NormalizeFeatures("sum"))
 data = dataset[0]
@@ -43,18 +45,16 @@ data.adj = sparse_tensor
 class GAT(torch.nn.Module):
     def __init__(
         self,
-        in_channels,
-        hidden_channels,
-        out_channels,
+        in_dim,
+        hidden_dim,
+        out_dim,
         dropout: float = 0.0,
         heads: int = 8,
     ):
         super().__init__()
         self.dropout = dropout
-        self.conv1 = GATConv(in_channels, hidden_channels, heads)
-        self.conv2 = GATConv(
-            hidden_channels * heads, out_channels, heads=1, concat=False
-        )
+        self.conv1 = GATConv(in_dim, hidden_dim, heads, concat=True)
+        self.conv2 = GATConv(hidden_dim * heads, out_dim, heads=1)
 
     def forward(self, x, adj):
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -65,9 +65,9 @@ class GAT(torch.nn.Module):
 
 
 model = GAT(
-    in_channels=data.x.shape[1],
-    hidden_channels=args.hidden_channels,
-    out_channels=data.num_classes,
+    in_dim=data.x.shape[1],
+    hidden_dim=args.hidden_dim,
+    out_dim=data.num_classes,
     heads=args.heads,
     dropout=args.dropout,
 )

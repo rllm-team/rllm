@@ -1,12 +1,10 @@
-from typing import Any
-
 import torch
 from torch import Tensor
 
 from rllm.utils.sparse import is_torch_sparse_tensor
 
 
-def add_remaining_self_loops(adj: Tensor, fill_value: Any = 1.):
+def add_remaining_self_loops(adj: Tensor, fill_value=1.0):
     r"""Add self-loops into the adjacency matrix.
 
     .. math::
@@ -31,10 +29,9 @@ def add_remaining_self_loops(adj: Tensor, fill_value: Any = 1.):
         loop_index = loop_index.unsqueeze(0).repeat(2, 1)
 
         indices = torch.cat([indices[:, mask], loop_index], dim=1)
-        fill_values = torch.ones_like(
-            loop_index, dtype=values.dtype,
-            device=device
-        ) * fill_value
+        fill_values = (
+            torch.ones_like(loop_index, dtype=values.dtype, device=device) * fill_value
+        )
         values = torch.cat([values[mask], fill_values], dim=0)
         return torch.sparse_coo_tensor(indices, values, shape).to(device)
 

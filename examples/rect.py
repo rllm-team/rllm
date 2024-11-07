@@ -37,7 +37,7 @@ args = parser.parse_args()
 
 transform = T.Compose([T.NormalizeFeatures("l2"), T.SVDFeatureReduction(200), T.GDC()])
 
-path = osp.join(osp.dirname(osp.realpath(__file__)), "../data")
+path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = PlanetoidDataset(path, args.dataset, transform=transform, force_reload=True)
 data = dataset[0]
 

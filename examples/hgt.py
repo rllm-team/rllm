@@ -24,24 +24,22 @@ data = dataset[0]
 
 
 class HGT(nn.Module):
-    def __init__(
-        self, hidden_channels: int, out_channels: int, data: HeteroGraphData, heads=8
-    ):
+    def __init__(self, hidden_dim: int, out_dim: int, data: HeteroGraphData, heads=8):
         super().__init__()
         self.lin_dict = nn.ModuleDict()
         for node_type in data.node_types:
             self.lin_dict[node_type] = nn.Linear(
                 in_features=data.x_dict()[node_type].shape[1],
-                out_features=hidden_channels,
+                out_features=hidden_dim,
             )
         self.hgt_conv = HGTConv(
-            hidden_channels,
-            hidden_channels,
+            hidden_dim,
+            hidden_dim,
             heads=heads,
             dropout_rate=0.6,
             metadata=data.metadata(),
         )
-        self.lin = nn.Linear(hidden_channels, out_channels)
+        self.lin = nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x_dict, adj_dict):
         out = {}
@@ -52,7 +50,7 @@ class HGT(nn.Module):
         return out
 
 
-model = HGT(data=data, hidden_channels=128, out_channels=3)
+model = HGT(data=data, hidden_dim=128, out_dim=3)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 data, model = data.to(device), model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=0.001)

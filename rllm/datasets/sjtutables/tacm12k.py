@@ -1,3 +1,4 @@
+from ast import Dict
 from typing import Optional, List
 import os
 import os.path as osp
@@ -61,13 +62,9 @@ class TACM12KDataset(Dataset):
 
     url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/main/sjtutables/TACM12K.zip"  # noqa
 
-    def __init__(
-        self,
-        cached_dir: str,
-        force_reload: Optional[bool] = False
-    ) -> None:
+    def __init__(self, cached_dir: str, force_reload: Optional[bool] = False) -> None:
         # self.name = 'TACM12K'
-        self.name = 'Table-ACM12K'
+        self.name = "Table-ACM12K"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
@@ -76,31 +73,27 @@ class TACM12KDataset(Dataset):
             TableData.load(self.processed_paths[1]),
             TableData.load(self.processed_paths[2]),
             TableData.load(self.processed_paths[3]),
-            torch.from_numpy(np.load(osp.join(
-                self.raw_dir, "paper_embeddings.npy"
-            ))),
-            torch.from_numpy(np.load(osp.join(
-                self.raw_dir, "author_embeddings.npy"
-            ))),
+            torch.from_numpy(np.load(osp.join(self.raw_dir, "paper_embeddings.npy"))),
+            torch.from_numpy(np.load(osp.join(self.raw_dir, "author_embeddings.npy"))),
         ]
 
     @property
     def raw_filenames(self):
         return [
-            'papers.csv',
-            'authors.csv',
-            'citations.csv',
-            'writings.csv',
-            'masks.pt'
+            "papers.csv",
+            "authors.csv",
+            "citations.csv",
+            "writings.csv",
+            "masks.pt",
         ]
 
     @property
     def processed_filenames(self):
         return [
-            'paper_data.pt',
-            'author_data.pt',
-            'cite_data.pt',
-            'write_data.pt'
+            "paper_datas.pt",
+            "authors_data.pt",
+            "citations_data.pt",
+            "writings_data.pt",
         ]
 
     def process(self):
@@ -110,7 +103,7 @@ class TACM12KDataset(Dataset):
         os.makedirs(self.processed_dir, exist_ok=True)
         # papers Data
         path = osp.join(self.raw_dir, self.raw_filenames[0])
-        paper_df = pd.read_csv(path, index_col=['paper_id'])
+        paper_df = pd.read_csv(path, index_col=["paper_id"])
         col_types = {
             "year": ColType.CATEGORICAL,
             "conference": ColType.CATEGORICAL,
@@ -120,7 +113,7 @@ class TACM12KDataset(Dataset):
 
         # Create masks
         masks_path = osp.join(self.raw_dir, self.raw_filenames[4])
-        masks = torch.load(masks_path)
+        masks = torch.load(masks_path, weights_only=False)
         TableData(
             df=paper_df,
             col_types=col_types,
@@ -132,15 +125,12 @@ class TACM12KDataset(Dataset):
 
         # authors Data
         path = osp.join(self.raw_dir, self.raw_filenames[1])
-        author_df = pd.read_csv(path, index_col=['author_id'])
+        author_df = pd.read_csv(path, index_col=["author_id"])
         col_types = {
             "name": ColType.CATEGORICAL,
             "firm": ColType.CATEGORICAL,
         }
-        TableData(
-            df=author_df,
-            col_types=col_types
-        ).save(self.processed_paths[1])
+        TableData(df=author_df, col_types=col_types).save(self.processed_paths[1])
 
         # cite Data
         path = osp.join(self.raw_dir, self.raw_filenames[2])
@@ -149,10 +139,7 @@ class TACM12KDataset(Dataset):
             "paper_id": ColType.NUMERICAL,
             "paper_id_cited": ColType.NUMERICAL,
         }
-        TableData(
-            df=cite_df,
-            col_types=col_types
-        ).save(self.processed_paths[2])
+        TableData(df=cite_df, col_types=col_types).save(self.processed_paths[2])
 
         # cite Data
         path = osp.join(self.raw_dir, self.raw_filenames[3])
@@ -165,7 +152,7 @@ class TACM12KDataset(Dataset):
 
     def download(self):
         os.makedirs(self.raw_dir, exist_ok=True)
-        path = download_url(self.url, self.raw_dir, self.name+'.zip')
+        path = download_url(self.url, self.raw_dir, self.name + ".zip")
         extract_zip(path, self.raw_dir)
         os.remove(path)
 

@@ -24,7 +24,7 @@ class ChatMessage:
         self,
         role: Union[MessageRole, str] = MessageRole.USER,
         content: Optional[Any] = "",
-        additional_kwargs: Optional[Dict] = None
+        additional_kwargs: Optional[Dict] = None,
     ):
         if isinstance(role, str):
             role = MessageRole(role)
@@ -40,7 +40,7 @@ class ChatMessage:
         cls,
         content: str,
         role: Union[MessageRole, str] = MessageRole.USER,
-        **kwargs: Any,
+        **kwargs,
     ) -> "ChatMessage":
         if isinstance(role, str):
             role = MessageRole(role)
@@ -56,15 +56,13 @@ class ChatMessage:
             return [self._recursive_serialization(item) for item in value]
         return value
 
-    def dict(self, **kwargs: Any) -> dict:
+    def dict(self, **kwargs) -> dict:
         # ensure all additional_kwargs are serializable
         msg = super().dict(**kwargs)
 
         for key, value in msg.get("additional_kwargs", {}).items():
             value = self._recursive_serialization(value)
-            if not isinstance(
-                value, (str, int, float, bool, dict, list, type(None))
-            ):
+            if not isinstance(value, (str, int, float, bool, dict, list, type(None))):
                 raise ValueError(
                     f"Failed to serialize additional_kwargs value: {value}"
                 )
@@ -78,16 +76,18 @@ class ChatResponse:
     """Chat response."""
 
     def __init__(
-            self,
-            message: ChatMessage,
-            raw: Optional[dict] = None,
-            delta: Optional[str] = None,
-            additional_kwargs: dict = None):
+        self,
+        message: ChatMessage,
+        raw: Optional[dict] = None,
+        delta: Optional[str] = None,
+        additional_kwargs: Dict = None,
+    ):
         self.message = message
         self.raw = raw
         self.delta = delta
-        self.additional_kwargs = additional_kwargs \
-            if additional_kwargs is not None else {}
+        self.additional_kwargs = (
+            additional_kwargs if additional_kwargs is not None else {}
+        )
 
     def __str__(self) -> str:
         return str(self.message)
@@ -112,11 +112,12 @@ class CompletionResponse:
         text: str,
         additional_kwargs: Optional[Dict[str, Any]] = None,
         raw: Optional[Dict[str, Any]] = None,
-        delta: Optional[str] = None
+        delta: Optional[str] = None,
     ):
         self.text = text
-        self.additional_kwargs = additional_kwargs \
-            if additional_kwargs is not None else {}
+        self.additional_kwargs = (
+            additional_kwargs if additional_kwargs is not None else {}
+        )
         self.raw = raw
         self.delta = delta
 
@@ -148,7 +149,7 @@ class LLMMetadata:
             this must be manually specified.
         system_role (MessageRole): expects for system prompt.
             E.g. 'SYSTEM' for OpenAI, 'CHATBOT' for Cohere.
-        """
+    """
 
     def __init__(
         self,

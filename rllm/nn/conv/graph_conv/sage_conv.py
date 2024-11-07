@@ -10,8 +10,8 @@ class SAGEConv(torch.nn.Module):
     r"""Simple SAGEConv layer, similar to <https://arxiv.org/abs/1706.02216>.
 
     Args:
-        in_channels (int): Size of each input sample.
-        out_channels (int): Size of each output sample.
+        in_dim (int): Size of each input sample.
+        out_dim (int): Size of each output sample.
         aggr_methods (str): The aggregation method to use,
         *e.g.*, `mean`, `max_pooling`, `mean_pooling`, `gcn`, `lstm`.
         act: (Callable): The activation function is applied to aggreagtion,
@@ -25,57 +25,39 @@ class SAGEConv(torch.nn.Module):
             the final output.
     """
 
-    def __init__(self,
-                 in_channels: int,
-                 out_channels: int,
-                 aggr_method: str = 'mean_pooling',
-                 act: Optional[Callable] = torch.nn.ReLU(),
-                 concat: bool = False,
-                 dropout: float = 0.0,
-                 bias: bool = False):
-        self.in_channels = in_channels
-        self.out_channels = out_channels
+    def __init__(
+        self,
+        in_dim: int,
+        out_dim: int,
+        aggr_method: str = "mean_pooling",
+        act: Optional[Callable] = torch.nn.ReLU(),
+        concat: bool = False,
+        dropout: float = 0.0,
+        bias: bool = False,
+    ):
+        self.in_dim = in_dim
+        self.out_dim = out_dim
 
-        if aggr_method == 'mean':
+        if aggr_method == "mean":
             self.aggr_module = MeanAggregator(
-                in_channels, out_channels, act, dropout, dropout, bias
+                in_dim, out_dim, act, dropout, dropout, bias
             )
-        elif aggr_method == 'max_pooling':
+        elif aggr_method == "max_pooling":
             self.aggr_module = MaxPoolingAggregator(
-                in_channels,
-                in_channels,
-                out_channels,
-                act,
-                concat,
-                dropout,
-                bias,
+                in_dim, in_dim, out_dim, act, concat, dropout, bias
             )
-        elif aggr_method == 'mean_pooling':
+        elif aggr_method == "mean_pooling":
             self.aggr_module = MeanPoolingAggregator(
-                in_channels,
-                in_channels,
-                out_channels,
-                act, concat,
-                dropout,
-                bias
+                in_dim, in_dim, out_dim, act, concat, dropout, bias
             )
-        elif aggr_method == 'gcn':
-            self.aggr_module = GCNAggregator(
-                in_channels, out_channels, act, dropout, bias
-            )
-        elif aggr_method == 'lstm':
+        elif aggr_method == "gcn":
+            self.aggr_module = GCNAggregator(in_dim, out_dim, act, dropout, bias)
+        elif aggr_method == "lstm":
             self.aggr_module = LSTMAggregator(
-                in_channels,
-                in_channels,
-                out_channels,
-                act, concat,
-                dropout,
-                bias
+                in_dim, in_dim, out_dim, act, concat, dropout, bias
             )
         else:
-            raise NotImplementedError(
-                f"Method of {aggr_method} is not implemented!"
-            )
+            raise NotImplementedError(f"Method of {aggr_method} is not implemented!")
 
     def forward(self, self_vecs: Tensor, neigh_vecs: Tensor):
         return self.aggr_module(self_vecs, neigh_vecs)
@@ -83,35 +65,34 @@ class SAGEConv(torch.nn.Module):
 
 class Aggregator(torch.nn.Module):
     r"""A base aggregate implementation."""
-    def __init__(self,
-                 self_channels: int,
-                 neigh_channels: int,
-                 out_channels: int,
-                 act: Optional[Callable] = torch.nn.ReLU(),
-                 concat: bool = False,
-                 dropout: float = 0.0,
-                 bias: bool = False):
+
+    def __init__(
+        self,
+        self_dim: int,
+        neigh_dim: int,
+        out_dim: int,
+        act: Optional[Callable] = torch.nn.ReLU(),
+        concat: bool = False,
+        dropout: float = 0.0,
+        bias: bool = False,
+    ):
         super().__init__()
-        self.self_channels = self_channels
-        self.neigh_channels = neigh_channels
-        self.out_channels = out_channels
+        self.self_dim = self_dim
+        self.neigh_dim = neigh_dim
+        self.out_dim = out_dim
         self.act = act
         self.concat = concat
         self.dropout = dropout
 
-        self.self_weight = Parameter(
-            torch.empty(self_channels, out_channels)
-        )
-        self.neigh_weight = Parameter(
-            torch.empty(neigh_channels, out_channels)
-        )
+        self.self_weight = Parameter(torch.empty(self_dim, out_dim))
+        self.neigh_weight = Parameter(torch.empty(neigh_dim, out_dim))
 
         if bias and concat:
-            self.bias = Parameter(torch.empty(2*out_channels))
+            self.bias = Parameter(torch.empty(2 * out_dim))
         elif bias:
-            self.bias = Parameter(torch.empty(out_channels))
+            self.bias = Parameter(torch.empty(out_dim))
         else:
-            self.register_parameter('bias', None)
+            self.register_parameter("bias", None)
 
         # reset parameter
         torch.nn.init.xavier_normal_(self.self_weight)
@@ -143,61 +124,71 @@ class Aggregator(torch.nn.Module):
         raise NotImplementedError
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__}({self.self_channels}, {self.neigh_channels}, '  # noqa
-                f'{self.out_channels}')  # noqa
+        return (
+            f"{self.__class__.__name__}({self.self_dim}, {self.neigh_dim}, "  # noqa
+            f"{self.out_dim}"
+        )  # noqa
 
 
 class MeanAggregator(Aggregator):
     r"""Aggregate neighbor features with mean operation."""
-    def __init__(self,
-                 in_channels: int,
-                 out_channels: int,
-                 act: Optional[Callable] = torch.nn.ReLU(),
-                 concat: bool = False,
-                 dropout: float = 0.0,
-                 bias: bool = False):
+
+    def __init__(
+        self,
+        in_dim: int,
+        out_dim: int,
+        act: Optional[Callable] = torch.nn.ReLU(),
+        concat: bool = False,
+        dropout: float = 0.0,
+        bias: bool = False,
+    ):
         super().__init__(
-            self_channels=in_channels,
-            neigh_channels=in_channels,
-            out_channels=out_channels,
+            self_dim=in_dim,
+            neigh_dim=in_dim,
+            out_dim=out_dim,
             act=act,
             concat=concat,
             dropout=dropout,
-            bias=bias
+            bias=bias,
         )
 
     def aggregate(self, self_vecs: Tensor, neigh_vecs: Tensor):
         return torch.mean(neigh_vecs, dim=1)
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__}({self.self_channels}, '  # noqa
-                f'{self.out_channels}')  # noqa
+        return (
+            f"{self.__class__.__name__}({self.self_dim}, "  # noqa
+            f"{self.out_dim}"
+        )  # noqa
 
 
 class MaxPoolingAggregator(Aggregator):
     r"""Aggregate neighbor features with max-pooling operation."""
-    def __init__(self,
-                 in_channels: int,
-                 hidden_channels: int,
-                 out_channels: int,
-                 act: Optional[Callable] = torch.nn.ReLU(),
-                 concat: bool = False,
-                 dropout: float = 0.0,
-                 bias: bool = False):
+
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+        act: Optional[Callable] = torch.nn.ReLU(),
+        concat: bool = False,
+        dropout: float = 0.0,
+        bias: bool = False,
+    ):
         super().__init__(
-            self_channels=in_channels,
-            neigh_channels=hidden_channels,
-            out_channels=out_channels,
+            self_dim=in_dim,
+            neigh_dim=hidden_dim,
+            out_dim=out_dim,
             act=act,
             concat=concat,
             dropout=dropout,
-            bias=bias
+            bias=bias,
         )
 
         self.mlp = torch.nn.Sequential(
-            torch.nn.Linear(in_channels, hidden_channels),
+            torch.nn.Linear(in_dim, hidden_dim),
             torch.nn.ReLU(),
-            torch.nn.Dropout(dropout)
+            torch.nn.Dropout(dropout),
         )
 
     def aggregate(self, self_vecs: Tensor, neigh_vecs: Tensor):
@@ -206,34 +197,39 @@ class MaxPoolingAggregator(Aggregator):
         return neigh_max
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__}({self.self_channels}, {self.neigh_channels}, '  # noqa
-                f'{self.out_channels}')  # noqa
+        return (
+            f"{self.__class__.__name__}({self.self_dim}, {self.neigh_dim}, "  # noqa
+            f"{self.out_dim}"
+        )  # noqa
 
 
 class MeanPoolingAggregator(Aggregator):
     r"""Aggregate neighbor features with mean-pooling operation."""
-    def __init__(self,
-                 in_channels: int,
-                 hidden_channels: int,
-                 out_channels: int,
-                 act: Optional[Callable] = torch.nn.ReLU(),
-                 concat: bool = False,
-                 dropout: float = 0.0,
-                 bias: bool = False):
+
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+        act: Optional[Callable] = torch.nn.ReLU(),
+        concat: bool = False,
+        dropout: float = 0.0,
+        bias: bool = False,
+    ):
         super().__init__(
-            self_channels=in_channels,
-            neigh_channels=hidden_channels,
-            out_channels=out_channels,
+            self_dim=in_dim,
+            neigh_dim=hidden_dim,
+            out_dim=out_dim,
             act=act,
             concat=concat,
             dropout=dropout,
-            bias=bias
+            bias=bias,
         )
 
         self.mlp = torch.nn.Sequential(
-            torch.nn.Linear(in_channels, hidden_channels),
+            torch.nn.Linear(in_dim, hidden_dim),
             torch.nn.ReLU(),
-            torch.nn.Dropout(dropout)
+            torch.nn.Dropout(dropout),
         )
 
     def aggregate(self, self_vecs: Tensor, neigh_vecs: Tensor):
@@ -242,30 +238,35 @@ class MeanPoolingAggregator(Aggregator):
         return neigh_means
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__}({self.self_channels}, {self.neigh_channels}, '  # noqa
-                f'{self.out_channels}')  # noqa
+        return (
+            f"{self.__class__.__name__}({self.self_dim}, {self.neigh_dim}, "  # noqa
+            f"{self.out_dim}"
+        )  # noqa
 
 
 class GCNAggregator(torch.nn.Module):
     r"""Aggregate neighbor features with GCN operation."""
-    def __init__(self,
-                 in_channels: int,
-                 out_channels: int,
-                 act: Optional[Callable] = torch.nn.ReLU(),
-                 dropout: float = 0.0,
-                 bias: bool = False):
+
+    def __init__(
+        self,
+        in_dim: int,
+        out_dim: int,
+        act: Optional[Callable] = torch.nn.ReLU(),
+        dropout: float = 0.0,
+        bias: bool = False,
+    ):
         super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
+        self.in_dim = in_dim
+        self.out_dim = out_dim
         self.act = act
         self.dropout = dropout
 
-        self.weight = Parameter(torch.empty(in_channels, out_channels))
+        self.weight = Parameter(torch.empty(in_dim, out_dim))
 
         if bias:
-            self.bias = Parameter(torch.empty(out_channels))
+            self.bias = Parameter(torch.empty(out_dim))
         else:
-            self.register_parameter('bias', None)
+            self.register_parameter("bias", None)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -277,8 +278,8 @@ class GCNAggregator(torch.nn.Module):
         self_vecs = F.dropout(self_vecs, self.dropout, self.training)
         neigh_vecs = F.dropout(neigh_vecs, self.dropout, self.training)
 
-        means = torch.mean(torch.cat(
-            [self_vecs.unsqueeze(1), neigh_vecs], dim=1), dim=1
+        means = torch.mean(
+            torch.cat([self_vecs.unsqueeze(1), neigh_vecs], dim=1), dim=1
         )
         out = torch.mm(means, self.weight)
 
@@ -288,39 +289,37 @@ class GCNAggregator(torch.nn.Module):
         return self.act(out)
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__}({self.in_channels}, '
-                f'{self.out_channels}')
+        return f"{self.__class__.__name__}({self.in_dim}, " f"{self.out_dim}"
 
 
 class LSTMAggregator(Aggregator):
     r"""Aggregate neighbor features with LSTM operation."""
-    def __init__(self,
-                 in_channels: int,
-                 hidden_channels: int,
-                 out_channels: int,
-                 act: Optional[Callable] = torch.nn.ReLU(),
-                 concat: bool = False,
-                 dropout: float = 0.0,
-                 bias: bool = False):
+
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+        act: Optional[Callable] = torch.nn.ReLU(),
+        concat: bool = False,
+        dropout: float = 0.0,
+        bias: bool = False,
+    ):
         super().__init__(
-            self_channels=in_channels,
-            neigh_channels=hidden_channels,
-            out_channels=out_channels,
+            self_dim=in_dim,
+            neigh_dim=hidden_dim,
+            out_dim=out_dim,
             act=act,
             concat=concat,
             dropout=dropout,
-            bias=bias
+            bias=bias,
         )
 
-        self.rnn = torch.nn.LSTM(
-            in_channels,
-            hidden_channels,
-            batch_first=True
-        )
+        self.rnn = torch.nn.LSTM(in_dim, hidden_dim, batch_first=True)
 
     def init_state(self, batch_size):
-        hs = torch.zeros(1, batch_size, self.neigh_channels)
-        cs = torch.zeros(1, batch_size, self.neigh_channels)
+        hs = torch.zeros(1, batch_size, self.neigh_dim)
+        cs = torch.zeros(1, batch_size, self.neigh_dim)
         return (hs, cs)
 
     def aggregate(self, self_vecs: Tensor, neigh_vecs: Tensor):
@@ -330,5 +329,7 @@ class LSTMAggregator(Aggregator):
         return outputs
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__}({self.self_channels}, {self.neigh_channels}, '  # noqa
-                f'{self.out_channels}')  # noqa
+        return (
+            f"{self.__class__.__name__}({self.self_dim}, {self.neigh_dim}, "  # noqa
+            f"{self.out_dim}"
+        )  # noqa

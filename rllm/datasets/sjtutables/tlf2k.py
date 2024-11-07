@@ -50,14 +50,11 @@ class TLF2KDataset(Dataset):
             Name        Ratings     Features
             nodes       12,717      2
     """
+
     url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/main/sjtutables/TLF2K.zip"  # noqa
 
-    def __init__(
-        self,
-        cached_dir: str,
-        force_reload: Optional[bool] = False
-    ) -> None:
-        self.name = 'Table-LastFM2K'
+    def __init__(self, cached_dir: str, force_reload: Optional[bool] = False) -> None:
+        self.name = "Table-LastFM2K"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
@@ -69,20 +66,11 @@ class TLF2KDataset(Dataset):
 
     @property
     def raw_filenames(self):
-        return [
-            'artists.csv',
-            'user_artists.csv',
-            'user_friends.csv',
-            'masks.pt'
-        ]
+        return ["artists.csv", "user_artists.csv", "user_friends.csv", "masks.pt"]
 
     @property
     def processed_filenames(self):
-        return [
-            'artists_data.pt',
-            'user_artists_data.pt',
-            'user_friends_data.pt'
-        ]
+        return ["artists_data.pt", "user_artists_data.pt", "user_friends_data.pt"]
 
     def process(self):
         r"""
@@ -104,7 +92,7 @@ class TLF2KDataset(Dataset):
         }
         # Create masks
         masks_path = osp.join(self.raw_dir, self.raw_filenames[3])
-        masks = torch.load(masks_path)
+        masks = torch.load(masks_path, weights_only=False)
         TableData(
             df=artist_df,
             col_types=col_types,
@@ -134,7 +122,7 @@ class TLF2KDataset(Dataset):
 
     def download(self):
         os.makedirs(self.raw_dir, exist_ok=True)
-        path = download_url(self.url, self.raw_dir, 'TLF2K.zip')
+        path = download_url(self.url, self.raw_dir, "TLF2K.zip")
         extract_zip(path, self.raw_dir)
         os.remove(path)
 
@@ -145,3 +133,4 @@ class TLF2KDataset(Dataset):
         if index < 0 or index > self.__len__():
             raise IndexError
         return self.data_list[index]
+    
