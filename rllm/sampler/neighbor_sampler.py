@@ -7,6 +7,7 @@ from torch_sparse import SparseTensor
 
 from rllm.utils.sparse import is_torch_sparse_tensor
 
+
 class NeighborSampler(torch.utils.data.DataLoader):
     r"""The neighbor sampler from the `"Inductive Representation Learning on
     Large Graphs" <https://arxiv.org/abs/1706.02216>`_ paper, which allows
@@ -28,21 +29,26 @@ class NeighborSampler(torch.utils.data.DataLoader):
             Additional arguments of `torch.utils.data.Dataloader`,
             such as `batch_size`, `shuffle` and `num_workers`.
     """
-    def __init__(self,
-                 adj: Tensor,
-                 num_samples: List[int],
-                 node_idx: Optional[Tensor] = None,
-                 **kwargs):
+
+    def __init__(
+        self,
+        adj: Tensor,
+        num_samples: List[int],
+        node_idx: Optional[Tensor] = None,
+        **kwargs
+    ):
 
         assert is_torch_sparse_tensor(adj)
 
         adj = adj.coalesce()
         edge = adj.indices()
-        self.adj = SparseTensor(row=edge[0],
-                                col=edge[1],
-                                value=adj.indices(),
-                                sparse_sizes=adj.shape,
-                                is_sorted=True)
+        self.adj = SparseTensor(
+            row=edge[0],
+            col=edge[1],
+            value=adj.indices(),
+            sparse_sizes=adj.shape,
+            is_sorted=True,
+        )
         self.num_samples = num_samples
 
         if node_idx is None:
@@ -50,11 +56,7 @@ class NeighborSampler(torch.utils.data.DataLoader):
         elif node_idx.dtype == torch.bool:
             node_idx = node_idx.nonzero().view(-1)
 
-        super().__init__(
-            node_idx.view(-1).tolist(),
-            collate_fn=self.sample,
-            **kwargs
-        )
+        super().__init__(node_idx.view(-1).tolist(), collate_fn=self.sample, **kwargs)
 
     def sample(self, batch):
         if not isinstance(batch, Tensor):
@@ -71,6 +73,7 @@ class NeighborSampler(torch.utils.data.DataLoader):
             neighs = {k: torch.as_tensor(v) for k, v in neighs.items()}
             neighs_samples.append(neighs)
 
-        neighs_samples = neighs_samples[0] if len(neighs_samples) == 1\
-            else neighs_samples[::-1]
+        neighs_samples = (
+            neighs_samples[0] if len(neighs_samples) == 1 else neighs_samples[::-1]
+        )
         return (batch, neighs_samples)

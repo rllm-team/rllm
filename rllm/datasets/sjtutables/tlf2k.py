@@ -133,4 +133,3 @@ class TLF2KDataset(Dataset):
         if index < 0 or index > self.__len__():
             raise IndexError
         return self.data_list[index]
-    
