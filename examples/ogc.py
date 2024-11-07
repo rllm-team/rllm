@@ -40,7 +40,7 @@ args = parser.parse_args()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 
-transform = T.Compose([T.NormalizeFeatures("sum"), GT.GCNNorm()])
+transform = GT.Compose([GT.NormalizeFeatures("sum"), GT.GCNNorm()])
 
 dataset = PlanetoidDataset(path, args.dataset, transform, force_reload=True)
 data = dataset[0].to(device)
