@@ -11,6 +11,7 @@ from torch.nn import LayerNorm, Linear, ReLU, Sequential
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from typing import Any, Dict, List
 
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
@@ -18,14 +19,6 @@ from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import FTTransformerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--dataset",
-    type=str,
-    default="titanic",
-    choices=[
-        "titanic",
-    ],
-)
 parser.add_argument("--dim", help="embedding dim.", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=3)
 parser.add_argument("--batch_size", type=int, default=128)
@@ -56,14 +49,18 @@ class FTTransformer(torch.nn.Module):
         hidden_dim: int,
         output_dim: int,
         layers: int,
-        col_stats_dict: dict[ColType, list[dict[str,]]],
+        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
         self.transform = FTTransformerTransform(
             out_dim=hidden_dim,
             col_stats_dict=col_stats_dict,
         )
-        self.convs = FTTransformerConv(dim=hidden_dim, layers=layers)
+        self.convs = FTTransformerConv(
+            dim=hidden_dim,
+            layers=layers,
+            use_cls=True,
+        )
         self.fc = self.decoder = Sequential(
             LayerNorm(hidden_dim),
             ReLU(),
@@ -72,7 +69,7 @@ class FTTransformer(torch.nn.Module):
 
     def forward(self, x) -> Tensor:
         x, _ = self.transform(x)
-        x, x_cls = self.convs(x)
+        x_cls = self.convs(x)
         out = self.fc(x_cls)
         return out
 

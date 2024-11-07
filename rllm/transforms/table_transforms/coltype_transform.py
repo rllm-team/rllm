@@ -1,8 +1,7 @@
 from __future__ import annotations
 
+from typing import Dict, List
 from abc import ABC, abstractmethod
-from typing import Any
-
 import torch
 from torch import Tensor
 from torch.nn import (
@@ -15,11 +14,7 @@ from rllm.types import ColType, NAMode, StatType
 
 def _reset_parameters_soft(module: Module):
     r"""Call reset_parameters() only when it exists. Skip activation module."""
-    if hasattr(
-        module, "reset_parameters"
-    ) and callable(
-        module.reset_parameters
-    ):
+    if hasattr(module, "reset_parameters") and callable(module.reset_parameters):
         module.reset_parameters()
 
 
@@ -32,7 +27,7 @@ def _get_na_mask(tensor: Tensor) -> Tensor:
     if tensor.is_floating_point():
         na_mask = torch.isnan(tensor)
     else:
-        na_mask = (tensor == -1)
+        na_mask = tensor == -1
     return na_mask
 
 
@@ -44,7 +39,7 @@ class ColTypeTransform(Module, ABC):
 
     Args:
         out_dim (int): The output dim dimensionality
-        stats_list (list[dict[StatType, Any]]): The list
+        stats_list (List[Dict[StatType]]): The list
             of stats for each column within the same column type.
         col_type (stype): The stype of the Transform input.
         post_module (Module, optional): The post-hoc module applied to the
@@ -60,7 +55,7 @@ class ColTypeTransform(Module, ABC):
     def __init__(
         self,
         out_dim: int | None = None,
-        stats_list: list[dict[StatType, Any]] | None = None,
+        stats_list: List[Dict[StatType]] | None = None,
         col_type: ColType | None = None,
         post_module: Module | None = None,
         na_mode: NAMode | None = None,
@@ -72,22 +67,14 @@ class ColTypeTransform(Module, ABC):
         if na_mode is not None:
             if (
                 col_type == ColType.NUMERICAL
-                and na_mode not in NAMode.namode_for_col_type(
-                    ColType.NUMERICAL
-                )
+                and na_mode not in NAMode.namode_for_col_type(ColType.NUMERICAL)
             ):
-                raise ValueError(
-                    f"{na_mode} cannot be used on numerical columns."
-                )
+                raise ValueError(f"{na_mode} cannot be used on numerical columns.")
             if (
                 col_type == ColType.CATEGORICAL
-                and na_mode not in NAMode.namode_for_col_type(
-                    ColType.CATEGORICAL
-                )
+                and na_mode not in NAMode.namode_for_col_type(ColType.CATEGORICAL)
             ):
-                raise ValueError(
-                    f"{na_mode} cannot be used on categorical columns."
-                )
+                raise ValueError(f"{na_mode} cannot be used on categorical columns.")
 
         self.out_dim = out_dim
         self.stats_list = stats_list
@@ -111,7 +98,7 @@ class ColTypeTransform(Module, ABC):
     def forward(
         self,
         feat: Tensor,
-        col_names: list[str] | None = None,
+        col_names: List[str] | None = None,
     ) -> Tensor:
         if col_names is not None:
             num_cols = feat.shape[1]
@@ -134,7 +121,7 @@ class ColTypeTransform(Module, ABC):
     def encode_forward(
         self,
         feat: Tensor,
-        col_names: list[str] | None = None,
+        col_names: List[str] | None = None,
     ) -> Tensor:
         r"""The main forward function. Maps input :obj:`feat` from feat_dict
         (shape [batch_size, num_cols]) into output :obj:`x` of shape
@@ -220,5 +207,3 @@ class ColTypeTransform(Module, ABC):
         else:
             assert not (filled_values == -1).any()
         return feat
-
-

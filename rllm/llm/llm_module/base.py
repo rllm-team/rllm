@@ -14,6 +14,7 @@ from rllm.llm.types import (
 
 class BaseLLM(ABC):
     """BaseLLM interface."""
+
     @property
     @abstractmethod
     def metadata(self) -> LLMMetadata:
@@ -26,11 +27,7 @@ class BaseLLM(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def chat(
-        self,
-        messages: Sequence[ChatMessage],
-        **kwargs: Any
-    ) -> ChatResponse:
+    def chat(self, messages: Sequence[ChatMessage], **kwargs) -> ChatResponse:
         """Chat endpoint for LLM.
 
         Args:
@@ -54,7 +51,7 @@ class BaseLLM(ABC):
 
     @abstractmethod
     def complete(
-        self, prompt: str, formatted: bool = False, **kwargs: Any
+        self, prompt: str, formatted: bool = False, **kwargs
     ) -> CompletionResponse:
         """Completion endpoint for LLM.
 

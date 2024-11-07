@@ -1,15 +1,10 @@
-from typing import Any
-
 import numpy as np
 import scipy.sparse as sp
 
 import torch
 from torch import Tensor
 
-from rllm.utils.sparse import (
-    is_torch_sparse_tensor,
-    sparse_mx_to_torch_sparse_tensor
-)
+from rllm.utils.sparse import is_torch_sparse_tensor, sparse_mx_to_torch_sparse_tensor
 
 
 def remove_self_loops(adj: Tensor):
@@ -37,7 +32,7 @@ def remove_self_loops(adj: Tensor):
     return adj
 
 
-def add_remaining_self_loops(adj: Tensor, fill_value: Any = 1.):
+def add_remaining_self_loops(adj: Tensor, fill_value=1.0):
     r"""Add self-loops into the adjacency matrix.
 
     .. math::
@@ -62,10 +57,9 @@ def add_remaining_self_loops(adj: Tensor, fill_value: Any = 1.):
         loop_index = loop_index.unsqueeze(0).repeat(2, 1)
 
         indices = torch.cat([indices[:, mask], loop_index], dim=1)
-        fill_values = torch.ones_like(
-            loop_index, dtype=values.dtype,
-            device=device
-        ) * fill_value
+        fill_values = (
+            torch.ones_like(loop_index, dtype=values.dtype, device=device) * fill_value
+        )
         values = torch.cat([values[mask], fill_values], dim=0)
         return torch.sparse_coo_tensor(indices, values, shape).to(device)
 
@@ -76,10 +70,7 @@ def add_remaining_self_loops(adj: Tensor, fill_value: Any = 1.):
 
 
 def construct_graph(
-        edge_index: Tensor,
-        N: int,
-        edge_attr: Tensor = None,
-        remove_self: bool = True
+    edge_index: Tensor, N: int, edge_attr: Tensor = None, remove_self: bool = True
 ):
     r"""Convert a edge index matrix to a sparse adjacency matrix.
 
@@ -99,10 +90,7 @@ def construct_graph(
     if edge_attr is None:
         edge_attr = np.ones([edge_index.shape[1]], dtype=np.float32)
 
-    adj_sp = sp.csr_matrix(
-        (edge_attr, (edge_index[0], edge_index[1])),
-        shape=[N, N]
-    )
+    adj_sp = sp.csr_matrix((edge_attr, (edge_index[0], edge_index[1])), shape=[N, N])
     return sparse_mx_to_torch_sparse_tensor(adj_sp).to(device)
 
 
@@ -136,21 +124,17 @@ def gcn_norm(adj: Tensor):
 
         # D
         adj_data = np.ones([indices.shape[1]], dtype=np.float32)
-        adj_sp = sp.csr_matrix(
-            (adj_data, (indices[0], indices[1])),
-            shape=shape
-        )
+        adj_sp = sp.csr_matrix((adj_data, (indices[0], indices[1])), shape=shape)
 
         adj_sl_data = np.ones([indices_sl.shape[1]], dtype=np.float32)
         adj_sl_sp = sp.csr_matrix(
-            (adj_sl_data, (indices_sl[0], indices_sl[1])),
-            shape=shape
+            (adj_sl_data, (indices_sl[0], indices_sl[1])), shape=shape
         )
 
         # D-1/2
         deg = np.array(adj_sl_sp.sum(axis=1)).flatten()
         deg_sqrt_inv = np.power(deg, -0.5)
-        deg_sqrt_inv[deg_sqrt_inv == float('inf')] = 0.0
+        deg_sqrt_inv[deg_sqrt_inv == float("inf")] = 0.0
         deg_sqrt_inv = sp.diags(deg_sqrt_inv)
 
         # filters

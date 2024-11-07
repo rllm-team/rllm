@@ -8,18 +8,20 @@ from rllm.nn.encoder.coltype_encoder import CategoricalTransform, NumericalTrans
 
 
 def test_categorical_encoder():
-    df = pd.DataFrame({'cat_1': np.arange(10), 'cat_2': np.arange(10), 'cat_3': np.arange(10)})
+    df = pd.DataFrame(
+        {"cat_1": np.arange(10), "cat_2": np.arange(10), "cat_3": np.arange(10)}
+    )
     col_types = {
-        'cat_1': ColType.CATEGORICAL,
-        'cat_2': ColType.CATEGORICAL,
-        'cat_3': ColType.CATEGORICAL,
+        "cat_1": ColType.CATEGORICAL,
+        "cat_2": ColType.CATEGORICAL,
+        "cat_3": ColType.CATEGORICAL,
     }
-    dataset = TableData(df, col_types, target_col='cat_3')
+    dataset = TableData(df, col_types, target_col="cat_3")
     encoder = CategoricalTransform(
-                out_channels=4,
-                stats_list=dataset.stats_dict[ColType.CATEGORICAL],
-                na_mode=NAMode.MOST_FREQUENT,
-            )
+        out_dim=4,
+        stats_list=dataset.stats_dict[ColType.CATEGORICAL],
+        na_mode=NAMode.MOST_FREQUENT,
+    )
     encoder.post_init()
     x_cat = dataset.feat_dict()[ColType.CATEGORICAL].clone()
     x_emb = encoder(x_cat)
@@ -27,26 +29,32 @@ def test_categorical_encoder():
     assert torch.allclose(x_cat, dataset.feat_dict()[ColType.CATEGORICAL])
 
     # Perturb the first column
-    x_cat[:, 0] = (x_cat[:, 0] + 1)
+    x_cat[:, 0] = x_cat[:, 0] + 1
     x_perturbed = encoder(x_cat)
     # Make sure other column embeddings are unchanged
     assert (x_perturbed[:, 1:, :] == x_emb[:, 1:, :]).all()
 
 
 def test_numerical_encoder(type: str):
-    df = pd.DataFrame({'num_1': np.random.random(10), 'num_2': np.random.random(10), 'num_3': np.random.random(10)})
+    df = pd.DataFrame(
+        {
+            "num_1": np.random.random(10),
+            "num_2": np.random.random(10),
+            "num_3": np.random.random(10),
+        }
+    )
     col_types = {
-        'num_1': ColType.NUMERICAL,
-        'num_2': ColType.NUMERICAL,
-        'num_3': ColType.NUMERICAL,
+        "num_1": ColType.NUMERICAL,
+        "num_2": ColType.NUMERICAL,
+        "num_3": ColType.NUMERICAL,
     }
-    dataset = TableData(df, col_types, target_col='num_3')
+    dataset = TableData(df, col_types, target_col="num_3")
     encoder = NumericalTransform(
-                type=type,
-                out_channels=4,
-                stats_list=dataset.stats_dict[ColType.NUMERICAL],
-                na_mode=NAMode.MEAN,
-            )
+        type=type,
+        out_dim=4,
+        stats_list=dataset.stats_dict[ColType.NUMERICAL],
+        na_mode=NAMode.MEAN,
+    )
     encoder.post_init()
     x_num = dataset.feat_dict()[ColType.NUMERICAL].clone()
     x_emb = encoder(x_num)
@@ -54,9 +62,7 @@ def test_numerical_encoder(type: str):
     assert torch.allclose(x_num, dataset.feat_dict()[ColType.NUMERICAL])
 
     # Perturb the first column
-    x_num[:, 0] = (x_num[:, 0] + 42.0)
+    x_num[:, 0] = x_num[:, 0] + 42.0
     x_perturbed = encoder(x_num)
     # Make sure other column embeddings are unchanged
     assert (x_perturbed[:, 1:, :] == x_emb[:, 1:, :]).all()
-
-

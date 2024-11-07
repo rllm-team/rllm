@@ -7,7 +7,7 @@ from rllm.llm.parser.base import BaseOutputParser
 from rllm.llm.prompt.utils import (
     get_template_vars,
     prompt_to_messages,
-    messages_to_prompt
+    messages_to_prompt,
 )
 
 
@@ -18,13 +18,13 @@ default_messages_to_prompt = messages_to_prompt
 
 class BasePromptTemplate(ABC):
     def __init__(
-            self,
-            metadata: Dict[str, Any],
-            template_vars: List[str],
-            kwargs: Dict[str, str],
-            output_parser: Optional[BaseOutputParser] = None,
-            template_var_mappings: Optional[Dict[str, Any]] = None,
-            function_mappings: Optional[Dict[str, Callable]] = None
+        self,
+        metadata: Dict[str, Any],
+        template_vars: List[str],
+        kwargs: Dict[str, str],
+        output_parser: Optional[BaseOutputParser] = None,
+        template_var_mappings: Optional[Dict[str, Any]] = None,
+        function_mappings: Optional[Dict[str, Callable]] = None,
     ):
         self.metadata = metadata
         self.template_vars = template_vars
@@ -76,18 +76,16 @@ class BasePromptTemplate(ABC):
         return self._map_template_vars(new_kwargs)
 
     @abstractmethod
-    def partial_format(self, **kwargs: Any) -> "BasePromptTemplate":
+    def partial_format(self, **kwargs) -> "BasePromptTemplate":
         raise NotImplementedError
 
     @abstractmethod
-    def format(self, llm: Optional[BaseLLM] = None, **kwargs: Any) -> str:
+    def format(self, llm: Optional[BaseLLM] = None, **kwargs) -> str:
         raise NotImplementedError
 
     @abstractmethod
     def format_messages(
-        self,
-        llm: Optional[BaseLLM] = None,
-        **kwargs: Any
+        self, llm: Optional[BaseLLM] = None, **kwargs
     ) -> List[ChatMessage]:
         raise NotImplementedError
 
@@ -98,6 +96,7 @@ class BasePromptTemplate(ABC):
 
 class PromptTemplate(BasePromptTemplate):
     r"""Template used for completion."""
+
     def __init__(
         self,
         template: str,
@@ -105,7 +104,7 @@ class PromptTemplate(BasePromptTemplate):
         metadata: Optional[Dict[str, Any]] = None,
         template_var_mappings: Optional[Dict[str, Any]] = None,
         function_mappings: Optional[Dict[str, Callable]] = None,
-        **kwargs: Any,
+        **kwargs,
     ) -> None:
         if metadata is None:
             metadata = {}
@@ -121,7 +120,7 @@ class PromptTemplate(BasePromptTemplate):
             function_mappings=function_mappings,
         )
 
-    def partial_format(self, **kwargs: Any) -> "PromptTemplate":
+    def partial_format(self, **kwargs) -> "PromptTemplate":
         """Partially format the prompt."""
         # NOTE: this is a hack to get around deepcopy failing on output parser
         output_parser = self.output_parser
@@ -141,7 +140,7 @@ class PromptTemplate(BasePromptTemplate):
         self,
         llm: Optional[BaseLLM] = None,
         completion_to_prompt: Optional[Callable[[str], str]] = None,
-        **kwargs: Any,
+        **kwargs,
     ) -> str:
         """Format the prompt into a string."""
         del llm  # unused
@@ -162,7 +161,7 @@ class PromptTemplate(BasePromptTemplate):
         return prompt
 
     def format_messages(
-        self, llm: Optional[BaseLLM] = None, **kwargs: Any
+        self, llm: Optional[BaseLLM] = None, **kwargs
     ) -> List[ChatMessage]:
         """Format the prompt into a list of chat messages."""
         del llm  # unused
@@ -175,6 +174,7 @@ class PromptTemplate(BasePromptTemplate):
 
 class ChatPromptTemplate(BasePromptTemplate):
     r"""Template used for chat."""
+
     def __init__(
         self,
         message_templates: List[ChatMessage],
@@ -182,16 +182,14 @@ class ChatPromptTemplate(BasePromptTemplate):
         metadata: Optional[Dict[str, Any]] = None,
         template_var_mappings: Optional[Dict[str, Any]] = None,
         function_mappings: Optional[Dict[str, Callable]] = None,
-        **kwargs: Any,
+        **kwargs,
     ):
         if metadata is None:
             metadata = {}
 
         template_vars = []
         for message_template in message_templates:
-            template_vars.extend(
-                get_template_vars(message_template.content or "")
-            )
+            template_vars.extend(get_template_vars(message_template.content or ""))
 
         super().__init__(
             message_templates=message_templates,
@@ -207,7 +205,7 @@ class ChatPromptTemplate(BasePromptTemplate):
     def from_messages(
         cls,
         message_templates: Union[List[Tuple[str, str]], List[ChatMessage]],
-        **kwargs: Any,
+        **kwargs,
     ) -> "ChatPromptTemplate":
         """From messages."""
         if isinstance(message_templates[0], tuple):
@@ -217,7 +215,7 @@ class ChatPromptTemplate(BasePromptTemplate):
             ]
         return cls(message_templates=message_templates, **kwargs)
 
-    def partial_format(self, **kwargs: Any) -> "ChatPromptTemplate":
+    def partial_format(self, **kwargs) -> "ChatPromptTemplate":
         prompt = deepcopy(self)
         prompt.kwargs.update(kwargs)
         return prompt
@@ -225,10 +223,8 @@ class ChatPromptTemplate(BasePromptTemplate):
     def format(
         self,
         llm: Optional[BaseLLM] = None,
-        messages_to_prompt: Optional[
-            Callable[[Sequence[ChatMessage]], str]
-        ] = None,
-        **kwargs: Any,
+        messages_to_prompt: Optional[Callable[[Sequence[ChatMessage]], str]] = None,
+        **kwargs,
     ) -> str:
         del llm  # unused
         messages = self.format_messages(**kwargs)
@@ -239,7 +235,7 @@ class ChatPromptTemplate(BasePromptTemplate):
         return default_messages_to_prompt(messages)
 
     def format_messages(
-        self, llm: Optional[BaseLLM] = None, **kwargs: Any
+        self, llm: Optional[BaseLLM] = None, **kwargs
     ) -> List[ChatMessage]:
         del llm  # unused
         """Format the prompt into a list of chat messages."""
@@ -253,8 +249,7 @@ class ChatPromptTemplate(BasePromptTemplate):
         for message_template in self.message_templates:
             template_vars = get_template_vars(message_template.content or "")
             relevant_kwargs = {
-                k: v
-                for k, v in mapped_all_kwargs.items() if k in template_vars
+                k: v for k, v in mapped_all_kwargs.items() if k in template_vars
             }
             content_template = message_template.content or ""
 

@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from typing import Any, Dict, List
 
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
@@ -16,14 +17,6 @@ from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--dataset",
-    type=str,
-    default="titanic",
-    choices=[
-        "titanic",
-    ],
-)
 parser.add_argument("--dim", help="transform dim", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=6)
 parser.add_argument("--num_heads", type=int, default=8)
@@ -53,9 +46,9 @@ class TabTransformer(torch.nn.Module):
         self,
         hidden_dim: int,
         output_dim: int,
-        layers: int,
+        num_layers: int,
         heads: int,
-        col_stats_dict: dict[ColType, list[dict[str,]]],
+        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
         self.transform = TabTransformerTransform(
@@ -68,7 +61,7 @@ class TabTransformer(torch.nn.Module):
                     dim=hidden_dim,
                     heads=heads,
                 )
-                for _ in range(layers)
+                for _ in range(num_layers)
             ]
         )
         self.fc = torch.nn.Linear(hidden_dim, output_dim)
@@ -84,7 +77,7 @@ class TabTransformer(torch.nn.Module):
 model = TabTransformer(
     hidden_dim=args.dim,
     output_dim=dataset.num_classes,
-    layers=args.num_layers,
+    num_layers=args.num_layers,
     heads=args.num_heads,
     col_stats_dict=dataset.stats_dict,
 ).to(device)
