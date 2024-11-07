@@ -12,7 +12,7 @@ from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.types import ColType
 
 
-def get_homo_data(
+def build_homo_data(
     relation_df: pd.DataFrame,
     src_col_name: str,
     tgt_col_name: str,
@@ -105,48 +105,6 @@ def build_homo_graph(
     return graph
 
 
-class GraphEncoder(Module):
-    r"""GraphEncoder is a submodule of the BRIDGE method,
-    which mainly performs multi-layer convolution of the incoming graph.
-
-    Args:
-        in_dim (int): Size of each input sample.
-        hidden_dim (int): Size of each sample in hidden layer.
-        out_dim (int): Size of each output sample.
-        dropout (float): Dropout probability.
-        graph_conv : Using the graph convolution layer.
-        num_layers (int): The number of layers of the convolution.
-        activate (str):Activate the function.
-        **kwargs: Parameters required for different convolution layers.
-    """
-
-    def __init__(
-        self,
-        hidden_dim,
-        out_dim,
-        dropout: float = 0.5,
-        graph_conv: Type[Module] = GCNConv,
-        num_layers: int = 2,
-        **kwargs,
-    ) -> None:
-        super().__init__()
-        self.dropout = dropout
-        self.num_layers = num_layers
-        self.convs = torch.nn.ModuleList()
-        conv_args = kwargs["conv_params"] if "conv_params" in kwargs.keys() else None
-        for _ in range(num_layers):
-            self.convs.append(graph_conv(hidden_dim, hidden_dim, conv_args))
-        self.convs.append(graph_conv(hidden_dim, out_dim, conv_args))
-
-    def forward(self, x, adj):
-        for layer in range(self.num_layers - 1):
-            x = F.dropout(x, p=self.dropout, training=self.training)
-            x = F.relu(self.convs[layer](x, adj))
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.convs[-1](x, adj)
-        return x
-
-
 class TableEncoder(Module):
     r"""TableEncoder is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming table.
@@ -158,20 +116,17 @@ class TableEncoder(Module):
         table_transorm: The transform method of the table.
         table_conv: Using the table convolution layer.
         num_layers (int): The number of layers of the convolution.
-        **kwargs: Parameters required for different convolution layers.
     """
 
     def __init__(
         self,
         hidden_dim,
         stats_dict: Dict[ColType, List[Dict[str, Any]]],
+        num_layers: int = 1,
         table_transorm: Type[Module] = FTTransformerTransform,
         table_conv: Type[Module] = TabTransformerConv,
-        num_layers: int = 1,
-        **kwargs,
     ) -> None:
         super().__init__()
-        self.num_layers = num_layers
 
         self.table_transform = table_transorm(
             out_dim=hidden_dim,
@@ -179,13 +134,50 @@ class TableEncoder(Module):
         )
 
         self.convs = torch.nn.ModuleList()
-        for _ in range(self.num_layers):
+        for _ in range(num_layers):
             self.convs.append(table_conv(dim=hidden_dim))
 
     def forward(self, table):
         feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
-        x, _ = self.table_transform(feat_dict)
+        x = self.table_transform(feat_dict)
         for table_conv in self.convs:
             x = table_conv(x)
         x = x.mean(dim=1)
+        return x
+
+
+class GraphEncoder(Module):
+    r"""GraphEncoder is a submodule of the BRIDGE method,
+    which mainly performs multi-layer convolution of the incoming graph.
+
+    Args:
+        hidden_dim (int): Size of each sample in hidden layer.
+        out_dim (int): Size of each output sample.
+        dropout (float): Dropout probability.
+        num_layers (int): The number of layers of the convolution.
+        graph_conv : Using the graph convolution layer.
+    """
+
+    def __init__(
+        self,
+        hidden_dim,
+        out_dim,
+        dropout: float = 0.5,
+        num_layers: int = 2,
+        graph_conv: Type[Module] = GCNConv,
+    ) -> None:
+        super().__init__()
+        self.dropout = dropout
+        self.convs = torch.nn.ModuleList()
+
+        for _ in range(num_layers):
+            self.convs.append(graph_conv(hidden_dim, hidden_dim))
+        self.convs.append(graph_conv(hidden_dim, out_dim))
+
+    def forward(self, x, adj):
+        for graph_conv in self.convs[:-1]:
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x = F.relu(graph_conv(x, adj))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.convs[-1](x, adj)
         return x

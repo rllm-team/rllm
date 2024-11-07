@@ -68,7 +68,7 @@ class FTTransformer(torch.nn.Module):
         )
 
     def forward(self, x) -> Tensor:
-        x, _ = self.transform(x)
+        x = self.transform(x)
         x_cls = self.convs(x)
         out = self.fc(x_cls)
         return out
