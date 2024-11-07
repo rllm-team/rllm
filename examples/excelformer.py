@@ -11,6 +11,7 @@ from torch.nn import LayerNorm, Linear, ReLU, Sequential
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from typing import Any, Dict, List
 
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
@@ -67,7 +68,7 @@ class ExcelFormer(torch.nn.Module):
         )
 
     def forward(self, x) -> Tensor:
-        x, _ = self.transform(x)
+        x = self.transform(x)
         for excel_former_conv in self.convs:
             x = excel_former_conv(x)
         out = self.fc(x.mean(dim=1))

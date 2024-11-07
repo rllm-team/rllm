@@ -18,7 +18,7 @@ import torch.nn.functional as F
 
 import rllm.transforms.graph_transforms as GT
 from rllm.datasets import TML1MDataset
-from utils import get_homo_data, build_homo_graph, GraphEncoder, TableEncoder
+from utils import build_homo_data, build_homo_graph, GraphEncoder, TableEncoder
 
 
 parser = argparse.ArgumentParser()
@@ -42,7 +42,7 @@ dataset = TML1MDataset(cached_dir=path, force_reload=True)
 user_size = len(user_table)
 emb_size = movie_embeddings.size(1)
 
-x, ordered_rating = get_homo_data(
+x, ordered_rating = build_homo_data(
     relation_df=rating_table.df,
     src_col_name="UserID",
     tgt_col_name="MovieID",

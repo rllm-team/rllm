@@ -18,7 +18,7 @@ import torch.nn.functional as F
 
 import rllm.transforms.graph_transforms as GT
 from rllm.datasets import TLF2KDataset
-from utils import get_homo_data, build_homo_graph, GraphEncoder, TableEncoder
+from utils import build_homo_data, build_homo_graph, GraphEncoder, TableEncoder
 
 
 parser = argparse.ArgumentParser()
@@ -38,7 +38,7 @@ artist_size = len(artist_table)
 user_size = ua_table.df["userID"].max()
 emb_size = 384
 
-x, ordered_ua = get_homo_data(
+x, ordered_ua = build_homo_data(
     relation_df=ua_table.df,
     src_col_name="artistID",
     tgt_col_name="userID",
