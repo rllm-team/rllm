@@ -170,7 +170,7 @@ class GraphEncoder(Module):
         self.dropout = dropout
         self.convs = torch.nn.ModuleList()
 
-        for _ in range(num_layers):
+        for _ in range(num_layers - 1):
             self.convs.append(graph_conv(hidden_dim, hidden_dim))
         self.convs.append(graph_conv(hidden_dim, out_dim))
 
