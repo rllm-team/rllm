@@ -119,11 +119,11 @@ def test_epoch():
 
 
 t_encoder = TableEncoder(
-    hidden_dim=graph.x.size(1),
+    out_dim=graph.x.size(1),
     stats_dict=user_table.stats_dict,
 )
 g_encoder = GraphEncoder(
-    hidden_dim=graph.x.size(1),
+    in_dim=graph.x.size(1),
     out_dim=output_dim,
 )
 model = Bridge(

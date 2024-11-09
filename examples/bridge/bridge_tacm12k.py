@@ -2,7 +2,7 @@
 # ArXiv: https://arxiv.org/abs/2407.20157
 
 # Datasets  TACM12K
-# Acc       0.324
+# Acc       0.309
 
 import time
 import argparse
@@ -113,11 +113,11 @@ def test_epoch():
 
 
 t_encoder = TableEncoder(
-    hidden_dim=graph.x.size(1),
+    out_dim=graph.x.size(1),
     stats_dict=papers_table.stats_dict,
 )
 g_encoder = GraphEncoder(
-    hidden_dim=graph.x.size(1),
+    in_dim=graph.x.size(1),
     out_dim=output_dim,
 )
 model = Bridge(
