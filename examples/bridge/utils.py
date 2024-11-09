@@ -120,7 +120,7 @@ class TableEncoder(Module):
 
     def __init__(
         self,
-        hidden_dim,
+        out_dim,
         stats_dict: Dict[ColType, List[Dict[str, Any]]],
         num_layers: int = 1,
         table_transorm: Type[Module] = FTTransformerTransform,
@@ -129,13 +129,13 @@ class TableEncoder(Module):
         super().__init__()
 
         self.table_transform = table_transorm(
-            out_dim=hidden_dim,
+            out_dim=out_dim,
             col_stats_dict=stats_dict,
         )
 
         self.convs = torch.nn.ModuleList()
         for _ in range(num_layers):
-            self.convs.append(table_conv(dim=hidden_dim))
+            self.convs.append(table_conv(dim=out_dim))
 
     def forward(self, table):
         feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
@@ -160,7 +160,7 @@ class GraphEncoder(Module):
 
     def __init__(
         self,
-        hidden_dim,
+        in_dim,
         out_dim,
         dropout: float = 0.5,
         num_layers: int = 2,
@@ -171,8 +171,8 @@ class GraphEncoder(Module):
         self.convs = torch.nn.ModuleList()
 
         for _ in range(num_layers - 1):
-            self.convs.append(graph_conv(hidden_dim, hidden_dim))
-        self.convs.append(graph_conv(hidden_dim, out_dim))
+            self.convs.append(graph_conv(in_dim, in_dim))
+        self.convs.append(graph_conv(in_dim, out_dim))
 
     def forward(self, x, adj):
         for graph_conv in self.convs[:-1]:
