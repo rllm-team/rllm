@@ -405,7 +405,7 @@ class TabNet(torch.nn.Module):
 
     def __init__(
         self,
-        output_dim: int,
+        out_dim: int,
         n_d: int = 8,
         n_a: int = 8,
         n_steps: int = 3,
@@ -423,7 +423,7 @@ class TabNet(torch.nn.Module):
         super().__init__()
         self.cat_emb_dim = cat_emb_dim
         self.num_emb_dim = cat_emb_dim
-        self.output_dim = output_dim
+        self.out_dim = out_dim
         self.n_d = n_d
         self.n_a = n_a
         self.n_steps = n_steps
@@ -464,7 +464,7 @@ class TabNet(torch.nn.Module):
         # Initialize TabNet network
         self.tabnet = TabNetNoEmbeddings(
             self.post_embed_dim,
-            output_dim,
+            out_dim,
             n_d,
             n_a,
             n_steps,

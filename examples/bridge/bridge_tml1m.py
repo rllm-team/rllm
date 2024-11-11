@@ -64,7 +64,7 @@ train_mask, val_mask, test_mask = (
     user_table.val_mask,
     user_table.test_mask,
 )
-output_dim = user_table.num_classes
+out_dim = user_table.num_classes
 
 
 class Bridge(torch.nn.Module):
@@ -124,7 +124,7 @@ t_encoder = TableEncoder(
 )
 g_encoder = GraphEncoder(
     in_dim=graph.x.size(1),
-    out_dim=output_dim,
+    out_dim=out_dim,
 )
 model = Bridge(
     table_encoder=t_encoder,
