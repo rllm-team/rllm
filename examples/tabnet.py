@@ -46,7 +46,7 @@ class TabNetModel(torch.nn.Module):
     def __init__(
         self,
         hidden_dim: int,
-        output_dim: int,
+        out_dim: int,
         col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
@@ -55,7 +55,7 @@ class TabNetModel(torch.nn.Module):
             col_stats_dict=col_stats_dict,
         )
         self.backbone = TabNet(
-            output_dim=output_dim,  # dataset.num_classes,
+            out_dim=out_dim,  # dataset.num_classes,
             cat_emb_dim=hidden_dim,  # args.dim,
             num_emb_dim=hidden_dim,  # args.dim,
             col_stats_dict=dataset.stats_dict,
@@ -68,7 +68,7 @@ class TabNetModel(torch.nn.Module):
 
 
 model = TabNetModel(
-    output_dim=dataset.num_classes,
+    out_dim=dataset.num_classes,
     hidden_dim=args.dim,
     col_stats_dict=dataset.stats_dict,
 ).to(device)

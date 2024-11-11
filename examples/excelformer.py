@@ -49,7 +49,7 @@ class ExcelFormer(torch.nn.Module):
     def __init__(
         self,
         hidden_dim: int,
-        output_dim: int,
+        out_dim: int,
         num_layers: int,
         col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
     ):
@@ -64,7 +64,7 @@ class ExcelFormer(torch.nn.Module):
         self.fc = self.decoder = Sequential(
             LayerNorm(hidden_dim),
             ReLU(),
-            Linear(hidden_dim, output_dim),
+            Linear(hidden_dim, out_dim),
         )
 
     def forward(self, x) -> Tensor:
@@ -77,7 +77,7 @@ class ExcelFormer(torch.nn.Module):
 
 model = ExcelFormer(
     hidden_dim=args.dim,
-    output_dim=dataset.num_classes,
+    out_dim=dataset.num_classes,
     num_layers=args.num_layers,
     col_stats_dict=dataset.stats_dict,
 ).to(device)
