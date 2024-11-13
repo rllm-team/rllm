@@ -6,7 +6,7 @@ from torch import Tensor
 from torch.nn import Module
 
 from rllm.data import GraphData
-from rllm.nn.conv.graph_conv.gcn_conv import GCNConv
+from rllm.nn.conv.graph_conv import GCNConv
 from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.types import ColType
