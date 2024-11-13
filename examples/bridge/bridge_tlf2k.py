@@ -18,9 +18,7 @@ import torch.nn.functional as F
 
 import rllm.transforms.graph_transforms as GT
 from rllm.datasets import TLF2KDataset
-from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.conv.graph_conv import GCNConv
-from utils import build_homo_data, build_homo_graph, GraphEncoder, TableEncoder
+from utils import reorder_ids, build_homo_adj, GraphEncoder, TableEncoder
 
 
 parser = argparse.ArgumentParser()
@@ -40,22 +38,21 @@ artist_size = len(artist_table)
 user_size = ua_table.df["userID"].max()
 emb_size = 384
 
-x, ordered_ua = build_homo_data(
+ordered_ua = reorder_ids(
     relation_df=ua_table.df,
     src_col_name="artistID",
     tgt_col_name="userID",
-    src_emb=torch.randn(artist_size, emb_size),
-    tgt_emb=torch.randn(user_size, emb_size),
+    n_src=artist_size,
 )
 
-graph = build_homo_graph(
+adj = build_homo_adj(
     relation_df=ordered_ua,
-    x=x,
+    n_all=artist_size+user_size,
     transform=GT.GCNNorm(),
-)
-graph.y = artist_table.y.long()
-graph.target_table = artist_table
-graph = graph.to(device)
+).to(device)
+target_table = artist_table.to(device)
+y = artist_table.y.long().to(device)
+user_embeddings = torch.randn((user_size, emb_size)).to(device)
 
 train_mask, val_mask, test_mask = (
     artist_table.train_mask,
@@ -75,11 +72,11 @@ class Bridge(torch.nn.Module):
         self.table_encoder = table_encoder
         self.graph_encoder = graph_encoder
 
-    def forward(self, target_table, x, adj):
-        target_emb = self.table_encoder(target_table)
-        x = torch.cat([target_emb, x[len(target_table) :, :]], dim=0)
-        x = self.graph_encoder(x, adj)
-        return x[: len(target_table), :]
+    def forward(self, table, non_table, adj):
+        t_embedds = self.table_encoder(table)
+        node_feats = torch.cat([t_embedds, non_table], dim=0)
+        node_feats = self.graph_encoder(node_feats, adj)
+        return node_feats[: len(table), :]
 
 
 def accuracy_score(preds, truth):
@@ -90,11 +87,11 @@ def train_epoch() -> float:
     model.train()
     optimizer.zero_grad()
     logits = model(
-        target_table=graph.target_table,
-        x=graph.x,
-        adj=graph.adj,
+        table=target_table,
+        non_table=user_embeddings,
+        adj=adj,
     )
-    loss = F.cross_entropy(logits[train_mask].squeeze(), graph.y[train_mask])
+    loss = F.cross_entropy(logits[train_mask].squeeze(), y[train_mask])
     loss.backward()
     optimizer.step()
     return loss.item()
@@ -104,12 +101,11 @@ def train_epoch() -> float:
 def test_epoch():
     model.eval()
     logits = model(
-        target_table=graph.target_table,
-        x=graph.x,
-        adj=graph.adj,
+        table=target_table,
+        non_table=user_embeddings,
+        adj=adj,
     )
     preds = logits.argmax(dim=1)
-    y = graph.y
     train_acc = accuracy_score(preds[train_mask], y[train_mask])
     val_acc = accuracy_score(preds[val_mask], y[val_mask])
     test_acc = accuracy_score(preds[test_mask], y[test_mask])
@@ -117,14 +113,12 @@ def test_epoch():
 
 
 t_encoder = TableEncoder(
-    out_dim=graph.x.size(1),
+    out_dim=emb_size,
     stats_dict=artist_table.stats_dict,
-    table_conv=TabTransformerConv,
 )
 g_encoder = GraphEncoder(
-    in_dim=graph.x.size(1),
+    in_dim=emb_size,
     out_dim=out_dim,
-    graph_conv=GCNConv,
 )
 model = Bridge(
     table_encoder=t_encoder,
