@@ -9,15 +9,17 @@ import argparse
 import os.path as osp
 import sys
 
+
 sys.path.append("./")
 sys.path.append("../")
 sys.path.append("../../")
 
 import torch
 import torch.nn.functional as F
-
 import rllm.transforms.graph_transforms as GT
 from rllm.datasets import TML1MDataset
+from rllm.nn.conv.table_conv import TabTransformerConv
+from rllm.nn.conv.graph_conv import GCNConv
 from utils import build_homo_data, build_homo_graph, GraphEncoder, TableEncoder
 
 
@@ -121,10 +123,12 @@ def test_epoch():
 t_encoder = TableEncoder(
     out_dim=graph.x.size(1),
     stats_dict=user_table.stats_dict,
+    table_conv=TabTransformerConv,
 )
 g_encoder = GraphEncoder(
     in_dim=graph.x.size(1),
     out_dim=out_dim,
+    graph_conv=GCNConv,
 )
 model = Bridge(
     table_encoder=t_encoder,
