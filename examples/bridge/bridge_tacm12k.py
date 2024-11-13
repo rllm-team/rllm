@@ -9,15 +9,17 @@ import argparse
 import os.path as osp
 import sys
 
+
 sys.path.append("./")
 sys.path.append("../")
 sys.path.append("../../")
 
 import torch
 import torch.nn.functional as F
-
 import rllm.transforms.graph_transforms as GT
 from rllm.datasets import TACM12KDataset
+from rllm.nn.conv.graph_conv import GCNConv
+from rllm.nn.conv.table_conv import TabTransformerConv
 from utils import build_homo_adj, TableEncoder, GraphEncoder
 
 
@@ -88,7 +90,7 @@ def train_epoch() -> float:
     optimizer.zero_grad()
     logits = model(
         table=target_table,
-        non_table = paper_embeddings[len(target_table) :, :],
+        non_table=paper_embeddings[len(target_table) :, :],
         adj=adj,
     )
     loss = F.cross_entropy(logits[train_mask].squeeze(), y[train_mask])
@@ -102,7 +104,7 @@ def test_epoch():
     model.eval()
     logits = model(
         table=target_table,
-        non_table = paper_embeddings[len(target_table) :, :],
+        non_table=paper_embeddings[len(target_table) :, :],
         adj=adj,
     )
     preds = logits.argmax(dim=1)
@@ -115,10 +117,12 @@ def test_epoch():
 t_encoder = TableEncoder(
     out_dim=paper_embeddings.size(1),
     stats_dict=papers_table.stats_dict,
+    table_conv=TabTransformerConv,
 )
 g_encoder = GraphEncoder(
     in_dim=paper_embeddings.size(1),
     out_dim=out_dim,
+    graph_conv=GCNConv,
 )
 model = Bridge(
     table_encoder=t_encoder,
