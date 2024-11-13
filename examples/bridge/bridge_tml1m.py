@@ -18,6 +18,8 @@ import torch
 import torch.nn.functional as F
 import rllm.transforms.graph_transforms as GT
 from rllm.datasets import TML1MDataset
+from rllm.nn.conv.graph_conv import GCNConv
+from rllm.nn.conv.table_conv import TabTransformerConv
 from utils import reorder_ids, build_homo_adj, GraphEncoder, TableEncoder
 
 
@@ -119,10 +121,12 @@ def test_epoch():
 t_encoder = TableEncoder(
     out_dim=emb_size,
     stats_dict=user_table.stats_dict,
+    table_conv=TabTransformerConv,
 )
 g_encoder = GraphEncoder(
     in_dim=emb_size,
     out_dim=out_dim,
+    graph_conv=GCNConv,
 )
 model = Bridge(
     table_encoder=t_encoder,
