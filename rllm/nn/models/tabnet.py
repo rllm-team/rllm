@@ -8,12 +8,12 @@ import torch.nn.functional as F
 from rllm.types import ColType
 
 
-def check_list_groups(list_groups, input_dim):
+def check_list_groups(list_groups, in_dim):
     """
     Check that list groups:
         - is a list of list
         - does not contain twice the same feature in different groups
-        - does not contain unknown features (>= input_dim)
+        - does not contain unknown features (>= in_dim)
         - does not contain empty groups
     """
     assert isinstance(list_groups, list), "list_groups must be a list of list."
@@ -39,26 +39,26 @@ def check_list_groups(list_groups, input_dim):
 
     highest_feat = np.max(unique_elements)
     assert (
-        highest_feat < input_dim
-    ), f"Number of features is {input_dim} but one group contains {highest_feat}."  # noqa
+        highest_feat < in_dim
+    ), f"Number of features is {in_dim} but one group contains {highest_feat}."  # noqa
     return
 
 
-def create_group_matrix(list_groups, input_dim):
+def create_group_matrix(list_groups, in_dim):
     """
     Create the group matrix corresponding to the given list_groups
 
     """
-    check_list_groups(list_groups, input_dim)
+    check_list_groups(list_groups, in_dim)
 
     if len(list_groups) == 0:
-        group_matrix = torch.eye(input_dim)
+        group_matrix = torch.eye(in_dim)
         return group_matrix
     else:
-        n_groups = input_dim - int(np.sum([len(gp) - 1 for gp in list_groups]))
-        group_matrix = torch.zeros((n_groups, input_dim))
+        n_groups = in_dim - int(np.sum([len(gp) - 1 for gp in list_groups]))
+        group_matrix = torch.zeros((n_groups, in_dim))
 
-        remaining_features = [feat_idx for feat_idx in range(input_dim)]
+        remaining_features = [feat_idx for feat_idx in range(in_dim)]
 
         current_group_idx = 0
         for group in list_groups:
@@ -80,10 +80,10 @@ def create_group_matrix(list_groups, input_dim):
 
 
 def create_emb_group_matrix(
-    group_matrix, cat_idxs, input_dim, cat_emb_dim, post_embed_dim
+    group_matrix, cat_idxs, in_dim, cat_emb_dim, post_embed_dim
 ):
     # record continuous indices
-    continuous_idx = torch.ones(input_dim, dtype=torch.bool)
+    continuous_idx = torch.ones(in_dim, dtype=torch.bool)
     continuous_idx[cat_idxs] = 0
 
     # update group matrix
@@ -93,7 +93,7 @@ def create_emb_group_matrix(
     )
     for group_idx in range(n_groups):
         post_emb_idx = 0
-        for init_feat_idx in range(input_dim):
+        for init_feat_idx in range(in_dim):
             if continuous_idx[init_feat_idx] == 1:
                 # this means that no embedding is applied to this column
                 embedding_group_matrix[group_idx, post_emb_idx] = group_matrix[
@@ -112,15 +112,15 @@ def create_emb_group_matrix(
     return embedding_group_matrix
 
 
-def initialize_non_glu(module, input_dim, output_dim):
-    gain_value = np.sqrt((input_dim + output_dim) / np.sqrt(4 * input_dim))
+def initialize_non_glu(module, in_dim, out_dim):
+    gain_value = np.sqrt((in_dim + out_dim) / np.sqrt(4 * in_dim))
     torch.nn.init.xavier_normal_(module.weight, gain=gain_value)
     # torch.nn.init.zeros_(module.bias)
     return
 
 
-def initialize_glu(module, input_dim, output_dim):
-    gain_value = np.sqrt((input_dim + output_dim) / np.sqrt(input_dim))
+def initialize_glu(module, in_dim, out_dim):
+    gain_value = np.sqrt((in_dim + out_dim) / np.sqrt(in_dim))
     torch.nn.init.xavier_normal_(module.weight, gain=gain_value)
     # torch.nn.init.zeros_(module.bias)
     return
@@ -133,12 +133,12 @@ class GBN(torch.nn.Module):
     <https://arxiv.org/abs/1705.08741>`_ paper
     """
 
-    def __init__(self, input_dim, virtual_batch_size=128, momentum=0.01):
+    def __init__(self, in_dim, virtual_batch_size=128, momentum=0.01):
         super().__init__()
 
-        self.input_dim = input_dim
+        self.in_dim = in_dim
         self.virtual_batch_size = virtual_batch_size
-        self.bn = BatchNorm1d(self.input_dim, momentum=momentum)
+        self.bn = BatchNorm1d(self.in_dim, momentum=momentum)
 
     def forward(self, x):
         chunks = x.chunk(int(np.ceil(x.shape[0] / self.virtual_batch_size)), 0)
@@ -152,8 +152,8 @@ class TabNetEncoder(torch.nn.Module):
 
     def __init__(
         self,
-        input_dim,
-        output_dim,
+        in_dim,
+        out_dim,
         n_d=8,
         n_a=8,
         n_steps=3,
@@ -166,9 +166,9 @@ class TabNetEncoder(torch.nn.Module):
         group_attention_matrix=None,
     ):
         super().__init__()
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.is_multi_task = isinstance(output_dim, list)
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.is_multi_task = isinstance(out_dim, list)
         self.n_d = n_d
         self.n_a = n_a
         self.n_steps = n_steps
@@ -177,13 +177,13 @@ class TabNetEncoder(torch.nn.Module):
         self.n_independent = n_independent
         self.n_shared = n_shared
         self.virtual_batch_size = virtual_batch_size
-        self.initial_bn = BatchNorm1d(self.input_dim, momentum=0.01)
+        self.initial_bn = BatchNorm1d(self.in_dim, momentum=0.01)
         self.group_attention_matrix = group_attention_matrix
 
         if self.group_attention_matrix is None:
             # no groups
-            self.group_attention_matrix = torch.eye(self.input_dim)
-            self.attention_dim = self.input_dim
+            self.group_attention_matrix = torch.eye(self.in_dim)
+            self.attention_dim = self.in_dim
         else:
             self.attention_dim = self.group_attention_matrix.shape[0]
 
@@ -192,7 +192,7 @@ class TabNetEncoder(torch.nn.Module):
             for i in range(self.n_shared):
                 if i == 0:
                     shared_feat_transform.append(
-                        Linear(self.input_dim, 2 * (n_d + n_a), bias=False)
+                        Linear(self.in_dim, 2 * (n_d + n_a), bias=False)
                     )
                 else:
                     shared_feat_transform.append(
@@ -203,7 +203,7 @@ class TabNetEncoder(torch.nn.Module):
             shared_feat_transform = None
 
         self.initial_splitter = FeatTransformer(
-            self.input_dim,
+            self.in_dim,
             n_d + n_a,
             shared_feat_transform,
             n_glu_independent=self.n_independent,
@@ -216,7 +216,7 @@ class TabNetEncoder(torch.nn.Module):
 
         for _ in range(n_steps):
             transformer = FeatTransformer(
-                self.input_dim,
+                self.in_dim,
                 n_d + n_a,
                 shared_feat_transform,
                 n_glu_independent=self.n_independent,
@@ -293,8 +293,8 @@ class TabNetNoEmbeddings(torch.nn.Module):
 
     def __init__(
         self,
-        input_dim,
-        output_dim,
+        in_dim,
+        out_dim,
         n_d=8,
         n_a=8,
         n_steps=3,
@@ -307,9 +307,9 @@ class TabNetNoEmbeddings(torch.nn.Module):
         group_attention_matrix=None,
     ):
         super().__init__()
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.is_multi_task = isinstance(output_dim, list)
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.is_multi_task = isinstance(out_dim, list)
         self.n_d = n_d
         self.n_a = n_a
         self.n_steps = n_steps
@@ -318,11 +318,11 @@ class TabNetNoEmbeddings(torch.nn.Module):
         self.n_independent = n_independent
         self.n_shared = n_shared
         self.virtual_batch_size = virtual_batch_size
-        self.initial_bn = BatchNorm1d(self.input_dim, momentum=0.01)
+        self.initial_bn = BatchNorm1d(self.in_dim, momentum=0.01)
 
         self.encoder = TabNetEncoder(
-            input_dim=input_dim,
-            output_dim=output_dim,
+            in_dim=in_dim,
+            out_dim=out_dim,
             n_d=n_d,
             n_a=n_a,
             n_steps=n_steps,
@@ -337,13 +337,13 @@ class TabNetNoEmbeddings(torch.nn.Module):
 
         if self.is_multi_task:
             self.multi_task_mappings = torch.nn.ModuleList()
-            for task_dim in output_dim:
+            for task_dim in out_dim:
                 task_mapping = Linear(n_d, task_dim, bias=False)
                 initialize_non_glu(task_mapping, n_d, task_dim)
                 self.multi_task_mappings.append(task_mapping)
         else:
-            self.final_mapping = Linear(n_d, output_dim, bias=False)
-            initialize_non_glu(self.final_mapping, n_d, output_dim)
+            self.final_mapping = Linear(n_d, out_dim, bias=False)
+            initialize_non_glu(self.final_mapping, n_d, out_dim)
 
     def forward(self, x):
         res = 0
@@ -369,7 +369,7 @@ class TabNet(torch.nn.Module):
     <https://arxiv.org/abs/1908.07442>`_ paper.
 
     Args:
-        output_dim (int): Dimension of network output.
+        out_dim (int): Dimension of network output.
             1 for regression, 2 for binary classification etc...
         n_d (int):
             Dimension of the prediction  layer (usually between 4 and 64).
@@ -399,7 +399,7 @@ class TabNet(torch.nn.Module):
         mask_type (str):
             Either "sparsemax" or "entmax" : this is masking function to use
         group_attention_matrix (Tensor):
-            Matrix of size (n_groups, input_dim),
+            Matrix of size (n_groups, in_dim),
             m_ij = importance within group i of feature j
     """
 
@@ -434,7 +434,7 @@ class TabNet(torch.nn.Module):
         self.grouped_features = grouped_features
         self.col_stats_dict = col_stats_dict
         self.cat_idxs = [i for i in range(len(col_stats_dict[ColType.CATEGORICAL]))]
-        self.input_dim = (
+        self.in_dim = (
             len(self.col_stats_dict[ColType.CATEGORICAL])
             if ColType.NUMERICAL not in self.col_stats_dict.keys()
             else len(self.col_stats_dict[ColType.CATEGORICAL])
@@ -447,9 +447,7 @@ class TabNet(torch.nn.Module):
         self.virtual_batch_size = virtual_batch_size
 
         # Initialize group_matrix and emb_group_matrix
-        group_attention_matrix = create_group_matrix(
-            self.grouped_features, self.input_dim
-        )
+        group_attention_matrix = create_group_matrix(self.grouped_features, self.in_dim)
         self.post_embed_dim = (
             len(self.col_stats_dict[ColType.NUMERICAL]) * num_emb_dim
             + len(self.col_stats_dict[ColType.CATEGORICAL]) * cat_emb_dim
@@ -457,7 +455,7 @@ class TabNet(torch.nn.Module):
         emb_group_matrix = create_emb_group_matrix(
             group_attention_matrix,
             self.cat_idxs,
-            self.input_dim,
+            self.in_dim,
             self.cat_emb_dim,
             self.post_embed_dim,
         )
@@ -488,7 +486,7 @@ class AttentiveTransformer(torch.nn.Module):
     r"""Initialize an attention transformer.
 
     Args:
-        input_dim (int): Input size.
+        in_dim (int): Input size.
         group_dim (int): Number of groups for features.
         virtual_batch_size (int): Batch size for Ghost Batch Normalization.
         momentum (float):
@@ -500,14 +498,14 @@ class AttentiveTransformer(torch.nn.Module):
 
     def __init__(
         self,
-        input_dim,
+        in_dim,
         group_dim,
         virtual_batch_size=128,
         momentum=0.02,
     ):
         super().__init__()
-        self.fc = Linear(input_dim, group_dim, bias=False)
-        initialize_non_glu(self.fc, input_dim, group_dim)
+        self.fc = Linear(in_dim, group_dim, bias=False)
+        initialize_non_glu(self.fc, in_dim, group_dim)
         self.bn = GBN(
             group_dim, virtual_batch_size=virtual_batch_size, momentum=momentum
         )
@@ -525,8 +523,8 @@ class FeatTransformer(torch.nn.Module):
     r"""Initialize a feature transformer.
 
     Args:
-        input_dim (int): Input dimensonality.
-        output_dim (int): Output dimensonality.
+        in_dim (int): Input dimensonality.
+        out_dim (int): Output dimensonality.
         shared_layers (:class:`torch.nn.ModuleList`):
             The shared block that should be common to every step
         n_glu_independent (int): Number of independent GLU layers
@@ -538,8 +536,8 @@ class FeatTransformer(torch.nn.Module):
 
     def __init__(
         self,
-        input_dim,
-        output_dim,
+        in_dim,
+        out_dim,
         shared_layers,
         n_glu_independent,
         virtual_batch_size=128,
@@ -559,8 +557,8 @@ class FeatTransformer(torch.nn.Module):
             is_first = True
         else:
             self.shared = GLU_Block(
-                input_dim,
-                output_dim,
+                in_dim,
+                out_dim,
                 first=True,
                 shared_layers=shared_layers,
                 n_glu=len(shared_layers),
@@ -573,10 +571,8 @@ class FeatTransformer(torch.nn.Module):
             # no independent layers
             self.specifics = torch.nn.Identity()
         else:
-            spec_input_dim = input_dim if is_first else output_dim
-            self.specifics = GLU_Block(
-                spec_input_dim, output_dim, first=is_first, **params
-            )
+            spec_in_dim = in_dim if is_first else out_dim
+            self.specifics = GLU_Block(spec_in_dim, out_dim, first=is_first, **params)
 
     def forward(self, x):
         x = self.shared(x)
@@ -591,8 +587,8 @@ class GLU_Block(torch.nn.Module):
 
     def __init__(
         self,
-        input_dim,
-        output_dim,
+        in_dim,
+        out_dim,
         n_glu=2,
         first=False,
         shared_layers=None,
@@ -608,10 +604,10 @@ class GLU_Block(torch.nn.Module):
         params = {"virtual_batch_size": virtual_batch_size, "momentum": momentum}
 
         fc = shared_layers[0] if shared_layers else None
-        self.glu_layers.append(GLU_Layer(input_dim, output_dim, fc=fc, **params))
+        self.glu_layers.append(GLU_Layer(in_dim, out_dim, fc=fc, **params))
         for glu_id in range(1, self.n_glu):
             fc = shared_layers[glu_id] if shared_layers else None
-            self.glu_layers.append(GLU_Layer(output_dim, output_dim, fc=fc, **params))
+            self.glu_layers.append(GLU_Layer(out_dim, out_dim, fc=fc, **params))
 
     def forward(self, x):
         scale = torch.sqrt(torch.FloatTensor([0.5]).to(x.device))
@@ -630,27 +626,27 @@ class GLU_Block(torch.nn.Module):
 class GLU_Layer(torch.nn.Module):
     def __init__(
         self,
-        input_dim,
-        output_dim,
+        in_dim,
+        out_dim,
         fc=None,
         virtual_batch_size=128,
         momentum=0.02,
     ):
         super().__init__()
 
-        self.output_dim = output_dim
+        self.out_dim = out_dim
         if fc:
             self.fc = fc
         else:
-            self.fc = Linear(input_dim, 2 * output_dim, bias=False)
-        initialize_glu(self.fc, input_dim, 2 * output_dim)
+            self.fc = Linear(in_dim, 2 * out_dim, bias=False)
+        initialize_glu(self.fc, in_dim, 2 * out_dim)
 
         self.bn = GBN(
-            2 * output_dim, virtual_batch_size=virtual_batch_size, momentum=momentum
+            2 * out_dim, virtual_batch_size=virtual_batch_size, momentum=momentum
         )
 
     def forward(self, x):
         x = self.fc(x)
         x = self.bn(x)
-        out = torch.mul(x[:, : self.output_dim], torch.sigmoid(x[:, self.output_dim :]))
+        out = torch.mul(x[:, : self.out_dim], torch.sigmoid(x[:, self.out_dim :]))
         return out

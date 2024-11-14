@@ -6,21 +6,19 @@ from torch import Tensor
 from torch.nn import Module
 
 from rllm.data import GraphData
-from rllm.nn.conv.graph_conv.gcn_conv import GCNConv
+from rllm.nn.conv.graph_conv import GCNConv
 from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.types import ColType
 
 
-def build_homo_data(
+def reorder_ids(
     relation_df: pd.DataFrame,
     src_col_name: str,
     tgt_col_name: str,
-    src_emb: Tensor,
-    tgt_emb: Tensor,
+    n_src: int,
 ):
     # Making relationship
-    n_src = src_emb.size(0)
     ordered_rating = relation_df.assign(
         **{
             src_col_name: relation_df[src_col_name] - 1,
@@ -28,14 +26,13 @@ def build_homo_data(
         }
     )
 
-    # Making embedding
-    x = torch.cat([src_emb, tgt_emb], dim=0)
-    return (x, ordered_rating)
+    return ordered_rating
 
 
-def build_homo_graph(
+def build_homo_adj(
     relation_df: pd.DataFrame,
-    x: Tensor,
+    n_all: int,
+    x: Optional[Tensor] = None,
     y: Optional[Tensor] = None,
     transform: Optional[Callable] = None,
     edge_per_node: Optional[int] = None,
@@ -93,7 +90,7 @@ def build_homo_graph(
         indices = indices[:, mask]
 
     values = torch.ones((indices.shape[1],), dtype=torch.float32)
-    adj = torch.sparse_coo_tensor(indices, values, (x.size(0), x.size(0)))
+    adj = torch.sparse_coo_tensor(indices, values, (n_all, n_all))
 
     # Construct graph
     graph = GraphData(x=x, y=y, adj=adj)
@@ -102,7 +99,7 @@ def build_homo_graph(
     if transform:
         graph = transform(graph)
 
-    return graph
+    return graph.adj
 
 
 class TableEncoder(Module):
