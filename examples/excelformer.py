@@ -1,13 +1,13 @@
 import argparse
 import os.path as osp
 import sys
+from typing import Any, Dict, List
 
 sys.path.append("../")
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
-from torch.nn import LayerNorm, Linear, ReLU, Sequential
 from torch.utils.data import DataLoader
 from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
@@ -16,7 +16,6 @@ from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
 from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import ExcelFormerConv
-from typing import Any, Dict, List
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", type=str, default="titanic")
@@ -60,10 +59,10 @@ class ExcelFormer(torch.nn.Module):
         self.convs = torch.nn.ModuleList(
             [ExcelFormerConv(dim=hidden_dim) for _ in range(num_layers)]
         )
-        self.fc = self.decoder = Sequential(
-            LayerNorm(hidden_dim),
-            ReLU(),
-            Linear(hidden_dim, out_dim),
+        self.fc = torch.nn.Sequential(
+            torch.nn.LayerNorm(hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, out_dim),
         )
 
     def forward(self, x) -> Tensor:
