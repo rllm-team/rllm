@@ -1,15 +1,15 @@
 import argparse
 import os.path as osp
 import sys
+from typing import Any, Dict, List
 
 sys.path.append("../")
 
 import torch
 import torch.nn.functional as F
-from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
+from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
-from typing import Any, Dict, List
 
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
