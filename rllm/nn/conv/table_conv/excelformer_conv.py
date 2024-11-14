@@ -103,17 +103,17 @@ class SemiPermeableAttention(torch.nn.Module):
 class GLU_layer(torch.nn.Module):
     def __init__(
         self,
-        input_dim,
-        output_dim,
+        in_dim,
+        out_dim,
         fc=None,
     ):
         super().__init__()
 
-        self.output_dim = output_dim
+        self.out_dim = out_dim
         if fc:
             self.fc = fc
         else:
-            self.fc = torch.nn.Linear(input_dim, 2 * output_dim, bias=False)
+            self.fc = torch.nn.Linear(in_dim, 2 * out_dim, bias=False)
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.fc(x)

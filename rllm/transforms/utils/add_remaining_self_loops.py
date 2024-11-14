@@ -26,12 +26,12 @@ def add_remaining_self_loops(adj: Tensor, fill_value=1.0):
         mask = indices[0] != indices[1]
 
         loop_index = torch.arange(0, shape[0], dtype=torch.long, device=device)
-        loop_index = loop_index.unsqueeze(0).repeat(2, 1)
-
-        indices = torch.cat([indices[:, mask], loop_index], dim=1)
         fill_values = (
             torch.ones_like(loop_index, dtype=values.dtype, device=device) * fill_value
         )
+
+        loop_index = loop_index.unsqueeze(0).repeat(2, 1)
+        indices = torch.cat([indices[:, mask], loop_index], dim=1)
         values = torch.cat([values[mask], fill_values], dim=0)
         return torch.sparse_coo_tensor(indices, values, shape).to(device)
 
