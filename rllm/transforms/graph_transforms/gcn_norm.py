@@ -2,12 +2,12 @@ from typing import Union
 
 from torch import Tensor
 
-from rllm.transforms.utils import (
+from rllm.data.graph_data import GraphData, HeteroGraphData
+from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.graph_transforms.functional import (
     add_remaining_self_loops,
     symmetric_norm,
 )
-from rllm.data.graph_data import GraphData, HeteroGraphData
-from rllm.transforms.graph_transforms import BaseTransform
 
 
 class GCNNorm(BaseTransform):

@@ -14,7 +14,7 @@ import torch.nn.functional as F
 import sys
 
 sys.path.append("../")
-import rllm.transforms.graph_transforms as GT
+import rllm.transforms.utils as UT
 from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.conv.graph_conv import GATConv
 
@@ -36,7 +36,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = PlanetoidDataset(
     path,
     args.dataset,
-    transform=GT.NormalizeFeatures("sum"),
+    transform=UT.NormalizeFeatures("sum"),
 )
 data = dataset[0]
 data.adj = torch.eye(data.adj.size(0)) + data.adj
