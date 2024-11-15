@@ -7,6 +7,7 @@ from torch.nn import Module
 
 from rllm.data import GraphData
 from rllm.nn.conv.graph_conv import GCNConv
+from rllm.transforms.graph_transforms.gcn_norm import GCNNorm
 from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.types import ColType
@@ -110,22 +111,23 @@ class TableEncoder(Module):
         hidden_dim (int): Size of each sample in hidden layer.
         stats_dict (Dict[ColType, List[Dict[str, Any]]]):
             A dictionary that maps column type into stats.
-        table_transorm: The transform method of the table.
+        table_transform: The transform method of the table.
         table_conv: Using the table convolution layer.
         num_layers (int): The number of layers of the convolution.
     """
 
     def __init__(
         self,
+        in_dim,
         out_dim,
         stats_dict: Dict[ColType, List[Dict[str, Any]]],
         num_layers: int = 1,
-        table_transorm: Type[Module] = FTTransformerTransform,
+        table_transform: Type[Module] = FTTransformerTransform,
         table_conv: Type[Module] = TabTransformerConv,
     ) -> None:
         super().__init__()
 
-        self.table_transform = table_transorm(
+        self.table_transform = table_transform(
             out_dim=out_dim,
             col_stats_dict=stats_dict,
         )
@@ -161,20 +163,30 @@ class GraphEncoder(Module):
         out_dim,
         dropout: float = 0.5,
         num_layers: int = 2,
+        graph_transform: Module = None,
         graph_conv: Type[Module] = GCNConv,
     ) -> None:
         super().__init__()
         self.dropout = dropout
         self.convs = torch.nn.ModuleList()
+        self.adj = graph_transform
 
         for _ in range(num_layers - 1):
             self.convs.append(graph_conv(in_dim, in_dim))
         self.convs.append(graph_conv(in_dim, out_dim))
 
-    def forward(self, x, adj):
+    def forward(self, x):
         for graph_conv in self.convs[:-1]:
             x = F.dropout(x, p=self.dropout, training=self.training)
-            x = F.relu(graph_conv(x, adj))
+            x = F.relu(graph_conv(x, self.adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.convs[-1](x, adj)
+        x = self.convs[-1](x, self.adj)
         return x
+
+    # def forward(self, x, adj):
+    #     for graph_conv in self.convs[:-1]:
+    #         x = F.dropout(x, p=self.dropout, training=self.training)
+    #         x = F.relu(graph_conv(x, adj))
+    #     x = F.dropout(x, p=self.dropout, training=self.training)
+    #     x = self.convs[-1](x, adj)
+    #     return x

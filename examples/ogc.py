@@ -18,9 +18,10 @@ from torch import Tensor
 import sys
 
 sys.path.append("../")
-import rllm.transforms.graph_transforms as GT
 from rllm.data import GraphData
 from rllm.datasets import PlanetoidDataset
+import rllm.transforms.graph_transforms as GT
+import rllm.transforms.utils as UT
 
 warnings.filterwarnings("ignore", ".*Sparse CSR tensor support.*")
 
@@ -40,7 +41,7 @@ args = parser.parse_args()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 
-transform = GT.Compose([GT.NormalizeFeatures("sum"), GT.GCNNorm()])
+transform = GT.Compose([UT.NormalizeFeatures("sum"), GT.GCNNorm()])
 
 dataset = PlanetoidDataset(path, args.dataset, transform, force_reload=True)
 data = dataset[0].to(device)
