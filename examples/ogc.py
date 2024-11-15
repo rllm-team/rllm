@@ -10,13 +10,13 @@ import argparse
 import os.path as osp
 import time
 import warnings
+import sys
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
 
-import sys
-
+sys.path.append("./")
 sys.path.append("../")
 from rllm.data import GraphData
 from rllm.datasets import PlanetoidDataset

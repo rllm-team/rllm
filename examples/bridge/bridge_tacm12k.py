@@ -9,14 +9,13 @@ import argparse
 import os.path as osp
 import sys
 
-sys.path.append("./")
-sys.path.append("../")
-sys.path.append("../../")
-
 import torch
 import torch.nn.functional as F
-import rllm.transforms.graph_transforms as GT
+
+sys.path.append("./")
+sys.path.append("../")
 from rllm.datasets import TACM12KDataset
+import rllm.transforms.graph_transforms as GT
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
 from utils import build_homo_adj, TableEncoder, GraphEncoder
@@ -49,7 +48,6 @@ paper_embeddings = paper_embeddings.to(device)
 adj = build_homo_adj(
     relation_df=citations_table.df,
     n_all=len(papers_table),
-    transform=GT.GCNNorm(),
 ).to(device)
 target_table = papers_table.to(device)
 y = papers_table.y.long().to(device)
@@ -121,6 +119,7 @@ t_encoder = TableEncoder(
 g_encoder = GraphEncoder(
     in_dim=paper_embeddings.size(1),
     out_dim=out_dim,
+    graph_transform=GT.GCNNorm(),
     graph_conv=GCNConv,
 )
 model = Bridge(

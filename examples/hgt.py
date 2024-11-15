@@ -12,6 +12,7 @@ import torch.nn.functional as F
 from torch import nn
 import sys
 
+sys.path.append("./")
 sys.path.append("../")
 from rllm.data import HeteroGraphData
 from rllm.datasets.imdb import IMDB

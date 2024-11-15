@@ -5,13 +5,15 @@
 # Datasets  IMDB
 # Acc       0.571
 
+import sys
 import os.path as osp
 from typing import Dict, List, Union
-import torch
-import torch.nn.functional as F
-from torch import nn
-import sys
 
+import torch
+from torch import nn
+import torch.nn.functional as F
+
+sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets.imdb import IMDB
 from rllm.nn.conv.graph_conv import HANConv

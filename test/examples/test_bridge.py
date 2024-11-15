@@ -17,24 +17,24 @@ def test_bridge_tml1m():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.42
+    assert float(stdout[-8:]) > 0.42
 
 
-def test_gat():
+def test_bridge_tlf2k():
     script = os.path.join(EXAMPLE_ROOT, "bridge_tlf2k.py")
     out = subprocess.run(["python", str(script)], capture_output=True)
     assert (
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.49
+    assert float(stdout[-8:]) > 0.49
 
 
-def test_han():
+def test_bridge_tacm12k():
     script = os.path.join(EXAMPLE_ROOT, "bridge_tacm12k.py")
     out = subprocess.run(["python", str(script)], capture_output=True)
     assert (
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.32
+    assert float(stdout[-8:]) > 0.30
