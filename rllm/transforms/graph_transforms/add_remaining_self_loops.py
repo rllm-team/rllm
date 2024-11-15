@@ -1,8 +1,8 @@
 from typing import Union
 
-from rllm.transforms.utils import add_remaining_self_loops
 from rllm.data.graph_data import GraphData, HeteroGraphData
 from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.graph_transforms.functional import add_remaining_self_loops
 
 
 class AddRemainingSelfLoops(BaseTransform):

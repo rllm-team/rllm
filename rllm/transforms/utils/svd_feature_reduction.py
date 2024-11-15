@@ -1,17 +1,32 @@
-import torch
-from torch import Tensor
+from typing import Union
+
+from rllm.data.graph_data import GraphData, HeteroGraphData
+from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.utils.functional import svd_feature_reduction
 
 
-def svd_feature_reduction(X: Tensor, out_dim: int):
+class SVDFeatureReduction(BaseTransform):
     r"""Dimensionality reduction of node features via Singular Value
     Decomposition (SVD).
 
     Args:
-        x (Tensor): Node feature matrix.
         out_dim (int): The dimensionlity of node features after
             reduction.
     """
-    if X.size(-1) > out_dim:
-        U, S, _ = torch.linalg.svd(X)
-        X = torch.mm(U[:, :out_dim], torch.diag(S[:out_dim]))
-    return X
+
+    def __init__(
+        self,
+        out_dim: int,
+    ):
+        self.out_dim = out_dim
+
+    def forward(self, data: Union[GraphData, HeteroGraphData]):
+        if isinstance(data, GraphData):
+            assert data.x is not None
+            data.x = svd_feature_reduction(data.x, self.out_dim)
+        elif isinstance(data, HeteroGraphData):
+            for store in data.node_stores:
+                if "x" in store:
+                    store.x = svd_feature_reduction(store.x, self.out_dim)
+
+        return data

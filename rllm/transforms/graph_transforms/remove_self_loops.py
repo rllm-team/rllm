@@ -1,13 +1,13 @@
 from typing import Union
 
-from rllm.transforms.utils import remove_self_loops
 from rllm.data.graph_data import GraphData, HeteroGraphData
 from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.graph_transforms.functional import remove_self_loops
 
 
 class RemoveSelfLoops(BaseTransform):
-    r"""Remove self-loops from the adjacency matrix.
-    """
+    r"""Remove self-loops from the adjacency matrix."""
+
     def __init__(self):
         pass
 
@@ -17,7 +17,7 @@ class RemoveSelfLoops(BaseTransform):
             data.adj = remove_self_loops(data.adj)
         elif isinstance(data, HeteroGraphData):
             for store in data.edge_stores:
-                if 'adj' not in store or not store.is_bipartite():
+                if "adj" not in store or not store.is_bipartite():
                     continue
                 store.adj = remove_self_loops(store.adj)
         return data

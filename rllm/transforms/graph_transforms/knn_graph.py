@@ -1,10 +1,10 @@
 from typing import Optional, Union
 
-from rllm.transforms.utils import knn_graph
 from rllm.types import ColType
 from rllm.data.graph_data import GraphData
 from rllm.data.table_data import TableData
 from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.graph_transforms.functional import knn_graph
 
 
 class KNNGraph(BaseTransform):  # TODO: add force_undirected option.
@@ -31,11 +31,12 @@ class KNNGraph(BaseTransform):  # TODO: add force_undirected option.
             If set to True, the graph will contain self-loops. (default: False)
         n_jobs (int): Number of workers to use for computation. (default: 1)
     """
+
     def __init__(
         self,
         k: Optional[int] = 6,
-        mode: Optional[str] = 'connectivity',
-        metric: Optional[str] = 'minkowski',
+        mode: Optional[str] = "connectivity",
+        metric: Optional[str] = "minkowski",
         p: Optional[int] = 2,
         metric_params: Optional[dict] = None,
         include_self: Optional[bool] = False,
@@ -64,7 +65,7 @@ class KNNGraph(BaseTransform):  # TODO: add force_undirected option.
             self.p,
             self.metric_params,
             self.include_self,
-            self.n_jobs
+            self.n_jobs,
         )
 
         if isinstance(data, GraphData):
