@@ -1,15 +1,16 @@
 from typing import Any, Dict, List, Optional, Callable, Type
+
 import pandas as pd
 import torch
-import torch.nn.functional as F
 from torch import Tensor
 from torch.nn import Module
+import torch.nn.functional as F
 
+from rllm.types import ColType
 from rllm.data import GraphData
-from rllm.nn.conv.graph_conv import GCNConv
 from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.types import ColType
+from rllm.nn.conv.graph_conv import GCNConv
 
 
 def reorder_ids(

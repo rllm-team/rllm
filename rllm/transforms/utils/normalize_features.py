@@ -1,29 +1,27 @@
-from torch import linalg as LA
-from torch import Tensor
+from typing import Union
+
+from rllm.data import GraphData, HeteroGraphData
+from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.utils.functional import normalize_features
 
 
-def normalize_features(X: Tensor, norm: str = "l2", return_norm: bool = False):
-    r"""Scale input vectors individually to unit norm.
+class NormalizeFeatures(BaseTransform):
+    r"""Row-normalizes the node features.
+
+    .. math::
+
+        \vec{x} = \frac{\vec{x}}{||\vec{x}||_p}
+
     Args:
-        X (Tensor): The input vectors.
         norm (str): The norm to use to normalize each non zero sample,
-            *e.g.*, `l1`, `l2`, `sum`. (default: `l2`).
-        return_norm (bool): Whether to return the computed norms.
-            (default: `False`).
+            *e.g.*, `l1`, `l2`. (default: `l2`)
     """
 
-    if norm == "l1":
-        norms = LA.norm(X, ord=1, dim=1, keepdim=True)
-    elif norm == "l2":
-        norms = LA.norm(X, dim=1, keepdim=True)
-    elif norm == "sum":
-        X -= X.min()
-        norms = X.sum(dim=-1, keepdim=True)
+    def __init__(self, norm: str = "l2"):
+        self.norm = norm
 
-    X = X.div_(norms.clamp_(min=1.0))
-
-    if return_norm:
-        norms = norms.squeeze(1)
-        return X, norms
-    else:
-        return X
+    def forward(self, data: Union[GraphData, HeteroGraphData]):
+        for store in data.stores:
+            if "x" in store:
+                store.x = normalize_features(store.x, self.norm)
+        return data

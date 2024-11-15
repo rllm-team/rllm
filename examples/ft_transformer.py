@@ -1,17 +1,16 @@
 import argparse
 import os.path as osp
 import sys
+from typing import Any, Dict, List
 
 sys.path.append("../")
 
 import torch
-from torch import Tensor
 import torch.nn.functional as F
-from torch.nn import LayerNorm, Linear, ReLU, Sequential
-from sklearn.metrics import roc_auc_score
+from torch import Tensor
 from torch.utils.data import DataLoader
+from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
-from typing import Any, Dict, List
 
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
@@ -61,10 +60,10 @@ class FTTransformer(torch.nn.Module):
             layers=layers,
             use_cls=True,
         )
-        self.fc = self.decoder = Sequential(
-            LayerNorm(hidden_dim),
-            ReLU(),
-            Linear(hidden_dim, out_dim),
+        self.fc = torch.nn.Sequential(
+            torch.nn.LayerNorm(hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, out_dim),
         )
 
     def forward(self, x) -> Tensor:

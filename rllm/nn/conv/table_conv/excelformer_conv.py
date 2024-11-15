@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Tuple
+
 import torch
+from typing import Tuple
 from torch import Tensor
 
 
