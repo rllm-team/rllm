@@ -1,16 +1,16 @@
 from typing import Any, Dict, List, Optional, Callable, Type
+
 import pandas as pd
 import torch
-import torch.nn.functional as F
 from torch import Tensor
 from torch.nn import Module
+import torch.nn.functional as F
 
+from rllm.types import ColType
 from rllm.data import GraphData
-from rllm.nn.conv.graph_conv import GCNConv
-from rllm.transforms.graph_transforms.gcn_norm import GCNNorm
 from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.types import ColType
+from rllm.nn.conv.graph_conv import GCNConv
 
 
 def reorder_ids(
@@ -111,7 +111,7 @@ class TableEncoder(Module):
         hidden_dim (int): Size of each sample in hidden layer.
         stats_dict (Dict[ColType, List[Dict[str, Any]]]):
             A dictionary that maps column type into stats.
-        table_transform: The transform method of the table.
+        table_transorm: The transform method of the table.
         table_conv: Using the table convolution layer.
         num_layers (int): The number of layers of the convolution.
     """
@@ -121,12 +121,12 @@ class TableEncoder(Module):
         out_dim,
         stats_dict: Dict[ColType, List[Dict[str, Any]]],
         num_layers: int = 1,
-        table_transform: Type[Module] = FTTransformerTransform,
+        table_transorm: Type[Module] = FTTransformerTransform,
         table_conv: Type[Module] = TabTransformerConv,
     ) -> None:
         super().__init__()
 
-        self.table_transform = table_transform(
+        self.table_transform = table_transorm(
             out_dim=out_dim,
             col_stats_dict=stats_dict,
         )
@@ -162,13 +162,11 @@ class GraphEncoder(Module):
         out_dim,
         dropout: float = 0.5,
         num_layers: int = 2,
-        graph_transform: Module = None,
         graph_conv: Type[Module] = GCNConv,
     ) -> None:
         super().__init__()
         self.dropout = dropout
         self.convs = torch.nn.ModuleList()
-        self.adj = graph_transform
 
         for _ in range(num_layers - 1):
             self.convs.append(graph_conv(in_dim, in_dim))
