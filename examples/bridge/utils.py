@@ -118,7 +118,6 @@ class TableEncoder(Module):
 
     def __init__(
         self,
-        in_dim,
         out_dim,
         stats_dict: Dict[ColType, List[Dict[str, Any]]],
         num_layers: int = 1,
@@ -175,18 +174,10 @@ class GraphEncoder(Module):
             self.convs.append(graph_conv(in_dim, in_dim))
         self.convs.append(graph_conv(in_dim, out_dim))
 
-    def forward(self, x):
+    def forward(self, x, adj):
         for graph_conv in self.convs[:-1]:
             x = F.dropout(x, p=self.dropout, training=self.training)
-            x = F.relu(graph_conv(x, self.adj))
+            x = F.relu(graph_conv(x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.convs[-1](x, self.adj)
+        x = self.convs[-1](x, adj)
         return x
-
-    # def forward(self, x, adj):
-    #     for graph_conv in self.convs[:-1]:
-    #         x = F.dropout(x, p=self.dropout, training=self.training)
-    #         x = F.relu(graph_conv(x, adj))
-    #     x = F.dropout(x, p=self.dropout, training=self.training)
-    #     x = self.convs[-1](x, adj)
-    #     return x
