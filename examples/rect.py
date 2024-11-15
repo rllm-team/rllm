@@ -17,15 +17,17 @@ import argparse
 import copy
 import os.path as osp
 import time
-import torch
-from sklearn.linear_model import LogisticRegression
 import sys
 
+import torch
+from sklearn.linear_model import LogisticRegression
+
+sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets.planetoid import PlanetoidDataset
 import rllm.transforms.graph_transforms as GT
 import rllm.transforms.utils as UT
-from rllm.nn.models.rect import RECT_L
+from rllm.nn.models import RECT_L
 
 parser = argparse.ArgumentParser()
 parser.add_argument(

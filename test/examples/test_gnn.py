@@ -16,7 +16,7 @@ def test_gcn():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.815
+    assert float(stdout[-8:]) > 0.815
 
 
 def test_gat():
@@ -26,7 +26,7 @@ def test_gat():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.82
+    assert float(stdout[-8:]) > 0.82
 
 
 def test_han():
@@ -36,7 +36,7 @@ def test_han():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.56
+    assert float(stdout[-8:]) > 0.56
 
 
 def test_rect():
@@ -46,7 +46,7 @@ def test_rect():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.70
+    assert float(stdout[-8:]) > 0.70
 
 
 def test_ogc():
@@ -56,4 +56,4 @@ def test_ogc():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.86
+    assert float(stdout[-8:]) > 0.86

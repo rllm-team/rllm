@@ -19,6 +19,8 @@ def symmetric_norm(adj: Tensor):
     """
     shape = adj.shape
     device = adj.device
+    if device.type == "cuda":
+        adj = adj.to("cpu")
 
     if is_torch_sparse_tensor(adj):
         adj = adj.coalesce()

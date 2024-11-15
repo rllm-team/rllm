@@ -16,7 +16,7 @@ def test_ft_transformer():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.80
+    assert float(stdout[-8:]) > 0.80
 
 
 def test_tab_transformer():
@@ -26,7 +26,7 @@ def test_tab_transformer():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.80
+    assert float(stdout[-8:]) > 0.80
 
 
 def test_tabnet():
@@ -36,7 +36,7 @@ def test_tabnet():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.79
+    assert float(stdout[-8:]) > 0.79
 
 
 def test_excel_former():
@@ -46,4 +46,4 @@ def test_excel_former():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-9:]) > 0.80
+    assert float(stdout[-8:]) > 0.80

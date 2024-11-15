@@ -21,9 +21,12 @@ class GCNNorm(BaseTransform):
     """
 
     def __init__(self):
-        pass
+        self.data = None
 
-    def forward(self, data: Union[GraphData, HeteroGraphData]):
+    def forward(self, data: Union[Tensor, GraphData, HeteroGraphData]):
+        if self.data is not None:
+            return self.data
+
         if isinstance(data, GraphData):
             assert data.adj is not None
             data.adj = self.gcn_norm(data.adj)
@@ -34,6 +37,10 @@ class GCNNorm(BaseTransform):
                 if "adj" not in store or store.is_bipartite():
                     continue
                 data.adj = self.gcn_norm(data.adj)
+        elif isinstance(data, Tensor):
+            assert data.size(0) == data.size(1)
+            data = self.gcn_norm(data)
+        self.data = data
         return data
 
     def gcn_norm(self, adj: Tensor):
