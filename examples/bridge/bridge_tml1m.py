@@ -15,6 +15,7 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import TML1MDataset
+from rllm.transforms.table_transforms import FTTransformerTransform
 import rllm.transforms.graph_transforms as GT
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
@@ -116,8 +117,9 @@ def test_epoch():
 
 
 t_encoder = TableEncoder(
+    in_dim=emb_size,
     out_dim=emb_size,
-    stats_dict=user_table.stats_dict,
+    table_transorm=FTTransformerTransform(col_stats_dict=user_table.stats_dict),
     table_conv=TabTransformerConv,
 )
 g_encoder = GraphEncoder(

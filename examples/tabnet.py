@@ -53,6 +53,7 @@ class TabNetModel(torch.nn.Module):
             out_dim=hidden_dim,
             col_stats_dict=col_stats_dict,
         )
+        self.transform.post_init()
         self.backbone = TabNet(
             out_dim=out_dim,  # dataset.num_classes,
             cat_emb_dim=hidden_dim,  # args.dim,

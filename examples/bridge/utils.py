@@ -114,18 +114,19 @@ class TableEncoder(Module):
 
     def __init__(
         self,
+        in_dim,
         out_dim,
-        stats_dict: Dict[ColType, List[Dict[str, Any]]],
         num_layers: int = 1,
-        table_transorm: Type[Module] = FTTransformerTransform,
+        table_transorm: Module = None,
         table_conv: Type[Module] = TabTransformerConv,
     ) -> None:
         super().__init__()
 
-        self.table_transform = table_transorm(
-            out_dim=out_dim,
-            col_stats_dict=stats_dict,
-        )
+        assert table_transorm is not None
+
+        table_transorm.out_dim = in_dim
+        table_transorm.post_init()
+        self.table_transform = table_transorm
 
         self.convs = torch.nn.ModuleList()
         for _ in range(num_layers):
