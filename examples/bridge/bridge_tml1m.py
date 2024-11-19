@@ -9,14 +9,14 @@ import argparse
 import os.path as osp
 import sys
 
-sys.path.append("./")
-sys.path.append("../")
-sys.path.append("../../")
-
 import torch
 import torch.nn.functional as F
-import rllm.transforms.graph_transforms as GT
+
+sys.path.append("./")
+sys.path.append("../")
 from rllm.datasets import TML1MDataset
+from rllm.transforms.table_transforms import FTTransformerTransform
+from rllm.transforms.graph_transforms import GCNNorm
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
 from utils import reorder_ids, build_homo_adj, GraphEncoder, TableEncoder
@@ -53,7 +53,6 @@ ordered_rating = reorder_ids(
 adj = build_homo_adj(
     relation_df=ordered_rating,
     n_all=user_size + movie_embeddings.size(0),
-    transform=GT.GCNNorm(),
 ).to(device)
 target_table = user_table.to(device)
 y = user_table.y.long().to(device)
@@ -118,13 +117,15 @@ def test_epoch():
 
 
 t_encoder = TableEncoder(
+    in_dim=emb_size,
     out_dim=emb_size,
-    stats_dict=user_table.stats_dict,
+    table_transorm=FTTransformerTransform(col_stats_dict=user_table.stats_dict),
     table_conv=TabTransformerConv,
 )
 g_encoder = GraphEncoder(
     in_dim=emb_size,
     out_dim=out_dim,
+    graph_transform=GCNNorm(),
     graph_conv=GCNConv,
 )
 model = Bridge(

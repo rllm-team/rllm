@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from rllm.types import ColType
 from rllm.data import GraphData
 from rllm.transforms.table_transforms import FTTransformerTransform
+from rllm.transforms.graph_transforms import GCNNorm
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 
@@ -35,7 +36,6 @@ def build_homo_adj(
     n_all: int,
     x: Optional[Tensor] = None,
     y: Optional[Tensor] = None,
-    transform: Optional[Callable] = None,
     edge_per_node: Optional[int] = None,
 ):
     r"""Use the given dataframe to construct a simple undirected and
@@ -96,10 +96,6 @@ def build_homo_adj(
     # Construct graph
     graph = GraphData(x=x, y=y, adj=adj)
 
-    # Use transform
-    if transform:
-        graph = transform(graph)
-
     return graph.adj
 
 
@@ -118,18 +114,19 @@ class TableEncoder(Module):
 
     def __init__(
         self,
+        in_dim,
         out_dim,
-        stats_dict: Dict[ColType, List[Dict[str, Any]]],
         num_layers: int = 1,
-        table_transorm: Type[Module] = FTTransformerTransform,
+        table_transorm: Module = None,
         table_conv: Type[Module] = TabTransformerConv,
     ) -> None:
         super().__init__()
 
-        self.table_transform = table_transorm(
-            out_dim=out_dim,
-            col_stats_dict=stats_dict,
-        )
+        assert table_transorm is not None
+
+        table_transorm.out_dim = in_dim
+        table_transorm.post_init()
+        self.table_transform = table_transorm
 
         self.convs = torch.nn.ModuleList()
         for _ in range(num_layers):
@@ -162,10 +159,12 @@ class GraphEncoder(Module):
         out_dim,
         dropout: float = 0.5,
         num_layers: int = 2,
+        graph_transform: Module = GCNNorm(),
         graph_conv: Type[Module] = GCNConv,
     ) -> None:
         super().__init__()
         self.dropout = dropout
+        self.graph_transform = graph_transform
         self.convs = torch.nn.ModuleList()
 
         for _ in range(num_layers - 1):
@@ -173,6 +172,7 @@ class GraphEncoder(Module):
         self.convs.append(graph_conv(in_dim, out_dim))
 
     def forward(self, x, adj):
+        adj = self.graph_transform(adj)
         for graph_conv in self.convs[:-1]:
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = F.relu(graph_conv(x, adj))

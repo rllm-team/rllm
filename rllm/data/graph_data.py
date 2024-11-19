@@ -121,7 +121,7 @@ class GraphData(BaseGraph):
     # will help us define how to save this model.
     @classmethod
     def load(cls, path: str):
-        data = torch.load(path)
+        data = torch.load(path, weights_only=False)
         return cls(**data)
 
     def to_dict(self):
@@ -334,7 +334,7 @@ class HeteroGraphData(BaseGraph):
 
     @classmethod
     def load(cls, path: str):
-        mapping = torch.load(path)
+        mapping = torch.load(path, weights_only=False)
         out = cls()
         for key, value in mapping.items():
             if key == "_mapping":
