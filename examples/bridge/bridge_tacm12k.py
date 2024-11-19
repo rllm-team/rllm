@@ -16,7 +16,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import TACM12KDataset
 from rllm.transforms.table_transforms import FTTransformerTransform
-import rllm.transforms.graph_transforms as GT
+from rllm.transforms.graph_transforms import GCNNorm
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
 from utils import build_homo_adj, TableEncoder, GraphEncoder
@@ -121,7 +121,7 @@ t_encoder = TableEncoder(
 g_encoder = GraphEncoder(
     in_dim=paper_embeddings.size(1),
     out_dim=out_dim,
-    graph_transform=GT.GCNNorm(),
+    graph_transform=GCNNorm(),
     graph_conv=GCNConv,
 )
 model = Bridge(
