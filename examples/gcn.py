@@ -9,10 +9,12 @@
 import argparse
 import os.path as osp
 import time
-import torch
-import torch.nn.functional as F
 import sys
 
+import torch
+import torch.nn.functional as F
+
+sys.path.append("./")
 sys.path.append("../")
 import rllm.transforms.utils as UT
 import rllm.transforms.graph_transforms as GT

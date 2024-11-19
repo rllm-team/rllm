@@ -25,22 +25,11 @@ class TabNetTransform(TableTypeTransform):
                     na_mode=NAMode.MEAN,
                 ),
             }
-        super().__init__(out_dim, col_stats_dict, col_types_transform_dict)
+        self.out_dim = out_dim
+        self.col_stats_dict = col_stats_dict
+        self.col_types_transform_dict = col_types_transform_dict
 
-    def forward(self, feat_dict):
-        xs = []
-        if ColType.CATEGORICAL in self.col_stats_dict.keys():
-            x_category = feat_dict[ColType.CATEGORICAL]
-            category_embedding = self.transform_dict[ColType.CATEGORICAL.value](
-                x_category
-            )
-            xs.append(category_embedding)
-
-        if ColType.NUMERICAL in self.col_stats_dict.keys():
-            x_numeric = feat_dict[ColType.NUMERICAL]
-            numerical_embedding = self.transform_dict[ColType.NUMERICAL.value](
-                x_numeric
-            )
-            xs.append(numerical_embedding)
-        x = torch.cat(xs, dim=1)
-        return x
+    def post_init(self) -> None:
+        super().__init__(
+            self.out_dim, self.col_stats_dict, self.col_types_transform_dict
+        )

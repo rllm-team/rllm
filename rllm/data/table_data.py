@@ -19,7 +19,7 @@ class BaseTable:
 
     @classmethod
     def load(cls, path: str):
-        data = torch.load(path)
+        data = torch.load(path, weights_only=False)
         return cls(**data)
 
     def save(self, path: str):
@@ -107,7 +107,7 @@ class TableData(BaseTable):
 
     @classmethod
     def load(cls, path: str) -> TableData:
-        data = torch.load(path)
+        data = torch.load(path, weights_only=False)
         # TODO: Delete this
         key_mapping = {"get_split_func": "get_split"}
 

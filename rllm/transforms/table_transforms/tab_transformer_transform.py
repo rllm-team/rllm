@@ -18,4 +18,11 @@ class TabTransformerTransform(TableTypeTransform):
                 ColType.CATEGORICAL: EmbeddingEncoder(),
                 ColType.NUMERICAL: StackEncoder(),
             }
-        super().__init__(out_dim, col_stats_dict, col_types_transform_dict)
+        self.out_dim = out_dim
+        self.col_stats_dict = col_stats_dict
+        self.col_types_transform_dict = col_types_transform_dict
+
+    def post_init(self) -> None:
+        super().__init__(
+            self.out_dim, self.col_stats_dict, self.col_types_transform_dict
+        )

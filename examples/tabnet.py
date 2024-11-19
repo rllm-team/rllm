@@ -3,14 +3,14 @@ import os.path as osp
 import sys
 from typing import Any, Dict, List
 
-sys.path.append("../")
-
+from tqdm import tqdm
+from sklearn.metrics import roc_auc_score
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from sklearn.metrics import roc_auc_score
-from tqdm import tqdm
 
+sys.path.append("./")
+sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
 from rllm.transforms.table_transforms import TabNetTransform
@@ -53,6 +53,7 @@ class TabNetModel(torch.nn.Module):
             out_dim=hidden_dim,
             col_stats_dict=col_stats_dict,
         )
+        self.transform.post_init()
         self.backbone = TabNet(
             out_dim=out_dim,  # dataset.num_classes,
             cat_emb_dim=hidden_dim,  # args.dim,
