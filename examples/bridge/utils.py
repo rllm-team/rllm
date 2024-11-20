@@ -125,7 +125,6 @@ class TableEncoder(Module):
         assert table_transorm is not None
 
         table_transorm.out_dim = in_dim
-        table_transorm.post_init()
         self.table_transform = table_transorm
 
         self.convs = torch.nn.ModuleList()

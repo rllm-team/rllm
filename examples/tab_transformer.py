@@ -55,7 +55,7 @@ class TabTransformer(torch.nn.Module):
             out_dim=hidden_dim,
             col_stats_dict=col_stats_dict,
         )
-        self.transform.post_init()
+
         self.convs = torch.nn.ModuleList(
             [
                 TabTransformerConv(
