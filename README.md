@@ -10,6 +10,13 @@
 
 ----
 
+*Latest News* 🔥
+
+[2024.08] **rLLM is supported by the CCF-Huawei Populus Grove Fund (CCF-华为胡杨林基金).** This project focuses on *Tabular Data Governance for AI Tasks*. Watch a short introduction video on Huawei's official account: [Bilibili](https://www.bilibili.com/video/BV1qz421i7Yz).  
+
+---
+## About
+
 **rLLM** (relationLLM) is an easy-to-use Pytorch library for Relational Table Learning (RTL) with LLMs, by performing two key functions:
 1. Breaks down state-of-the-art GNNs, LLMs, and TNNs as standardized modules.
 2. Facilitates novel model building in a "combine, align, and co-train" way.  
@@ -39,8 +46,7 @@ python bridge/bridge_tacm12k.py
 - **Community Support:**  Maintained by students and teachers from Shanghai Jiao Tong University and Tsinghua University. Supports the SJTU undergraduate course "Content Understanding (NIS4301)" and the graduate course "Social Network Analysis (NIS8023)".
 
 ## Implemented Methods
-rLLM includes over 15 state-of-the-art GNN and TNN models, ideal for both standalone use and building RTL-type methods.  
-Highlighted models include:  
+rLLM includes over 15 state-of-the-art GNN and TNN models, ideal for both standalone use and building RTL-type methods. Highlighted models include:  
 
 - **OGC**: *From Cluster Assumption to Graph Convolution: Graph-based Semi-Supervised Learning Revisited* [[TNNLS 2024](https://arxiv.org/abs/2309.13599)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/ogc.py)]  
 - **ExcelFormer**: *ExcelFormer: A Neural Network Surpassing GBDTs on Tabular Data* [[KDD 2024](https://arxiv.org/abs/2301.02819)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/excelformer.py)]  
