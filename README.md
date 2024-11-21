@@ -39,21 +39,23 @@ python bridge/bridge_tacm12k.py
 - **Community Support:**  Maintained by students and teachers from Shanghai Jiao Tong University and Tsinghua University. Supports the SJTU undergraduate course "Content Understanding (NIS4301)" and the graduate course "Social Network Analysis (NIS8023)".
 
 ## Implemented Methods
-rLLM features implementations of over 15 state-of-the-art GNN, TNN, and LLM models, including:  
+rLLM includes over 15 state-of-the-art GNN and TNN models, ideal for both standalone use and building RTL-type methods.  
+Highlighted models include:  
 
 - **OGC**: *From Cluster Assumption to Graph Convolution: Graph-based Semi-Supervised Learning Revisited* [[TNNLS 2024](https://arxiv.org/abs/2309.13599)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/ogc.py)]  
 - **ExcelFormer**: *ExcelFormer: A Neural Network Surpassing GBDTs on Tabular Data* [[KDD 2024](https://arxiv.org/abs/2301.02819)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/excelformer.py)]  
 - **TAPE**: *Harnessing Explanations: LLM-to-LM Interpreter for Enhanced Text-Attributed Graph Representation Learning* [[ICLR 2024](https://arxiv.org/abs/2305.19523)] [[Example](https://github.com/rllm-team/rllm/tree/main/examples/tape)]  
 - **Label-Free-GNN**: *Label-free Node Classification on Graphs with Large Language Models* [[ICLR 2024](https://arxiv.org/abs/2310.04668)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/ogc.py)]  
+- **Trompt**: *Towards a Better Deep Neural Network for Tabular Data*  [[ICML 2023](https://arxiv.org/abs/2305.18446)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/trompt.py)]  
 - ...  
 
 
-### Todo List: 
-- Code structure optimization
-- Large-scale RTL training
-- LLM prompt optimization
-- Support for more TNNs
 
+### Todo List: 
+- [x] Code structure optimization
+- [x] Support for more TNNs
+- [ ] Large-scale RTL training
+- [ ] LLM prompt optimization
 ## Citation
 ```
 @article{rllm2024,
