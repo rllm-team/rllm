@@ -5,7 +5,7 @@ from .coltype_encoders import (
 )
 
 __all__ = [
-    'EmbeddingEncoder',
-    'LinearEncoder',
-    'StackEncoder',
+    "EmbeddingEncoder",
+    "LinearEncoder",
+    "StackEncoder",
 ]

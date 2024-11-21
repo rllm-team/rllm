@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict, List
+
 import torch
 from torch import Tensor
 from torch.nn import (
@@ -90,8 +91,10 @@ class LinearEncoder(ColTypeTransform):
         col_type: ColType | None = ColType.NUMERICAL,
         post_module: Module | None = None,
         na_mode: NAMode | None = None,
+        activate: Module | None = None,
     ):
         super().__init__(out_dim, stats_list, col_type, post_module, na_mode)
+        self.activate = activate
 
     def post_init(self):
         r"""This is the actual initialization function."""
@@ -122,6 +125,9 @@ class LinearEncoder(ColTypeTransform):
         # [batch_size, num_cols, dim] + [num_cols, dim]
         # -> [batch_size, num_cols, dim]
         x = x_lin + self.bias
+
+        if self.activate is not None:
+            x = self.activate(x)
         return x
 
 

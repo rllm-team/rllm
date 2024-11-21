@@ -60,6 +60,7 @@ class TableTypeTransform(Module):
                 col_types_transform.stats_list = stats_list
                 self.transform_dict[col_type.value] = col_types_transform
                 col_types_transform.post_init()
+        self.reset_parameters()
 
     def reset_parameters(self):
         for col_type in self.col_stats_dict.keys():
