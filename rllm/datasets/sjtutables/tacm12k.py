@@ -34,7 +34,7 @@ class TACM12KDataset(Dataset):
 
     .. parsed-literal::
 
-        Table 1: papers
+        Table1: papers
         ---------------
             Statics:
             Name        Papers      Features
@@ -67,6 +67,13 @@ class TACM12KDataset(Dataset):
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
+        # Table-ACM12K data_list:
+        # 0: papers_table
+        # 1: authors_table
+        # 2: citations_table
+        # 3: writings_table
+        # 4: paper_embeddings
+        # 5: author_embeddings
         self.data_list: List[TableData] = [
             TableData.load(self.processed_paths[0]),
             TableData.load(self.processed_paths[1]),
