@@ -32,7 +32,7 @@ class TLF2KDataset(Dataset):
 
     .. parsed-literal::
 
-        Table 1: artists
+        Table1: artists
         ---------------
             Statics:
             Name        Users     Features
@@ -58,6 +58,10 @@ class TLF2KDataset(Dataset):
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
+        # Table-LastFM2K data_list:
+        # 0: artists_table
+        # 1: user_artists_table
+        # 2: user_friends_ table
         self.data_list: List[TableData] = [
             TableData.load(self.processed_paths[0]),
             TableData.load(self.processed_paths[1]),

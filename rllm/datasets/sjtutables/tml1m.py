@@ -36,7 +36,7 @@ class TML1MDataset(Dataset):
 
     .. parsed-literal::
 
-        Table 1: users
+        Table1: users
         ---------------
             Statics:
             Name        Users     Features
@@ -62,6 +62,11 @@ class TML1MDataset(Dataset):
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
+        # Table-MovieLens1M data_list
+        # 0: users_table
+        # 1: movies_table
+        # 2: ratings_table
+        # 3: movie_embeddings
         self.data_list: List[TableData] = [
             TableData.load(self.processed_paths[0]),
             TableData.load(self.processed_paths[1]),
