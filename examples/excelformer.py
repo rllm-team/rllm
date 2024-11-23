@@ -68,8 +68,8 @@ class ExcelFormer(torch.nn.Module):
 
     def forward(self, x) -> Tensor:
         x = self.transform(x)
-        for excel_former_conv in self.convs:
-            x = excel_former_conv(x)
+        for conv in self.convs:
+            x = conv(x)
         out = self.fc(x.mean(dim=1))
         return out
 
