@@ -1,10 +1,18 @@
+# The TabTransformer method from the
+# "TabTransformer: Tabular Data Modeling Using Contextual Embeddings" paper.
+# ArXiv: https://arxiv.org/abs/2012.06678
+
+# Datasets  Titanic    Adult
+# AUC       0.809      0.839
+# Time      11.3s      391.1s
+
 import argparse
 import os.path as osp
 import sys
+import time
 from typing import Any, Dict, List
 
 from tqdm import tqdm
-from sklearn.metrics import roc_auc_score
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -13,6 +21,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
+from rllm.datasets.adult import Adult
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 
@@ -108,24 +117,24 @@ def train(epoch: int) -> float:
 @torch.no_grad()
 def test(loader: DataLoader) -> float:
     model.eval()
-    all_preds = []
-    all_labels = []
+    correct = total = 0
     for batch in loader:
-        x, y = batch
-        pred = model.forward(x)
-        all_labels.append(y.cpu())
-        all_preds.append(pred[:, 1].detach().cpu())
-    all_labels = torch.cat(all_labels).numpy()
-    all_preds = torch.cat(all_preds).numpy()
-
-    overall_auc = roc_auc_score(all_labels, all_preds)
-    return overall_auc
+        feat_dict, y = batch
+        pred = model.forward(feat_dict)
+        _, predicted = torch.max(pred, 1)
+        total += y.size(0)
+        correct += (predicted == y).sum().item()
+    accuracy = correct / total
+    return accuracy
 
 
-metric = "AUC"
+metric = "Acc"
 best_val_metric = 0
-res_test_metric = 0
+best_test_metric = 0
+times = []
+st = time.time()
 for epoch in range(1, args.epochs + 1):
+    start = time.time()
     train_loss = train(epoch)
     train_metric = test(train_loader)
     val_metric = test(val_loader)
@@ -133,15 +142,18 @@ for epoch in range(1, args.epochs + 1):
 
     if val_metric > best_val_metric:
         best_val_metric = val_metric
-        res_test_metric = test_metric
+        best_test_metric = test_metric
 
+    times.append(time.time() - start)
     print(
         f"Train Loss: {train_loss:.4f}, Train {metric}: {train_metric:.4f}, "
         f"Val {metric}: {val_metric:.4f}, Test {metric}: {test_metric:.4f}"
     )
     optimizer.step()
-
+et = time.time()
+print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
+print(f"Total time: {et-st}s")
 print(
     f"Best Val {metric}: {best_val_metric:.4f}, "
-    f"Best Test {metric}: {res_test_metric:.4f}"
+    f"Best Test {metric}: {best_test_metric:.4f}"
 )

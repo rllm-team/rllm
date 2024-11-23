@@ -45,25 +45,22 @@ class Titanic(Dataset):
         Size   891         12
 
     """
+
     url = "https://github.com/datasciencedojo/datasets/raw/master/titanic.csv"
 
-    def __init__(
-        self,
-        cached_dir: str,
-        forced_reload: Optional[bool] = False
-    ) -> None:
-        self.name = 'titanic'
+    def __init__(self, cached_dir: str, forced_reload: Optional[bool] = False) -> None:
+        self.name = "titanic"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=forced_reload)
         self.data_list = [TableData.load(self.processed_paths[0])]
 
     @property
     def raw_filenames(self):
-        return ['titanic.csv']
+        return ["titanic.csv"]
 
     @property
     def processed_filenames(self):
-        return ['data.pt']
+        return ["data.pt"]
 
     def process(self):
         r"""
@@ -86,7 +83,7 @@ class Titanic(Dataset):
             "Fare": ColType.NUMERICAL,
             "Embarked": ColType.CATEGORICAL,
         }
-        data = TableData(df=df, col_types=col_types, target_col='Survived', )
+        data = TableData(df=df, col_types=col_types, target_col="Survived")
 
         data.save(self.processed_paths[0])
 
