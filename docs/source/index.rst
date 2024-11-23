@@ -3,7 +3,7 @@ rLLM Documentation
 `rLLM <http://arxiv.org/abs/2407.20157>`__ (relationLLM) is an easy-to-use Pytorch library for Relational Table Learning with LLMs, by performing two key functions:
 
 1. Breaks down state-of-the-art GNNs, LLMs, and TNNs as standardized modules.
-2. Facilitates novel model building in a "combine, align, and co-train" way using these modules.
+2. Facilitates novel model building in a "combine, align, and co-train" way.
 
 .. image:: _static/rllm_overview.png
    :width: 400px
