@@ -77,8 +77,8 @@ class TabTransformer(torch.nn.Module):
 
     def forward(self, x):
         x = self.transform(x)
-        for tab_transformer_conv in self.convs:
-            x = tab_transformer_conv(x)
+        for conv in self.convs:
+            x = conv(x)
         out = self.fc(x.mean(dim=1))
         return out
 
