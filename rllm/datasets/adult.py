@@ -26,18 +26,18 @@ class Adult(Dataset):
     fnlwgt: The number of people the census believes have this job.
     Education: The highest level of education achieved (Bachelors,
         Some-college, 11th, HS-grad, Prof-school, Assoc-acdm, Assoc-voc, 9th,
-        7th-8th, 12th, Masters, 1st-4th, 10th, Doctorate, 5th-6th, Preschool.).
+        7th-8th, 12th, Masters, 1st-4th, 10th, Doctorate, 5th-6th, Preschool).
     Education-Num: A numeric version of Education.
     Marital-Status: Marital status of the individual (Married-civ-spouse,
-        Divorced, Never-married, Separated, Widowed, Married-spouse-absent, Married-AF-spouse.).
+        Divorced, Never-married, Separated, Widowed, Married-spouse-absent, Married-AF-spouse).
     Occupation: The kind of work individuals perform (Tech-support,
         Craft-repair, Other-service, Sales, Exec-managerial, Prof-specialty,
         Handlers-cleaners, Machine-op-inspct, Adm-clerical, Farming-fishing,
-        Transport-moving, Priv-house-serv, Protective-serv, Armed-Forces.).
+        Transport-moving, Priv-house-serv, Protective-serv, Armed-Forces).
     Relationship: Relationship to head-of-household (Wife, Own-child, Husband,
-        Not-in-family, Other-relative, Unmarried.).
+        Not-in-family, Other-relative, Unmarried).
     Race: Race of the individual (White, Asian-Pac-Islander,
-        Amer-Indian-Eskimo, Other, Black.).
+        Amer-Indian-Eskimo, Other, Black).
     Sex: Gender of the individual.
     Capital-Gain: Total capital gains.
     Capital-Loss: Total capital losses.
@@ -53,8 +53,8 @@ class Adult(Dataset):
     .. parsed-literal::
 
         Statics:
-        Name   Passengers  Features
-        Size   48842         14
+        Name   Individuals  Features
+        Size   48842        14
 
     """
 
