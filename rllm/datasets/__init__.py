@@ -1,4 +1,5 @@
 from .adult import Adult
+from .churn_modelling import ChurnModelling
 from .dblp import DBLP
 from .imdb import IMDB
 from .planetoid import PlanetoidDataset
@@ -11,6 +12,7 @@ from .tagdataset import TAGDataset
 
 __all__ = [
     "Adult",
+    "ChurnModelling",
     "DBLP",
     "IMDB",
     "PlanetoidDataset",
