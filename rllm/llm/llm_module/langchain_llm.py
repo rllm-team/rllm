@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 from rllm.llm.types import (
     LLMMetadata,
