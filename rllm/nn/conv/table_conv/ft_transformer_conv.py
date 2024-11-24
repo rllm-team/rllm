@@ -41,7 +41,7 @@ class FTTransformerConv(torch.nn.Module):
         # Arguments for Transformer
         layers: int = 3,
         heads: int = 8,
-        dropout: float = 0.2,
+        dropout: float = 0.3,
         activation: str = "relu",
         use_cls: bool = False,
     ):

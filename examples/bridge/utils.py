@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Callable, Type
+from typing import Optional, Type
 
 import pandas as pd
 import torch
@@ -6,9 +6,7 @@ from torch import Tensor
 from torch.nn import Module
 import torch.nn.functional as F
 
-from rllm.types import ColType
 from rllm.data import GraphData
-from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.transforms.graph_transforms import GCNNorm
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
