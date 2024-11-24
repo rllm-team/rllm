@@ -20,7 +20,6 @@ from torch.utils.data import DataLoader
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets.titanic import Titanic
 from rllm.datasets.adult import Adult
 from rllm.transforms.table_transforms import TabNetTransform
 from rllm.nn.models import TabNet
