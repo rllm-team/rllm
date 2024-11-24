@@ -3,12 +3,13 @@ from .tabletype_transform import TableTypeTransform
 from .tab_transformer_transform import TabTransformerTransform
 from .ft_transformer_transform import FTTransformerTransform
 from .tabnet_transform import TabNetTransform
-
+from .trompt_transform import TromptTransform
 
 __all__ = [
-    'ColTypeTransform',
-    'TableTypeTransform',
-    'TabTransformerTransform',
-    'FTTransformerTransform',
-    'TabNetTransform',
+    "ColTypeTransform",
+    "TableTypeTransform",
+    "TabTransformerTransform",
+    "FTTransformerTransform",
+    "TabNetTransform",
+    "TromptTransform",
 ]

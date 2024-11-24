@@ -7,10 +7,10 @@
 # Time      13.9s      911.7s
 
 import argparse
-import os.path as osp
 import sys
 import time
 from typing import Any, Dict, List
+import os.path as osp
 
 from tqdm import tqdm
 import torch
@@ -20,9 +20,9 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.transforms.table_transforms.trompt_transform import TromptTransform
 from rllm.types import ColType
 from rllm.datasets.adult import Adult
+from rllm.transforms.table_transforms import TromptTransform
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
@@ -108,9 +108,9 @@ class Trompt(torch.nn.Module):
         outs = []
         batch_size = x[list(x.keys())[0]].size(0)
         x_prompt = self.x_prompt.unsqueeze(0).repeat(batch_size, 1, 1)
-        for i, transform in enumerate(self.transforms):
+        for transform, conv in zip(self.transforms, self.convs):
             x_transform = transform(x)
-            x_prompt = self.convs[i](x_transform, x_prompt)
+            x_prompt = conv(x_transform, x_prompt)
             w_prompt = F.softmax(self.linear(x_prompt), dim=1)
             out = (w_prompt * x_prompt).sum(dim=1)
             out = self.mlp(out)
