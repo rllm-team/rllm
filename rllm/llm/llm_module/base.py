@@ -1,8 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import (
-    Any,
-    Sequence,
-)
+from typing import Sequence
 
 from rllm.llm.types import (
     ChatMessage,

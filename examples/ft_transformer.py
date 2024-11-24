@@ -64,7 +64,7 @@ class FTTransformer(torch.nn.Module):
             col_stats_dict=col_stats_dict,
         )
 
-        self.convs = FTTransformerConv(
+        self.conv = FTTransformerConv(
             dim=hidden_dim,
             layers=layers,
             use_cls=True,
@@ -77,7 +77,7 @@ class FTTransformer(torch.nn.Module):
 
     def forward(self, x) -> Tensor:
         x = self.transform(x)
-        x_cls = self.convs(x)
+        x_cls = self.conv(x)
         out = self.fc(x_cls)
         return out
 

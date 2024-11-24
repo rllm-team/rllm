@@ -51,19 +51,19 @@ class ElementWiseLinear(nn.Module):
 
 class GATConv(nn.Module):
     def __init__(
-            self,
-            in_feats,
-            out_feats,
-            num_heads=1,
-            feat_drop=0.0,
-            attn_drop=0.0,
-            edge_drop=0.0,
-            negative_slope=0.2,
-            use_attn_dst=True,
-            residual=False,
-            activation=None,
-            allow_zero_in_degree=False,
-            use_symmetric_norm=False,
+        self,
+        in_feats,
+        out_feats,
+        num_heads=1,
+        feat_drop=0.0,
+        attn_drop=0.0,
+        edge_drop=0.0,
+        negative_slope=0.2,
+        use_attn_dst=True,
+        residual=False,
+        activation=None,
+        allow_zero_in_degree=False,
+        use_symmetric_norm=False,
     ):
         super(GATConv, self).__init__()
         self._num_heads = num_heads
@@ -73,17 +73,18 @@ class GATConv(nn.Module):
         self._use_symmetric_norm = use_symmetric_norm
         if isinstance(in_feats, tuple):
             self.fc_src = nn.Linear(
-                self._in_src_feats, out_feats * num_heads, bias=False)
+                self._in_src_feats, out_feats * num_heads, bias=False
+            )
             self.fc_dst = nn.Linear(
-                self._in_dst_feats, out_feats * num_heads, bias=False)
+                self._in_dst_feats, out_feats * num_heads, bias=False
+            )
         else:
-            self.fc = nn.Linear(self._in_src_feats,
-                                out_feats * num_heads, bias=False)
-        self.attn_l = nn.Parameter(
-            torch.FloatTensor(size=(1, num_heads, out_feats)))
+            self.fc = nn.Linear(self._in_src_feats, out_feats * num_heads, bias=False)
+        self.attn_l = nn.Parameter(torch.FloatTensor(size=(1, num_heads, out_feats)))
         if use_attn_dst:
             self.attn_r = nn.Parameter(
-                torch.FloatTensor(size=(1, num_heads, out_feats)))
+                torch.FloatTensor(size=(1, num_heads, out_feats))
+            )
         else:
             self.register_buffer("attn_r", None)
         self.feat_drop = nn.Dropout(feat_drop)
@@ -94,7 +95,8 @@ class GATConv(nn.Module):
         self.leaky_relu = nn.LeakyReLU(negative_slope)
         if residual:
             self.res_fc = nn.Linear(
-                self._in_dst_feats, num_heads * out_feats, bias=False)
+                self._in_dst_feats, num_heads * out_feats, bias=False
+            )
         else:
             self.register_buffer("res_fc", None)
         self.reset_parameters()
@@ -128,15 +130,12 @@ class GATConv(nn.Module):
                 if not hasattr(self, "fc_src"):
                     self.fc_src, self.fc_dst = self.fc, self.fc
                 feat_src, feat_dst = h_src, h_dst
-                feat_src = self.fc_src(
-                    h_src).view(-1, self._num_heads, self._out_feats)
-                feat_dst = self.fc_dst(
-                    h_dst).view(-1, self._num_heads, self._out_feats)
+                feat_src = self.fc_src(h_src).view(-1, self._num_heads, self._out_feats)
+                feat_dst = self.fc_dst(h_dst).view(-1, self._num_heads, self._out_feats)
             else:
                 h_src = self.feat_drop(feat)
                 feat_src = h_src
-                feat_src = self.fc(
-                    h_src).view(-1, self._num_heads, self._out_feats)
+                feat_src = self.fc(h_src).view(-1, self._num_heads, self._out_feats)
                 if graph.is_block:
                     h_dst = h_src[: graph.number_of_dst_nodes()]
                     feat_dst = feat_src[: graph.number_of_dst_nodes()]
@@ -174,13 +173,13 @@ class GATConv(nn.Module):
 
             if self.training and self.edge_drop > 0:
                 if perm is None:
-                    perm = torch.randperm(
-                        graph.number_of_edges(), device=e.device)
+                    perm = torch.randperm(graph.number_of_edges(), device=e.device)
                 bound = int(graph.number_of_edges() * self.edge_drop)
                 eids = perm[bound:]
                 graph.edata["a"] = torch.zeros_like(e)
                 graph.edata["a"][eids] = self.attn_drop(
-                    edge_softmax(graph, e[eids], eids=eids))
+                    edge_softmax(graph, e[eids], eids=eids)
+                )
             else:
                 graph.edata["a"] = self.attn_drop(edge_softmax(graph, e))
 
@@ -197,8 +196,7 @@ class GATConv(nn.Module):
 
             # residual
             if self.res_fc is not None:
-                resval = self.res_fc(h_dst).view(
-                    h_dst.shape[0], -1, self._out_feats)
+                resval = self.res_fc(h_dst).view(h_dst.shape[0], -1, self._out_feats)
                 rst = rst + resval
 
             # activation
@@ -209,20 +207,20 @@ class GATConv(nn.Module):
 
 class RevGATBlock(nn.Module):
     def __init__(
-            self,
-            node_feats,
-            edge_feats,
-            edge_emb,
-            out_feats,
-            n_heads=1,
-            attn_drop=0.0,
-            edge_drop=0.0,
-            negative_slope=0.2,
-            residual=True,
-            activation=None,
-            use_attn_dst=True,
-            allow_zero_in_degree=True,
-            use_symmetric_norm=False,
+        self,
+        node_feats,
+        edge_feats,
+        edge_emb,
+        out_feats,
+        n_heads=1,
+        attn_drop=0.0,
+        edge_drop=0.0,
+        negative_slope=0.2,
+        residual=True,
+        activation=None,
+        use_attn_dst=True,
+        allow_zero_in_degree=True,
+        use_symmetric_norm=False,
     ):
         super(RevGATBlock, self).__init__()
 
@@ -269,21 +267,22 @@ class RevGATBlock(nn.Module):
 
 class RevGAT(nn.Module):
     def __init__(
-            self,
-            in_feats,
-            n_classes,
-            n_hidden,
-            n_layers,
-            n_heads,
-            activation,
-            dropout=0.0,
-            input_drop=0.0,
-            attn_drop=0.0,
-            edge_drop=0.0,
-            use_attn_dst=True,
-            use_symmetric_norm=False,
-            group=2, input_norm=True,
-            use_pred=False,
+        self,
+        in_feats,
+        n_classes,
+        n_hidden,
+        n_layers,
+        n_heads,
+        activation,
+        dropout=0.0,
+        input_drop=0.0,
+        attn_drop=0.0,
+        edge_drop=0.0,
+        use_attn_dst=True,
+        use_symmetric_norm=False,
+        group=2,
+        input_norm=True,
+        use_pred=False,
     ):
         super().__init__()
         self.in_feats = in_feats
@@ -295,7 +294,7 @@ class RevGAT(nn.Module):
         self.use_pred = use_pred
 
         if self.use_pred:
-            self.encoder = torch.nn.Embedding(n_classes+1, n_hidden)
+            self.encoder = torch.nn.Embedding(n_classes + 1, n_hidden)
         self.convs = nn.ModuleList()
         self.norm = nn.BatchNorm1d(n_heads * n_hidden)
         if input_norm:
@@ -339,11 +338,11 @@ class RevGAT(nn.Module):
                     else:
                         Fms.append(copy.deepcopy(fm))
 
-                invertible_module = memgcn.GroupAdditiveCoupling(Fms,
-                                                                 group=self.group)
+                invertible_module = memgcn.GroupAdditiveCoupling(Fms, group=self.group)
 
-                conv = memgcn.InvertibleModuleWrapper(fn=invertible_module,
-                                                      keep_input=False)
+                conv = memgcn.InvertibleModuleWrapper(
+                    fn=invertible_module, keep_input=False
+                )
 
                 self.convs.append(conv)
 
@@ -359,7 +358,7 @@ class RevGAT(nn.Module):
         if self.use_pred:
             h = self.encoder(h)
             h = torch.flatten(h, start_dim=1)
-        if hasattr(self, 'input_norm'):
+        if hasattr(self, "input_norm"):
             h = self.input_norm(h)
             # h2 = self.input_norm(h2)
         h = self.input_drop(h)
@@ -370,8 +369,7 @@ class RevGAT(nn.Module):
 
         self.perms = []
         for i in range(self.n_layers):
-            perm = torch.randperm(graph.number_of_edges(),
-                                  device=graph.device)
+            perm = torch.randperm(graph.number_of_edges(), device=graph.device)
             self.perms.append(perm)
 
         h = self.convs[0](graph, h, self.perms[0]).flatten(1, -1)
