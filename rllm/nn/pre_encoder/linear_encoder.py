@@ -3,10 +3,7 @@ from typing import Any, Dict, List
 
 import torch
 from torch import Tensor
-from torch.nn import (
-    Module,
-    Parameter,
-)
+from torch.nn import Module, Parameter
 
 from rllm.types import ColType, NAMode, StatType
 from rllm.transforms.table_transforms import ColTypeTransform
