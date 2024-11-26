@@ -21,7 +21,7 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets.titanic import Titanic
+from rllm.datasets import Titanic
 from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import FTTransformerConv
 

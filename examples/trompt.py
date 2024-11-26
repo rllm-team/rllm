@@ -21,7 +21,7 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets.adult import Adult
+from rllm.datasets import Adult
 from rllm.transforms.table_transforms import TromptTransform
 from rllm.nn.conv.table_conv import TromptConv
 
@@ -43,7 +43,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = Adult(cached_dir=path)[0]
 dataset.to(device)
 
-# Split dataset, here the ratio of train-val-test is 80%-10%-10%
+# Split dataset, here the ratio of train-val-test is 26048-6513-16281
 train_loader, val_loader, test_loader = dataset.get_dataloader(
     26048, 6513, 16281, batch_size=args.batch_size
 )
