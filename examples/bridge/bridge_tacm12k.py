@@ -44,14 +44,13 @@ dataset = TACM12KDataset(cached_dir=path, force_reload=True)
     _,
 ) = dataset.data_list
 
-# Making graph
-paper_embeddings = paper_embeddings.to(device)
 adj = build_homo_adj(
     relation_df=citations_table.df,
     n_all=len(papers_table),
 ).to(device)
 target_table = papers_table.to(device)
 y = papers_table.y.long().to(device)
+paper_embeddings = paper_embeddings.to(device)
 
 
 train_mask, val_mask, test_mask = (
@@ -59,7 +58,6 @@ train_mask, val_mask, test_mask = (
     papers_table.val_mask,
     papers_table.test_mask,
 )
-out_dim = papers_table.num_classes
 
 
 class Bridge(torch.nn.Module):
@@ -77,6 +75,29 @@ class Bridge(torch.nn.Module):
         node_feats = torch.cat([t_embedds, non_table], dim=0)
         node_feats = self.graph_encoder(node_feats, adj)
         return node_feats[: len(table), :]
+
+
+t_encoder = TableEncoder(
+    in_dim=paper_embeddings.size(1),
+    out_dim=paper_embeddings.size(1),
+    table_transorm=FTTransformerTransform(col_stats_dict=papers_table.stats_dict),
+    table_conv=TabTransformerConv,
+)
+g_encoder = GraphEncoder(
+    in_dim=paper_embeddings.size(1),
+    out_dim=papers_table.num_classes,
+    graph_transform=GCNNorm(),
+    graph_conv=GCNConv,
+)
+model = Bridge(
+    table_encoder=t_encoder,
+    graph_encoder=g_encoder,
+).to(device)
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=args.lr,
+    weight_decay=args.wd,
+)
 
 
 def accuracy_score(preds, truth):
@@ -112,32 +133,8 @@ def test_epoch():
     return train_acc.item(), val_acc.item(), test_acc.item()
 
 
-t_encoder = TableEncoder(
-    in_dim=paper_embeddings.size(1),
-    out_dim=paper_embeddings.size(1),
-    table_transorm=FTTransformerTransform(col_stats_dict=papers_table.stats_dict),
-    table_conv=TabTransformerConv,
-)
-g_encoder = GraphEncoder(
-    in_dim=paper_embeddings.size(1),
-    out_dim=out_dim,
-    graph_transform=GCNNorm(),
-    graph_conv=GCNConv,
-)
-model = Bridge(
-    table_encoder=t_encoder,
-    graph_encoder=g_encoder,
-).to(device)
-
 start_time = time.time()
 best_val_acc = best_test_acc = 0
-optimizer = torch.optim.Adam(
-    [
-        dict(params=model.table_encoder.parameters(), lr=0.001),
-        dict(params=model.graph_encoder.parameters(), lr=0.01, weight_decay=1e-4),
-    ]
-)
-
 for epoch in range(1, args.epochs + 1):
     train_loss = train_epoch()
     train_acc, val_acc, test_acc = test_epoch()

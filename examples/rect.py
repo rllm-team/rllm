@@ -11,7 +11,7 @@
 
 # Datasets              Citeseer    |         Cora         | Pubmed
 # Unseen Classes  [1, 2, 5]  [3, 4] | [1, 2, 3]  [3, 4, 6] | [2]
-# RECT-L          66.50      68.40  | 74.80      72.20     | 75.30
+# RECT-L          61.10      66.10  | 71.20      70.40     | 69.90
 
 import argparse
 import copy
@@ -41,7 +41,7 @@ transform = GT.Compose(
     [
         UT.NormalizeFeatures("l2"),
         UT.SVDFeatureReduction(200),
-        GT.GDC(),
+        GT.GCNNorm(),
     ]
 )
 
