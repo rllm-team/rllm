@@ -30,6 +30,7 @@ class RECT_L(torch.nn.Module):
         self.in_dim = in_dim
         self.hidden_dim = hidden_dim
         self.dropout = dropout
+        self.prelu = torch.nn.PReLU()
         self.conv = GCNConv(in_dim, hidden_dim)
         self.lin = Linear(hidden_dim, in_dim)
         self.reset_parameters()
@@ -41,7 +42,7 @@ class RECT_L(torch.nn.Module):
         torch.nn.init.xavier_uniform_(self.lin.weight.data)
 
     def forward(self, x: Tensor, adj: Tensor):
-        x = self.conv(x, adj)
+        x = self.prelu(self.conv(x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
         return self.lin(x)
 

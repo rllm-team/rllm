@@ -59,7 +59,6 @@ train_mask, val_mask, test_mask = (
     artist_table.val_mask,
     artist_table.test_mask,
 )
-out_dim = artist_table.num_classes
 
 
 class Bridge(torch.nn.Module):
@@ -77,6 +76,29 @@ class Bridge(torch.nn.Module):
         node_feats = torch.cat([t_embedds, non_table], dim=0)
         node_feats = self.graph_encoder(node_feats, adj)
         return node_feats[: len(table), :]
+
+
+t_encoder = TableEncoder(
+    in_dim=emb_size,
+    out_dim=emb_size,
+    table_transorm=FTTransformerTransform(col_stats_dict=artist_table.stats_dict),
+    table_conv=TabTransformerConv,
+)
+g_encoder = GraphEncoder(
+    in_dim=emb_size,
+    out_dim=artist_table.num_classes,
+    graph_transform=GCNNorm(),
+    graph_conv=GCNConv,
+)
+model = Bridge(
+    table_encoder=t_encoder,
+    graph_encoder=g_encoder,
+).to(device)
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=args.lr,
+    weight_decay=args.wd,
+)
 
 
 def accuracy_score(preds, truth):
@@ -112,27 +134,8 @@ def test_epoch():
     return train_acc.item(), val_acc.item(), test_acc.item()
 
 
-t_encoder = TableEncoder(
-    in_dim=emb_size,
-    out_dim=emb_size,
-    table_transorm=FTTransformerTransform(col_stats_dict=artist_table.stats_dict),
-    table_conv=TabTransformerConv,
-)
-g_encoder = GraphEncoder(
-    in_dim=emb_size,
-    out_dim=out_dim,
-    graph_transform=GCNNorm(),
-    graph_conv=GCNConv,
-)
-model = Bridge(
-    table_encoder=t_encoder,
-    graph_encoder=g_encoder,
-).to(device)
-
-
 start_time = time.time()
 best_val_acc = best_test_acc = 0
-optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
 for epoch in range(1, args.epochs + 1):
     train_loss = train_epoch()
     train_acc, val_acc, test_acc = test_epoch()
