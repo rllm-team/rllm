@@ -132,8 +132,8 @@ class TableEncoder(Module):
     def forward(self, table):
         feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
         x = self.table_transform(feat_dict)
-        for table_conv in self.convs:
-            x = table_conv(x)
+        for conv in self.convs:
+            x = conv(x)
         x = x.mean(dim=1)
         return x
 
@@ -170,9 +170,9 @@ class GraphEncoder(Module):
 
     def forward(self, x, adj):
         adj = self.graph_transform(adj)
-        for graph_conv in self.convs[:-1]:
+        for conv in self.convs[:-1]:
             x = F.dropout(x, p=self.dropout, training=self.training)
-            x = F.relu(graph_conv(x, adj))
+            x = F.relu(conv(x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj)
         return x
