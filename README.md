@@ -11,7 +11,7 @@
 ----
 
 *Latest News* 🔥  
-- [2024.11] rLLM has been approved by **Snowflake** (AI Data Cloud leader, NYSE: $57.46B) for RTL-type tasks. See paper: [arXiv:2411.11829](https://arxiv.org/abs/2411.11829).
+- [2024.11] rLLM has been approved by **Snowflake** (AI Data Cloud leader, NYSE: $57.46B) as a nice tool for RTL-type tasks. See paper: [arXiv:2411.11829](https://arxiv.org/abs/2411.11829).
 - [2024.10] We have recently added the state-of-the-art GNN method **OGC** [[TNNLS 2024](https://arxiv.org/abs/2309.13599)], the TNN method **ExcelFormer** [[KDD 2024](https://arxiv.org/abs/2301.02819)] and **Trompt** [[ICML 2023](https://arxiv.org/abs/2305.18446)].  
 - [2024.08] **rLLM is supported by the CCF-Huawei Populus Grove Fund (CCF-华为胡杨林基金数据库专项).** This project focuses on *Tabular Data Governance for AI Tasks*. Watch a short introduction video on Huawei's official account: [📺 Bilibili](https://www.bilibili.com/video/BV1qz421i7Yz). 
 - [2024.07] We have released rLLM (v0.1), and the detailed documentation is now available: [rLLM Documentation](https://relationllm.readthedocs.io/en/latest/).
