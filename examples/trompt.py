@@ -22,7 +22,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Adult
-from rllm.transforms.table_transforms import TromptTransform
+from rllm.nn.models import MODEL_CONFIG
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
@@ -66,7 +66,7 @@ class Trompt(torch.nn.Module):
 
         self.transforms = torch.nn.ModuleList(
             [
-                TromptTransform(
+                MODEL_CONFIG[TromptConv](
                     out_dim=hidden_dim,
                     col_stats_dict=col_stats_dict,
                 )

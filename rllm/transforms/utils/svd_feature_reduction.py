@@ -1,7 +1,7 @@
 from typing import Union
 
 from rllm.data.graph_data import GraphData, HeteroGraphData
-from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.utils import BaseTransform
 from rllm.transforms.utils.functional import svd_feature_reduction
 
 

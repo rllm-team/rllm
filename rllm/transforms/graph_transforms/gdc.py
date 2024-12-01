@@ -6,11 +6,11 @@ import torch
 from torch import Tensor
 
 from rllm.data.graph_data import GraphData, HeteroGraphData
-from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.graph_transforms import NETransform
 from rllm.utils.sparse import sparse_mx_to_torch_sparse_tensor
 
 
-class GDC(BaseTransform):
+class GDC(NETransform):
     r"""Processes the graph via Graph Diffusion Convolution (GDC) from the
     `"Diffusion Improves Graph Learning" <https://arxiv.org/abs/1911.05485>`_
     paper (functional name: :obj:`gdc`).

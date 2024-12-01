@@ -3,11 +3,11 @@ from typing import Optional, Union
 from rllm.types import ColType
 from rllm.data.graph_data import GraphData
 from rllm.data.table_data import TableData
-from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.graph_transforms import NETransform
 from rllm.transforms.graph_transforms.functional import knn_graph
 
 
-class KNNGraph(BaseTransform):  # TODO: add force_undirected option.
+class KNNGraph(NETransform):  # TODO: add force_undirected option.
     r"""Creates a k-NN graph based on node features
 
     Args:

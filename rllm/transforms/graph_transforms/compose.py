@@ -1,15 +1,16 @@
 from typing import Callable, List, Union
 
 from rllm.data.graph_data import GraphData, HeteroGraphData
-from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.graph_transforms import NETransform
 
 
-class Compose(BaseTransform):
+class Compose(NETransform):
     r"""Composes several transforms together.
 
     Args:
         transforms (List[Callable]): List of transforms to compose.
     """
+
     def __init__(self, transforms: List[Callable]):
         self.transforms = transforms
 

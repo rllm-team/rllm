@@ -14,8 +14,10 @@ from .tabnet import (
     # GLU_Block,
     # GLU_Layer
 )
+from .model_config import MODEL_CONFIG
 
 __all__ = [
     "RECT_L",
     "TabNet",
+    "MODEL_CONFIG",
 ]
