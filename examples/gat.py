@@ -16,7 +16,7 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-import rllm.transforms.utils as UT
+from rllm.nn.models import MODEL_CONFIG
 from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.conv.graph_conv import GATConv
 
@@ -38,7 +38,6 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = PlanetoidDataset(
     path,
     args.dataset,
-    transform=UT.NormalizeFeatures("sum"),
 )
 data = dataset[0]
 data.adj = torch.eye(data.adj.size(0)) + data.adj
@@ -59,10 +58,13 @@ class GAT(torch.nn.Module):
     ):
         super().__init__()
         self.dropout = dropout
+        self.transform = MODEL_CONFIG[GATConv]()
         self.conv1 = GATConv(in_dim, hidden_dim, heads, concat=True)
         self.conv2 = GATConv(hidden_dim * heads, out_dim, heads=1)
 
-    def forward(self, x, adj):
+    def forward(self, data):
+        data = self.transform(data)
+        x, adj = data.x, data.adj
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = F.elu(self.conv1(x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -87,7 +89,7 @@ loss_fn = torch.nn.CrossEntropyLoss()
 def train():
     model.train()
     optimizer.zero_grad()
-    out = model(data.x, data.adj)
+    out = model(data)
     loss = F.cross_entropy(out[data.train_mask], data.y[data.train_mask])
     loss.backward()
     optimizer.step()
@@ -97,7 +99,7 @@ def train():
 @torch.no_grad()
 def test():
     model.eval()
-    out = model(data.x, data.adj)
+    out = model(data)
     pred = out.argmax(dim=1)
 
     accs = []

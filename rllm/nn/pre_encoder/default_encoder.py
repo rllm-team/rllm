@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
-import torch
 from torch import Tensor
 from torch.nn import Module
 

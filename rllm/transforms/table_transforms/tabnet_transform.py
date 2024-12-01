@@ -9,8 +9,8 @@ from rllm.nn.pre_encoder import EmbeddingEncoder, StackEncoder
 class TabNetTransform(TableTypeTransform):
     def __init__(
         self,
-        out_dim: int,
-        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
+        out_dim: int = None,
+        col_stats_dict: Dict[ColType, List[Dict[str, Any]]] = None,
         col_types_transform_dict: Dict[ColType, ColTypeTransform] = None,
     ) -> None:
         if col_types_transform_dict is None:

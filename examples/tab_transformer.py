@@ -21,7 +21,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.transforms.table_transforms import TabTransformerTransform
+from rllm.nn.models import MODEL_CONFIG
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -59,7 +59,7 @@ class TabTransformer(torch.nn.Module):
         col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.transform = TabTransformerTransform(
+        self.transform = MODEL_CONFIG[TabTransformerConv](
             out_dim=hidden_dim,
             col_stats_dict=col_stats_dict,
         )

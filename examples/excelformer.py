@@ -13,8 +13,8 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
+from rllm.nn.models import MODEL_CONFIG
 from rllm.datasets.titanic import Titanic
-from rllm.transforms.table_transforms import FTTransformerTransform
 from rllm.nn.conv.table_conv import ExcelFormerConv
 
 parser = argparse.ArgumentParser()
@@ -52,7 +52,7 @@ class ExcelFormer(torch.nn.Module):
         col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.transform = FTTransformerTransform(
+        self.transform = MODEL_CONFIG[ExcelFormerConv](
             out_dim=hidden_dim,
             col_stats_dict=col_stats_dict,
         )

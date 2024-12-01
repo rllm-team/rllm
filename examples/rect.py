@@ -24,10 +24,10 @@ from sklearn.linear_model import LogisticRegression
 
 sys.path.append("./")
 sys.path.append("../")
+from rllm.nn.models import RECT_L, MODEL_CONFIG
 from rllm.datasets.planetoid import PlanetoidDataset
-import rllm.transforms.graph_transforms as GT
-import rllm.transforms.utils as UT
-from rllm.nn.models import RECT_L
+from rllm.transforms.utils import RemoveTrainingClasses
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -37,19 +37,13 @@ parser.add_argument("--unseen-classes", type=int, nargs="*", default=[1, 2, 3])
 parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
 args = parser.parse_args()
 
-transform = GT.Compose(
-    [
-        UT.NormalizeFeatures("l2"),
-        UT.SVDFeatureReduction(200),
-        GT.GCNNorm(),
-    ]
-)
+transform = MODEL_CONFIG[RECT_L]()
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = PlanetoidDataset(path, args.dataset, transform=transform, force_reload=True)
 data = dataset[0]
 
-zs_data = UT.RemoveTrainingClasses(args.unseen_classes)(copy.deepcopy(data))
+zs_data = RemoveTrainingClasses(args.unseen_classes)(copy.deepcopy(data))
 
 model = RECT_L(200, 200, dropout=0.0)
 zs_data.y = model.get_semantic_labels(zs_data.x, zs_data.y, zs_data.train_mask)

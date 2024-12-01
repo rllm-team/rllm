@@ -1,7 +1,7 @@
 import copy
 
 
-class NETransform:
+class BaseTransform:
     r"""An abstract base class for writing transforms."""
 
     def __call__(self, data):

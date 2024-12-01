@@ -7,7 +7,7 @@ from rllm.transforms.table_transforms import (
     TableTypeTransform,
 )
 from rllm.nn.pre_encoder import NumericalDefaultEncoder, CategoricalDefaultEncoder
-from rllm.nn.pre_encoder import EmbeddingEncoder, LinearEncoder
+
 
 class DefaultTransform(TableTypeTransform):
     def __init__(
