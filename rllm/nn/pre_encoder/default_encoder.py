@@ -36,7 +36,6 @@ class NumericalDefaultEncoder(ColTypeTransform):
     def encode_forward(
         self,
         feat: Tensor,
-        #col_names: List[str] | None = None,
     ) -> Tensor:
         # feat: [batch_size, num_cols]
         x = feat
@@ -70,7 +69,6 @@ class CategoricalDefaultEncoder(ColTypeTransform):
     def encode_forward(
         self,
         feat: Tensor,
-        #col_names: List[str] | None = None,
     ) -> Tensor:
         # feat: [batch_size, num_cols]
         x = feat

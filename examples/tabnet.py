@@ -68,7 +68,7 @@ class TabNetModel(torch.nn.Module):
             out_dim=out_dim,  # dataset.num_classes,
             cat_emb_dim=hidden_dim,  # args.dim,
             num_emb_dim=hidden_dim,  # args.dim,
-            col_stats_dict=dataset.stats_dict,
+            col_stats_dict=col_stats_dict,
         )
 
     def forward(self, x):
@@ -80,7 +80,7 @@ class TabNetModel(torch.nn.Module):
 model = TabNetModel(
     out_dim=dataset.num_classes,
     hidden_dim=args.dim,
-    col_stats_dict=dataset.stats_dict,
+    col_stats_dict=dataset.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(

@@ -125,7 +125,7 @@ model = Trompt(
     out_dim=dataset.num_classes,
     num_layers=args.num_layers,
     num_prompts=128,
-    col_stats_dict=dataset.stats_dict,
+    col_stats_dict=dataset.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(

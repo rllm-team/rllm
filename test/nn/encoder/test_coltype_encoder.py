@@ -19,7 +19,7 @@ def test_categorical_encoder():
     dataset = TableData(df, col_types, target_col="cat_3")
     encoder = CategoricalTransform(
         out_dim=4,
-        stats_list=dataset.stats_dict[ColType.CATEGORICAL],
+        stats_list=dataset.metadata[ColType.CATEGORICAL],
         na_mode=NAMode.MOST_FREQUENT,
     )
     encoder.post_init()
@@ -52,7 +52,7 @@ def test_numerical_encoder(type: str):
     encoder = NumericalTransform(
         type=type,
         out_dim=4,
-        stats_list=dataset.stats_dict[ColType.NUMERICAL],
+        stats_list=dataset.metadata[ColType.NUMERICAL],
         na_mode=NAMode.MEAN,
     )
     encoder.post_init()
