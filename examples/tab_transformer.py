@@ -88,7 +88,7 @@ model = TabTransformer(
     out_dim=dataset.num_classes,
     num_layers=args.num_layers,
     heads=args.num_heads,
-    col_stats_dict=dataset.stats_dict,
+    col_stats_dict=dataset.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(

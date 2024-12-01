@@ -78,7 +78,7 @@ model = ExcelFormer(
     hidden_dim=args.dim,
     out_dim=dataset.num_classes,
     num_layers=args.num_layers,
-    col_stats_dict=dataset.stats_dict,
+    col_stats_dict=dataset.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(
