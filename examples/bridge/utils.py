@@ -102,12 +102,12 @@ class TableEncoder(Module):
     which mainly performs multi-layer convolution of the incoming table.
 
     Args:
-        hidden_dim (int): Size of each sample in hidden layer.
-        stats_dict (Dict[ColType, List[Dict[str, Any]]]):
-            A dictionary that maps column type into stats.
-        table_transorm: The transform method of the table.
-        table_conv: Using the table convolution layer.
-        num_layers (int): The number of layers of the convolution.
+        in_dim (int): Input dimensionality of the table data.
+        out_dim (int): Output dimensionality for the encoded table data.
+        num_layers (int, optional): Number of convolution layers. Defaults to 1.
+        table_transorm (Module): The transformation module to be applied to the table data.
+        table_conv (Type[Module], optional): The convolution module to be used for
+            encoding the table data. Defaults to TabTransformerConv.
     """
 
     def __init__(
@@ -118,6 +118,7 @@ class TableEncoder(Module):
         table_transorm: Module = None,
         table_conv: Type[Module] = TabTransformerConv,
     ) -> None:
+
         super().__init__()
 
         assert table_transorm is not None

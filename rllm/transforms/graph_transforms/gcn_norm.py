@@ -3,14 +3,14 @@ from typing import Union
 from torch import Tensor
 
 from rllm.data.graph_data import GraphData, HeteroGraphData
-from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.graph_transforms import NETransform
 from rllm.transforms.graph_transforms.functional import (
     add_remaining_self_loops,
     symmetric_norm,
 )
 
 
-class GCNNorm(BaseTransform):
+class GCNNorm(NETransform):
     r"""Normalize the sparse adjacency matrix from the `"Semi-supervised
     Classification with GraphConvolutional
     Networks" <https://arxiv.org/abs/1609.02907>`__ .

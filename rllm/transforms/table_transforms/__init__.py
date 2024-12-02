@@ -4,6 +4,7 @@ from .tab_transformer_transform import TabTransformerTransform
 from .ft_transformer_transform import FTTransformerTransform
 from .tabnet_transform import TabNetTransform
 from .trompt_transform import TromptTransform
+from .default_transform import DefaultTransform
 
 __all__ = [
     "ColTypeTransform",
@@ -12,4 +13,5 @@ __all__ = [
     "FTTransformerTransform",
     "TabNetTransform",
     "TromptTransform",
+    "DefaultTransform"
 ]

@@ -85,13 +85,13 @@ class TableData(BaseTable):
         # TODO: The following variables should not be explicitly defined
         feat_dict: Dict[ColType, Tensor] = None,
         y: Tensor = None,
-        stats_dict: Dict[ColType, List[dict[str, Any]]] | None = None,
+        metadata: Dict[ColType, List[dict[str, Any]]] | None = None,
         **kwargs,
     ):
         self._mapping = BaseStorage()
 
         self.df = df
-        self.stats_dict = stats_dict
+        self.metadata = metadata
         self.target_col = target_col
         self.col_types = col_types
         self.feat_dict = feat_dict
@@ -102,18 +102,18 @@ class TableData(BaseTable):
 
         if feat_dict is None or y is None:
             self._generate_feat_dict()
-        if stats_dict is None:
-            self._generate_stats_dict()
+        if metadata is None:
+            self._generate_metadata()
 
     @classmethod
     def load(cls, path: str) -> TableData:
         data = torch.load(path, weights_only=False)
         # TODO: Delete this
-        key_mapping = {"get_split_func": "get_split"}
+        # key_mapping = {"get_split_func": "get_split"}
 
-        for old_key, new_key in key_mapping.items():
-            if old_key in data.keys():
-                data[new_key] = data.pop(old_key)
+        # for old_key, new_key in key_mapping.items():
+        #     if old_key in data.keys():
+        #         data[new_key] = data.pop(old_key)
 
         return cls(**data)
 
@@ -364,14 +364,14 @@ class TableData(BaseTable):
 
         return torch.tensor(col_copy.values.astype(float), dtype=torch.float32)
 
-    def _generate_stats_dict(
+    def _generate_metadata(
         self,
     ):
         r"""Get each column's statistical data from single tabular dataset.
         Columns with same ColType will be integrated together.
         eg: {ColType.CATEGORICAL: [{col_name: col_name1, stat1: xx, stat2: xx},
         {col_name: col_name2, stat1: xx, stat2: xx}], ...}"""
-        stats_dict = {}
+        metadata = {}
         # 1. Iterate each column
         col_types = self.col_types.copy()
         col_types.pop(self.target_col, None)
@@ -379,9 +379,9 @@ class TableData(BaseTable):
         for col_name, col_type in col_types.items():
             sub_stats_list = {}
 
-            if col_type not in stats_dict.keys():
+            if col_type not in metadata.keys():
                 # add a new list for certain ColType
-                stats_dict[col_type] = []
+                metadata[col_type] = []
 
             # 2. Compute stats
             stats_to_compute = StatType.stats_for_col_type(col_type)
@@ -394,9 +394,9 @@ class TableData(BaseTable):
                     self.feat_dict[col_type][:, current_col_index], stat_type
                 )
 
-            # 3. Update stats_dict
+            # 3. Update metadata
             sub_stats_list[StatType.COLNAME] = col_name
-            stats_dict[col_type].append(sub_stats_list)
+            metadata[col_type].append(sub_stats_list)
 
-        self.stats_dict = stats_dict
+        self.metadata = metadata
         return self

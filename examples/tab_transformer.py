@@ -21,7 +21,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.transforms.table_transforms import TabTransformerTransform
+from rllm.nn.models import MODEL_CONFIG
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -56,12 +56,12 @@ class TabTransformer(torch.nn.Module):
         out_dim: int,
         num_layers: int,
         heads: int,
-        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.transform = TabTransformerTransform(
+        self.transform = MODEL_CONFIG[TabTransformerConv](
             out_dim=hidden_dim,
-            col_stats_dict=col_stats_dict,
+            metadata=metadata,
         )
 
         self.convs = torch.nn.ModuleList(
@@ -88,7 +88,7 @@ model = TabTransformer(
     out_dim=dataset.num_classes,
     num_layers=args.num_layers,
     heads=args.num_heads,
-    col_stats_dict=dataset.stats_dict,
+    metadata=dataset.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(
