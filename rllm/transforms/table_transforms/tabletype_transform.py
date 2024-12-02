@@ -16,7 +16,7 @@ class TableTypeTransform(Module, ABC):
 
     Args:
         out_dim (int): Output dimensionality.
-        col_stats_dict
+        metadata
             (Dict[class:`rllm.types.ColType`, List[dict[StatType]]):
             A dictionary that maps column type into stats.
         col_types_transform_dict
@@ -31,16 +31,16 @@ class TableTypeTransform(Module, ABC):
     def __init__(
         self,
         out_dim: int,
-        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[str, Any]]],
         col_types_transform_dict: Dict[ColType, ColTypeTransform],
     ) -> None:
         super().__init__()
 
-        self.col_stats_dict = col_stats_dict
+        self.metadata = metadata
         self.transform_dict = ModuleDict()
 
         col_names_dict: Dict[ColType, list[str]] = {}
-        for col_type, stats_list in col_stats_dict.items():
+        for col_type, stats_list in metadata.items():
             if col_type not in col_names_dict.keys():
                 col_names_dict[col_type] = []
             for stats in stats_list:
@@ -53,8 +53,8 @@ class TableTypeTransform(Module, ABC):
                     f"{col_types_transform} does not " f"support encoding {col_type}."
                 )
 
-            if col_type in col_stats_dict.keys():
-                stats_list = col_stats_dict[col_type]
+            if col_type in metadata.keys():
+                stats_list = metadata[col_type]
                 # Set attributes
                 col_types_transform.col_type = col_type
                 if col_types_transform.out_dim is None:
@@ -65,7 +65,7 @@ class TableTypeTransform(Module, ABC):
         self.reset_parameters()
 
     def reset_parameters(self):
-        for col_type in self.col_stats_dict.keys():
+        for col_type in self.metadata.keys():
             self.transform_dict[col_type.value].reset_parameters()
 
     def forward(

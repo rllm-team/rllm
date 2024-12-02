@@ -56,12 +56,12 @@ class FTTransformer(torch.nn.Module):
         hidden_dim: int,
         out_dim: int,
         layers: int,
-        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
         self.transform = MODEL_CONFIG[FTTransformerConv](
             out_dim=hidden_dim,
-            col_stats_dict=col_stats_dict,
+            metadata=metadata,
         )
 
         self.conv = FTTransformerConv(
@@ -86,7 +86,7 @@ model = FTTransformer(
     hidden_dim=args.dim,
     out_dim=dataset.num_classes,
     layers=args.num_layers,
-    col_stats_dict=dataset.metadata,
+    metadata=dataset.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(
