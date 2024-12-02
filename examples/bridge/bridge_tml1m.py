@@ -85,7 +85,7 @@ class Bridge(torch.nn.Module):
 t_encoder = TableEncoder(
     in_dim=emb_size,
     out_dim=emb_size,
-    table_transorm=TabTransformerTransform(col_stats_dict=user_table.metadata),
+    table_transorm=TabTransformerTransform(metadata=user_table.metadata),
     table_conv=TabTransformerConv,
 )
 g_encoder = GraphEncoder(

@@ -10,7 +10,7 @@ class TabNetTransform(TableTypeTransform):
     def __init__(
         self,
         out_dim: int = None,
-        col_stats_dict: Dict[ColType, List[Dict[str, Any]]] = None,
+        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
         col_types_transform_dict: Dict[ColType, ColTypeTransform] = None,
     ) -> None:
         if col_types_transform_dict is None:
@@ -25,7 +25,7 @@ class TabNetTransform(TableTypeTransform):
             }
         self._initialized = False
         self.out_dim = out_dim
-        self.col_stats_dict = col_stats_dict
+        self.metadata = metadata
         self.col_types_transform_dict = col_types_transform_dict
 
     def __setattr__(self, name, value):
@@ -35,11 +35,9 @@ class TabNetTransform(TableTypeTransform):
         if not self._initialized and all(
             [
                 hasattr(self, "out_dim") and self.out_dim,
-                hasattr(self, "col_stats_dict") and self.col_stats_dict,
+                hasattr(self, "metadata") and self.metadata,
                 hasattr(self, "col_types_transform_dict"),
             ]
         ):
             self._initialized = True
-            super().__init__(
-                self.out_dim, self.col_stats_dict, self.col_types_transform_dict
-            )
+            super().__init__(self.out_dim, self.metadata, self.col_types_transform_dict)
