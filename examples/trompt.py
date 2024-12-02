@@ -22,7 +22,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Adult
-from rllm.transforms.table_transforms import TromptTransform
+from rllm.nn.models import MODEL_CONFIG
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
@@ -58,7 +58,7 @@ class Trompt(torch.nn.Module):
         out_dim: int,
         num_layers: int,
         num_prompts: int,
-        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
         self.out_dim = out_dim
@@ -66,9 +66,9 @@ class Trompt(torch.nn.Module):
 
         self.transforms = torch.nn.ModuleList(
             [
-                TromptTransform(
+                MODEL_CONFIG[TromptConv](
                     out_dim=hidden_dim,
-                    col_stats_dict=col_stats_dict,
+                    metadata=metadata,
                 )
                 for _ in range(num_layers)
             ]
@@ -125,7 +125,7 @@ model = Trompt(
     out_dim=dataset.num_classes,
     num_layers=args.num_layers,
     num_prompts=128,
-    col_stats_dict=dataset.stats_dict,
+    metadata=dataset.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(

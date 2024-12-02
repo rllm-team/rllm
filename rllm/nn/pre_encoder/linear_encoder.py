@@ -49,7 +49,6 @@ class LinearEncoder(ColTypeTransform):
     def encode_forward(
         self,
         feat: Tensor,
-        col_names: List[str] | None = None,
     ) -> Tensor:
         # feat: [batch_size, num_cols]
         feat = (feat - self.mean) / self.std

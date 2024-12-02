@@ -111,7 +111,7 @@ class ColTypeTransform(Module, ABC):
         # NaN handling of the input Tensor
         feat = self.na_forward(feat)
         # Main encoding into column embeddings
-        x = self.encode_forward(feat, col_names)
+        x = self.encode_forward(feat)
         # Handle NaN in case na_mode is None
         x = torch.nan_to_num(x, nan=0)
         # Post-forward (e.g., normalization, activation)
@@ -121,7 +121,6 @@ class ColTypeTransform(Module, ABC):
     def encode_forward(
         self,
         feat: Tensor,
-        col_names: List[str] | None = None,
     ) -> Tensor:
         r"""The main forward function. Maps input :obj:`feat` from feat_dict
         (shape [batch_size, num_cols]) into output :obj:`x` of shape

@@ -15,7 +15,7 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import TML1MDataset
-from rllm.transforms.table_transforms import FTTransformerTransform
+from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.transforms.graph_transforms import GCNNorm
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
@@ -85,7 +85,7 @@ class Bridge(torch.nn.Module):
 t_encoder = TableEncoder(
     in_dim=emb_size,
     out_dim=emb_size,
-    table_transorm=FTTransformerTransform(col_stats_dict=user_table.stats_dict),
+    table_transorm=TabTransformerTransform(metadata=user_table.metadata),
     table_conv=TabTransformerConv,
 )
 g_encoder = GraphEncoder(

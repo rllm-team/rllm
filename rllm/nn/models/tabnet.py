@@ -418,7 +418,7 @@ class TabNet(torch.nn.Module):
         virtual_batch_size: int = 128,
         momentum: float = 0.02,
         grouped_features: List[int] = [],
-        col_stats_dict: Dict[ColType, List[Dict[str, Any]]] = None,
+        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
         self.cat_emb_dim = cat_emb_dim
@@ -432,13 +432,13 @@ class TabNet(torch.nn.Module):
         self.n_independent = n_independent
         self.n_shared = n_shared
         self.grouped_features = grouped_features
-        self.col_stats_dict = col_stats_dict
-        self.cat_idxs = [i for i in range(len(col_stats_dict[ColType.CATEGORICAL]))]
+        self.metadata = metadata
+        self.cat_idxs = [i for i in range(len(metadata[ColType.CATEGORICAL]))]
         self.in_dim = (
-            len(self.col_stats_dict[ColType.CATEGORICAL])
-            if ColType.NUMERICAL not in self.col_stats_dict.keys()
-            else len(self.col_stats_dict[ColType.CATEGORICAL])
-            + len(self.col_stats_dict[ColType.NUMERICAL])
+            len(self.metadata[ColType.CATEGORICAL])
+            if ColType.NUMERICAL not in self.metadata.keys()
+            else len(self.metadata[ColType.CATEGORICAL])
+            + len(self.metadata[ColType.NUMERICAL])
         )
         if self.n_steps <= 0:
             raise ValueError("n_steps should be a positive integer.")
@@ -449,8 +449,8 @@ class TabNet(torch.nn.Module):
         # Initialize group_matrix and emb_group_matrix
         group_attention_matrix = create_group_matrix(self.grouped_features, self.in_dim)
         self.post_embed_dim = (
-            len(self.col_stats_dict[ColType.NUMERICAL]) * num_emb_dim
-            + len(self.col_stats_dict[ColType.CATEGORICAL]) * cat_emb_dim
+            len(self.metadata[ColType.NUMERICAL]) * num_emb_dim
+            + len(self.metadata[ColType.CATEGORICAL]) * cat_emb_dim
         )
         emb_group_matrix = create_emb_group_matrix(
             group_attention_matrix,

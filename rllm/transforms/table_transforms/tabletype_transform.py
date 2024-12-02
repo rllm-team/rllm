@@ -1,5 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Tuple
+from abc import ABC
+
 import torch
 from torch import Tensor
 from torch.nn import Module, ModuleDict
@@ -8,13 +10,13 @@ from rllm.types import ColType, StatType
 from rllm.transforms.table_transforms import ColTypeTransform
 
 
-class TableTypeTransform(Module):
+class TableTypeTransform(Module, ABC):
     r"""Table Transform that transforms each ColType tensor into embeddings and
     performs the final concatenation.
 
     Args:
         out_dim (int): Output dimensionality.
-        col_stats_dict
+        metadata
             (Dict[class:`rllm.types.ColType`, List[dict[StatType]]):
             A dictionary that maps column type into stats.
         col_types_transform_dict
@@ -29,16 +31,16 @@ class TableTypeTransform(Module):
     def __init__(
         self,
         out_dim: int,
-        col_stats_dict: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[str, Any]]],
         col_types_transform_dict: Dict[ColType, ColTypeTransform],
     ) -> None:
         super().__init__()
 
-        self.col_stats_dict = col_stats_dict
+        self.metadata = metadata
         self.transform_dict = ModuleDict()
 
         col_names_dict: Dict[ColType, list[str]] = {}
-        for col_type, stats_list in col_stats_dict.items():
+        for col_type, stats_list in metadata.items():
             if col_type not in col_names_dict.keys():
                 col_names_dict[col_type] = []
             for stats in stats_list:
@@ -51,8 +53,8 @@ class TableTypeTransform(Module):
                     f"{col_types_transform} does not " f"support encoding {col_type}."
                 )
 
-            if col_type in col_stats_dict.keys():
-                stats_list = col_stats_dict[col_type]
+            if col_type in metadata.keys():
+                stats_list = metadata[col_type]
                 # Set attributes
                 col_types_transform.col_type = col_type
                 if col_types_transform.out_dim is None:
@@ -63,7 +65,7 @@ class TableTypeTransform(Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        for col_type in self.col_stats_dict.keys():
+        for col_type in self.metadata.keys():
             self.transform_dict[col_type.value].reset_parameters()
 
     def forward(
@@ -73,8 +75,8 @@ class TableTypeTransform(Module):
         xs = []
         for col_type in feat_dict.keys():
             feat = feat_dict[col_type]
-            col_names = self.col_names_dict[col_type]
-            x = self.transform_dict[col_type.value](feat, col_names)
+            # col_names = self.col_names_dict[col_type]
+            x = self.transform_dict[col_type.value](feat)
             xs.append(x)
         x = torch.cat(xs, dim=1)
         return x

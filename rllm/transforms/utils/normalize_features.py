@@ -1,7 +1,9 @@
 from typing import Union
 
+from torch import Tensor
+
 from rllm.data import GraphData, HeteroGraphData
-from rllm.transforms.graph_transforms import BaseTransform
+from rllm.transforms.utils import BaseTransform
 from rllm.transforms.utils.functional import normalize_features
 
 
@@ -20,7 +22,10 @@ class NormalizeFeatures(BaseTransform):
     def __init__(self, norm: str = "l2"):
         self.norm = norm
 
-    def forward(self, data: Union[GraphData, HeteroGraphData]):
+    def forward(self, data: Union[Tensor, GraphData, HeteroGraphData]):
+        if isinstance(data, Tensor):
+            return normalize_features(data)
+
         for store in data.stores:
             if "x" in store:
                 store.x = normalize_features(store.x, self.norm)
