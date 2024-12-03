@@ -4,12 +4,12 @@ from typing import Any, Dict, List
 from rllm.types import ColType
 from rllm.transforms.table_transforms import (
     ColTypeTransform,
-    TableTypeTransform,
+    TableTransform,
 )
 from rllm.nn.pre_encoder import NumericalDefaultEncoder, CategoricalDefaultEncoder
 
 
-class DefaultTransform(TableTypeTransform):
+class DefaultTransform(TableTransform):
     def __init__(
         self,
         out_dim: int = None,

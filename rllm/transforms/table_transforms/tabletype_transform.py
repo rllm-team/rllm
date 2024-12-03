@@ -10,7 +10,7 @@ from rllm.types import ColType, StatType
 from rllm.transforms.table_transforms import ColTypeTransform
 
 
-class TableTypeTransform(Module, ABC):
+class TableTransform(Module, ABC):
     r"""Table Transform that transforms each ColType tensor into embeddings and
     performs the final concatenation.
 

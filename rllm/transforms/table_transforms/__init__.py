@@ -1,5 +1,5 @@
 from .coltype_transform import ColTypeTransform
-from .tabletype_transform import TableTypeTransform
+from .tabletype_transform import TableTransform
 from .tab_transformer_transform import TabTransformerTransform
 from .ft_transformer_transform import FTTransformerTransform
 from .tabnet_transform import TabNetTransform
@@ -8,10 +8,10 @@ from .default_transform import DefaultTransform
 
 __all__ = [
     "ColTypeTransform",
-    "TableTypeTransform",
+    "TableTransform",
     "TabTransformerTransform",
     "FTTransformerTransform",
     "TabNetTransform",
     "TromptTransform",
-    "DefaultTransform"
+    "DefaultTransform",
 ]
