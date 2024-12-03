@@ -13,7 +13,7 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.nn.models import MODEL_CONFIG
+from rllm.nn.models import get_transform
 from rllm.datasets.titanic import Titanic
 from rllm.nn.conv.table_conv import ExcelFormerConv
 
@@ -52,7 +52,7 @@ class ExcelFormer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.transform = MODEL_CONFIG[ExcelFormerConv](
+        self.transform = get_transform(ExcelFormerConv)(
             out_dim=hidden_dim,
             metadata=metadata,
         )
@@ -60,6 +60,7 @@ class ExcelFormer(torch.nn.Module):
         self.convs = torch.nn.ModuleList(
             [ExcelFormerConv(dim=hidden_dim) for _ in range(num_layers)]
         )
+
         self.fc = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
             torch.nn.ReLU(),
