@@ -15,7 +15,7 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import TML1MDataset
-from rllm.transforms.table_transforms import TabTransformerTransform
+from rllm.nn.pre_encoder import TabTransformerEncoder
 from rllm.transforms.graph_transforms import GCNNorm
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
@@ -31,6 +31,7 @@ args = parser.parse_args()
 
 # Prepare datasets
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# transform = StackNumerical(emb_size) # 一开始并不知道emb_size, 虽然这里不需要Stack..
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 dataset = TML1MDataset(cached_dir=path, force_reload=True)
 
@@ -85,7 +86,9 @@ class Bridge(torch.nn.Module):
 t_encoder = TableEncoder(
     in_dim=emb_size,
     out_dim=emb_size,
-    table_transorm=TabTransformerTransform(metadata=user_table.metadata),
+    table_transorm=TabTransformerEncoder(
+        out_dim=emb_size, metadata=user_table.metadata
+    ),
     table_conv=TabTransformerConv,
 )
 g_encoder = GraphEncoder(

@@ -6,10 +6,10 @@ from torch import Tensor
 from torch.nn import Embedding, Module
 
 from rllm.types import ColType, NAMode, StatType
-from rllm.transforms.table_transforms import ColTypeTransform
+from .coltype_encoder import ColTypeEncoder
 
 
-class EmbeddingEncoder(ColTypeTransform):
+class EmbeddingEncoder(ColTypeEncoder):
     r"""An simple embedding look-up based Transform for categorical features.
     It applies :class:`torch.nn.Embedding` for each categorical feature and
     concatenates the output embeddings.

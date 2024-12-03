@@ -48,11 +48,16 @@ class Titanic(Dataset):
 
     url = "https://github.com/datasciencedojo/datasets/raw/master/titanic.csv"
 
-    def __init__(self, cached_dir: str, forced_reload: Optional[bool] = False) -> None:
+    def __init__(
+        self, cached_dir: str, forced_reload: Optional[bool] = False, transform=None
+    ) -> None:
         self.name = "titanic"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=forced_reload)
         self.data_list = [TableData.load(self.processed_paths[0])]
+        self.transform = transform
+        if self.transform is not None:
+            self.data_list[0] = self.transform(self.data_list[0])
 
     @property
     def raw_filenames(self):

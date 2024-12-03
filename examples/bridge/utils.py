@@ -120,19 +120,14 @@ class TableEncoder(Module):
     ) -> None:
 
         super().__init__()
-
-        assert table_transorm is not None
-
-        table_transorm.out_dim = in_dim
-        self.table_transform = table_transorm
-
         self.convs = torch.nn.ModuleList()
-        for _ in range(num_layers):
+        self.convs.append(table_conv(dim=out_dim, pre_encoder=table_transorm))
+        for _ in range(num_layers-1):
             self.convs.append(table_conv(dim=out_dim))
 
     def forward(self, table):
-        feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
-        x = self.table_transform(feat_dict)
+        x = table.get_feat_dict()  # A dict contains feature tensor.
+        #x = self.table_transform(feat_dict)
         for conv in self.convs:
             x = conv(x)
         x = x.mean(dim=1)

@@ -7,10 +7,10 @@ from torch import Tensor
 from torch.nn import Module, ModuleDict
 
 from rllm.types import ColType, StatType
-from rllm.transforms.table_transforms import ColTypeTransform
+from .coltype_encoder import ColTypeEncoder
 
 
-class TableTransform(Module, ABC):
+class TableEncoder(Module, ABC):
     r"""Table Transform that transforms each ColType tensor into embeddings and
     performs the final concatenation.
 
@@ -32,7 +32,7 @@ class TableTransform(Module, ABC):
         self,
         out_dim: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
-        col_types_transform_dict: Dict[ColType, ColTypeTransform],
+        col_types_transform_dict: Dict[ColType, ColTypeEncoder],
     ) -> None:
         super().__init__()
 
@@ -76,7 +76,8 @@ class TableTransform(Module, ABC):
         for col_type in feat_dict.keys():
             feat = feat_dict[col_type]
             # col_names = self.col_names_dict[col_type]
-            x = self.transform_dict[col_type.value](feat)
+            if col_type.value in self.transform_dict.keys():
+                x = self.transform_dict[col_type.value](feat)
             xs.append(x)
         x = torch.cat(xs, dim=1)
         return x

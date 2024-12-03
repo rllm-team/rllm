@@ -31,7 +31,7 @@ def _get_na_mask(tensor: Tensor) -> Tensor:
     return na_mask
 
 
-class ColTypeTransform(Module, ABC):
+class ColTypeEncoder(Module, ABC):
     r"""Base class for columns Transform. This module transforms tensor of some
     specific columns type into 3-dimensional column-wise tensor
     that is input into tabular deep learning models.

@@ -1,12 +1,12 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
-from rllm.types import ColType
-from rllm.transforms.table_transforms import ColTypeTransform, TableTransform
+from rllm.types import ColType, NAMode
+from rllm.transforms.table_transforms import ColTypeTransform, TableTypeTransform
 from rllm.nn.pre_encoder import EmbeddingEncoder, StackEncoder
 
 
-class TabTransformerTransform(TableTransform):
+class TabNetTransform(TableTypeTransform):
     def __init__(
         self,
         out_dim: int = None,
@@ -15,8 +15,13 @@ class TabTransformerTransform(TableTransform):
     ) -> None:
         if col_types_transform_dict is None:
             col_types_transform_dict = {
-                ColType.CATEGORICAL: EmbeddingEncoder(),
-                ColType.NUMERICAL: StackEncoder(),
+                ColType.CATEGORICAL: EmbeddingEncoder(
+                    na_mode=NAMode.MOST_FREQUENT,
+                ),
+                ColType.NUMERICAL: StackEncoder(
+                    out_dim=out_dim,
+                    na_mode=NAMode.MEAN,
+                ),
             }
         self._initialized = False
         self.out_dim = out_dim
