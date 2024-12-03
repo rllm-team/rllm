@@ -6,10 +6,10 @@ from torch import Tensor
 from torch.nn import Module
 
 from rllm.types import ColType, NAMode, StatType
-from rllm.transforms.table_transforms import ColTypeTransform
+from .coltype_encoder import ColTypeEncoder
 
 
-class StackEncoder(ColTypeTransform):
+class StackEncoder(ColTypeEncoder):
     r"""Simply stack input numerical features of shape
     :obj:`[batch_size, num_cols]` into
     :obj:`[batch_size, num_cols, out_dim]`.

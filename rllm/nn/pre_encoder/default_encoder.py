@@ -5,10 +5,10 @@ from torch import Tensor
 from torch.nn import Module
 
 from rllm.types import ColType, NAMode, StatType
-from rllm.transforms.table_transforms import ColTypeTransform
+from .coltype_encoder import ColTypeEncoder
 
 
-class NumericalDefaultEncoder(ColTypeTransform):
+class NumericalDefaultEncoder(ColTypeEncoder):
     r"""Simply fill na value in numerical features.
     :obj:`[batch_size, num_cols]` into
     :obj:`[batch_size, num_cols]`.
@@ -41,7 +41,7 @@ class NumericalDefaultEncoder(ColTypeTransform):
         return x
 
 
-class CategoricalDefaultEncoder(ColTypeTransform):
+class CategoricalDefaultEncoder(ColTypeEncoder):
     r"""Simply fill na value in categorical features.
     :obj:`[batch_size, num_cols]` into
     :obj:`[batch_size, num_cols]`.

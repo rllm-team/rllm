@@ -21,12 +21,13 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.nn.models import MODEL_CONFIG
+from rllm.transforms.table_transforms import StackNumerical
+from rllm.nn.pre_encoder import TabTransformerEncoder, FTTransformerEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dim", help="transform dim", type=int, default=32)
-parser.add_argument("--num_layers", type=int, default=6)
+parser.add_argument("--num_layers", type=int, default=2)
 parser.add_argument("--num_heads", type=int, default=8)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--lr", type=float, default=1e-4)
@@ -39,8 +40,11 @@ torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Prepare datasets
+transform = StackNumerical(args.dim)
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = Titanic(cached_dir=path)[0]
+dataset = Titanic(cached_dir=path, transform=transform)[0]
+# 如果使用FTTransformEncoder
+# dataset = Titanic(cached_dir=path)[0]
 dataset.to(device)
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
@@ -54,29 +58,38 @@ class TabTransformer(torch.nn.Module):
         self,
         hidden_dim: int,
         out_dim: int,
-        num_layers: int,
+        num_layers: int, # 这个参数没用啊
         heads: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.transform = MODEL_CONFIG[TabTransformerConv](
+        self.pre_encoder = TabTransformerEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
         )
+        # 使用FTTransformEncoder Best AUC 0.7753; 原来的结构Best AUC 0.8864
+        # self.pre_encoder = FTTransformerEncoder(
+        #     out_dim=hidden_dim,
+        #     metadata=metadata,
+        # )
 
         self.convs = torch.nn.ModuleList(
             [
                 TabTransformerConv(
                     dim=hidden_dim,
                     heads=heads,
-                )
-                for _ in range(num_layers)
+                    pre_encoder=self.pre_encoder,
+                ),
+                TabTransformerConv(
+                    dim=hidden_dim,
+                    heads=heads,
+                ),
             ]
         )
         self.fc = torch.nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x):
-        x = self.transform(x)
+        # x = self.transform(x)
         for conv in self.convs:
             x = conv(x)
         out = self.fc(x.mean(dim=1))

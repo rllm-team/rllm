@@ -169,8 +169,10 @@ class TabTransformerConv(nn.Module):
         dim_head: int = 16,
         attn_dropout: float = 0.3,
         ff_dropout: float = 0.3,
+        pre_encoder: nn.Module = None,
     ):
         super().__init__()
+        self.pre_encoder = pre_encoder
         self.attn = PreNorm(
             dim=dim,
             fn=SelfAttention(
@@ -183,6 +185,8 @@ class TabTransformerConv(nn.Module):
         )
 
     def forward(self, x, return_attn=False):
+        if self.pre_encoder is not None:
+            x = self.pre_encoder(x)
         attn_out, post_softmax_attn = self.attn(x)
         x = x + attn_out
         x = self.ff(x) + x

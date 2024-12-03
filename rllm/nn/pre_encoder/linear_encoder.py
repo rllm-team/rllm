@@ -6,10 +6,10 @@ from torch import Tensor
 from torch.nn import Module, Parameter
 
 from rllm.types import ColType, NAMode, StatType
-from rllm.transforms.table_transforms import ColTypeTransform
+from .coltype_encoder import ColTypeEncoder
 
 
-class LinearEncoder(ColTypeTransform):
+class LinearEncoder(ColTypeEncoder):
     r"""A linear function based Transform for numerical features. It applies
     linear layer :obj:`torch.nn.Linear(1, out_dim)` on each raw numerical
     feature and concatenates the output embeddings. Note that the

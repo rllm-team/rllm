@@ -57,7 +57,7 @@ class TML1MDataset(Dataset):
 
     url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/main/sjtutables/TML1M.zip"  # noqa
 
-    def __init__(self, cached_dir: str, force_reload: Optional[bool] = False) -> None:
+    def __init__(self, cached_dir: str, force_reload: Optional[bool] = False, transform=None) -> None:
         self.name = "Table-MovieLens1M"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
@@ -74,6 +74,11 @@ class TML1MDataset(Dataset):
             # TODO: Get this movie embedding from movie TableData
             torch.from_numpy(np.load(osp.join(self.raw_dir, "embeddings.npy"))),
         ]
+
+        self.transform = transform
+        if self.transform is not None:
+             self.data_list[0] = self.transform(self.data_list[0])
+
 
     @property
     def raw_filenames(self):

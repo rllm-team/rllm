@@ -39,3 +39,4 @@ class DefaultTransform(TableTransform):
         ):
             self._initialized = True
             super().__init__(self.out_dim, self.metadata, self.col_types_transform_dict)
+
