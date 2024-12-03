@@ -3,7 +3,7 @@
 # ArXiv: https://arxiv.org/abs/1710.10903
 
 # Datasets  CiteSeer    Cora      PubMed
-# Acc       0.717       0.823     0.778
+# Acc       0.717       0.830     0.778
 # Time      16.6s       8.4s      15.6s
 
 import argparse
@@ -16,7 +16,7 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.nn.models import MODEL_CONFIG
+from rllm.nn.models import get_transform
 from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.conv.graph_conv import GATConv
 
@@ -30,21 +30,11 @@ parser.add_argument("--lr", type=float, default=5e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--dropout", type=float, default=0.5, help="Graph Dropout")
-parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
-torch.manual_seed(args.seed)
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(
-    path,
-    args.dataset,
-)
+dataset = PlanetoidDataset(path, args.dataset, transform=get_transform(GATConv)())
 data = dataset[0]
-data.adj = torch.eye(data.adj.size(0)) + data.adj
-indices = torch.nonzero(data.adj, as_tuple=False)
-values = data.adj[indices[:, 0], indices[:, 1]]
-sparse_tensor = torch.sparse_coo_tensor(indices.t(), values, data.adj.size())
-data.adj = sparse_tensor
 
 
 class GAT(torch.nn.Module):
@@ -58,13 +48,10 @@ class GAT(torch.nn.Module):
     ):
         super().__init__()
         self.dropout = dropout
-        self.transform = MODEL_CONFIG[GATConv]()
         self.conv1 = GATConv(in_dim, hidden_dim, heads, concat=True)
         self.conv2 = GATConv(hidden_dim * heads, out_dim, heads=1)
 
-    def forward(self, data):
-        data = self.transform(data)
-        x, adj = data.x, data.adj
+    def forward(self, x, adj):
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = F.elu(self.conv1(x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -89,7 +76,7 @@ loss_fn = torch.nn.CrossEntropyLoss()
 def train():
     model.train()
     optimizer.zero_grad()
-    out = model(data)
+    out = model(data.x, data.adj)
     loss = F.cross_entropy(out[data.train_mask], data.y[data.train_mask])
     loss.backward()
     optimizer.step()
@@ -99,7 +86,7 @@ def train():
 @torch.no_grad()
 def test():
     model.eval()
-    out = model(data)
+    out = model(data.x, data.adj)
     pred = out.argmax(dim=1)
 
     accs = []

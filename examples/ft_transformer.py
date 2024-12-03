@@ -22,7 +22,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.nn.models import MODEL_CONFIG
+from rllm.nn.models import get_transform
 from rllm.nn.conv.table_conv import FTTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -59,7 +59,7 @@ class FTTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.transform = MODEL_CONFIG[FTTransformerConv](
+        self.transform = get_transform(FTTransformerConv)(
             out_dim=hidden_dim,
             metadata=metadata,
         )
