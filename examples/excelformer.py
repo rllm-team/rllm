@@ -42,7 +42,6 @@ train_loader, val_loader, test_loader = dataset.get_dataloader(
 )
 
 
-# Set up model and optimizer
 class ExcelFormer(torch.nn.Module):
     def __init__(
         self,
@@ -74,6 +73,7 @@ class ExcelFormer(torch.nn.Module):
         return out
 
 
+# Set up model and optimizer
 model = ExcelFormer(
     hidden_dim=args.dim,
     out_dim=dataset.num_classes,

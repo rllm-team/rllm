@@ -2,11 +2,11 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from rllm.types import ColType, NAMode
-from rllm.transforms.table_transforms import ColTypeTransform, TableTypeTransform
+from rllm.transforms.table_transforms import ColTypeTransform, TableTransform
 from rllm.nn.pre_encoder import EmbeddingEncoder, StackEncoder
 
 
-class TabNetTransform(TableTypeTransform):
+class TabNetTransform(TableTransform):
     def __init__(
         self,
         out_dim: int = None,

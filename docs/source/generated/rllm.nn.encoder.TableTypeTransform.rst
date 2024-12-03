@@ -1,8 +1,8 @@
-﻿rllm.nn.encoder.TableTypeTransform
+﻿rllm.nn.encoder.TableTransform
 ==================================
 .. currentmodule:: rllm.nn.encoder
 
-.. autoclass:: TableTypeTransform
+.. autoclass:: TableTransform
    :show-inheritance:
    :members:
 
