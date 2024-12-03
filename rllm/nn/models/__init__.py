@@ -14,10 +14,10 @@ from .tabnet import (
     # GLU_Block,
     # GLU_Layer
 )
-from .model_config import MODEL_CONFIG
+from .get_transform import get_transform
 
 __all__ = [
     "RECT_L",
     "TabNet",
-    "MODEL_CONFIG",
+    "get_transform",
 ]
