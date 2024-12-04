@@ -1,7 +1,9 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
-from rllm.types import ColType
+import torch
+
+from rllm.types import ColType, StatType
 from rllm.data import TableData
 from .base_transform import BaseTransform
 
@@ -15,6 +17,11 @@ class StackNumerical(BaseTransform):
 
     def forward(self, data: TableData) -> TableData:
         assert ColType.NUMERICAL in data.feat_dict.keys()
+        metadata = data.metadata[ColType.NUMERICAL]
+        self.mean = torch.tensor([stats[StatType.MEAN] for stats in metadata])
+        self.std = torch.tensor([stats[StatType.STD] for stats in metadata]) + 1e-6
+
         feat = data.feat_dict[ColType.NUMERICAL]
+        feat = (feat - self.mean) / self.std
         data.feat_dict[ColType.NUMERICAL] = feat.unsqueeze(2).repeat(1, 1, self.out_dim)
         return data
