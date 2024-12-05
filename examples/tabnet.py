@@ -21,7 +21,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Adult
-from rllm.nn.models import TabNet, get_transform
+from rllm.nn.models import TabNet, gnn_config
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dim", help="embedding dim", type=int, default=32)
@@ -58,7 +58,7 @@ class TabNetModel(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.transform = get_transform(TabNet)(
+        self.transform = gnn_config(TabNet)(
             out_dim=hidden_dim,
             metadata=metadata,
         )

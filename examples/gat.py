@@ -16,7 +16,7 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.nn.models import get_transform
+from rllm.nn.models import gnn_config
 from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.conv.graph_conv import GATConv
 
@@ -33,7 +33,7 @@ parser.add_argument("--dropout", type=float, default=0.5, help="Graph Dropout")
 args = parser.parse_args()
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset, transform=get_transform(GATConv)())
+dataset = PlanetoidDataset(path, args.dataset, transform=gnn_config(GATConv)())
 data = dataset[0]
 
 

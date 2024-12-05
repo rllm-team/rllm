@@ -20,10 +20,9 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.nn.pre_encoder.ft_transformer_encoder import FTTransformerEncoder
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.transforms.table_transforms import DefaultTransform
+from rllm.nn.models import TNNConfig
 from rllm.nn.conv.table_conv import FTTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -40,7 +39,7 @@ torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Prepare datasets
-transform = DefaultTransform(args.dim)
+transform = TNNConfig.get_transform("FTTransformer")(args.dim)
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = Titanic(cached_dir=path, transform=transform)[0]
 dataset.to(device)
@@ -61,7 +60,7 @@ class FTTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.encoder = FTTransformerEncoder(
+        self.encoder = TNNConfig.get_pre_encoder("FTTransformer")(
             out_dim=hidden_dim,
             metadata=metadata,
         )
