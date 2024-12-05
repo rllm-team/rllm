@@ -43,6 +43,7 @@ dataset = TACM12KDataset(cached_dir=path, force_reload=True)
     paper_embeddings,
     _,
 ) = dataset.data_list
+emb_size = paper_embeddings.size(1)
 
 adj = build_homo_adj(
     relation_df=citations_table.df,
@@ -78,13 +79,13 @@ class Bridge(torch.nn.Module):
 
 
 t_encoder = TableEncoder(
-    in_dim=paper_embeddings.size(1),
-    out_dim=paper_embeddings.size(1),
-    table_transorm=TabTransformerTransform(metadata=papers_table.metadata),
+    in_dim=emb_size,
+    out_dim=emb_size,
+    table_transorm=TabTransformerTransform(emb_size, papers_table.metadata),
     table_conv=TabTransformerConv,
 )
 g_encoder = GraphEncoder(
-    in_dim=paper_embeddings.size(1),
+    in_dim=emb_size,
     out_dim=papers_table.num_classes,
     graph_transform=GCNNorm(),
     graph_conv=GCNConv,

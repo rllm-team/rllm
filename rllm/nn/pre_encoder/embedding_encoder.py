@@ -23,9 +23,8 @@ class EmbeddingEncoder(ColTypeEncoder):
         stats_list: List[Dict[StatType, Any]] | None = None,
         col_type: ColType | None = ColType.CATEGORICAL,
         post_module: Module | None = None,
-        na_mode: NAMode | None = None,
     ) -> None:
-        super().__init__(out_dim, stats_list, col_type, post_module, na_mode)
+        super().__init__(out_dim, stats_list, col_type, post_module)
 
     def post_init(self):
         r"""This is the actual initialization function."""

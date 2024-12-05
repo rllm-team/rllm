@@ -1,13 +1,12 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
+from rllm.transforms.table_transforms.stack_numerical import StackNumerical
 from rllm.types import ColType
 from rllm.transforms.table_transforms import TableTransform
 
 
-class DefaultTransform(TableTransform):
-    r"""Default Table Transform. Only fill the Nan values."""
-
+class TabTransformerTransform(TableTransform):
     def __init__(
         self,
         out_dim: int = None,
@@ -15,9 +14,11 @@ class DefaultTransform(TableTransform):
     ) -> None:
         super().__init__(
             out_dim=out_dim,
-            transforms=[],
+            transforms=[StackNumerical(out_dim)],
         )
         self.metadata = metadata
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         super().reset_parameters()
+        for transform in self.transforms:
+            transform.reset_parameters()

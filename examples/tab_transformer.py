@@ -21,8 +21,8 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.transforms.table_transforms import StackNumerical
-from rllm.nn.pre_encoder import TabTransformerEncoder, FTTransformerEncoder
+from rllm.transforms.table_transforms import TabTransformerTransform
+from rllm.nn.pre_encoder import TabTransformerEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -40,9 +40,10 @@ torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Prepare datasets
-transform = StackNumerical(args.dim)
+transform = TabTransformerTransform(args.dim)
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = Titanic(cached_dir=path, transform=transform)[0]
+# transform
 # 如果使用FTTransformEncoder
 # dataset = Titanic(cached_dir=path)[0]
 dataset.to(device)
@@ -58,7 +59,7 @@ class TabTransformer(torch.nn.Module):
         self,
         hidden_dim: int,
         out_dim: int,
-        num_layers: int, # 这个参数没用啊
+        num_layers: int,  # 这个参数没用啊
         heads: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
@@ -89,7 +90,6 @@ class TabTransformer(torch.nn.Module):
         self.fc = torch.nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x):
-        # x = self.transform(x)
         for conv in self.convs:
             x = conv(x)
         out = self.fc(x.mean(dim=1))
