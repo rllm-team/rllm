@@ -38,11 +38,15 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Prepare datasets
-transform = TNNConfig.get_transform("FTTransformer")(args.dim)
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = Titanic(cached_dir=path, transform=transform)[0]
+data = Titanic(cached_dir=path)[0]
+
+# Transform data
+transform = TNNConfig.get_transform("FTTransformer")(args.dim)
+dataset = transform(data)
 dataset.to(device)
+
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
 train_loader, val_loader, test_loader = dataset.get_dataloader(
