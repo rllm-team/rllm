@@ -44,10 +44,11 @@ class FTTransformerConv(torch.nn.Module):
         dropout: float = 0.3,
         activation: str = "relu",
         use_cls: bool = False,
+        pre_encoder: Optional[torch.nn.Module] = None,
     ):
         super().__init__()
         self.use_cls = use_cls
-
+        self.pre_encoder = pre_encoder
         encoder_layer = TransformerEncoderLayer(
             d_model=dim,
             nhead=heads,
@@ -83,6 +84,9 @@ class FTTransformerConv(torch.nn.Module):
             columns, Output tensor of shape [batch_size, dim],
             corresponding to the added CLS token column.)
         """
+        if self.pre_encoder is not None:
+            x = self.pre_encoder(x)
+
         B, _, _ = x.shape
         # [batch_size, num_cols, dim]
         x_cls = self.cls_embedding.repeat(B, 1, 1)

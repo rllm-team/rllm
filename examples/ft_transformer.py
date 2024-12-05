@@ -20,9 +20,10 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
+from rllm.nn.pre_encoder.ft_transformer_encoder import FTTransformerEncoder
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.nn.models import MODEL_CONFIG
+from rllm.transforms.table_transforms import DefaultTransform
 from rllm.nn.conv.table_conv import FTTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -39,8 +40,9 @@ torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Prepare datasets
+transform = DefaultTransform(args.dim)
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = Titanic(cached_dir=path)[0]
+dataset = Titanic(cached_dir=path, transform=transform)[0]
 dataset.to(device)
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
@@ -59,7 +61,7 @@ class FTTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.transform = MODEL_CONFIG[FTTransformerConv](
+        self.encoder = FTTransformerEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
         )
@@ -68,6 +70,7 @@ class FTTransformer(torch.nn.Module):
             dim=hidden_dim,
             layers=layers,
             use_cls=True,
+            pre_encoder=self.encoder,
         )
         self.fc = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
@@ -76,7 +79,6 @@ class FTTransformer(torch.nn.Module):
         )
 
     def forward(self, x) -> Tensor:
-        x = self.transform(x)
         x_cls = self.conv(x)
         out = self.fc(x_cls)
         return out

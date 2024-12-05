@@ -24,10 +24,9 @@ class LinearEncoder(ColTypeEncoder):
         stats_list: List[Dict[StatType, Any]] | None = None,
         col_type: ColType | None = ColType.NUMERICAL,
         post_module: Module | None = None,
-        na_mode: NAMode | None = None,
         activate: Module | None = None,
     ):
-        super().__init__(out_dim, stats_list, col_type, post_module, na_mode)
+        super().__init__(out_dim, stats_list, col_type, post_module)
         self.activate = activate
 
     def post_init(self):

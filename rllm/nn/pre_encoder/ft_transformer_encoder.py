@@ -3,11 +3,11 @@ from typing import Any, Dict, List
 
 from rllm.types import ColType
 from .coltype_encoder import ColTypeEncoder
-from .table_encoder import TableEncoder
+from .pre_encoder import PreEncoder
 from rllm.nn.pre_encoder import EmbeddingEncoder, LinearEncoder
 
 
-class FTTransformerEncoder(TableEncoder):
+class FTTransformerEncoder(PreEncoder):
     def __init__(
         self,
         out_dim: int = None,
