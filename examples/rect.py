@@ -24,7 +24,7 @@ from sklearn.linear_model import LogisticRegression
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.nn.models import RECT_L, get_transform
+from rllm.nn.models import RECT_L, gnn_config
 from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.transforms.utils import RemoveTrainingClasses
 
@@ -37,7 +37,7 @@ parser.add_argument("--unseen-classes", type=int, nargs="*", default=[1, 2, 3])
 parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
 args = parser.parse_args()
 
-transform = get_transform(RECT_L)()
+transform = gnn_config(RECT_L)()
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = PlanetoidDataset(path, args.dataset, transform=transform, force_reload=True)

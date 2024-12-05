@@ -23,6 +23,7 @@ class TromptConv(torch.nn.Module):
         hidden_dim: int,
         num_prompts: int,
         num_groups: int = 2,
+        pre_encoder: torch.nn.Module = None,
     ):
         super().__init__()
         self.num_prompts = num_prompts
@@ -40,9 +41,12 @@ class TromptConv(torch.nn.Module):
             num_channels=num_prompts,
         )
 
+        self.pre_encoder = pre_encoder
         self.reset_parameters()
 
     def forward(self, x: Tensor, x_prompt: Tensor) -> Tensor:
+        if self.pre_encoder is not None:
+            x = self.pre_encoder(x)
         emb_column = self.ln_column(self.emb_column)
         emb_prompt = self.ln_prompt(self.emb_prompt)
 

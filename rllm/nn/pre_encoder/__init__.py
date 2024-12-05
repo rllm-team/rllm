@@ -6,11 +6,13 @@ from .tab_transformer_encoder import TabTransformerEncoder
 from .ft_transformer_encoder import FTTransformerEncoder
 
 __all__ = [
+    # ColEncoder
     "EmbeddingEncoder",
     "LinearEncoder",
     "StackEncoder",
     "NumericalDefaultEncoder",
     "CategoricalDefaultEncoder",
+    # TNN Model Encoder
     "TabTransformerEncoder",
     "FTTransformerEncoder",
 ]

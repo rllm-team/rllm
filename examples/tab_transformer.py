@@ -21,8 +21,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.transforms.table_transforms import TabTransformerTransform
-from rllm.nn.pre_encoder import TabTransformerEncoder
+from rllm.nn.models import TNNConfig
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -40,7 +39,7 @@ torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Prepare datasets
-transform = TabTransformerTransform(args.dim)
+transform = TNNConfig.get_transform("TabTransformer")(args.dim)
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = Titanic(cached_dir=path, transform=transform)[0]
 # transform
@@ -64,7 +63,7 @@ class TabTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.pre_encoder = TabTransformerEncoder(
+        self.pre_encoder = TNNConfig.get_pre_encoder("TabTransformer")(
             out_dim=hidden_dim,
             metadata=metadata,
         )
