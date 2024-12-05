@@ -16,7 +16,7 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.nn.models import MODEL_CONFIG
+from rllm.nn.models import get_transform
 from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.conv.graph_conv import GCNConv
 
@@ -33,9 +33,8 @@ parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
-
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset)
+dataset = PlanetoidDataset(path, args.dataset, transform=get_transform(GCNConv)())
 data = dataset[0]
 
 
@@ -43,13 +42,10 @@ class GCN(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, dropout):
         super().__init__()
         self.dropout = dropout
-        self.transform = MODEL_CONFIG[GCNConv]()
         self.conv1 = GCNConv(in_dim, hidden_dim)
         self.conv2 = GCNConv(hidden_dim, out_dim)
 
-    def forward(self, data):
-        data = self.transform(data)
-        x, adj = data.x, data.adj
+    def forward(self, x, adj):
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = F.relu(self.conv1(x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -73,7 +69,7 @@ loss_fn = torch.nn.CrossEntropyLoss()
 def train():
     model.train()
     optimizer.zero_grad()
-    out = model(data)
+    out = model(data.x, data.adj)
     loss = loss_fn(out[data.train_mask], data.y[data.train_mask])
     loss.backward()
     optimizer.step()
@@ -83,7 +79,7 @@ def train():
 @torch.no_grad()
 def test():
     model.eval()
-    out = model(data)
+    out = model(data.x, data.adj)
     pred = out.argmax(dim=1)
 
     accs = []
