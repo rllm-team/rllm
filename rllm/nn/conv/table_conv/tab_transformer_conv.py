@@ -184,6 +184,8 @@ class TabTransformerConv(nn.Module):
             fn=FeedForward(dim=dim, dropout=ff_dropout),
         )
 
+        self.reset_parameters()
+
     def forward(self, x, return_attn=False):
         if self.pre_encoder is not None:
             x = self.pre_encoder(x)
@@ -199,3 +201,5 @@ class TabTransformerConv(nn.Module):
     def reset_parameters(self) -> None:
         self.attn.reset_parameters()
         self.ff.reset_parameters()
+        if self.pre_encoder is not None:
+            self.pre_encoder.reset_parameters()

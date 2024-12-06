@@ -12,7 +12,7 @@ class TabTransformerEncoder(PreEncoder):
         out_dim: int,
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ) -> None:
-        self.col_types_transform_dict = {
+        self.col_types_encoder_dict = {
             ColType.CATEGORICAL: EmbeddingEncoder(
                 out_dim=out_dim,
                 stats_list=(
@@ -22,4 +22,4 @@ class TabTransformerEncoder(PreEncoder):
             ColType.NUMERICAL: NumericalDefaultEncoder(),
         }
 
-        super().__init__(out_dim, metadata, self.col_types_transform_dict)
+        super().__init__(out_dim, metadata, self.col_types_encoder_dict)

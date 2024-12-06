@@ -10,13 +10,14 @@ import argparse
 import os.path as osp
 import time
 import sys
+from typing import dataclass_transform
 
 import torch
 import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.nn.models import gnn_config
+from rllm.nn.models import GNNConfig
 from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.conv.graph_conv import GATConv
 
@@ -32,9 +33,15 @@ parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--dropout", type=float, default=0.5, help="Graph Dropout")
 args = parser.parse_args()
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Load data
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset, transform=gnn_config(GATConv)())
-data = dataset[0]
+data = PlanetoidDataset(path, args.dataset)[0]
+
+# Transform data
+transform = GNNConfig.get_transform("GCN")()
+data = transform(data)
+data.to(device)
 
 
 class GAT(torch.nn.Module):

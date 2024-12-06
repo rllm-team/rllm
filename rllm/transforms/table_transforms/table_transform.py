@@ -100,8 +100,8 @@ class TableTransform(Module, ABC):
         data = self.na_forward(data)
         # Main encoding into column embeddings
         data = self.encode_forward(data)
-        # Post-forward (e.g., normalization, activation)
-        return self.post_forward(data)
+
+        return data
 
     def encode_forward(
         self,
@@ -114,26 +114,6 @@ class TableTransform(Module, ABC):
         for transform in self.transforms:
             data = transform(data)
         return data
-
-    def post_forward(self, out: TableData) -> Tensor:
-        r"""Post-forward function applied to :obj:`out` of shape
-        [batch_size, num_cols, dim]. It also returns :obj:`out` of the
-        same shape.
-        """
-        if self.post_module is not None:
-            feats = out.get_feat_dict()
-            for col_type, feat in feats.items():
-                shape_before = feat.shape
-                feat = self.post_module(feat)
-                if feat.shape != shape_before:
-                    raise RuntimeError(
-                        f"post_module must not alter the shape of the tensor, but "
-                        f"it changed the shape from {shape_before} to "
-                        f"{feat.shape}."
-                    )
-                feats[col_type] = feat
-
-        return out
 
     def na_forward(
         self,

@@ -86,8 +86,7 @@ class ColTypeEncoder(Module, ABC):
         x = self.encode_forward(feat)
         # Handle NaN in case na_mode is None
         x = torch.nan_to_num(x, nan=0)
-        # Post-forward (e.g., normalization, activation)
-        return self.post_forward(x)
+        return x
 
     @abstractmethod
     def encode_forward(
@@ -99,19 +98,3 @@ class ColTypeEncoder(Module, ABC):
         :obj:`[batch_size, num_cols, out_dim]`.
         """
         raise NotImplementedError
-
-    def post_forward(self, out: Tensor) -> Tensor:
-        r"""Post-forward function applied to :obj:`out` of shape
-        [batch_size, num_cols, dim]. It also returns :obj:`out` of the
-        same shape.
-        """
-        if self.post_module is not None:
-            shape_before = out.shape
-            out = self.post_module(out)
-            if out.shape != shape_before:
-                raise RuntimeError(
-                    f"post_module must not alter the shape of the tensor, but "
-                    f"it changed the shape from {shape_before} to "
-                    f"{out.shape}."
-                )
-        return out

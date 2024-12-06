@@ -1,7 +1,7 @@
 from __future__ import annotations
+from typing import Tuple, Union, Dict
 
 import torch
-from typing import Tuple
 from torch import Tensor
 
 
@@ -23,6 +23,7 @@ class ExcelFormerConv(torch.nn.Module):
         heads: int = 8,
         dim_head: int = 16,
         dropout: float = 0.5,
+        pre_encoder: torch.nn.Module = None,
     ):
         super().__init__()
         self.layer_norm = torch.nn.LayerNorm(dim)
@@ -30,8 +31,11 @@ class ExcelFormerConv(torch.nn.Module):
             dim=dim, heads=heads, dim_head=dim_head, dropout=dropout
         )
         self.GLU_layer = GLU_layer(dim, dim)
+        self.pre_encoder = pre_encoder
 
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: Union[Dict, Tensor]) -> Tuple[Tensor, Tensor]:
+        if self.pre_encoder:
+            x = self.pre_encoder(x)
         x = self.layer_norm(x)
         x = self.sp_attention(x)
         x = x + self.GLU_layer(x)

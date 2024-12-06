@@ -19,9 +19,10 @@ from torch.utils.data import DataLoader
 
 sys.path.append("./")
 sys.path.append("../")
+from rllm.nn.models.tnn_config import TNNConfig
 from rllm.types import ColType
-from rllm.datasets import Adult
-from rllm.nn.models import TabNet, gnn_config
+from rllm.datasets import Titanic
+from rllm.nn.models import TabNet
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dim", help="embedding dim", type=int, default=32)
@@ -29,7 +30,7 @@ parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--lr", type=float, default=1e-3)
 parser.add_argument("--wd", type=float, default=5e-4)
 parser.add_argument("--epochs", type=int, default=50)
-parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -37,15 +38,17 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Prepare datasets
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = Adult(cached_dir=path)[0]
-# dataset = Titanic(cached_dir=path)[0]
+dataset = Titanic(cached_dir=path)[0]
+
+# Transform data
+transform = TNNConfig.get_transform("TabNet")(args.dim)
+dataset = transform(dataset)
 dataset.to(device)
 dataset.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
-# Split dataset, here the ratio of train-val-test is 80%-10%-10%
 train_loader, val_loader, test_loader = dataset.get_dataloader(
-    26048, 6513, 16281, batch_size=args.batch_size
+    0.8, 0.1, 0.1, batch_size=args.batch_size
 )
 
 
@@ -58,7 +61,7 @@ class TabNetModel(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.transform = gnn_config(TabNet)(
+        self.pre_encoder = TNNConfig.get_pre_encoder("TabNet")(
             out_dim=hidden_dim,
             metadata=metadata,
         )
@@ -71,7 +74,7 @@ class TabNetModel(torch.nn.Module):
         )
 
     def forward(self, x):
-        x = self.transform(x)
+        x = self.pre_encoder(x)
         out = self.backbone(x.reshape(x.size(0), -1))
         return out
 

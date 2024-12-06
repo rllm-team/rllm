@@ -64,7 +64,7 @@ class FTTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.encoder = TNNConfig.get_pre_encoder("FTTransformer")(
+        pre_encoder = TNNConfig.get_pre_encoder("FTTransformer")(
             out_dim=hidden_dim,
             metadata=metadata,
         )
@@ -73,8 +73,9 @@ class FTTransformer(torch.nn.Module):
             dim=hidden_dim,
             layers=layers,
             use_cls=True,
-            pre_encoder=self.encoder,
+            pre_encoder=pre_encoder,
         )
+
         self.fc = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
             torch.nn.ReLU(),

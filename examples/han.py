@@ -19,9 +19,12 @@ from rllm.datasets.imdb import IMDB
 from rllm.nn.conv.graph_conv import HANConv
 
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Load data
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = IMDB(path)
-data = dataset[0]
+data = IMDB(path)[0]
+data.to(device)
 
 
 class HAN(nn.Module):
@@ -49,11 +52,16 @@ class HAN(nn.Module):
 
 
 in_dim = {node_type: data[node_type].x.shape[1] for node_type in data.node_types}
-model = HAN(in_dim=in_dim, out_dim=3)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-data, model = data.to(device), model.to(device)
-
-optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=0.001)
+model = HAN(
+    in_dim=in_dim,
+    out_dim=3,
+)
+model.to(device)
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=0.005,
+    weight_decay=0.001,
+)
 
 
 def train() -> float:

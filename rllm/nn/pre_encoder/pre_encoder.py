@@ -11,7 +11,7 @@ from .coltype_encoder import ColTypeEncoder
 
 
 class PreEncoder(Module, ABC):
-    r"""Table Transform that transforms each ColType tensor into embeddings and
+    r"""Table Transform that encoders each ColType tensor into embeddings and
     performs the final concatenation.
 
     Args:
@@ -37,27 +37,27 @@ class PreEncoder(Module, ABC):
         super().__init__()
 
         # self.metadata = metadata
-        self.transform_dict = ModuleDict()
+        self.encoder_dict = ModuleDict()
 
-        for col_type, col_types_transform in col_types_encoder_dict.items():
-            if col_type not in col_types_transform.supported_types:
+        for col_type, col_types_encoder in col_types_encoder_dict.items():
+            if col_type not in col_types_encoder.supported_types:
                 raise ValueError(
-                    f"{col_types_transform} does not " f"support encoding {col_type}."
+                    f"{col_types_encoder} does not " f"support encoding {col_type}."
                 )
             # Set attributes
-            col_types_transform.col_type = col_type
-            if col_types_transform.out_dim is None:
-                col_types_transform.out_dim = out_dim
+            # col_types_encoder.col_type = col_type
+            if col_types_encoder.out_dim is None:
+                col_types_encoder.out_dim = out_dim
             if col_type in metadata.keys():
-                col_types_transform.stats_list = metadata[col_type]
-            self.transform_dict[col_type.value] = col_types_transform
-            col_types_transform.post_init()
+                col_types_encoder.stats_list = metadata[col_type]
+            self.encoder_dict[col_type.value] = col_types_encoder
+            col_types_encoder.post_init()
         self.reset_parameters()
 
     def reset_parameters(self):
-        """Reset parameters for all transforms in the transform_dict."""
-        for transform in self.transform_dict.values():
-            transform.reset_parameters()
+        """Reset parameters for all encoders in the encoder_dict."""
+        for encoder in self.encoder_dict.values():
+            encoder.reset_parameters()
 
     def forward(
         self,
@@ -66,8 +66,8 @@ class PreEncoder(Module, ABC):
         xs = []
         for col_type in feat_dict.keys():
             feat = feat_dict[col_type]
-            if col_type.value in self.transform_dict.keys():
-                x = self.transform_dict[col_type.value](feat)
+            if col_type.value in self.encoder_dict.keys():
+                x = self.encoder_dict[col_type.value](feat)
                 xs.append(x)
         x = torch.cat(xs, dim=1)
         return x

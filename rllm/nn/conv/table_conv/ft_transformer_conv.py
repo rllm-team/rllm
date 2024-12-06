@@ -71,6 +71,8 @@ class FTTransformerConv(torch.nn.Module):
         for p in self.transformer.parameters():
             if p.dim() > 1:
                 torch.nn.init.xavier_uniform_(p)
+        if self.pre_encoder is not None:
+            self.pre_encoder.reset_parameters()
 
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         r"""CLS-token augmented Transformer convolution.
