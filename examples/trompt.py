@@ -22,7 +22,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Adult
-from rllm.nn.models import gnn_config
+from rllm.nn.models import TNNConfig
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
@@ -38,13 +38,18 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Prepare datasets
+# Load data
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = Adult(cached_dir=path)[0]
-dataset.to(device)
+data = Adult(cached_dir=path)[0]
+
+# Transform data
+transform = TNNConfig.get_transform("Trompt")(args.dim)
+data = transform(data)
+data.to(device)
+data.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 26048-6513-16281
-train_loader, val_loader, test_loader = dataset.get_dataloader(
+train_loader, val_loader, test_loader = data.get_dataloader(
     26048, 6513, 16281, batch_size=args.batch_size
 )
 
@@ -66,7 +71,7 @@ class Trompt(torch.nn.Module):
 
         self.transforms = torch.nn.ModuleList(
             [
-                gnn_config(TromptConv)(
+                TNNConfig.get_pre_encoder("Trompt")(
                     out_dim=hidden_dim,
                     metadata=metadata,
                 )

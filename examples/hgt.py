@@ -19,9 +19,12 @@ from rllm.datasets.imdb import IMDB
 from rllm.nn.conv.graph_conv import HGTConv
 
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Load data
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = IMDB(path)
-data = dataset[0]
+data = IMDB(path)[0]
+data.to(device)
 
 
 class HGT(nn.Module):
@@ -51,10 +54,17 @@ class HGT(nn.Module):
         return out
 
 
-model = HGT(data=data, hidden_dim=128, out_dim=3)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-data, model = data.to(device), model.to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=0.001)
+model = HGT(
+    data=data,
+    hidden_dim=128,
+    out_dim=3,
+)
+model = model.to(device)
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=0.005,
+    weight_decay=0.001,
+)
 
 
 def train() -> float:

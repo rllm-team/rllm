@@ -33,14 +33,16 @@ parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
-# load data
-path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset)
-data = dataset[0]
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# transform data
+# Load data
+path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
+data = PlanetoidDataset(path, args.dataset)[0]
+
+# Transform data
 transform = GNNConfig.get_transform("GCN")()
 data = transform(data)
+data.to(device)
 
 
 # define model

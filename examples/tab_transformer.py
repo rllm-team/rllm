@@ -29,23 +29,24 @@ parser.add_argument("--dim", help="transform dim", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=2)
 parser.add_argument("--num_heads", type=int, default=8)
 parser.add_argument("--batch_size", type=int, default=128)
-parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--epochs", type=int, default=50)
-parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--wd", type=float, default=5e-4)
+parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Prepare datasets
-transform = TNNConfig.get_transform("TabTransformer")(args.dim)
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = Titanic(cached_dir=path, transform=transform)[0]
-# transform
-# 如果使用FTTransformEncoder
-# dataset = Titanic(cached_dir=path)[0]
+dataset = Titanic(cached_dir=path)[0]
+
+# Transform data
+transform = TNNConfig.get_transform("TabTransformer")(args.dim)
+dataset = transform(dataset)
 dataset.to(device)
+dataset.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
 train_loader, val_loader, test_loader = dataset.get_dataloader(
@@ -58,32 +59,22 @@ class TabTransformer(torch.nn.Module):
         self,
         hidden_dim: int,
         out_dim: int,
-        num_layers: int,  # 这个参数没用啊
+        num_layers: int,
         heads: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.pre_encoder = TNNConfig.get_pre_encoder("TabTransformer")(
+        pre_encoder = TNNConfig.get_pre_encoder("TabTransformer")(
             out_dim=hidden_dim,
             metadata=metadata,
         )
-        # 使用FTTransformEncoder Best AUC 0.7753; 原来的结构Best AUC 0.8864
-        # self.pre_encoder = FTTransformerEncoder(
-        #     out_dim=hidden_dim,
-        #     metadata=metadata,
-        # )
 
         self.convs = torch.nn.ModuleList(
+            [TabTransformerConv(dim=hidden_dim, heads=heads, pre_encoder=pre_encoder)]
+        ).extend(
             [
-                TabTransformerConv(
-                    dim=hidden_dim,
-                    heads=heads,
-                    pre_encoder=self.pre_encoder,
-                ),
-                TabTransformerConv(
-                    dim=hidden_dim,
-                    heads=heads,
-                ),
+                TabTransformerConv(dim=hidden_dim, heads=heads)
+                for _ in range(num_layers - 1)
             ]
         )
         self.fc = torch.nn.Linear(hidden_dim, out_dim)
