@@ -55,8 +55,8 @@ in_dim = {node_type: data[node_type].x.shape[1] for node_type in data.node_types
 model = HAN(
     in_dim=in_dim,
     out_dim=3,
-)
-model.to(device)
+).to(device)
+
 optimizer = torch.optim.Adam(
     model.parameters(),
     lr=0.005,

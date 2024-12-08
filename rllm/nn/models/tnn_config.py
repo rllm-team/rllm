@@ -37,8 +37,8 @@ TNN_CONFIG: Dict[str, Dict[str, Any]] = {
     "TabNet": {
         "model": TabNet,
         "conv": None,
-        "transform": DefaultTransform,
-        "pre_encoder": FTTransformerEncoder,
+        "transform": TabTransformerTransform,
+        "pre_encoder": TabTransformerEncoder,
     },
 }
 

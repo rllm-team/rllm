@@ -6,8 +6,8 @@ import torch
 from torch import Tensor
 from torch.nn import Module, ModuleDict
 
-from rllm.types import ColType
 from .coltype_encoder import ColTypeEncoder
+from rllm.types import ColType
 
 
 class PreEncoder(Module, ABC):
@@ -36,7 +36,7 @@ class PreEncoder(Module, ABC):
     ) -> None:
         super().__init__()
 
-        # self.metadata = metadata
+        self.metadata = metadata
         self.encoder_dict = ModuleDict()
 
         for col_type, col_types_encoder in col_types_encoder_dict.items():
@@ -45,7 +45,6 @@ class PreEncoder(Module, ABC):
                     f"{col_types_encoder} does not " f"support encoding {col_type}."
                 )
             # Set attributes
-            # col_types_encoder.col_type = col_type
             if col_types_encoder.out_dim is None:
                 col_types_encoder.out_dim = out_dim
             if col_type in metadata.keys():
@@ -62,12 +61,19 @@ class PreEncoder(Module, ABC):
     def forward(
         self,
         feat_dict: Dict[ColType, Tensor],
+        return_dict: bool = False,
     ) -> Tuple[Tensor, List[str]]:
-        xs = []
+        feat_encoded = {}
         for col_type in feat_dict.keys():
             feat = feat_dict[col_type]
             if col_type.value in self.encoder_dict.keys():
                 x = self.encoder_dict[col_type.value](feat)
-                xs.append(x)
-        x = torch.cat(xs, dim=1)
-        return x
+                feat_encoded[col_type] = x
+            else:
+                feat_encoded[col_type] = feat
+
+        if return_dict:
+            return feat_encoded
+
+        feat_list = list(feat_encoded.values())
+        return torch.cat(feat_list, dim=1)

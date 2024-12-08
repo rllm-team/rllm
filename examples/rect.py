@@ -11,7 +11,7 @@
 
 # Datasets              Citeseer    |         Cora         | Pubmed
 # Unseen Classes  [1, 2, 5]  [3, 4] | [1, 2, 3]  [3, 4, 6] | [2]
-# RECT-L          61.10      66.10  | 71.20      70.40     | 69.90
+# RECT-L          57.50      60.80  | 65.20      65.70     | 64.50
 
 import argparse
 import copy
@@ -24,8 +24,8 @@ from sklearn.linear_model import LogisticRegression
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.nn.models import RECT_L, gnn_config
-from rllm.datasets.planetoid import PlanetoidDataset
+from rllm.datasets import PlanetoidDataset
+from rllm.nn.models import RECT_L, GNNConfig
 from rllm.transforms.utils import RemoveTrainingClasses
 
 
@@ -34,18 +34,24 @@ parser.add_argument(
     "--dataset", type=str, default="Cora", choices=["Cora", "CiteSeer", "PubMed"]
 )
 parser.add_argument("--unseen-classes", type=int, nargs="*", default=[1, 2, 3])
-parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
+parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
+parser.add_argument("--wd", type=float, default=0, help="Weight decay")
+parser.add_argument("--dropout", type=float, default=0.0, help="Graph Dropout")
+parser.add_argument("--epochs", type=int, default=50, help="Training epochs")
 args = parser.parse_args()
 
-transform = gnn_config(RECT_L)()
-
+# Load data
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset, transform=transform, force_reload=True)
+dataset = PlanetoidDataset(path, args.dataset, force_reload=True)
 data = dataset[0]
+
+# Transform data
+transform = GNNConfig.get_transform("RECT")()
+data = transform(data)
 
 zs_data = RemoveTrainingClasses(args.unseen_classes)(copy.deepcopy(data))
 
-model = RECT_L(200, 200, dropout=0.0)
+model = RECT_L(200, 200, dropout=args.dropout)
 zs_data.y = model.get_semantic_labels(zs_data.x, zs_data.y, zs_data.train_mask)
 
 if torch.cuda.is_available():
@@ -58,7 +64,11 @@ else:
 model, zs_data = model.to(device), zs_data.to(device)
 
 criterion = torch.nn.MSELoss(reduction="sum")
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-4)
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=args.lr,
+    weight_decay=args.wd,
+)
 
 model.train()
 st = time.time()

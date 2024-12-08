@@ -14,8 +14,8 @@ import sys
 
 sys.path.append("./")
 sys.path.append("../")
+from rllm.datasets import IMDB
 from rllm.data import HeteroGraphData
-from rllm.datasets.imdb import IMDB
 from rllm.nn.conv.graph_conv import HGTConv
 
 
@@ -58,8 +58,8 @@ model = HGT(
     data=data,
     hidden_dim=128,
     out_dim=3,
-)
-model = model.to(device)
+).to(device)
+
 optimizer = torch.optim.Adam(
     model.parameters(),
     lr=0.005,

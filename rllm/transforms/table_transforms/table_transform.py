@@ -75,9 +75,14 @@ class TableTransform(Module, ABC):
                 and na_mode not in NAMode.namode_for_col_type(ColType.CATEGORICAL)
             ):
                 raise ValueError(f"{na_mode} cannot be used on categorical columns.")
+        else:
+            na_mode = {
+                ColType.NUMERICAL: NAMode.MEAN,
+                ColType.CATEGORICAL: NAMode.MOST_FREQUENT,
+            }
 
         self.out_dim = out_dim
-        self.stats_list = stats_list
+        # self.stats_list = stats_list
         self.post_module = post_module
         self.na_mode = na_mode
         self.transforms = transforms
@@ -97,25 +102,14 @@ class TableTransform(Module, ABC):
         data: TableData,
     ) -> Tensor:
         # NaN handling of the input Tensor
-        data = self.na_forward(data)
-        # Main encoding into column embeddings
-        data = self.encode_forward(data)
+        data = self.nan_forward(data)
 
-        return data
-
-    def encode_forward(
-        self,
-        data: TableData,
-    ) -> Tensor:
-        r"""The main forward function. Maps input :obj:`feat` from feat_dict
-        (shape [batch_size, num_cols]) into output :obj:`x` of shape
-        :obj:`[batch_size, num_cols, out_dim]`.
-        """
         for transform in self.transforms:
             data = transform(data)
+
         return data
 
-    def na_forward(
+    def nan_forward(
         self,
         data: TableData,
     ) -> Tensor:
@@ -137,15 +131,17 @@ class TableTransform(Module, ABC):
         # object.
         feats = data.get_feat_dict()
         for col_type, feat in feats.items():
-            feat = self._fill_nan(feat, self.na_mode[col_type])
+            feat = self._fill_nan(feat, data.metadata[col_type], self.na_mode[col_type])
             # Handle NaN in case na_mode is None
             feats[col_type] = torch.nan_to_num(feat, nan=0)
 
-        return feats
+        data.feat_dict = feats
+        return data
 
     def _fill_nan(
         self,
         feat: Tensor,
+        stats_list: Dict[StatType, float],
         na_mode: NAMode,
     ) -> Tensor:
         r"""Replace NaN values in input :obj:`Tensor` given :obj:`na_mode`."""
@@ -162,9 +158,9 @@ class TableTransform(Module, ABC):
         fill_values = []
         for col in range(feat.size(1)):
             if na_mode == NAMode.MOST_FREQUENT:
-                fill_value = self.stats_list[col][StatType.MOST_FREQUENT]
+                fill_value = stats_list[col][StatType.MOST_FREQUENT]
             elif na_mode == NAMode.MEAN:
-                fill_value = self.stats_list[col][StatType.MEAN]
+                fill_value = stats_list[col][StatType.MEAN]
             elif na_mode == NAMode.ZERO:
                 fill_value = 0
             else:
@@ -192,10 +188,3 @@ class TableTransform(Module, ABC):
         else:
             assert not (filled_values == -1).any()
         return feat
-
-    def _nan_to_num(self, x: Tensor) -> Tensor:
-        r"""Replace NaN values in input :obj:`Tensor` with 0."""
-        if x.is_floating_point():
-            return torch.nan_to_num(x, nan=0)
-        else:
-            return torch.where(x == -1, torch.tensor(0, device=x.device), x)

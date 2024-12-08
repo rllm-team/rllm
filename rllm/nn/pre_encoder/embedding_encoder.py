@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 from torch.nn import Embedding, Module
 
-from rllm.types import ColType, NAMode, StatType
+from rllm.types import ColType, StatType
 from .coltype_encoder import ColTypeEncoder
 
 
@@ -21,10 +21,9 @@ class EmbeddingEncoder(ColTypeEncoder):
         self,
         out_dim: int | None = None,
         stats_list: List[Dict[StatType, Any]] | None = None,
-        col_type: ColType | None = ColType.CATEGORICAL,
         post_module: Module | None = None,
     ) -> None:
-        super().__init__(out_dim, stats_list, col_type, post_module)
+        super().__init__(out_dim, stats_list, post_module)
 
     def post_init(self):
         r"""This is the actual initialization function."""

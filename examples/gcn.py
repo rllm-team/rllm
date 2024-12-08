@@ -16,8 +16,8 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
+from rllm.datasets import PlanetoidDataset
 from rllm.nn.models import GNNConfig
-from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.conv.graph_conv import GCNConv
 
 parser = argparse.ArgumentParser()
@@ -37,7 +37,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load data
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = PlanetoidDataset(path, args.dataset)[0]
+dataset = PlanetoidDataset(path, args.dataset)
+data = dataset[0]
 
 # Transform data
 transform = GNNConfig.get_transform("GCN")()
@@ -67,7 +68,7 @@ model = GCN(
     hidden_dim=args.hidden_dim,
     out_dim=data.num_classes,
     dropout=args.dropout,
-)
+).to(device)
 
 optimizer = torch.optim.Adam(
     model.parameters(), lr=args.lr, weight_decay=args.wd

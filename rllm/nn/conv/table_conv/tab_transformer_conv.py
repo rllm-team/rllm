@@ -3,6 +3,8 @@ from __future__ import annotations
 import torch.nn.functional as F
 from torch import Tensor, nn, einsum
 
+from rllm.types import ColType
+
 
 def _exists(val):
     return val is not None
@@ -188,15 +190,18 @@ class TabTransformerConv(nn.Module):
 
     def forward(self, x, return_attn=False):
         if self.pre_encoder is not None:
-            x = self.pre_encoder(x)
-        attn_out, post_softmax_attn = self.attn(x)
-        x = x + attn_out
-        x = self.ff(x) + x
+            x = self.pre_encoder(x, return_dict=True)
 
-        if not return_attn:
-            return x
+        x_cat = x[ColType.CATEGORICAL]
+        attn_out, post_softmax_attn = self.attn(x_cat)
+        x_cat = x_cat + attn_out
+        x_cat = self.ff(x_cat) + x_cat
+        x[ColType.CATEGORICAL] = x_cat
 
-        return x, post_softmax_attn
+        if return_attn:
+            return x, post_softmax_attn
+
+        return x
 
     def reset_parameters(self) -> None:
         self.attn.reset_parameters()

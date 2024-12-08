@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from typing import Dict, List
 from abc import ABC, abstractmethod
+
 import torch
 from torch import Tensor
-from torch.nn import (
-    Module,
-    Sequential,
-)
+from torch.nn import Module, Sequential
 
 from rllm.types import ColType, StatType
 
@@ -43,7 +41,6 @@ class ColTypeEncoder(Module, ABC):
         self,
         out_dim: int | None = None,
         stats_list: List[Dict[StatType]] | None = None,
-        col_type: ColType | None = None,
         post_module: Module | None = None,
     ):
         r"""Since many attributes are specified later,

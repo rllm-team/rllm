@@ -40,16 +40,17 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = Titanic(cached_dir=path)[0]
+dataset = Titanic(cached_dir=path)
+data = dataset[0]
 
 # Transform data
 transform = TNNConfig.get_transform("FTTransformer")(args.dim)
-dataset = transform(data)
-dataset.to(device)
-
+data = transform(data)
+data.to(device)
+data.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
-train_loader, val_loader, test_loader = dataset.get_dataloader(
+train_loader, val_loader, test_loader = data.get_dataloader(
     0.8, 0.1, 0.1, batch_size=args.batch_size
 )
 
@@ -90,9 +91,9 @@ class FTTransformer(torch.nn.Module):
 
 model = FTTransformer(
     hidden_dim=args.dim,
-    out_dim=dataset.num_classes,
+    out_dim=data.num_classes,
     layers=args.num_layers,
-    metadata=dataset.metadata,
+    metadata=data.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(
@@ -100,6 +101,9 @@ optimizer = torch.optim.Adam(
     lr=args.lr,
     weight_decay=args.wd,
 )
+# for name, param in model.named_parameters():
+#     print(name, param.size())
+# exit()
 
 
 def train(epoch: int) -> float:

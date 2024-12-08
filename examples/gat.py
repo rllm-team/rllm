@@ -17,8 +17,8 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
+from rllm.datasets import PlanetoidDataset
 from rllm.nn.models import GNNConfig
-from rllm.datasets.planetoid import PlanetoidDataset
 from rllm.nn.conv.graph_conv import GATConv
 
 parser = argparse.ArgumentParser()
@@ -72,7 +72,7 @@ model = GAT(
     out_dim=data.num_classes,
     heads=args.heads,
     dropout=args.dropout,
-)
+).to(device)
 
 optimizer = torch.optim.Adam(
     model.parameters(), lr=args.lr, weight_decay=args.wd

@@ -38,16 +38,17 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Prepare datasets
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = Titanic(cached_dir=path)[0]
+dataset = Titanic(cached_dir=path)
+data = dataset[0]
 
 # Transform data
 transform = TNNConfig.get_transform("TabNet")(args.dim)
-dataset = transform(dataset)
-dataset.to(device)
-dataset.shuffle()
+data = transform(data)
+data.to(device)
+data.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
-train_loader, val_loader, test_loader = dataset.get_dataloader(
+train_loader, val_loader, test_loader = data.get_dataloader(
     0.8, 0.1, 0.1, batch_size=args.batch_size
 )
 
@@ -80,9 +81,9 @@ class TabNetModel(torch.nn.Module):
 
 
 model = TabNetModel(
-    out_dim=dataset.num_classes,
+    out_dim=data.num_classes,
     hidden_dim=args.dim,
-    metadata=dataset.metadata,
+    metadata=data.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(
