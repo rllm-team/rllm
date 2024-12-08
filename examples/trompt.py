@@ -40,7 +40,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load data
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = Adult(cached_dir=path)[0]
+dataset = Adult(cached_dir=path)
+data = dataset[0]
 
 # Transform data
 transform = TNNConfig.get_transform("Trompt")(args.dim)
@@ -69,21 +70,16 @@ class Trompt(torch.nn.Module):
         self.out_dim = out_dim
         self.x_prompt = torch.nn.Parameter(torch.empty(num_prompts, hidden_dim))
 
-        self.transforms = torch.nn.ModuleList(
-            [
-                TNNConfig.get_pre_encoder("Trompt")(
-                    out_dim=hidden_dim,
-                    metadata=metadata,
-                )
-                for _ in range(num_layers)
-            ]
-        )
         self.convs = torch.nn.ModuleList(
             [
                 TromptConv(
                     in_dim=in_dim,
-                    hidden_dim=hidden_dim,
+                    out_dim=hidden_dim,
                     num_prompts=num_prompts,
+                    pre_encoder=TNNConfig.get_pre_encoder("Trompt")(
+                        out_dim=hidden_dim,
+                        metadata=metadata,
+                    ),
                 )
                 for _ in range(num_layers)
             ]
@@ -113,9 +109,8 @@ class Trompt(torch.nn.Module):
         outs = []
         batch_size = x[list(x.keys())[0]].size(0)
         x_prompt = self.x_prompt.unsqueeze(0).repeat(batch_size, 1, 1)
-        for transform, conv in zip(self.transforms, self.convs):
-            x_transform = transform(x)
-            x_prompt = conv(x_transform, x_prompt)
+        for conv in self.convs:
+            x_prompt = conv(x, x_prompt)
             w_prompt = F.softmax(self.linear(x_prompt), dim=1)
             out = (w_prompt * x_prompt).sum(dim=1)
             out = self.mlp(out)
@@ -125,12 +120,12 @@ class Trompt(torch.nn.Module):
 
 
 model = Trompt(
-    in_dim=dataset.num_cols,
+    in_dim=data.num_cols,
     hidden_dim=args.dim,
-    out_dim=dataset.num_classes,
+    out_dim=data.num_classes,
     num_layers=args.num_layers,
     num_prompts=128,
-    metadata=dataset.metadata,
+    metadata=data.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(

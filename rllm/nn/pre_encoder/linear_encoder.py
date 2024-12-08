@@ -22,11 +22,10 @@ class LinearEncoder(ColTypeEncoder):
         self,
         out_dim: int | None = None,
         stats_list: List[Dict[StatType, Any]] | None = None,
-        col_type: ColType | None = ColType.NUMERICAL,
         post_module: Module | None = None,
         activate: Module | None = None,
     ):
-        super().__init__(out_dim, stats_list, col_type, post_module)
+        super().__init__(out_dim, stats_list, post_module)
         self.activate = activate
 
     def post_init(self):
@@ -49,6 +48,8 @@ class LinearEncoder(ColTypeEncoder):
         self,
         feat: Tensor,
     ) -> Tensor:
+        # Expected self.mean.size(0) columns equal to feat.size(1).
+        # assert feat.size(1) == self.mean.size(0)
         # feat: [batch_size, num_cols]
         feat = (feat - self.mean) / self.std
         # [batch_size, num_cols], [dim, num_cols]

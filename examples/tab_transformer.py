@@ -19,6 +19,7 @@ from torch.utils.data import DataLoader
 
 sys.path.append("./")
 sys.path.append("../")
+from rllm.datasets.adult import Adult
 from rllm.types import ColType
 from rllm.datasets import Titanic
 from rllm.nn.models import TNNConfig
@@ -40,18 +41,23 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = Titanic(cached_dir=path)[0]
+dataset = Titanic(cached_dir=path)
+# dataset = Adult(cached_dir=path)
+data = dataset[0]
 
 # Transform data
 transform = TNNConfig.get_transform("TabTransformer")(args.dim)
-dataset = transform(dataset)
-dataset.to(device)
-dataset.shuffle()
+data = transform(data)
+data.to(device)
+data.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
-train_loader, val_loader, test_loader = dataset.get_dataloader(
+train_loader, val_loader, test_loader = data.get_dataloader(
     0.8, 0.1, 0.1, batch_size=args.batch_size
 )
+# train_loader, val_loader, test_loader = data.get_dataloader(
+#     26048, 6513, 16281, batch_size=args.batch_size
+# )
 
 
 class TabTransformer(torch.nn.Module):
@@ -77,21 +83,23 @@ class TabTransformer(torch.nn.Module):
                 for _ in range(num_layers - 1)
             ]
         )
+
         self.fc = torch.nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x):
         for conv in self.convs:
             x = conv(x)
+        x = torch.cat(list(x.values()), dim=1)
         out = self.fc(x.mean(dim=1))
         return out
 
 
 model = TabTransformer(
     hidden_dim=args.dim,
-    out_dim=dataset.num_classes,
+    out_dim=data.num_classes,
     num_layers=args.num_layers,
     heads=args.num_heads,
-    metadata=dataset.metadata,
+    metadata=data.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(
@@ -99,6 +107,10 @@ optimizer = torch.optim.Adam(
     lr=args.lr,
     weight_decay=args.wd,
 )
+
+# for name, param in model.named_parameters():
+#     print(name, param.size())
+# exit()
 
 
 def train(epoch: int) -> float:
@@ -110,6 +122,11 @@ def train(epoch: int) -> float:
         loss = F.cross_entropy(pred, y.long())
         optimizer.zero_grad()
         loss.backward()
+
+        # for name, param in model.named_parameters():
+        #     if param.grad is not None:
+        #         print(f"Gradient of {name}: {param.grad}")
+
         loss_accum += float(loss) * y.size(0)  # daigai
         total_count += y.size(0)
         optimizer.step()

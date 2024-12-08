@@ -5,7 +5,7 @@ import rllm.transforms.graph_transforms as GT
 class RECTTransform(GT.GraphTransform):
     def __init__(
         self,
-        normalize_features: str = "sum",
+        normalize_features: str = "l1",
         svd_out_dim: int = 200,
         use_gdc=False,
     ):
