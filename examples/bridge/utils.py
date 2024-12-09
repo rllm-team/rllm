@@ -134,6 +134,10 @@ class TableEncoder(Module):
         x = table.feat_dict
         for conv in self.convs:
             x = conv(x)
+
+        if isinstance(x, dict):
+            x = torch.cat(list(x.values()), dim=1)
+
         x = x.mean(dim=1)
         return x
 
