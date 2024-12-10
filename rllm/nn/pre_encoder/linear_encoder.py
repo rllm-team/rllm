@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 from torch.nn import Module, Parameter
 
-from rllm.types import ColType, NAMode, StatType
+from rllm.types import ColType, StatType
 from .coltype_encoder import ColTypeEncoder
 
 
@@ -20,7 +20,7 @@ class LinearEncoder(ColTypeEncoder):
 
     def __init__(
         self,
-        in_dim: int,
+        in_dim: int = 1,
         out_dim: int | None = None,
         stats_list: List[Dict[StatType, Any]] | None = None,
         post_module: Module | None = None,
@@ -56,11 +56,12 @@ class LinearEncoder(ColTypeEncoder):
         elif feat.ndim == 3:
             # feat: [batch_size, num_cols, 1]
             feat = (feat - self.mean.unsqueeze(-1)) / self.std.unsqueeze(-1)
-        # [batch_size, num_cols], [dim, num_cols]
-        # -> [batch_size, num_cols, dim]
-        x_lin = torch.einsum("ijk,jkl->ijl", feat, self.weight) / self.in_dim
-        # [batch_size, num_cols, dim] + [num_cols, dim]
-        # -> [batch_size, num_cols, dim]
+        # [batch_size, num_cols, in_dim], [num_cols, in_dim, out_dim]
+        # -> [batch_size, num_cols, out_dim]
+        scale = feat.size(-1)
+        x_lin = torch.einsum("ijk,jkl->ijl", feat, self.weight) / scale
+        # [batch_size, num_cols, out_dim] + [num_cols, out_dim]
+        # -> [batch_size, num_cols, out_dim]
         x = x_lin + self.bias
 
         if self.activate is not None:

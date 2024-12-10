@@ -2,6 +2,7 @@ from typing import Any, Dict, Union
 
 import numpy as np
 import scipy.sparse as sp
+from sklearn.metrics import root_mean_squared_error
 import torch
 from torch import Tensor
 
