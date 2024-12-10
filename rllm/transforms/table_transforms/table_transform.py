@@ -4,10 +4,7 @@ from abc import ABC, abstractmethod
 
 import torch
 from torch import Tensor
-from torch.nn import (
-    Module,
-    Sequential,
-)
+from torch.nn import Module, Sequential
 
 from rllm.data import TableData
 from rllm.types import ColType, NAMode, StatType

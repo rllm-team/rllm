@@ -7,10 +7,10 @@
 # Time      9.8s      272.1s
 
 import argparse
-import os.path as osp
 import sys
 import time
 from typing import Any, Dict, List
+import os.path as osp
 
 from tqdm import tqdm
 import torch
@@ -35,6 +35,7 @@ parser.add_argument("--epochs", type=int, default=100)
 parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
+# Set random seed and device
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

@@ -35,10 +35,11 @@ parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
+# Set random seed and device
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load data
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = Adult(cached_dir=path)
 data = dataset[0]

@@ -15,9 +15,9 @@
 
 import argparse
 import copy
-import os.path as osp
 import time
 import sys
+import os.path as osp
 
 import torch
 from sklearn.linear_model import LogisticRegression
@@ -31,7 +31,7 @@ from rllm.transforms.utils import RemoveTrainingClasses
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--dataset", type=str, default="Cora", choices=["Cora", "CiteSeer", "PubMed"]
+    "--dataset", type=str, default="cora", choices=["cora", "citeseer", "pubmed"]
 )
 parser.add_argument("--unseen-classes", type=int, nargs="*", default=[1, 2, 3])
 parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")

@@ -6,8 +6,8 @@
 # Acc       0.571
 
 import sys
-import os.path as osp
 from typing import Dict, List, Union
+import os.path as osp
 
 import torch
 from torch import nn
@@ -15,13 +15,13 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.datasets.imdb import IMDB
+from rllm.datasets import IMDB
 from rllm.nn.conv.graph_conv import HANConv
 
-
+# Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load data
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = IMDB(path)[0]
 data.to(device)
