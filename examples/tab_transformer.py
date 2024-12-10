@@ -19,7 +19,6 @@ from torch.utils.data import DataLoader
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.datasets.adult import Adult
 from rllm.types import ColType
 from rllm.datasets import Titanic
 from rllm.nn.models import TNNConfig
