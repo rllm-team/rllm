@@ -8,7 +8,6 @@ import torch.nn.functional as F
 
 from rllm.data import GraphData
 from rllm.nn.pre_encoder import TabTransformerEncoder
-from rllm.transforms.graph_transforms import GCNNorm
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 
@@ -160,7 +159,7 @@ class GraphEncoder(Module):
         out_dim,
         dropout: float = 0.5,
         num_layers: int = 2,
-        graph_transform: Module = GCNNorm(),
+        graph_transform: Module = None,
         graph_conv: Type[Module] = GCNConv,
     ) -> None:
         super().__init__()

@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
-from rllm.transforms.table_transforms.stack_numerical import StackNumerical
 from rllm.types import ColType
-from rllm.transforms.table_transforms import TableTransform
+from rllm.transforms.table_transforms import StackNumerical, TableTransform
 
 
 class TabTransformerTransform(TableTransform):

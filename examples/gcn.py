@@ -32,10 +32,11 @@ parser.add_argument("--dropout", type=float, default=0.5, help="Graph Dropout")
 parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
+# Set random seed and device
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load data
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = PlanetoidDataset(path, args.dataset)
 data = dataset[0]

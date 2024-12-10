@@ -7,9 +7,9 @@
 # Time      16.6s       8.4s      15.6s
 
 import argparse
-import os.path as osp
 import time
 import sys
+import os.path as osp
 
 import torch
 import torch.nn.functional as F
@@ -32,8 +32,10 @@ parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--dropout", type=float, default=0.5, help="Graph Dropout")
 args = parser.parse_args()
 
+# Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# Load data
+
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = PlanetoidDataset(path, args.dataset)[0]
 

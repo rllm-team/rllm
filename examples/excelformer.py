@@ -28,6 +28,7 @@ parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--wd", type=float, default=5e-4)
 args = parser.parse_args()
 
+# Set random seed and device
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

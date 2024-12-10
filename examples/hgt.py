@@ -5,12 +5,13 @@
 # Datasets  IMDB
 # Acc       0.583
 
-import os.path as osp
+import sys
 from typing import List
+import os.path as osp
+
 import torch
 import torch.nn.functional as F
 from torch import nn
-import sys
 
 sys.path.append("./")
 sys.path.append("../")
@@ -18,10 +19,10 @@ from rllm.datasets import IMDB
 from rllm.data import HeteroGraphData
 from rllm.nn.conv.graph_conv import HGTConv
 
-
+# Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load data
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = IMDB(path)[0]
 data.to(device)
