@@ -9,9 +9,9 @@ from rllm.nn.pre_encoder import EmbeddingEncoder, LinearEncoder
 class FTTransformerEncoder(PreEncoder):
     def __init__(
         self,
-        in_dim: int,
         out_dim: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
+        in_dim: int = 1,
     ) -> None:
         col_encoder_dict = {
             ColType.CATEGORICAL: EmbeddingEncoder(),

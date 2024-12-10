@@ -41,7 +41,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = Titanic(cached_dir=path)
-# dataset = Adult(cached_dir=path)
 data = dataset[0]
 
 # Transform data
@@ -54,9 +53,6 @@ data.shuffle()
 train_loader, val_loader, test_loader = data.get_dataloader(
     0.8, 0.1, 0.1, batch_size=args.batch_size
 )
-# train_loader, val_loader, test_loader = data.get_dataloader(
-#     26048, 6513, 16281, batch_size=args.batch_size
-# )
 
 
 class TabTransformer(torch.nn.Module):

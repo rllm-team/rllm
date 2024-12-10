@@ -7,7 +7,7 @@ from torch.nn import Module
 import torch.nn.functional as F
 
 from rllm.data import GraphData
-from rllm.nn.pre_encoder.tab_transformer_encoder import TabTransformerEncoder
+from rllm.nn.pre_encoder import TabTransformerEncoder
 from rllm.transforms.graph_transforms import GCNNorm
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv

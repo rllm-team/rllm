@@ -36,7 +36,7 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Prepare datasets
+# Load data
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = Titanic(cached_dir=path)
 data = dataset[0]

@@ -6,12 +6,11 @@
 
 import time
 import argparse
-import os.path as osp
 import sys
+import os.path as osp
 
 import torch
 import torch.nn.functional as F
-
 
 sys.path.append("./")
 sys.path.append("../")
@@ -30,8 +29,9 @@ parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--wd", type=float, default=1e-4, help="Weight decay")
 args = parser.parse_args()
 
-# Prepare datasets
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Load data
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 dataset = TML1MDataset(cached_dir=path, force_reload=True)
 

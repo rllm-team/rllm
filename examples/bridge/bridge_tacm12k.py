@@ -6,8 +6,8 @@
 
 import time
 import argparse
-import os.path as osp
 import sys
+import os.path as osp
 
 import torch
 import torch.nn.functional as F
@@ -15,8 +15,8 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import TACM12KDataset
-from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.transforms.graph_transforms import GCNNorm
+from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
 from utils import build_homo_adj, TableEncoder, GraphEncoder
@@ -32,6 +32,7 @@ args = parser.parse_args()
 # Prepare datasets
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 dataset = TACM12KDataset(cached_dir=path, force_reload=True)
 

@@ -101,9 +101,6 @@ optimizer = torch.optim.Adam(
     lr=args.lr,
     weight_decay=args.wd,
 )
-# for name, param in model.named_parameters():
-#     print(name, param.size())
-# exit()
 
 
 def train(epoch: int) -> float:
