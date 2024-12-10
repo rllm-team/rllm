@@ -6,8 +6,8 @@
 # Acc       0.571
 
 import sys
-import os.path as osp
 from typing import Dict, List, Union
+import os.path as osp
 
 import torch
 from torch import nn
@@ -15,13 +15,16 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.datasets.imdb import IMDB
+from rllm.datasets import IMDB
 from rllm.nn.conv.graph_conv import HANConv
 
+# Set device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = IMDB(path)
-data = dataset[0]
+data = IMDB(path)[0]
+data.to(device)
 
 
 class HAN(nn.Module):
@@ -49,11 +52,16 @@ class HAN(nn.Module):
 
 
 in_dim = {node_type: data[node_type].x.shape[1] for node_type in data.node_types}
-model = HAN(in_dim=in_dim, out_dim=3)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-data, model = data.to(device), model.to(device)
+model = HAN(
+    in_dim=in_dim,
+    out_dim=3,
+).to(device)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=0.001)
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=0.005,
+    weight_decay=0.001,
+)
 
 
 def train() -> float:

@@ -7,7 +7,7 @@ from torch.nn import Module
 import torch.nn.functional as F
 
 from rllm.data import GraphData
-from rllm.transforms.graph_transforms import GCNNorm
+from rllm.nn.pre_encoder import TabTransformerEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 
@@ -120,21 +120,23 @@ class TableEncoder(Module):
     ) -> None:
 
         super().__init__()
-
-        assert table_transorm is not None
-
-        table_transorm.out_dim = in_dim
         self.table_transform = table_transorm
+        pre_encoder = TabTransformerEncoder(out_dim, table_transorm.metadata)
 
         self.convs = torch.nn.ModuleList()
-        for _ in range(num_layers):
+        self.convs.append(table_conv(dim=out_dim, pre_encoder=pre_encoder))
+        for _ in range(num_layers - 1):
             self.convs.append(table_conv(dim=out_dim))
 
     def forward(self, table):
-        feat_dict = table.get_feat_dict()  # A dict contains feature tensor.
-        x = self.table_transform(feat_dict)
+        table = self.table_transform(table)
+        x = table.feat_dict
         for conv in self.convs:
             x = conv(x)
+
+        if isinstance(x, dict):
+            x = torch.cat(list(x.values()), dim=1)
+
         x = x.mean(dim=1)
         return x
 
@@ -157,7 +159,7 @@ class GraphEncoder(Module):
         out_dim,
         dropout: float = 0.5,
         num_layers: int = 2,
-        graph_transform: Module = GCNNorm(),
+        graph_transform: Module = None,
         graph_conv: Type[Module] = GCNConv,
     ) -> None:
         super().__init__()

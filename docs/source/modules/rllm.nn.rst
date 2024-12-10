@@ -31,7 +31,7 @@ Encoder
    LinearTransform
    StackTransform
    NumericalTransform
-   TableTypeTransform
+   TableTransform
 
 
 Models

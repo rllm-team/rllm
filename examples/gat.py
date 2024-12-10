@@ -7,17 +7,17 @@
 # Time      16.6s       8.4s      15.6s
 
 import argparse
-import os.path as osp
 import time
 import sys
+import os.path as osp
 
 import torch
 import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.nn.models import get_transform
-from rllm.datasets.planetoid import PlanetoidDataset
+from rllm.datasets import PlanetoidDataset
+from rllm.nn.models import GNNConfig
 from rllm.nn.conv.graph_conv import GATConv
 
 parser = argparse.ArgumentParser()
@@ -32,9 +32,17 @@ parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--dropout", type=float, default=0.5, help="Graph Dropout")
 args = parser.parse_args()
 
+# Set device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset, transform=get_transform(GATConv)())
-data = dataset[0]
+data = PlanetoidDataset(path, args.dataset)[0]
+
+# Transform data
+transform = GNNConfig.get_transform("GCN")()
+data = transform(data)
+data.to(device)
 
 
 class GAT(torch.nn.Module):
@@ -65,7 +73,7 @@ model = GAT(
     out_dim=data.num_classes,
     heads=args.heads,
     dropout=args.dropout,
-)
+).to(device)
 
 optimizer = torch.optim.Adam(
     model.parameters(), lr=args.lr, weight_decay=args.wd

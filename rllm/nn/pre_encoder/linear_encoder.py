@@ -5,13 +5,13 @@ import torch
 from torch import Tensor
 from torch.nn import Module, Parameter
 
-from rllm.types import ColType, NAMode, StatType
-from rllm.transforms.table_transforms import ColTypeTransform
+from rllm.types import ColType, StatType
+from .coltype_encoder import ColTypeEncoder
 
 
-class LinearEncoder(ColTypeTransform):
+class LinearEncoder(ColTypeEncoder):
     r"""A linear function based Transform for numerical features. It applies
-    linear layer :obj:`torch.nn.Linear(1, out_dim)` on each raw numerical
+    linear layer :obj:`torch.nn.Linear(in_dim, out_dim)` on each raw numerical
     feature and concatenates the output embeddings. Note that the
     implementation does this for all numerical features in a batched manner.
     """
@@ -20,14 +20,14 @@ class LinearEncoder(ColTypeTransform):
 
     def __init__(
         self,
+        in_dim: int = 1,
         out_dim: int | None = None,
         stats_list: List[Dict[StatType, Any]] | None = None,
-        col_type: ColType | None = ColType.NUMERICAL,
         post_module: Module | None = None,
-        na_mode: NAMode | None = None,
         activate: Module | None = None,
     ):
-        super().__init__(out_dim, stats_list, col_type, post_module, na_mode)
+        super().__init__(out_dim, stats_list, post_module)
+        self.in_dim = in_dim
         self.activate = activate
 
     def post_init(self):
@@ -37,7 +37,7 @@ class LinearEncoder(ColTypeTransform):
         std = torch.tensor([stats[StatType.STD] for stats in self.stats_list]) + 1e-6
         self.register_buffer("std", std)
         num_cols = len(self.stats_list)
-        self.weight = Parameter(torch.empty(num_cols, self.out_dim))
+        self.weight = Parameter(torch.empty(num_cols, self.in_dim, self.out_dim))
         self.bias = Parameter(torch.empty(num_cols, self.out_dim))
         self.reset_parameters()
 
@@ -50,13 +50,18 @@ class LinearEncoder(ColTypeTransform):
         self,
         feat: Tensor,
     ) -> Tensor:
-        # feat: [batch_size, num_cols]
-        feat = (feat - self.mean) / self.std
-        # [batch_size, num_cols], [dim, num_cols]
-        # -> [batch_size, num_cols, dim]
-        x_lin = torch.einsum("ij,jk->ijk", feat, self.weight)
-        # [batch_size, num_cols, dim] + [num_cols, dim]
-        # -> [batch_size, num_cols, dim]
+        if feat.ndim == 2:
+            # feat: [batch_size, num_cols]
+            feat = ((feat - self.mean) / self.std).unsqueeze(-1)
+        elif feat.ndim == 3:
+            # feat: [batch_size, num_cols, 1]
+            feat = (feat - self.mean.unsqueeze(-1)) / self.std.unsqueeze(-1)
+        # [batch_size, num_cols, in_dim], [num_cols, in_dim, out_dim]
+        # -> [batch_size, num_cols, out_dim]
+        scale = feat.size(-1)
+        x_lin = torch.einsum("ijk,jkl->ijl", feat, self.weight) / scale
+        # [batch_size, num_cols, out_dim] + [num_cols, out_dim]
+        # -> [batch_size, num_cols, out_dim]
         x = x_lin + self.bias
 
         if self.activate is not None:

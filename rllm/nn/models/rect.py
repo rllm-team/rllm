@@ -49,7 +49,7 @@ class RECT_L(torch.nn.Module):
     @torch.jit.export
     def embed(self, x: Tensor, adj: Tensor):
         with torch.no_grad():
-            return self.conv(x, adj)
+            return self.prelu(self.conv(x, adj))
 
     @torch.jit.export
     def get_semantic_labels(self, x: Tensor, y: Tensor, mask: Tensor):

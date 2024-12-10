@@ -3,6 +3,8 @@ from __future__ import annotations
 import torch.nn.functional as F
 from torch import Tensor, nn, einsum
 
+from rllm.types import ColType
+
 
 def _exists(val):
     return val is not None
@@ -169,8 +171,10 @@ class TabTransformerConv(nn.Module):
         dim_head: int = 16,
         attn_dropout: float = 0.3,
         ff_dropout: float = 0.3,
+        pre_encoder: nn.Module = None,
     ):
         super().__init__()
+        self.pre_encoder = pre_encoder
         self.attn = PreNorm(
             dim=dim,
             fn=SelfAttention(
@@ -182,16 +186,25 @@ class TabTransformerConv(nn.Module):
             fn=FeedForward(dim=dim, dropout=ff_dropout),
         )
 
+        self.reset_parameters()
+
     def forward(self, x, return_attn=False):
-        attn_out, post_softmax_attn = self.attn(x)
-        x = x + attn_out
-        x = self.ff(x) + x
+        if self.pre_encoder is not None:
+            x = self.pre_encoder(x, return_dict=True)
 
-        if not return_attn:
-            return x
+        x_cat = x[ColType.CATEGORICAL]
+        attn_out, post_softmax_attn = self.attn(x_cat)
+        x_cat = x_cat + attn_out
+        x_cat = self.ff(x_cat) + x_cat
+        x[ColType.CATEGORICAL] = x_cat
 
-        return x, post_softmax_attn
+        if return_attn:
+            return x, post_softmax_attn
+
+        return x
 
     def reset_parameters(self) -> None:
         self.attn.reset_parameters()
         self.ff.reset_parameters()
+        if self.pre_encoder is not None:
+            self.pre_encoder.reset_parameters()

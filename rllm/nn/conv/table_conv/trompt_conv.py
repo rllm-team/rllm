@@ -12,7 +12,7 @@ class TromptConv(torch.nn.Module):
 
     Args:
         in_dim (int): Input dimensionality.
-        hidden_dim (int): Hidden layer dimensionality.
+        out_dim (int): Hidden layer dimensionality.
         num_prompts (int): Number of prompts.
         num_groups (int): Number of groups for group normalization (default: 2).
     """
@@ -20,19 +20,20 @@ class TromptConv(torch.nn.Module):
     def __init__(
         self,
         in_dim: int,
-        hidden_dim: int,
+        out_dim: int,
         num_prompts: int,
         num_groups: int = 2,
+        pre_encoder: torch.nn.Module = None,
     ):
         super().__init__()
         self.num_prompts = num_prompts
 
-        self.emb_column = torch.nn.Parameter(torch.empty(in_dim, hidden_dim))
-        self.emb_prompt = torch.nn.Parameter(torch.empty(num_prompts, hidden_dim))
+        self.emb_column = torch.nn.Parameter(torch.empty(in_dim, out_dim))
+        self.emb_prompt = torch.nn.Parameter(torch.empty(num_prompts, out_dim))
 
-        self.linear = torch.nn.Linear(hidden_dim * 2, hidden_dim)
-        self.ln_column = torch.nn.LayerNorm(hidden_dim)
-        self.ln_prompt = torch.nn.LayerNorm(hidden_dim)
+        self.linear = torch.nn.Linear(out_dim * 2, out_dim)
+        self.ln_column = torch.nn.LayerNorm(out_dim)
+        self.ln_prompt = torch.nn.LayerNorm(out_dim)
 
         self.expand_weight = torch.nn.Parameter(torch.empty(num_prompts))
         self.group_norm = torch.nn.GroupNorm(
@@ -40,19 +41,22 @@ class TromptConv(torch.nn.Module):
             num_channels=num_prompts,
         )
 
+        self.pre_encoder = pre_encoder
         self.reset_parameters()
 
     def forward(self, x: Tensor, x_prompt: Tensor) -> Tensor:
+        if self.pre_encoder is not None:
+            x = self.pre_encoder(x)
         emb_column = self.ln_column(self.emb_column)
         emb_prompt = self.ln_prompt(self.emb_prompt)
 
-        # [num_prompts, hidden_dim] -> [batch_size, num_prompts, hidden_dim]
+        # [num_prompts, out_dim] -> [batch_size, num_prompts, out_dim]
         se_prompt = emb_prompt.unsqueeze(0).repeat(x.size(0), 1, 1)
-        # [batch_size, num_prompts, hidden_dim*2]
+        # [batch_size, num_prompts, out_dim*2]
         se_prompt_cat = torch.cat([se_prompt, x_prompt], dim=-1)
         se_prompt_cat_hat = self.linear(se_prompt_cat) + se_prompt + x_prompt
 
-        # [in_dim, hidden_dim] -> [batch_size, in_dim, hidden_dim]
+        # [in_dim, out_dim] -> [batch_size, in_dim, out_dim]
         se_column = emb_column.unsqueeze(0).repeat(x_prompt.size(0), 1, 1)
         m_importance = torch.einsum("ijl,ikl->ijk", se_prompt_cat_hat, se_column)
         m_importance = F.softmax(m_importance, dim=-1)
@@ -60,8 +64,8 @@ class TromptConv(torch.nn.Module):
         # [batch_size, num_prompts, in_dim, 1]
         m_importance = m_importance.unsqueeze(dim=-1)
 
-        # [batch_size, in_dim, hidden_dim]
-        # -> [batch_size, num_prompts, in_dim, hidden_dim]
+        # [batch_size, in_dim, out_dim]
+        # -> [batch_size, num_prompts, in_dim, out_dim]
         x_expand_weight = torch.einsum("ijl,k->ikjl", x, self.expand_weight)
         x_expand_weight = F.relu(x_expand_weight)
         x_expand_residual = x.unsqueeze(1).repeat(1, self.num_prompts, 1, 1)
@@ -77,3 +81,5 @@ class TromptConv(torch.nn.Module):
         torch.nn.init.xavier_uniform_(self.linear.weight)
         torch.nn.init.zeros_(self.linear.bias)
         torch.nn.init.uniform_(self.expand_weight)
+        if self.pre_encoder is not None:
+            self.pre_encoder.reset_parameters()

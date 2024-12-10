@@ -1,14 +1,12 @@
 from __future__ import annotations
-
-from typing import Dict, List
+from typing import Dict, List, Callable
 from abc import ABC, abstractmethod
+
 import torch
 from torch import Tensor
-from torch.nn import (
-    Module,
-    Sequential,
-)
+from torch.nn import Module, Sequential
 
+from rllm.data import TableData
 from rllm.types import ColType, NAMode, StatType
 
 
@@ -31,7 +29,7 @@ def _get_na_mask(tensor: Tensor) -> Tensor:
     return na_mask
 
 
-class ColTypeTransform(Module, ABC):
+class TableTransform(Module, ABC):
     r"""Base class for columns Transform. This module transforms tensor of some
     specific columns type into 3-dimensional column-wise tensor
     that is input into tabular deep learning models.
@@ -50,15 +48,14 @@ class ColTypeTransform(Module, ABC):
             impute NaN values. (default: :obj:`None`)
     """
 
-    supported_types: set[ColType] = {}
-
     def __init__(
         self,
         out_dim: int | None = None,
         stats_list: List[Dict[StatType]] | None = None,
         col_type: ColType | None = None,
         post_module: Module | None = None,
-        na_mode: NAMode | None = None,
+        na_mode: Dict[StatType, NAMode] | None = None,
+        transforms: List[Callable] | None = None,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""
@@ -75,15 +72,17 @@ class ColTypeTransform(Module, ABC):
                 and na_mode not in NAMode.namode_for_col_type(ColType.CATEGORICAL)
             ):
                 raise ValueError(f"{na_mode} cannot be used on categorical columns.")
+        else:
+            na_mode = {
+                ColType.NUMERICAL: NAMode.MEAN,
+                ColType.CATEGORICAL: NAMode.MOST_FREQUENT,
+            }
 
         self.out_dim = out_dim
-        self.stats_list = stats_list
+        # self.stats_list = stats_list
         self.post_module = post_module
         self.na_mode = na_mode
-
-    @abstractmethod
-    def post_init(self):
-        raise NotImplementedError
+        self.transforms = transforms
 
     @abstractmethod
     def reset_parameters(self):
@@ -97,54 +96,20 @@ class ColTypeTransform(Module, ABC):
 
     def forward(
         self,
-        feat: Tensor,
-        col_names: List[str] | None = None,
+        data: TableData,
     ) -> Tensor:
-        if col_names is not None:
-            num_cols = feat.shape[1]
-            if num_cols != len(col_names):
-                raise ValueError(
-                    f"The number of columns in feat and the length of "
-                    f"col_names must match (got {num_cols} and "
-                    f"{len(col_names)}, respectively.)"
-                )
         # NaN handling of the input Tensor
-        feat = self.na_forward(feat)
-        # Main encoding into column embeddings
-        x = self.encode_forward(feat)
-        # Handle NaN in case na_mode is None
-        x = torch.nan_to_num(x, nan=0)
-        # Post-forward (e.g., normalization, activation)
-        return self.post_forward(x)
+        data = self.nan_forward(data)
 
-    @abstractmethod
-    def encode_forward(
+        for transform in self.transforms:
+            data = transform(data)
+
+        return data
+
+    def nan_forward(
         self,
-        feat: Tensor,
+        data: TableData,
     ) -> Tensor:
-        r"""The main forward function. Maps input :obj:`feat` from feat_dict
-        (shape [batch_size, num_cols]) into output :obj:`x` of shape
-        :obj:`[batch_size, num_cols, out_dim]`.
-        """
-        raise NotImplementedError
-
-    def post_forward(self, out: Tensor) -> Tensor:
-        r"""Post-forward function applied to :obj:`out` of shape
-        [batch_size, num_cols, dim]. It also returns :obj:`out` of the
-        same shape.
-        """
-        if self.post_module is not None:
-            shape_before = out.shape
-            out = self.post_module(out)
-            if out.shape != shape_before:
-                raise RuntimeError(
-                    f"post_module must not alter the shape of the tensor, but "
-                    f"it changed the shape from {shape_before} to "
-                    f"{out.shape}."
-                )
-        return out
-
-    def na_forward(self, feat: Tensor) -> Tensor:
         r"""Replace NaN values in input :obj:`Tensor` given
         :obj:`na_mode`.
 
@@ -156,11 +121,27 @@ class ColTypeTransform(Module, ABC):
                 :obj:`na_mode`.
         """
         if self.na_mode is None:
-            return feat
+            return data
 
         # Since we are not changing the number of items in each column, it's
         # faster to just clone the values, while reusing the same offset
         # object.
+        feats = data.get_feat_dict()
+        for col_type, feat in feats.items():
+            feat = self._fill_nan(feat, data.metadata[col_type], self.na_mode[col_type])
+            # Handle NaN in case na_mode is None
+            feats[col_type] = torch.nan_to_num(feat, nan=0)
+
+        data.feat_dict = feats
+        return data
+
+    def _fill_nan(
+        self,
+        feat: Tensor,
+        stats_list: Dict[StatType, float],
+        na_mode: NAMode,
+    ) -> Tensor:
+        r"""Replace NaN values in input :obj:`Tensor` given :obj:`na_mode`."""
         if isinstance(feat, Tensor):
             # cache for future use
             na_mask = _get_na_mask(feat)
@@ -170,17 +151,14 @@ class ColTypeTransform(Module, ABC):
                 return feat
         else:
             raise ValueError(f"Unrecognized type {type(feat)} in na_forward.")
+
         fill_values = []
         for col in range(feat.size(1)):
-            if self.na_mode == NAMode.MOST_FREQUENT:
-                fill_value = self.stats_list[col][StatType.MOST_FREQUENT]
-                # counter = Counter(feat[:, col][feat[:, col] != -1].tolist())
-                # fill_value = max(counter, key=counter.get)
-            elif self.na_mode == NAMode.MEAN:
-                fill_value = self.stats_list[col][StatType.MEAN]
-                # fill_value = torch.mean(
-                # feat[:, col][~torch.isnan(feat[:, col])])
-            elif self.na_mode == NAMode.ZERO:
+            if na_mode == NAMode.MOST_FREQUENT:
+                fill_value = stats_list[col][StatType.MOST_FREQUENT]
+            elif na_mode == NAMode.MEAN:
+                fill_value = stats_list[col][StatType.MEAN]
+            elif na_mode == NAMode.ZERO:
                 fill_value = 0
             else:
                 raise ValueError(f"Unsupported NA mode {self.na_mode}")

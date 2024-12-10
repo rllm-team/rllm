@@ -7,10 +7,10 @@
 # Time      9.8s      272.1s
 
 import argparse
-import os.path as osp
 import sys
 import time
 from typing import Any, Dict, List
+import os.path as osp
 
 from tqdm import tqdm
 import torch
@@ -22,7 +22,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.nn.models import get_transform
+from rllm.nn.models import TNNConfig
 from rllm.nn.conv.table_conv import FTTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -35,16 +35,23 @@ parser.add_argument("--epochs", type=int, default=100)
 parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
+# Set random seed and device
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Prepare datasets
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = Titanic(cached_dir=path)[0]
-dataset.to(device)
+dataset = Titanic(cached_dir=path)
+data = dataset[0]
+
+# Transform data
+transform = TNNConfig.get_transform("FTTransformer")(args.dim)
+data = transform(data)
+data.to(device)
+data.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
-train_loader, val_loader, test_loader = dataset.get_dataloader(
+train_loader, val_loader, test_loader = data.get_dataloader(
     0.8, 0.1, 0.1, batch_size=args.batch_size
 )
 
@@ -59,7 +66,7 @@ class FTTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.transform = get_transform(FTTransformerConv)(
+        pre_encoder = TNNConfig.get_pre_encoder("FTTransformer")(
             out_dim=hidden_dim,
             metadata=metadata,
         )
@@ -68,7 +75,9 @@ class FTTransformer(torch.nn.Module):
             dim=hidden_dim,
             layers=layers,
             use_cls=True,
+            pre_encoder=pre_encoder,
         )
+
         self.fc = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
             torch.nn.ReLU(),
@@ -76,7 +85,6 @@ class FTTransformer(torch.nn.Module):
         )
 
     def forward(self, x) -> Tensor:
-        x = self.transform(x)
         x_cls = self.conv(x)
         out = self.fc(x_cls)
         return out
@@ -84,9 +92,9 @@ class FTTransformer(torch.nn.Module):
 
 model = FTTransformer(
     hidden_dim=args.dim,
-    out_dim=dataset.num_classes,
+    out_dim=data.num_classes,
     layers=args.num_layers,
-    metadata=dataset.metadata,
+    metadata=data.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(

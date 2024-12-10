@@ -16,8 +16,8 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.nn.models import get_transform
-from rllm.datasets.planetoid import PlanetoidDataset
+from rllm.datasets import PlanetoidDataset
+from rllm.nn.models import GNNConfig
 from rllm.nn.conv.graph_conv import GCNConv
 
 parser = argparse.ArgumentParser()
@@ -32,12 +32,22 @@ parser.add_argument("--dropout", type=float, default=0.5, help="Graph Dropout")
 parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
+# Set random seed and device
 torch.manual_seed(args.seed)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset, transform=get_transform(GCNConv)())
+dataset = PlanetoidDataset(path, args.dataset)
 data = dataset[0]
 
+# Transform data
+transform = GNNConfig.get_transform("GCN")()
+data = transform(data)
+data.to(device)
 
+
+# define model
 class GCN(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, dropout):
         super().__init__()
@@ -53,12 +63,13 @@ class GCN(torch.nn.Module):
         return x
 
 
+# set up model and optimizer
 model = GCN(
     in_dim=data.x.shape[1],
     hidden_dim=args.hidden_dim,
     out_dim=data.num_classes,
     dropout=args.dropout,
-)
+).to(device)
 
 optimizer = torch.optim.Adam(
     model.parameters(), lr=args.lr, weight_decay=args.wd
