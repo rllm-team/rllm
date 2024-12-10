@@ -14,10 +14,13 @@ from .tabnet import (
     # GLU_Block,
     # GLU_Layer
 )
-from .get_transform import get_transform
+from .gnn_config import GNNConfig
+from .tnn_config import TNNConfig
 
 __all__ = [
     "RECT_L",
     "TabNet",
-    "get_transform",
+    "gnn_config",
+    "GNNConfig",
+    "TNNConfig",
 ]

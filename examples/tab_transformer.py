@@ -7,10 +7,10 @@
 # Time      11.3s      391.1s
 
 import argparse
-import os.path as osp
 import sys
 import time
 from typing import Any, Dict, List
+import os.path as osp
 
 from tqdm import tqdm
 import torch
@@ -21,30 +21,37 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.nn.models import get_transform
+from rllm.nn.models import TNNConfig
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dim", help="transform dim", type=int, default=32)
-parser.add_argument("--num_layers", type=int, default=6)
+parser.add_argument("--num_layers", type=int, default=2)
 parser.add_argument("--num_heads", type=int, default=8)
 parser.add_argument("--batch_size", type=int, default=128)
-parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--epochs", type=int, default=50)
-parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--wd", type=float, default=5e-4)
+parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
+# Set random seed and device
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Prepare datasets
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = Titanic(cached_dir=path)[0]
-dataset.to(device)
+dataset = Titanic(cached_dir=path)
+data = dataset[0]
+
+# Transform data
+transform = TNNConfig.get_transform("TabTransformer")(args.dim)
+data = transform(data)
+data.to(device)
+data.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
-train_loader, val_loader, test_loader = dataset.get_dataloader(
+train_loader, val_loader, test_loader = data.get_dataloader(
     0.8, 0.1, 0.1, batch_size=args.batch_size
 )
 
@@ -59,36 +66,36 @@ class TabTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.transform = get_transform(TabTransformerConv)(
+        pre_encoder = TNNConfig.get_pre_encoder("TabTransformer")(
             out_dim=hidden_dim,
             metadata=metadata,
         )
 
         self.convs = torch.nn.ModuleList(
+            [TabTransformerConv(dim=hidden_dim, heads=heads, pre_encoder=pre_encoder)]
+        ).extend(
             [
-                TabTransformerConv(
-                    dim=hidden_dim,
-                    heads=heads,
-                )
-                for _ in range(num_layers)
+                TabTransformerConv(dim=hidden_dim, heads=heads)
+                for _ in range(num_layers - 1)
             ]
         )
+
         self.fc = torch.nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x):
-        x = self.transform(x)
         for conv in self.convs:
             x = conv(x)
+        x = torch.cat(list(x.values()), dim=1)
         out = self.fc(x.mean(dim=1))
         return out
 
 
 model = TabTransformer(
     hidden_dim=args.dim,
-    out_dim=dataset.num_classes,
+    out_dim=data.num_classes,
     num_layers=args.num_layers,
     heads=args.num_heads,
-    metadata=dataset.metadata,
+    metadata=data.metadata,
 ).to(device)
 
 optimizer = torch.optim.Adam(
@@ -96,6 +103,10 @@ optimizer = torch.optim.Adam(
     lr=args.lr,
     weight_decay=args.wd,
 )
+
+# for name, param in model.named_parameters():
+#     print(name, param.size())
+# exit()
 
 
 def train(epoch: int) -> float:
@@ -107,6 +118,11 @@ def train(epoch: int) -> float:
         loss = F.cross_entropy(pred, y.long())
         optimizer.zero_grad()
         loss.backward()
+
+        # for name, param in model.named_parameters():
+        #     if param.grad is not None:
+        #         print(f"Gradient of {name}: {param.grad}")
+
         loss_accum += float(loss) * y.size(0)  # daigai
         total_count += y.size(0)
         optimizer.step()

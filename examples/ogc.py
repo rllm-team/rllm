@@ -7,10 +7,9 @@
 # Time      3.7s        2.3s      4.3s
 
 import argparse
-import os.path as osp
 import time
-import warnings
 import sys
+import os.path as osp
 
 import torch
 import torch.nn.functional as F
@@ -20,32 +19,34 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.data import GraphData
 from rllm.datasets import PlanetoidDataset
-import rllm.transforms.graph_transforms as GT
-import rllm.transforms.utils as UT
-
-warnings.filterwarnings("ignore", ".*Sparse CSR tensor support.*")
-
-decline = 0.9  # decline rate
-eta_sup = 0.001  # learning rate for supervised loss
-eta_W = 0.5  # learning rate for updating W
-beta = 0.1  # moving probability that a node moves to neighbors
-max_sim_tol = 0.995  # max label prediction similarity between iterations
-max_patience = 2  # tolerance for consecutive similar test predictions
+from rllm.nn.models import GNNConfig
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--dataset", type=str, default="cora", choices=["citeseer, cora, pubmed"]
 )
+parser.add_argument("--decline", type=float, default=0.9, help="decline rate"),
+parser.add_argument("--lr_sup", type=float, default=0.001, help="lr for loss")
+parser.add_argument("--lr_W", type=float, default=0.5, help="lr for W")
+parser.add_argument("--beta", type=float, default=0.1, help="moving probability")
+parser.add_argument("--sim_tol", type=float, default=0.995, help="max similarity")
+parser.add_argument("--patience", type=int, default=2, help="tolerance")
 args = parser.parse_args()
 
+# Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
+dataset = PlanetoidDataset(path, args.dataset, force_reload=True)
+data = dataset[0]
 
-transform = GT.Compose([UT.NormalizeFeatures("sum"), GT.GCNNorm()])
+# Transform data
+transform = GNNConfig.get_transform("GCN")("sum")
+data = transform(data)
+data.to(device)
 
-dataset = PlanetoidDataset(path, args.dataset, transform, force_reload=True)
-data = dataset[0].to(device)
-
+# One-hot encoding for labels
 y_one_hot = F.one_hot(data.y, data.num_classes).float()
 data.trainval_mask = data.train_mask | data.val_mask
 
@@ -54,7 +55,8 @@ S = torch.diag(data.train_mask).float().to_sparse(layout=torch.sparse_coo)
 I_N = torch.eye(data.num_nodes).to_sparse(layout=torch.sparse_coo).to(device)
 
 # Lazy random walk (also known as lazy graph convolution):
-lazy_adj = beta * data.adj + (1 - beta) * I_N
+lazy_adj = args.beta * data.adj + (1 - args.beta) * I_N
+lr_sup = args.lr_sup
 
 
 class LinearNeuralNetwork(torch.nn.Module):
@@ -83,7 +85,7 @@ class LinearNeuralNetwork(torch.nn.Module):
         return float(loss), accs[0], accs[1], pred
 
     def update_W(self, U: Tensor, y_one_hot: Tensor, data: GraphData):
-        optimizer = torch.optim.SGD(self.parameters(), lr=eta_W)
+        optimizer = torch.optim.SGD(self.parameters(), lr=args.lr_W)
         self.train()
         optimizer.zero_grad()
         pred = self(U)
@@ -103,16 +105,16 @@ model = LinearNeuralNetwork(
 
 
 def update_U(U: Tensor, y_one_hot: Tensor, pred: Tensor, W: Tensor):
-    global eta_sup
+    global lr_sup
 
     # Update the smoothness loss via LGC:
     U = lazy_adj @ U
 
     # Update the supervised loss via SEB:
     dU_sup = 2 * (S @ (-y_one_hot + pred)) @ W
-    U = U - eta_sup * dU_sup
+    U = U - lr_sup * dU_sup
 
-    eta_sup = eta_sup * decline
+    lr_sup = lr_sup * args.decline
     return U
 
 
@@ -135,9 +137,9 @@ def ogc() -> float:
         )
 
         sim_rate = float((pred == last_pred).sum()) / pred.size(0)
-        if sim_rate > max_sim_tol:
+        if sim_rate > args.sim_tol:
             patience += 1
-            if patience > max_patience:
+            if patience > args.patience:
                 break
 
         last_acc, last_pred = test_acc, pred

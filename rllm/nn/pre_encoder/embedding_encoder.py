@@ -5,11 +5,11 @@ import torch
 from torch import Tensor
 from torch.nn import Embedding, Module
 
-from rllm.types import ColType, NAMode, StatType
-from rllm.transforms.table_transforms import ColTypeTransform
+from rllm.types import ColType, StatType
+from .coltype_encoder import ColTypeEncoder
 
 
-class EmbeddingEncoder(ColTypeTransform):
+class EmbeddingEncoder(ColTypeEncoder):
     r"""An simple embedding look-up based Transform for categorical features.
     It applies :class:`torch.nn.Embedding` for each categorical feature and
     concatenates the output embeddings.
@@ -21,11 +21,9 @@ class EmbeddingEncoder(ColTypeTransform):
         self,
         out_dim: int | None = None,
         stats_list: List[Dict[StatType, Any]] | None = None,
-        col_type: ColType | None = ColType.CATEGORICAL,
         post_module: Module | None = None,
-        na_mode: NAMode | None = None,
     ) -> None:
-        super().__init__(out_dim, stats_list, col_type, post_module, na_mode)
+        super().__init__(out_dim, stats_list, post_module)
 
     def post_init(self):
         r"""This is the actual initialization function."""
