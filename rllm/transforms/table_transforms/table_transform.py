@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import Dict, List, Callable
 from abc import ABC, abstractmethod
+from typing import Dict, List, Callable
 
 import torch
 from torch import Tensor
@@ -37,8 +37,6 @@ class TableTransform(Module, ABC):
 
     Args:
         out_dim (int): The output dim dimensionality
-        stats_list (List[Dict[StatType]]): The list
-            of stats for each column within the same column type.
         col_type (stype): The stype of the Transform input.
         post_module (Module, optional): The post-hoc module applied to the
             output, such as activation function and normalization. Must
@@ -46,12 +44,15 @@ class TableTransform(Module, ABC):
             applied to the output. (default: :obj:`None`)
         na_mode (NAMode, optional): The instruction that indicates how to
             impute NaN values. (default: :obj:`None`)
+        transforms (List[Callable], optional): A list of transformation
+            functions to be applied to the input data. Each function in the
+            list should take the input data as an argument and return the
+            transformed data. (default: :obj=`None`)
     """
 
     def __init__(
         self,
         out_dim: int | None = None,
-        stats_list: List[Dict[StatType]] | None = None,
         col_type: ColType | None = None,
         post_module: Module | None = None,
         na_mode: Dict[StatType, NAMode] | None = None,
@@ -79,7 +80,6 @@ class TableTransform(Module, ABC):
             }
 
         self.out_dim = out_dim
-        # self.stats_list = stats_list
         self.post_module = post_module
         self.na_mode = na_mode
         self.transforms = transforms
