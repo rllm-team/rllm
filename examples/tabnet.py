@@ -3,7 +3,7 @@
 # ArXiv: https://arxiv.org/abs/1908.07442
 
 # Datasets  Titanic     Adult
-# Acc       0.843       0.853
+# Acc       0.764       0.853
 # Time      31.1s       454.8s
 
 import argparse
