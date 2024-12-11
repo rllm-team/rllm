@@ -3,7 +3,7 @@
 # ArXiv: https://arxiv.org/abs/1908.07442
 
 # Datasets  Titanic     Adult
-# Acc       0.843       0.853
+# Acc       0.764       0.853
 # Time      31.1s       454.8s
 
 import argparse
@@ -53,7 +53,7 @@ train_loader, val_loader, test_loader = data.get_dataloader(
 )
 
 
-# Set up model and optimizer
+# Define model
 class TabNetModel(torch.nn.Module):
     def __init__(
         self,
@@ -80,6 +80,7 @@ class TabNetModel(torch.nn.Module):
         return out
 
 
+# Set up model and optimizer
 model = TabNetModel(
     out_dim=data.num_classes,
     hidden_dim=args.dim,

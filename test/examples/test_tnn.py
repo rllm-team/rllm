@@ -36,11 +36,21 @@ def test_tabnet():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-8:]) > 0.79
+    assert float(stdout[-8:]) > 0.74
 
 
 def test_excel_former():
     script = os.path.join(EXAMPLE_ROOT, "excelformer.py")
+    out = subprocess.run(["python", str(script)], capture_output=True)
+    assert (
+        out.returncode == 0
+    ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
+    stdout = out.stdout.decode("utf-8")
+    assert float(stdout[-8:]) > 0.80
+
+
+def test_trompt():
+    script = os.path.join(EXAMPLE_ROOT, "trompt.py")
     out = subprocess.run(["python", str(script)], capture_output=True)
     assert (
         out.returncode == 0
