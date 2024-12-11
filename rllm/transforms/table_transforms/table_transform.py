@@ -51,7 +51,6 @@ class TableTransform(Module, ABC):
     def __init__(
         self,
         out_dim: int | None = None,
-        stats_list: List[Dict[StatType]] | None = None,
         col_type: ColType | None = None,
         post_module: Module | None = None,
         na_mode: Dict[StatType, NAMode] | None = None,
@@ -79,7 +78,6 @@ class TableTransform(Module, ABC):
             }
 
         self.out_dim = out_dim
-        # self.stats_list = stats_list
         self.post_module = post_module
         self.na_mode = na_mode
         self.transforms = transforms

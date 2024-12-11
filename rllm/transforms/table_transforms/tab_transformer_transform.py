@@ -8,7 +8,7 @@ from rllm.transforms.table_transforms import StackNumerical, TableTransform
 class TabTransformerTransform(TableTransform):
     def __init__(
         self,
-        out_dim: int = None,
+        out_dim: int,
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ) -> None:
         super().__init__(
