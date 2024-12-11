@@ -6,6 +6,16 @@ from rllm.transforms.table_transforms import StackNumerical, TableTransform
 
 
 class TabTransformerTransform(TableTransform):
+    r"""TabTransformerTransform applies StackNumerical transform to tabular
+    data, specifically designed for the TabTransformer model.
+
+    Args:
+        out_dim (int): The output dimensionality.
+        metadata (Dict[ColType, List[Dict[str, Any]]], optional): Metadata
+            containing information about the columns, such as statistics.
+            (default: :obj:`None`)
+    """
+
     def __init__(
         self,
         out_dim: int,
