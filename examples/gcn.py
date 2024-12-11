@@ -47,7 +47,7 @@ data = transform(data)
 data.to(device)
 
 
-# define model
+# Define model
 class GCN(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, dropout):
         super().__init__()
@@ -63,7 +63,7 @@ class GCN(torch.nn.Module):
         return x
 
 
-# set up model and optimizer
+# Set up model and optimizer
 model = GCN(
     in_dim=data.x.shape[1],
     hidden_dim=args.hidden_dim,

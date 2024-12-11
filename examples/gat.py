@@ -40,7 +40,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = PlanetoidDataset(path, args.dataset)[0]
 
 # Transform data
-transform = GNNConfig.get_transform("GCN")()
+transform = GNNConfig.get_transform("GAT")()
 data = transform(data)
 data.to(device)
 

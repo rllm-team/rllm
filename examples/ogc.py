@@ -15,6 +15,8 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
+from rllm.transforms.utils import normalize_features
+
 sys.path.append("./")
 sys.path.append("../")
 from rllm.data import GraphData
@@ -42,7 +44,7 @@ dataset = PlanetoidDataset(path, args.dataset, force_reload=True)
 data = dataset[0]
 
 # Transform data
-transform = GNNConfig.get_transform("GCN")("sum")
+transform = GNNConfig.get_transform("OGC")(normalize_features="sum")
 data = transform(data)
 data.to(device)
 
