@@ -104,10 +104,6 @@ optimizer = torch.optim.Adam(
     weight_decay=args.wd,
 )
 
-# for name, param in model.named_parameters():
-#     print(name, param.size())
-# exit()
-
 
 def train(epoch: int) -> float:
     model.train()
@@ -118,12 +114,7 @@ def train(epoch: int) -> float:
         loss = F.cross_entropy(pred, y.long())
         optimizer.zero_grad()
         loss.backward()
-
-        # for name, param in model.named_parameters():
-        #     if param.grad is not None:
-        #         print(f"Gradient of {name}: {param.grad}")
-
-        loss_accum += float(loss) * y.size(0)  # daigai
+        loss_accum += float(loss) * y.size(0)
         total_count += y.size(0)
         optimizer.step()
     return loss_accum / total_count

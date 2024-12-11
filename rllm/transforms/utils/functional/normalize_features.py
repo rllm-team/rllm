@@ -11,6 +11,8 @@ def normalize_features(X: Tensor, norm: str = "l2", return_norm: bool = False):
         return_norm (bool): Whether to return the computed norms.
             (default: `False`).
     """
+    if X.is_sparse:
+        X = X.to_dense()
 
     if norm == "l1":
         norms = LA.norm(X, ord=1, dim=1, keepdim=True)
