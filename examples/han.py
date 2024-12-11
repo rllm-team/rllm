@@ -10,7 +10,6 @@ from typing import Dict, List, Union
 import os.path as osp
 
 import torch
-from torch import nn
 import torch.nn.functional as F
 
 sys.path.append("./")
@@ -27,7 +26,7 @@ data = IMDB(path)[0]
 data.to(device)
 
 
-class HAN(nn.Module):
+class HAN(torch.nn.Module):
     def __init__(
         self,
         in_dim: Union[int, Dict[str, int]],
@@ -43,7 +42,7 @@ class HAN(nn.Module):
             dropout=0.6,
             metadata=data.metadata(),
         )
-        self.lin = nn.Linear(hidden_dim, out_dim)
+        self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x_dict, adj_dict):
         out = self.han_conv(x_dict, adj_dict)

@@ -9,6 +9,7 @@ EXAMPLE_ROOT = os.path.join(
 )
 
 
+# Test homologous GNN
 def test_gcn():
     script = os.path.join(EXAMPLE_ROOT, "gcn.py")
     out = subprocess.run(["python", str(script)], capture_output=True)
@@ -29,16 +30,6 @@ def test_gat():
     assert float(stdout[-8:]) > 0.82
 
 
-def test_han():
-    script = os.path.join(EXAMPLE_ROOT, "han.py")
-    out = subprocess.run(["python", str(script)], capture_output=True)
-    assert (
-        out.returncode == 0
-    ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
-    stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-8:]) > 0.56
-
-
 def test_rect():
     script = os.path.join(EXAMPLE_ROOT, "rect.py")
     out = subprocess.run(["python", str(script)], capture_output=True)
@@ -57,3 +48,24 @@ def test_ogc():
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
     assert float(stdout[-8:]) > 0.86
+
+
+# Test heterogeneous GNN
+def test_han():
+    script = os.path.join(EXAMPLE_ROOT, "han.py")
+    out = subprocess.run(["python", str(script)], capture_output=True)
+    assert (
+        out.returncode == 0
+    ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
+    stdout = out.stdout.decode("utf-8")
+    assert float(stdout[-8:]) > 0.56
+
+
+def test_hgt():
+    script = os.path.join(EXAMPLE_ROOT, "hgt.py")
+    out = subprocess.run(["python", str(script)], capture_output=True)
+    assert (
+        out.returncode == 0
+    ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
+    stdout = out.stdout.decode("utf-8")
+    assert float(stdout[-8:]) > 0.56

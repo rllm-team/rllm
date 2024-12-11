@@ -11,7 +11,6 @@ import os.path as osp
 
 import torch
 import torch.nn.functional as F
-from torch import nn
 
 sys.path.append("./")
 sys.path.append("../")
@@ -28,12 +27,12 @@ data = IMDB(path)[0]
 data.to(device)
 
 
-class HGT(nn.Module):
+class HGT(torch.nn.Module):
     def __init__(self, hidden_dim: int, out_dim: int, data: HeteroGraphData, heads=8):
         super().__init__()
-        self.lin_dict = nn.ModuleDict()
+        self.lin_dict = torch.nn.ModuleDict()
         for node_type in data.node_types:
-            self.lin_dict[node_type] = nn.Linear(
+            self.lin_dict[node_type] = torch.nn.Linear(
                 in_features=data.x_dict()[node_type].shape[1],
                 out_features=hidden_dim,
             )
@@ -44,7 +43,7 @@ class HGT(nn.Module):
             dropout_rate=0.6,
             metadata=data.metadata(),
         )
-        self.lin = nn.Linear(hidden_dim, out_dim)
+        self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x_dict, adj_dict):
         out = {}
