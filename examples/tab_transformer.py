@@ -73,9 +73,9 @@ class TabTransformer(torch.nn.Module):
         )
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(TabTransformerConv(dim=out_dim, pre_encoder=pre_encoder))
+        self.convs.append(TabTransformerConv(dim=hidden_dim, pre_encoder=pre_encoder))
         for _ in range(num_layers - 1):
-            self.convs.append(TabTransformerConv(dim=out_dim))
+            self.convs.append(TabTransformerConv(dim=hidden_dim))
 
         self.fc = torch.nn.Linear(hidden_dim, out_dim)
 
