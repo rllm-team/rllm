@@ -29,12 +29,14 @@ parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--wd", type=float, default=1e-4, help="Weight decay")
 args = parser.parse_args()
 
+# Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load data
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 dataset = TLF2KDataset(cached_dir=path, force_reload=True)
 
+# Get the required data
 artist_table, ua_table, _ = dataset.data_list
 emb_size = 384
 artist_size = len(artist_table)
