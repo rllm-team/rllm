@@ -15,11 +15,11 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import TACM12KDataset
-from rllm.transforms.graph_transforms import GCNNorm
+from rllm.transforms.graph_transforms import GCNTransform
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from utils import build_homo_adj, TableEncoder, GraphEncoder
+from utils import build_homo_graph, TableEncoder, GraphEncoder
 
 
 parser = argparse.ArgumentParser()
@@ -29,13 +29,15 @@ parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
 parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
-# Prepare datasets
+# Set random seed and device
 torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 dataset = TACM12KDataset(cached_dir=path, force_reload=True)
 
+# Get
 (
     papers_table,
     authors_table,
@@ -45,20 +47,29 @@ dataset = TACM12KDataset(cached_dir=path, force_reload=True)
     _,
 ) = dataset.data_list
 emb_size = paper_embeddings.size(1)
-
-adj = build_homo_adj(
-    relation_df=citations_table.df,
-    n_all=len(papers_table),
-).to(device)
 target_table = papers_table.to(device)
 y = papers_table.y.long().to(device)
 paper_embeddings = paper_embeddings.to(device)
 
+# Build graph
+graph = build_homo_graph(
+    relation_df=citations_table.df,
+    n_all=len(papers_table),
+).to(device)
 
+# Transform data
+table_transform = TabTransformerTransform(
+    out_dim=emb_size, metadata=target_table.metadata
+)
+target_table = table_transform(data=target_table)
+graph_transform = GCNTransform()
+adj = graph_transform(data=graph).adj
+
+# Split data
 train_mask, val_mask, test_mask = (
-    papers_table.train_mask,
-    papers_table.val_mask,
-    papers_table.test_mask,
+    target_table.train_mask,
+    target_table.val_mask,
+    target_table.test_mask,
 )
 
 
@@ -79,16 +90,16 @@ class Bridge(torch.nn.Module):
         return node_feats[: len(table), :]
 
 
+# Set up model and optimizer
 t_encoder = TableEncoder(
     in_dim=emb_size,
     out_dim=emb_size,
-    table_transorm=TabTransformerTransform(emb_size, papers_table.metadata),
     table_conv=TabTransformerConv,
+    metadata=target_table.metadata,
 )
 g_encoder = GraphEncoder(
     in_dim=emb_size,
     out_dim=papers_table.num_classes,
-    graph_transform=GCNNorm(),
     graph_conv=GCNConv,
 )
 model = Bridge(

@@ -15,11 +15,11 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import TLF2KDataset
-from rllm.transforms.graph_transforms import GCNNorm
+from rllm.transforms.graph_transforms import GCNTransform
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from utils import reorder_ids, build_homo_adj, GraphEncoder, TableEncoder
+from utils import build_homo_graph, reorder_ids, TableEncoder, GraphEncoder
 
 
 parser = argparse.ArgumentParser()
@@ -36,9 +36,12 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 dataset = TLF2KDataset(cached_dir=path, force_reload=True)
 
 artist_table, ua_table, _ = dataset.data_list
+emb_size = 384
 artist_size = len(artist_table)
 user_size = ua_table.df["userID"].max()
-emb_size = 384
+target_table = artist_table.to(device)
+y = artist_table.y.long().to(device)
+user_embeddings = torch.randn((user_size, emb_size)).to(device)
 
 ordered_ua = reorder_ids(
     relation_df=ua_table.df,
@@ -47,13 +50,17 @@ ordered_ua = reorder_ids(
     n_src=artist_size,
 )
 
-adj = build_homo_adj(
+graph = build_homo_graph(
     relation_df=ordered_ua,
     n_all=artist_size + user_size,
 ).to(device)
-target_table = artist_table.to(device)
-y = artist_table.y.long().to(device)
-user_embeddings = torch.randn((user_size, emb_size)).to(device)
+# Transform data
+table_transform = TabTransformerTransform(
+    out_dim=emb_size, metadata=target_table.metadata
+)
+target_table = table_transform(target_table)
+graph_transform = GCNTransform()
+adj = graph_transform(graph).adj
 
 train_mask, val_mask, test_mask = (
     artist_table.train_mask,
@@ -82,13 +89,12 @@ class Bridge(torch.nn.Module):
 t_encoder = TableEncoder(
     in_dim=emb_size,
     out_dim=emb_size,
-    table_transorm=TabTransformerTransform(emb_size, artist_table.metadata),
     table_conv=TabTransformerConv,
+    metadata=target_table.metadata,
 )
 g_encoder = GraphEncoder(
     in_dim=emb_size,
     out_dim=artist_table.num_classes,
-    graph_transform=GCNNorm(),
     graph_conv=GCNConv,
 )
 model = Bridge(

@@ -21,7 +21,8 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.nn.models import TNNConfig
+from rllm.transforms.table_transforms import TabTransformerTransform
+from rllm.nn.pre_encoder import TabTransformerEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -45,14 +46,14 @@ dataset = Titanic(cached_dir=path)
 data = dataset[0]
 
 # Transform data
-transform = TNNConfig.get_transform("TabTransformer")(args.dim)
+transform = TabTransformerTransform(out_dim=args.dim)
 data = transform(data)
 data.to(device)
 data.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
 train_loader, val_loader, test_loader = data.get_dataloader(
-    0.8, 0.1, 0.1, batch_size=args.batch_size
+    train_split=0.8, val_split=0.1, test_split=0.1, batch_size=args.batch_size
 )
 
 
@@ -66,19 +67,15 @@ class TabTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        pre_encoder = TNNConfig.get_pre_encoder("TabTransformer")(
+        pre_encoder = TabTransformerEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
         )
 
-        self.convs = torch.nn.ModuleList(
-            [TabTransformerConv(dim=hidden_dim, heads=heads, pre_encoder=pre_encoder)]
-        ).extend(
-            [
-                TabTransformerConv(dim=hidden_dim, heads=heads)
-                for _ in range(num_layers - 1)
-            ]
-        )
+        self.convs = torch.nn.ModuleList()
+        self.convs.append(TabTransformerConv(dim=out_dim, pre_encoder=pre_encoder))
+        for _ in range(num_layers - 1):
+            self.convs.append(TabTransformerConv(dim=out_dim))
 
         self.fc = torch.nn.Linear(hidden_dim, out_dim)
 

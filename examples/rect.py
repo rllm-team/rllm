@@ -25,7 +25,8 @@ from sklearn.linear_model import LogisticRegression
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import PlanetoidDataset
-from rllm.nn.models import RECT_L, GNNConfig
+from rllm.nn.models import RECT_L
+from rllm.transforms.graph_transforms import RECTTransform
 from rllm.transforms.utils import RemoveTrainingClasses
 
 
@@ -48,15 +49,14 @@ elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
 else:
     device = torch.device("cpu")
 
-# Load data
+# Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 dataset = PlanetoidDataset(path, args.dataset, force_reload=True)
 data = dataset[0]
 
 # Transform data
-transform = GNNConfig.get_transform("RECT")()
+transform = RECTTransform()
 data = transform(data)
-
 zs_data = RemoveTrainingClasses(args.unseen_classes)(copy.deepcopy(data))
 
 # Set up model and optimizer

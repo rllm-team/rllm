@@ -17,7 +17,7 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import PlanetoidDataset
-from rllm.nn.models import GNNConfig
+from rllm.transforms.graph_transforms import GCNTransform
 from rllm.nn.conv.graph_conv import GATConv
 
 parser = argparse.ArgumentParser()
@@ -40,7 +40,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = PlanetoidDataset(path, args.dataset)[0]
 
 # Transform data
-transform = GNNConfig.get_transform("GAT")()
+transform = GCNTransform()
 data = transform(data)
 data.to(device)
 
