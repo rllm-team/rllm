@@ -22,7 +22,8 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Adult
-from rllm.nn.models import TNNConfig
+from rllm.transforms.table_transforms import DefaultTransform
+from rllm.nn.pre_encoder import FTTransformerEncoder
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
@@ -45,7 +46,7 @@ dataset = Adult(cached_dir=path)
 data = dataset[0]
 
 # Transform data
-transform = TNNConfig.get_transform("Trompt")(args.dim)
+transform = DefaultTransform(out_dim=args.dim)
 data = transform(data)
 data.to(device)
 data.shuffle()
@@ -71,20 +72,19 @@ class Trompt(torch.nn.Module):
         self.out_dim = out_dim
         self.x_prompt = torch.nn.Parameter(torch.empty(num_prompts, hidden_dim))
 
-        self.convs = torch.nn.ModuleList(
-            [
+        self.convs = torch.nn.ModuleList()
+        for _ in range(num_layers):
+            self.convs.append(
                 TromptConv(
                     in_dim=in_dim,
                     out_dim=hidden_dim,
                     num_prompts=num_prompts,
-                    pre_encoder=TNNConfig.get_pre_encoder("Trompt")(
+                    pre_encoder=FTTransformerEncoder(
                         out_dim=hidden_dim,
                         metadata=metadata,
                     ),
                 )
-                for _ in range(num_layers)
-            ]
-        )
+            )
 
         self.linear = torch.nn.Linear(hidden_dim, 1)
         self.mlp = torch.nn.Sequential(

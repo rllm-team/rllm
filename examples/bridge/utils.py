@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 import pandas as pd
 import torch
@@ -6,6 +6,7 @@ from torch import Tensor
 from torch.nn import Module
 import torch.nn.functional as F
 
+from rllm.types import ColType
 from rllm.data import GraphData
 from rllm.nn.pre_encoder import TabTransformerEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
@@ -29,7 +30,7 @@ def reorder_ids(
     return ordered_rating
 
 
-def build_homo_adj(
+def build_homo_graph(
     relation_df: pd.DataFrame,
     n_all: int,
     x: Optional[Tensor] = None,
@@ -40,20 +41,14 @@ def build_homo_adj(
         unweighted graph with only two types of nodes and one type of edge.
 
     Args:
-        df (pd.DataFrame): The given dataframe, where the first two columns
-            represent two types of nodes that may be connected in a
+        relation_df (pd.DataFrame): The given dataframe, where the first two
+            columns represent two types of nodes that may be connected in a
             homogeneous graph (abbreviated as sorce nodes and target nodes).
             Assume that the indices of source and target nodes
             in the dataframe start from 0.
-        src_nodes (int): Total amount of source nodes.
-        tgt_nodes (int): Total amount of target nodes.
+        n_all (int): Total amount of nodes.
         x (Tensor): Features of nodes.
         y (Optional[Tensor]): Labels of (part) nodes.
-        names (List[str]):
-            The names of the two types of nodes in the generated graph.
-        transform (Optional[Callable]):
-            A function/transform that takes in a :obj:`GraphData`
-            and returns a transformed version.
         edge_per_node (Optional[int]):
             specifying the maximum number of edges to keep for each node.
     """
@@ -94,7 +89,7 @@ def build_homo_adj(
     # Construct graph
     graph = GraphData(x=x, y=y, adj=adj)
 
-    return graph.adj
+    return graph
 
 
 class TableEncoder(Module):
@@ -115,13 +110,12 @@ class TableEncoder(Module):
         in_dim,
         out_dim,
         num_layers: int = 1,
-        table_transorm: Module = None,
+        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
         table_conv: Type[Module] = TabTransformerConv,
     ) -> None:
 
         super().__init__()
-        self.table_transform = table_transorm
-        pre_encoder = TabTransformerEncoder(out_dim, table_transorm.metadata)
+        pre_encoder = TabTransformerEncoder(out_dim, metadata)
 
         self.convs = torch.nn.ModuleList()
         self.convs.append(table_conv(dim=out_dim, pre_encoder=pre_encoder))
@@ -129,7 +123,6 @@ class TableEncoder(Module):
             self.convs.append(table_conv(dim=out_dim))
 
     def forward(self, table):
-        table = self.table_transform(table)
         x = table.feat_dict
         for conv in self.convs:
             x = conv(x)
@@ -172,7 +165,7 @@ class GraphEncoder(Module):
         self.convs.append(graph_conv(in_dim, out_dim))
 
     def forward(self, x, adj):
-        adj = self.graph_transform(adj)
+        # adj = self.graph_transform(adj)
         for conv in self.convs[:-1]:
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = F.relu(conv(x, adj))

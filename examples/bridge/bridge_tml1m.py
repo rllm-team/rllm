@@ -15,11 +15,11 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import TML1MDataset
-from rllm.transforms.graph_transforms import GCNNorm
+from rllm.transforms.graph_transforms import GCNTransform
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from utils import reorder_ids, build_homo_adj, GraphEncoder, TableEncoder
+from utils import build_homo_graph, reorder_ids, TableEncoder, GraphEncoder
 
 
 parser = argparse.ArgumentParser()
@@ -35,14 +35,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 dataset = TML1MDataset(cached_dir=path, force_reload=True)
 
+# Get the required data
 (
     user_table,
     _,
     rating_table,
     movie_embeddings,
 ) = dataset.data_list
-user_size = len(user_table)
 emb_size = movie_embeddings.size(1)
+user_size = len(user_table)
 
 ordered_rating = reorder_ids(
     relation_df=rating_table.df,
@@ -50,14 +51,22 @@ ordered_rating = reorder_ids(
     tgt_col_name="MovieID",
     n_src=user_size,
 )
-
-adj = build_homo_adj(
-    relation_df=ordered_rating,
-    n_all=user_size + movie_embeddings.size(0),
-).to(device)
 target_table = user_table.to(device)
 y = user_table.y.long().to(device)
 movie_embeddings = movie_embeddings.to(device)
+
+graph = build_homo_graph(
+    relation_df=ordered_rating,
+    n_all=user_size + movie_embeddings.size(0),
+).to(device)
+
+# Transform data
+table_transform = TabTransformerTransform(
+    out_dim=emb_size, metadata=target_table.metadata
+)
+target_table = table_transform(target_table)
+graph_transform = GCNTransform()
+adj = graph_transform(graph).adj
 
 train_mask, val_mask, test_mask = (
     user_table.train_mask,
@@ -86,13 +95,12 @@ class Bridge(torch.nn.Module):
 t_encoder = TableEncoder(
     in_dim=emb_size,
     out_dim=emb_size,
-    table_transorm=TabTransformerTransform(emb_size, user_table.metadata),
     table_conv=TabTransformerConv,
+    metadata=target_table.metadata,
 )
 g_encoder = GraphEncoder(
     in_dim=emb_size,
     out_dim=user_table.num_classes,
-    graph_transform=GCNNorm(),
     graph_conv=GCNConv,
 )
 model = Bridge(

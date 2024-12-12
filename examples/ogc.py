@@ -19,7 +19,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.data import GraphData
 from rllm.datasets import PlanetoidDataset
-from rllm.nn.models import GNNConfig
+from rllm.transforms.graph_transforms import GCNTransform
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -42,7 +42,7 @@ dataset = PlanetoidDataset(path, args.dataset, force_reload=True)
 data = dataset[0]
 
 # Transform data
-transform = GNNConfig.get_transform("GCN")("sum")
+transform = GCNTransform(normalize_features="sum")
 data = transform(data)
 data.to(device)
 

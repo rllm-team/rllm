@@ -25,7 +25,8 @@ from sklearn.linear_model import LogisticRegression
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import PlanetoidDataset
-from rllm.nn.models import RECT_L, GNNConfig
+from rllm.nn.models import RECT_L
+from rllm.transforms.graph_transforms import RECTTransform
 from rllm.transforms.utils import RemoveTrainingClasses
 
 
@@ -40,20 +41,7 @@ parser.add_argument("--dropout", type=float, default=0.0, help="Graph Dropout")
 parser.add_argument("--epochs", type=int, default=50, help="Training epochs")
 args = parser.parse_args()
 
-# Load data
-path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset, force_reload=True)
-data = dataset[0]
-
-# Transform data
-transform = GNNConfig.get_transform("RECT")()
-data = transform(data)
-
-zs_data = RemoveTrainingClasses(args.unseen_classes)(copy.deepcopy(data))
-
-model = RECT_L(200, 200, dropout=args.dropout)
-zs_data.y = model.get_semantic_labels(zs_data.x, zs_data.y, zs_data.train_mask)
-
+# Set device
 if torch.cuda.is_available():
     device = torch.device("cuda")
 elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -61,14 +49,30 @@ elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
 else:
     device = torch.device("cpu")
 
-model, zs_data = model.to(device), zs_data.to(device)
+# Load dataset
+path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
+dataset = PlanetoidDataset(path, args.dataset, force_reload=True)
+data = dataset[0]
 
-criterion = torch.nn.MSELoss(reduction="sum")
+# Transform data
+transform = RECTTransform()
+data = transform(data)
+zs_data = RemoveTrainingClasses(args.unseen_classes)(copy.deepcopy(data))
+
+# Set up model and optimizer
+model = RECT_L(
+    in_dim=200,
+    hidden_dim=200,
+    dropout=args.dropout,
+)
+zs_data.y = model.get_semantic_labels(zs_data.x, zs_data.y, zs_data.train_mask)
+model, zs_data = model.to(device), zs_data.to(device)
 optimizer = torch.optim.Adam(
     model.parameters(),
     lr=args.lr,
     weight_decay=args.wd,
 )
+criterion = torch.nn.MSELoss(reduction="sum")
 
 model.train()
 st = time.time()

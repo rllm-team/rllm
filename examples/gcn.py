@@ -17,7 +17,7 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import PlanetoidDataset
-from rllm.nn.models import GNNConfig
+from rllm.transforms.graph_transforms import GCNTransform
 from rllm.nn.conv.graph_conv import GCNConv
 
 parser = argparse.ArgumentParser()
@@ -42,12 +42,12 @@ dataset = PlanetoidDataset(path, args.dataset)
 data = dataset[0]
 
 # Transform data
-transform = GNNConfig.get_transform("GCN")()
+transform = GCNTransform()
 data = transform(data)
 data.to(device)
 
 
-# define model
+# Define model
 class GCN(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, dropout):
         super().__init__()
@@ -63,7 +63,7 @@ class GCN(torch.nn.Module):
         return x
 
 
-# set up model and optimizer
+# Set up model and optimizer
 model = GCN(
     in_dim=data.x.shape[1],
     hidden_dim=args.hidden_dim,
