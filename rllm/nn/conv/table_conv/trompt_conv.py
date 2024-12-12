@@ -8,7 +8,8 @@ import torch.nn.functional as F
 class TromptConv(torch.nn.Module):
     r"""The TromptConv Layer introduced in the
     `"Trompt: Towards a Better Deep Neural Network for Tabular Data"
-    <https://arxiv.org/abs/2305.18446>`_ paper.
+    <https://arxiv.org/abs/2305.18446>`_ paper. Also it is konwn as TromptCell
+    in the original paper.
 
     Args:
         in_dim (int): Input dimensionality.
