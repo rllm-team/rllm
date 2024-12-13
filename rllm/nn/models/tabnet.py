@@ -6,6 +6,7 @@ from torch.nn import Linear, BatchNorm1d, ReLU
 import torch.nn.functional as F
 
 from rllm.types import ColType
+from rllm.nn.pre_encoder import FTTransformerEncoder
 
 
 def check_list_groups(list_groups, in_dim):
@@ -433,6 +434,7 @@ class TabNet(torch.nn.Module):
         self.n_shared = n_shared
         self.grouped_features = grouped_features
         self.metadata = metadata
+        self.pre_encoder = None
         self.cat_idxs = [i for i in range(len(metadata[ColType.CATEGORICAL]))]
         self.in_dim = (
             len(self.metadata[ColType.CATEGORICAL])
@@ -459,6 +461,13 @@ class TabNet(torch.nn.Module):
             self.cat_emb_dim,
             self.post_embed_dim,
         )
+
+        if metadata:
+            self.pre_encoder = FTTransformerEncoder(
+                out_dim=self.cat_emb_dim,
+                metadata=metadata,
+            )
+
         # Initialize TabNet network
         self.tabnet = TabNetNoEmbeddings(
             self.post_embed_dim,
@@ -475,7 +484,15 @@ class TabNet(torch.nn.Module):
             emb_group_matrix,
         )
 
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        if self.pre_encoder:
+            self.pre_encoder.reset_parameters()
+
     def forward(self, x):
+        if self.pre_encoder:
+            x = self.pre_encoder(x).flatten(start_dim=1)
         return self.tabnet(x)
 
     def forward_masks(self, x):

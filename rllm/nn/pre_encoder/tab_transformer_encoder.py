@@ -16,5 +16,4 @@ class TabTransformerEncoder(PreEncoder):
             ColType.CATEGORICAL: EmbeddingEncoder(),
             ColType.NUMERICAL: DefaultEncoder(),
         }
-
         super().__init__(out_dim, metadata, col_encoder_dict)
