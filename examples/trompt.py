@@ -23,7 +23,6 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Adult
 from rllm.transforms.table_transforms import DefaultTransform
-from rllm.nn.pre_encoder import FTTransformerEncoder
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
@@ -79,10 +78,7 @@ class Trompt(torch.nn.Module):
                     in_dim=in_dim,
                     out_dim=hidden_dim,
                     num_prompts=num_prompts,
-                    pre_encoder=FTTransformerEncoder(
-                        out_dim=hidden_dim,
-                        metadata=metadata,
-                    ),
+                    metadata=metadata,
                 )
             )
 

@@ -1,8 +1,12 @@
 from __future__ import annotations
+from typing import Dict, List, Any
 
 import torch
 from torch import Tensor
 import torch.nn.functional as F
+
+from rllm.types import ColType
+from rllm.nn.pre_encoder import FTTransformerEncoder
 
 
 class TromptConv(torch.nn.Module):
@@ -24,7 +28,7 @@ class TromptConv(torch.nn.Module):
         out_dim: int,
         num_prompts: int,
         num_groups: int = 2,
-        pre_encoder: torch.nn.Module = None,
+        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
         self.num_prompts = num_prompts
@@ -42,12 +46,18 @@ class TromptConv(torch.nn.Module):
             num_channels=num_prompts,
         )
 
-        self.pre_encoder = pre_encoder
+        if metadata:
+            self.pre_encoder = FTTransformerEncoder(
+                out_dim=out_dim,
+                metadata=metadata,
+            )
+
         self.reset_parameters()
 
     def forward(self, x: Tensor, x_prompt: Tensor) -> Tensor:
         if self.pre_encoder is not None:
             x = self.pre_encoder(x)
+
         emb_column = self.ln_column(self.emb_column)
         emb_prompt = self.ln_prompt(self.emb_prompt)
 
@@ -70,6 +80,7 @@ class TromptConv(torch.nn.Module):
         x_expand_weight = torch.einsum("ijl,k->ikjl", x, self.expand_weight)
         x_expand_weight = F.relu(x_expand_weight)
         x_expand_residual = x.unsqueeze(1).repeat(1, self.num_prompts, 1, 1)
+
         # Residual connection
         x = self.group_norm(x_expand_weight) + x_expand_residual
 

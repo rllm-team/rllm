@@ -115,10 +115,9 @@ class TableEncoder(Module):
     ) -> None:
 
         super().__init__()
-        pre_encoder = TabTransformerEncoder(out_dim, metadata)
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(table_conv(dim=out_dim, pre_encoder=pre_encoder))
+        self.convs.append(table_conv(dim=out_dim, metadata=metadata))
         for _ in range(num_layers - 1):
             self.convs.append(table_conv(dim=out_dim))
 

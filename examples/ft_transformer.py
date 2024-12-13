@@ -3,7 +3,7 @@
 # ArXiv: https://arxiv.org/abs/1609.02907
 
 # Datasets  Titanic    Adult
-# Acc       0.780      0.859
+# Acc       0.790      0.859
 # Time      9.8s      272.1s
 
 import argparse
@@ -23,7 +23,6 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
 from rllm.transforms.table_transforms import DefaultTransform
-from rllm.nn.pre_encoder import FTTransformerEncoder
 from rllm.nn.conv.table_conv import FTTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -67,16 +66,16 @@ class FTTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        pre_encoder = FTTransformerEncoder(
-            out_dim=hidden_dim,
-            metadata=metadata,
-        )
+        # pre_encoder = FTTransformerEncoder(
+        #     out_dim=hidden_dim,
+        #     metadata=metadata,
+        # )
 
         self.conv = FTTransformerConv(
             dim=hidden_dim,
             layers=layers,
             use_cls=True,
-            pre_encoder=pre_encoder,
+            metadata=metadata,
         )
 
         self.fc = torch.nn.Sequential(

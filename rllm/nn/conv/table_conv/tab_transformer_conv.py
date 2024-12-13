@@ -1,9 +1,11 @@
 from __future__ import annotations
+from typing import Dict, List, Any
 
 import torch.nn.functional as F
 from torch import Tensor, nn, einsum
 
 from rllm.types import ColType
+from rllm.nn.pre_encoder import TabTransformerEncoder
 
 
 def _exists(val):
@@ -171,10 +173,9 @@ class TabTransformerConv(nn.Module):
         dim_head: int = 16,
         attn_dropout: float = 0.3,
         ff_dropout: float = 0.3,
-        pre_encoder: nn.Module = None,
+        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
-        self.pre_encoder = pre_encoder
         self.attn = PreNorm(
             dim=dim,
             fn=SelfAttention(
@@ -185,6 +186,12 @@ class TabTransformerConv(nn.Module):
             dim=dim,
             fn=FeedForward(dim=dim, dropout=ff_dropout),
         )
+        self.pre_encoder = None
+        if metadata:
+            self.pre_encoder = TabTransformerEncoder(
+                out_dim=dim,
+                metadata=metadata,
+            )
 
         self.reset_parameters()
 
