@@ -1,6 +1,5 @@
 from __future__ import annotations
-
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, List, Any
 
 import torch
 from torch import Tensor
@@ -10,6 +9,9 @@ from torch.nn import (
     TransformerEncoder,
     TransformerEncoderLayer,
 )
+
+from rllm.types import ColType
+from rllm.nn.pre_encoder import FTTransformerEncoder
 
 
 class FTTransformerConv(torch.nn.Module):
@@ -44,11 +46,12 @@ class FTTransformerConv(torch.nn.Module):
         dropout: float = 0.3,
         activation: str = "relu",
         use_cls: bool = False,
-        pre_encoder: Optional[torch.nn.Module] = None,
+        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
         self.use_cls = use_cls
-        self.pre_encoder = pre_encoder
+        self.pre_encoder = None
+        self.metadata = metadata
         encoder_layer = TransformerEncoderLayer(
             d_model=dim,
             nhead=heads,
@@ -64,6 +67,12 @@ class FTTransformerConv(torch.nn.Module):
             encoder_layer=encoder_layer, num_layers=layers, norm=encoder_norm
         )
         self.cls_embedding = Parameter(torch.empty(dim))
+
+        if self.metadata:
+            self.pre_encoder = FTTransformerEncoder(
+                out_dim=dim,
+                metadata=self.metadata,
+            )
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -71,7 +80,7 @@ class FTTransformerConv(torch.nn.Module):
         for p in self.transformer.parameters():
             if p.dim() > 1:
                 torch.nn.init.xavier_uniform_(p)
-        if self.pre_encoder is not None:
+        if self.pre_encoder:
             self.pre_encoder.reset_parameters()
 
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:

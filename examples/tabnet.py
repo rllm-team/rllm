@@ -22,7 +22,6 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
 from rllm.transforms.table_transforms import DefaultTransform
-from rllm.nn.pre_encoder import FTTransformerEncoder
 from rllm.nn.models import TabNet
 
 parser = argparse.ArgumentParser()
@@ -31,7 +30,7 @@ parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--lr", type=float, default=1e-3)
 parser.add_argument("--wd", type=float, default=5e-4)
 parser.add_argument("--epochs", type=int, default=50)
-parser.add_argument("--seed", type=int, default=0)
+parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
 # Set random seed and device
@@ -64,10 +63,6 @@ class TabNetModel(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.pre_encoder = FTTransformerEncoder(
-            out_dim=hidden_dim,
-            metadata=metadata,
-        )
 
         self.backbone = TabNet(
             out_dim=out_dim,  # dataset.num_classes,
@@ -77,8 +72,7 @@ class TabNetModel(torch.nn.Module):
         )
 
     def forward(self, x):
-        x = self.pre_encoder(x)
-        out = self.backbone(x.reshape(x.size(0), -1))
+        out = self.backbone(x)
         return out
 
 

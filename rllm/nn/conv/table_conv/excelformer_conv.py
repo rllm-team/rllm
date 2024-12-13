@@ -1,8 +1,11 @@
 from __future__ import annotations
-from typing import Tuple, Union, Dict
+from typing import Tuple, Union, Dict, List, Any
 
 import torch
 from torch import Tensor
+
+from rllm.types import ColType
+from rllm.nn.pre_encoder import FTTransformerEncoder
 
 
 class ExcelFormerConv(torch.nn.Module):
@@ -23,7 +26,7 @@ class ExcelFormerConv(torch.nn.Module):
         heads: int = 8,
         dim_head: int = 16,
         dropout: float = 0.5,
-        pre_encoder: torch.nn.Module = None,
+        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
         self.layer_norm = torch.nn.LayerNorm(dim)
@@ -31,7 +34,12 @@ class ExcelFormerConv(torch.nn.Module):
             dim=dim, heads=heads, dim_head=dim_head, dropout=dropout
         )
         self.GLU_layer = GLU_layer(dim, dim)
-        self.pre_encoder = pre_encoder
+        self.pre_encoder = None
+        if metadata:
+            self.pre_encoder = FTTransformerEncoder(
+                out_dim=dim,
+                metadata=metadata,
+            )
 
     def forward(self, x: Union[Dict, Tensor]) -> Tuple[Tensor, Tensor]:
         if self.pre_encoder:
