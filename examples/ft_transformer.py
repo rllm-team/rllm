@@ -66,10 +66,6 @@ class FTTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        # pre_encoder = FTTransformerEncoder(
-        #     out_dim=hidden_dim,
-        #     metadata=metadata,
-        # )
 
         self.conv = FTTransformerConv(
             dim=hidden_dim,
@@ -137,7 +133,6 @@ metric = "Acc"
 best_val_metric = 0
 best_test_metric = 0
 times = []
-st = time.time()
 for epoch in range(1, args.epochs + 1):
     start = time.time()
     train_loss = train(epoch)
@@ -151,13 +146,14 @@ for epoch in range(1, args.epochs + 1):
 
     times.append(time.time() - start)
     print(
+        f"Epoch: [{epoch}/{args.epochs}]"
         f"Train Loss: {train_loss:.4f}, Train {metric}: {train_metric:.4f}, "
         f"Val {metric}: {val_metric:.4f}, Test {metric}: {test_metric:.4f}"
     )
     optimizer.step()
-et = time.time()
+
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
-print(f"Total time: {et-st}s")
+print(f"Total time: {sum(times):.4f}s")
 print(
     f"Best Val {metric}: {best_val_metric:.4f}, "
     f"Best Test {metric}: {best_test_metric:.4f}"

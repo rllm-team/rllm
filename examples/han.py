@@ -6,6 +6,7 @@
 # Acc       0.571
 
 import sys
+import time
 from typing import Dict, List, Union
 import os.path as osp
 
@@ -22,7 +23,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = IMDB(path)[0]
+dataset = IMDB(path)
+data = dataset[0]
 data.to(device)
 
 
@@ -51,6 +53,8 @@ class HAN(torch.nn.Module):
 
 
 in_dim = {node_type: data[node_type].x.shape[1] for node_type in data.node_types}
+
+# Set up model and optimizer
 model = HAN(
     in_dim=in_dim,
     out_dim=3,
@@ -81,38 +85,28 @@ def test() -> List[float]:
 
     accs = []
     for split in ["train_mask", "val_mask", "test_mask"]:
-        # mask = data[split]
         mask = getattr(data, split)
         acc = (pred[mask] == data["movie"].y[mask]).sum() / mask.sum()
         accs.append(float(acc))
     return accs
 
 
-best_val_acc = 0
-best_test_acc = 0
-start_patience = patience = 100
-for epoch in range(1, 200):
-
-    loss = train()
+metric = "Acc"
+best_val_acc = best_test_acc = 0
+times = []
+for epoch in range(1, 201):
+    start = time.time()
+    train_loss = train()
     train_acc, val_acc, test_acc = test()
-    print(
-        f"Epoch: {epoch:03d}, Loss: {loss:.4f}, Train: {train_acc:.4f}, "
-        f"Val: {val_acc:.4f}, Test: {test_acc:.4f}"
-    )
-
-    if best_val_acc <= val_acc:
-        patience = start_patience
+    if val_acc > best_val_acc:
         best_val_acc = val_acc
         best_test_acc = test_acc
-    else:
-        patience -= 1
-
-    if patience <= 0:
-        print(
-            "Stopping training as validation accuracy did not improve "
-            f"for {start_patience} epochs"
-        )
-        break
-
-
+    times.append(time.time() - start)
+    print(
+        f"Epoch: [{epoch}/{200}] "
+        f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
+        f"Val {metric}: {val_acc:.4f}, Test {metric}: {test_acc:.4f} "
+    )
+print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
+print(f"Total time: {sum(times):.4f}s")
 print(f"Best test acc: {best_test_acc:.4f}")

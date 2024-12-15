@@ -165,7 +165,6 @@ metric = "Acc"
 best_val_metric = 0
 best_test_metric = 0
 times = []
-st = time.time()
 for epoch in range(1, args.epochs + 1):
     start = time.time()
     train_loss = train(epoch)
@@ -183,9 +182,9 @@ for epoch in range(1, args.epochs + 1):
         f"Val {metric}: {val_metric:.4f}, Test {metric}: {test_metric:.4f}"
     )
     optimizer.step()
-et = time.time()
+
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
-print(f"Total time: {et-st}s")
+print(f"Total time: {sum(times):.4f}s")
 print(
     f"Best Val {metric}: {best_val_metric:.4f}, "
     f"Best Test {metric}: {best_test_metric:.4f}"
