@@ -6,6 +6,7 @@
 # Acc       0.583
 
 import sys
+import time
 from typing import List
 import os.path as osp
 
@@ -23,12 +24,19 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = IMDB(path)[0]
+dataset = IMDB(path)
+data = dataset[0]
 data.to(device)
 
 
 class HGT(torch.nn.Module):
-    def __init__(self, hidden_dim: int, out_dim: int, data: HeteroGraphData, heads=8):
+    def __init__(
+        self,
+        hidden_dim: int,
+        out_dim: int,
+        data: HeteroGraphData,
+        heads=8,
+    ):
         super().__init__()
         self.lin_dict = torch.nn.ModuleDict()
         for node_type in data.node_types:
@@ -92,31 +100,22 @@ def test() -> List[float]:
     return accs
 
 
-best_val_acc = 0
-best_test_acc = 0
-start_patience = patience = 100
-for epoch in range(1, 200):
-
-    loss = train()
+metric = "Acc"
+best_val_acc = best_test_acc = 0
+times = []
+for epoch in range(1, 201):
+    start = time.time()
+    train_loss = train()
     train_acc, val_acc, test_acc = test()
-    print(
-        f"Epoch: {epoch:03d}, Loss: {loss:.4f}, Train: {train_acc:.4f}, "
-        f"Val: {val_acc:.4f}, Test: {test_acc:.4f}"
-    )
-
-    if best_val_acc <= val_acc:
-        patience = start_patience
+    if val_acc > best_val_acc:
         best_val_acc = val_acc
         best_test_acc = test_acc
-    else:
-        patience -= 1
-
-    if patience <= 0:
-        print(
-            "Stopping training as validation accuracy did not improve "
-            f"for {start_patience} epochs"
-        )
-        break
-
-
+    times.append(time.time() - start)
+    print(
+        f"Epoch: [{epoch}/{args.epochs}] "
+        f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
+        f"Val {metric}: {val_acc:.4f}, Test {metric}: {test_acc:.4f} "
+    )
+print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
+print(f"Total time: {sum(times):.4f}s")
 print(f"Best test acc: {best_test_acc:.4f}")

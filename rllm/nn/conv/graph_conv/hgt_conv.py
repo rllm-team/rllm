@@ -45,22 +45,15 @@ def segment_softmax(data: Tensor, segment_ids: Tensor, num_segments: int):
             max_values[i] = segment_data.max(dim=0)[0]
 
     gathered_max_values = max_values[segment_ids]
-    # print(gathered_max_values)
     exp = torch.exp(data - gathered_max_values)
-    # print(gathered_max_values)
-    # print(data - gathered_max_values)
-    # print(exp)
 
     denominator = torch.zeros(num_segments, data.size(1), device=data.device)
     for i in range(num_segments):
-        # print(exp[segment_ids == i])
-        # print(exp[segment_ids == i].sum(dim=0))
         segment_exp = exp[segment_ids == i]
         if segment_exp.size(0) > 0:
             denominator[i] = segment_exp.sum(dim=0)
 
     gathered_denominator = denominator[segment_ids]
-    # print(gathered_denominator)
     score = exp / (gathered_denominator + 1e-16)
 
     return score
@@ -198,10 +191,6 @@ class HGTConv(torch.nn.Module):
             # out: (N', out_dim)
             out = self.a_lin[node_type](out)
             alpha = torch.sigmoid(self.skip[node_type])
-            # print(self.skip[node_type])
-            # print(alpha)
-            # print(out.shape)
-            # print(x_dict[node_type].shape)
             # out: (N', out_dim)
             out = alpha * out + (1 - alpha) * x_dict[node_type]
             out_dict[node_type] = out
@@ -220,8 +209,6 @@ class HGTConv(torch.nn.Module):
     ):
         msg = self.message(q_i, k_j, v_j, rel, edge_index.indices()[1], num_nodes)
         # x: (N'[N after deduplication], out_dim)
-        # print(msg)
-        # print(edge_index.indices()[1])
         x = self.aggregate(msg, edge_index.indices()[1], num_nodes, aggr)
         return x
 
@@ -236,4 +223,4 @@ class HGTConv(torch.nn.Module):
 
     def aggregate(self, msg, tgt_index, num_nodes, aggr):
         if aggr == "sum":
-            return segment_sum(msg, tgt_index, num_nodes)
+            return segment_sum(data=msg, segment_ids=tgt_index, num_segments=num_nodes)
