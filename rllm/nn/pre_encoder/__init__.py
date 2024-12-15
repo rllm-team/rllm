@@ -1,16 +1,16 @@
-from .default_encoder import DefaultEncoder
-from .embedding_encoder import EmbeddingEncoder
-from .linear_encoder import LinearEncoder
+from .default_pre_encoder import DefaultPreEncoder
+from .embedding_pre_encoder import EmbeddingPreEncoder
+from .linear_pre_encoder import LinearPreEncoder
 
-from .tab_transformer_encoder import TabTransformerEncoder
-from .ft_transformer_encoder import FTTransformerEncoder
+from .tab_transformer_pre_encoder import TabTransformerPreEncoder
+from .ft_transformer_pre_encoder import FTTransformerPreEncoder
 
 __all__ = [
     # ColEncoder
-    "DefaultEncoder",
-    "EmbeddingEncoder",
-    "LinearEncoder",
+    "DefaultPreEncoder",
+    "EmbeddingPreEncoder",
+    "LinearPreEncoder",
     # TNN Model Encoder
-    "TabTransformerEncoder",
-    "FTTransformerEncoder",
+    "TabTransformerPreEncoder",
+    "FTTransformerPreEncoder",
 ]

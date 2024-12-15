@@ -16,7 +16,7 @@ def _reset_parameters_soft(module: Module):
         module.reset_parameters()
 
 
-class ColTypeEncoder(Module, ABC):
+class ColPreEncoder(Module, ABC):
     r"""Base class for columns Transform. This module transforms tensor of some
     specific columns type into 3-dimensional column-wise tensor
     that is input into tabular deep learning models.
