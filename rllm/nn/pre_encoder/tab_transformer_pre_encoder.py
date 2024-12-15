@@ -6,7 +6,7 @@ from rllm.types import ColType
 from rllm.nn.pre_encoder import EmbeddingPreEncoder, DefaultPreEncoder
 
 
-class TabTransformerEncoder(PreEncoder):
+class TabTransformerPreEncoder(PreEncoder):
     def __init__(
         self,
         out_dim: int,
