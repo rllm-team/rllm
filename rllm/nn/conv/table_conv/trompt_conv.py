@@ -6,7 +6,7 @@ from torch import Tensor
 import torch.nn.functional as F
 
 from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerEncoder
+from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
 class TromptConv(torch.nn.Module):
@@ -47,7 +47,7 @@ class TromptConv(torch.nn.Module):
         )
 
         if metadata:
-            self.pre_encoder = FTTransformerEncoder(
+            self.pre_encoder = FTTransformerPreEncoder(
                 out_dim=out_dim,
                 metadata=metadata,
             )

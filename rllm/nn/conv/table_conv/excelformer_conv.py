@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerEncoder
+from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
 class SemiPermeableAttention(torch.nn.Module):
@@ -124,7 +124,7 @@ class ExcelFormerConv(torch.nn.Module):
         self.pre_encoder = None
 
         if metadata:
-            self.pre_encoder = FTTransformerEncoder(
+            self.pre_encoder = FTTransformerPreEncoder(
                 out_dim=dim,
                 metadata=metadata,
             )
