@@ -5,10 +5,10 @@ from torch import Tensor
 from torch.nn import Module
 
 from rllm.types import ColType, StatType
-from .coltype_encoder import ColTypeEncoder
+from .coltype_pre_encoder import ColPreEncoder
 
 
-class DefaultEncoder(ColTypeEncoder):
+class DefaultPreEncoder(ColPreEncoder):
     r"""Simply fill na value in categorical features.
     :obj:`[batch_size, num_cols]` into
     :obj:`[batch_size, num_cols]`.

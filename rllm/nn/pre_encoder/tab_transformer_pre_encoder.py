@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 
 from .pre_encoder import PreEncoder
 from rllm.types import ColType
-from rllm.nn.pre_encoder import EmbeddingEncoder, DefaultEncoder
+from rllm.nn.pre_encoder import EmbeddingPreEncoder, DefaultPreEncoder
 
 
 class TabTransformerEncoder(PreEncoder):
@@ -12,8 +12,8 @@ class TabTransformerEncoder(PreEncoder):
         out_dim: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ) -> None:
-        col_encoder_dict = {
-            ColType.CATEGORICAL: EmbeddingEncoder(),
-            ColType.NUMERICAL: DefaultEncoder(),
+        col_pre_encoder_dict = {
+            ColType.CATEGORICAL: EmbeddingPreEncoder(),
+            ColType.NUMERICAL: DefaultPreEncoder(),
         }
-        super().__init__(out_dim, metadata, col_encoder_dict)
+        super().__init__(out_dim, metadata, col_pre_encoder_dict)

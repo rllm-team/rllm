@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 from torch.nn import Module, ModuleDict
 
-from .coltype_encoder import ColTypeEncoder
+from .coltype_pre_encoder import ColPreEncoder
 from rllm.types import ColType
 
 
@@ -19,7 +19,7 @@ class PreEncoder(Module, ABC):
         metadata
             (Dict[class:`rllm.types.ColType`, List[dict[StatType]]):
             A dictionary that maps column type into stats.
-        col_types_encoder_dict
+        col_pre_encoder_dict
             (Dict[:class:`rllm.types.ColType`,
             :class:`rllm.nn.encoder.ColTypeTransform`]):
             A dictionary that maps :class:`rllm.types.ColType` into
@@ -32,31 +32,31 @@ class PreEncoder(Module, ABC):
         self,
         out_dim: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
-        col_types_encoder_dict: Dict[ColType, ColTypeEncoder],
+        col_pre_encoder_dict: Dict[ColType, ColPreEncoder],
     ) -> None:
         super().__init__()
 
         self.metadata = metadata
-        self.encoder_dict = ModuleDict()
+        self.pre_encoder_dict = ModuleDict()
 
-        for col_type, col_types_encoder in col_types_encoder_dict.items():
-            if col_type not in col_types_encoder.supported_types:
+        for col_type, col_pre_encoder in col_pre_encoder_dict.items():
+            if col_type not in col_pre_encoder.supported_types:
                 raise ValueError(
-                    f"{col_types_encoder} does not " f"support encoding {col_type}."
+                    f"{col_pre_encoder} does not " f"support encoding {col_type}."
                 )
             # Set attributes
-            if col_types_encoder.out_dim is None:
-                col_types_encoder.out_dim = out_dim
+            if col_pre_encoder.out_dim is None:
+                col_pre_encoder.out_dim = out_dim
             if col_type in metadata.keys():
-                col_types_encoder.stats_list = metadata[col_type]
-            self.encoder_dict[col_type.value] = col_types_encoder
-            col_types_encoder.post_init()
+                col_pre_encoder.stats_list = metadata[col_type]
+            self.pre_encoder_dict[col_type.value] = col_pre_encoder
+            col_pre_encoder.post_init()
         self.reset_parameters()
 
     def reset_parameters(self):
         """Reset parameters for all encoders in the encoder_dict."""
-        for encoder in self.encoder_dict.values():
-            encoder.reset_parameters()
+        for pre_encoder in self.pre_encoder_dict.values():
+            pre_encoder.reset_parameters()
 
     def forward(
         self,
@@ -66,8 +66,8 @@ class PreEncoder(Module, ABC):
         feat_encoded = {}
         for col_type in feat_dict.keys():
             feat = feat_dict[col_type]
-            if col_type.value in self.encoder_dict.keys():
-                x = self.encoder_dict[col_type.value](feat)
+            if col_type.value in self.pre_encoder_dict.keys():
+                x = self.pre_encoder_dict[col_type.value](feat)
                 feat_encoded[col_type] = x
             else:
                 feat_encoded[col_type] = feat
