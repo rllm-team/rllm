@@ -70,7 +70,6 @@ class HANConv(torch.nn.Module):
                 heads=heads,
                 negative_slope=negative_slope,
                 dropout=dropout,
-                use_pre_encoder=True,
             )
 
         self.q = Parameter(torch.empty(1, out_dim))
