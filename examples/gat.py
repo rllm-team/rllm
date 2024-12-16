@@ -37,7 +37,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = PlanetoidDataset(path, args.dataset)[0]
+dataset = PlanetoidDataset(path, args.dataset)
+data = dataset[0]
 
 # Transform data
 transform = GCNTransform()
@@ -56,7 +57,7 @@ class GAT(torch.nn.Module):
     ):
         super().__init__()
         self.dropout = dropout
-        self.conv1 = GATConv(in_dim, hidden_dim, heads, concat=True)
+        self.conv1 = GATConv(in_dim, hidden_dim, heads=heads, concat=True)
         self.conv2 = GATConv(hidden_dim * heads, out_dim, heads=1)
 
     def forward(self, x, adj):
@@ -104,6 +105,7 @@ def test():
     return accs
 
 
+metric = "Acc"
 best_val_acc = best_test_acc = 0
 times = []
 for epoch in range(1, args.epochs + 1):
@@ -113,11 +115,12 @@ for epoch in range(1, args.epochs + 1):
     if val_acc > best_val_acc:
         best_val_acc = val_acc
         best_test_acc = test_acc
-    print(
-        f"Epoch: [{epoch}/{args.epochs}]"
-        f"Loss: {train_loss:.4f} train_acc: {train_acc:.4f} "
-        f"val_acc: {val_acc:.4f} test_acc: {test_acc:.4f} "
-    )
     times.append(time.time() - start)
+    print(
+        f"Epoch: [{epoch}/{args.epochs}] "
+        f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
+        f"Val {metric}: {val_acc:.4f}, Test {metric}: {test_acc:.4f} "
+    )
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
+print(f"Total time: {sum(times):.4f}s")
 print(f"Best test acc: {best_test_acc:.4f}")

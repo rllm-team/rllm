@@ -6,7 +6,7 @@ from torch.nn import Linear, BatchNorm1d, ReLU
 import torch.nn.functional as F
 
 from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerEncoder
+from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
 def check_list_groups(list_groups, in_dim):
@@ -463,7 +463,7 @@ class TabNet(torch.nn.Module):
         )
 
         if metadata:
-            self.pre_encoder = FTTransformerEncoder(
+            self.pre_encoder = FTTransformerPreEncoder(
                 out_dim=self.cat_emb_dim,
                 metadata=metadata,
             )

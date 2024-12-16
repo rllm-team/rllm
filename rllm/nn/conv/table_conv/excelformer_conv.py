@@ -5,49 +5,7 @@ import torch
 from torch import Tensor
 
 from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerEncoder
-
-
-class ExcelFormerConv(torch.nn.Module):
-    r"""The ExcelFormerConv Layer introduced in the
-    `"ExcelFormer: A neural network surpassing GBDTs on tabular data"
-    <https://arxiv.org/abs/2301.02819>`_ paper.
-
-    Args:
-        dim (int): Input/output channel dimensionality.
-        heads (int): Number of attention heads.
-        dim_head (int):  Dimensionality of each attention head.
-        dropout (float): attention module dropout (default: :obj:`0.3`).
-    """
-
-    def __init__(
-        self,
-        dim: int,
-        heads: int = 8,
-        dim_head: int = 16,
-        dropout: float = 0.5,
-        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
-    ):
-        super().__init__()
-        self.layer_norm = torch.nn.LayerNorm(dim)
-        self.sp_attention = SemiPermeableAttention(
-            dim=dim, heads=heads, dim_head=dim_head, dropout=dropout
-        )
-        self.GLU_layer = GLU_layer(dim, dim)
-        self.pre_encoder = None
-        if metadata:
-            self.pre_encoder = FTTransformerEncoder(
-                out_dim=dim,
-                metadata=metadata,
-            )
-
-    def forward(self, x: Union[Dict, Tensor]) -> Tuple[Tensor, Tensor]:
-        if self.pre_encoder:
-            x = self.pre_encoder(x)
-        x = self.layer_norm(x)
-        x = self.sp_attention(x)
-        x = x + self.GLU_layer(x)
-        return x
+from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
 class SemiPermeableAttention(torch.nn.Module):
@@ -87,7 +45,7 @@ class SemiPermeableAttention(torch.nn.Module):
         k = self._rearrange_qkv(k)
         v = self._rearrange_qkv(v)
         sim = torch.einsum("b h i d, b h j d -> b h i j", q, k)
-        mask = self.get_attention_mask(sim.size(), sim.device)
+        mask = self.get_attention_mask(input_shape=sim.size(), device=sim.device)
         attn = (sim + mask) * self.scale
         attn = attn.softmax(dim=-1)
         dropped_attn = self.dropout(attn)
@@ -128,7 +86,62 @@ class GLU_layer(torch.nn.Module):
         else:
             self.fc = torch.nn.Linear(in_dim, 2 * out_dim, bias=False)
 
+    def reset_parameters(self) -> None:
+        self.fc.reset_parameters()
+
     def forward(self, x: Tensor) -> Tensor:
         x = self.fc(x)
         x, gates = x.chunk(2, dim=2)
         return x * torch.nn.functional.tanh(gates)
+
+
+class ExcelFormerConv(torch.nn.Module):
+    r"""The ExcelFormerConv Layer introduced in the
+    `"ExcelFormer: A neural network surpassing GBDTs on tabular data"
+    <https://arxiv.org/abs/2301.02819>`_ paper.
+
+    Args:
+        dim (int): Input/output channel dimensionality.
+        heads (int): Number of attention heads.
+        dim_head (int):  Dimensionality of each attention head.
+        dropout (float): attention module dropout (default: :obj:`0.3`).
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        heads: int = 8,
+        dim_head: int = 16,
+        dropout: float = 0.5,
+        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
+    ):
+        super().__init__()
+        self.layer_norm = torch.nn.LayerNorm(dim)
+        self.sp_attention = SemiPermeableAttention(
+            dim=dim, heads=heads, dim_head=dim_head, dropout=dropout
+        )
+        self.glu_layer = GLU_layer(in_dim=dim, out_dim=dim)
+        self.pre_encoder = None
+
+        if metadata:
+            self.pre_encoder = FTTransformerPreEncoder(
+                out_dim=dim,
+                metadata=metadata,
+            )
+
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        self.layer_norm.reset_parameters()
+        self.sp_attention.reset_parameters()
+        self.glu_layer.reset_parameters()
+        if self.pre_encoder:
+            self.pre_encoder.reset_parameters()
+
+    def forward(self, x: Union[Dict, Tensor]) -> Tuple[Tensor, Tensor]:
+        if self.pre_encoder:
+            x = self.pre_encoder(x)
+        x = self.layer_norm(x)
+        x = self.sp_attention(x)
+        x = x + self.glu_layer(x)
+        return x

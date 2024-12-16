@@ -1,11 +1,12 @@
 from typing import Union, Tuple, List, Dict
 
+from pandas import pivot_table
 import torch
 from torch import Tensor
 from torch.nn import Parameter
 import torch.nn.functional as F
 
-from rllm.nn.conv.graph_conv.gat_conv import GATConv
+from rllm.nn.conv.graph_conv import GATConv
 
 
 class HANConv(torch.nn.Module):
@@ -40,6 +41,7 @@ class HANConv(torch.nn.Module):
         heads: int = 1,
         negative_slope: float = 0.2,
         dropout: float = 0.0,
+        use_pre_encoder: bool = False,
     ):
         super().__init__()
         if not isinstance(in_dim, dict):
@@ -49,17 +51,21 @@ class HANConv(torch.nn.Module):
         self.out_dim = out_dim
         self.heads = heads
         self.dropout = dropout
+        self.use_pre_encoder = use_pre_encoder
 
-        hid_dim = out_dim // heads
-        self.fc_dict = torch.nn.ModuleDict()
-        for node_type, in_dim in self.in_dim.items():
-            self.fc_dict[node_type] = torch.nn.Linear(in_dim, hid_dim)
+        # Initialize parameters for each node type
+        # If out_dim is not equal to in_dim, we need a linear layer to project
+        hidden_dim = out_dim
+        self.lin_dict = torch.nn.ModuleDict()
+        if self.use_pre_encoder:
+            for node_type, in_dim in self.in_dim.items():
+                self.lin_dict[node_type] = torch.nn.Linear(in_dim, hidden_dim)
 
         self.conv_dict = torch.nn.ModuleDict()
         for edge_type in metadata[1]:
             edge_type = "__".join(edge_type)
             self.conv_dict[edge_type] = GATConv(
-                in_dim=(hid_dim, hid_dim),
+                in_dim=(hidden_dim, hidden_dim),
                 out_dim=out_dim,
                 heads=heads,
                 negative_slope=negative_slope,
@@ -84,7 +90,9 @@ class HANConv(torch.nn.Module):
         # Embedding node features into semantic space.
         out_node_dict, out_dict = {}, {}
         for node_type, x in x_dict.items():
-            out_node_dict[node_type] = self.fc_dict[node_type](x)
+            out_node_dict[node_type] = (
+                self.lin_dict[node_type](x) if self.use_pre_encoder else x
+            )
             out_dict[node_type] = []
 
         # For different edges,
