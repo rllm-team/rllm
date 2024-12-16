@@ -4,7 +4,46 @@ import torch
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData
-from rllm.nn.pre_encoder import EmbeddingPreEncoder, LinearPreEncoder
+from rllm.nn.pre_encoder import DefaultPreEncoder
+from rllm.nn.pre_encoder import EmbeddingPreEncoder
+from rllm.nn.pre_encoder import LinearPreEncoder
+
+
+def test_default_pre_encoder():
+    df = pd.DataFrame(
+        {
+            "num_1": np.random.random(10),
+            "num_2": np.random.random(10),
+            "cat_1": np.arange(10),
+            "cat_2": np.arange(10),
+            "cat_3": np.arange(10),
+        },
+        dtype=np.float32,
+    )
+    col_types = {
+        "num_1": ColType.NUMERICAL,
+        "num_2": ColType.NUMERICAL,
+        "cat_1": ColType.CATEGORICAL,
+        "cat_2": ColType.CATEGORICAL,
+        "cat_3": ColType.CATEGORICAL,
+    }
+    dataset = TableData(df, col_types, target_col="cat_3")
+
+    pre_encoder = DefaultPreEncoder()
+    pre_encoder.post_init()
+
+    x_num = dataset.get_feat_dict()[ColType.NUMERICAL].clone()
+    x_cat = dataset.get_feat_dict()[ColType.CATEGORICAL].clone()
+    x_num_emb = pre_encoder(x_num)
+    x_cat_emb = pre_encoder(x_cat)
+
+    # Check the shape of the encoded features
+    assert x_num_emb.shape == (x_num.size(0), x_num.size(1), 1)
+    assert x_cat_emb.shape == (x_cat.size(0), x_cat.size(1), 1)
+
+    # Make sure other column embeddings are unchanged
+    assert torch.allclose(x_num, dataset.get_feat_dict()[ColType.NUMERICAL])
+    assert torch.allclose(x_cat, dataset.get_feat_dict()[ColType.CATEGORICAL])
 
 
 def test_embedding_pre_encoder():
