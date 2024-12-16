@@ -11,7 +11,7 @@ from torch.nn import (
 )
 
 from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerEncoder
+from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
 class FTTransformerConv(torch.nn.Module):
@@ -69,7 +69,7 @@ class FTTransformerConv(torch.nn.Module):
         self.cls_embedding = Parameter(torch.empty(dim))
 
         if self.metadata:
-            self.pre_encoder = FTTransformerEncoder(
+            self.pre_encoder = FTTransformerPreEncoder(
                 out_dim=dim,
                 metadata=self.metadata,
             )

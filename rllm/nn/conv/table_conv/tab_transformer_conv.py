@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn, einsum
 
 from rllm.types import ColType
-from rllm.nn.pre_encoder import TabTransformerEncoder
+from rllm.nn.pre_encoder import TabTransformerPreEncoder
 
 
 def _exists(val):
@@ -188,7 +188,7 @@ class TabTransformerConv(nn.Module):
         )
         self.pre_encoder = None
         if metadata:
-            self.pre_encoder = TabTransformerEncoder(
+            self.pre_encoder = TabTransformerPreEncoder(
                 out_dim=dim,
                 metadata=metadata,
             )

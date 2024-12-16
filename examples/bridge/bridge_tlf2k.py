@@ -56,6 +56,7 @@ graph = build_homo_graph(
     relation_df=ordered_ua,
     n_all=artist_size + user_size,
 ).to(device)
+
 # Transform data
 table_transform = TabTransformerTransform(
     out_dim=emb_size, metadata=target_table.metadata

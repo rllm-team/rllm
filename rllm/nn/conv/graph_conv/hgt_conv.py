@@ -45,22 +45,15 @@ def segment_softmax(data: Tensor, segment_ids: Tensor, num_segments: int):
             max_values[i] = segment_data.max(dim=0)[0]
 
     gathered_max_values = max_values[segment_ids]
-    # print(gathered_max_values)
     exp = torch.exp(data - gathered_max_values)
-    # print(gathered_max_values)
-    # print(data - gathered_max_values)
-    # print(exp)
 
     denominator = torch.zeros(num_segments, data.size(1), device=data.device)
     for i in range(num_segments):
-        # print(exp[segment_ids == i])
-        # print(exp[segment_ids == i].sum(dim=0))
         segment_exp = exp[segment_ids == i]
         if segment_exp.size(0) > 0:
             denominator[i] = segment_exp.sum(dim=0)
 
     gathered_denominator = denominator[segment_ids]
-    # print(gathered_denominator)
     score = exp / (gathered_denominator + 1e-16)
 
     return score
@@ -75,6 +68,7 @@ class HGTConv(torch.nn.Module):
         heads: int = 1,
         group: str = "sum",
         dropout_rate: float = 0.0,
+        use_pre_encoder: bool = False,
     ):
         r"""The Heterogeneous Graph Transformer (HGT)  layer,
         as introduced in the `"Heterogeneous Graph Transformer"
@@ -105,6 +99,12 @@ class HGTConv(torch.nn.Module):
         self.heads = heads
         self.group = group
 
+        self.lin_dict = None
+        if use_pre_encoder:
+            self.lin_dict = nn.ModuleDict()
+            for node_type, in_dim in self.in_dim.items():
+                self.lin_dict[node_type] = torch.nn.Linear(in_dim, out_dim)
+
         self.q_lin = nn.ModuleDict()
         self.k_lin = nn.ModuleDict()
         self.v_lin = nn.ModuleDict()
@@ -114,29 +114,33 @@ class HGTConv(torch.nn.Module):
         self.dropout = nn.Dropout(self.dropout_rate)
 
         # Initialize parameters for each node type
-        for node_type, in_dim in in_dim.items():
-            self.q_lin[node_type] = nn.Linear(in_features=in_dim, out_features=out_dim)
-            self.k_lin[node_type] = nn.Linear(in_features=in_dim, out_features=out_dim)
-            self.v_lin[node_type] = nn.Linear(in_features=in_dim, out_features=out_dim)
+        for node_type, in_dim in self.in_dim.items():
+            self.q_lin[node_type] = nn.Linear(in_features=out_dim, out_features=out_dim)
+            self.k_lin[node_type] = nn.Linear(in_features=out_dim, out_features=out_dim)
+            self.v_lin[node_type] = nn.Linear(in_features=out_dim, out_features=out_dim)
             self.a_lin[node_type] = nn.Linear(in_features=out_dim, out_features=out_dim)
             self.skip[node_type] = nn.Parameter(torch.tensor(1.0))
 
         self.a_rel = nn.ParameterDict()
         self.m_rel = nn.ParameterDict()
         self.p_rel = nn.ParameterDict()
-        dim = out_dim // heads
+        hidden_dim = out_dim // heads
 
         # Initialize parameters for each edge type
         for edge_type in metadata[1]:
             edge_type = "__".join(edge_type)
 
             # Initialize a_rel weights with truncated normal
-            a_weight = nn.Parameter(torch.empty((heads, dim, dim), requires_grad=True))
+            a_weight = nn.Parameter(
+                torch.empty((heads, hidden_dim, hidden_dim), requires_grad=True)
+            )
             nn.init.trunc_normal_(a_weight)
             self.a_rel[edge_type + "a"] = a_weight
 
             # Initialize m_rel weights with truncated normal
-            m_weight = nn.Parameter(torch.empty((heads, dim, dim), requires_grad=True))
+            m_weight = nn.Parameter(
+                torch.empty((heads, hidden_dim, hidden_dim), requires_grad=True)
+            )
             nn.init.trunc_normal_(m_weight)
             self.m_rel[edge_type + "m"] = m_weight
 
@@ -149,13 +153,16 @@ class HGTConv(torch.nn.Module):
         edge_index_dict: Dict[Tuple[str, str], Tensor],  # sparse_coo here!
     ):
         H, D = self.heads, self.out_dim // self.heads
-        k_dict, q_dict, v_dict, out_dict = {}, {}, {}, {}
+        k_dict, q_dict, v_dict, out_node_dict, out_dict = {}, {}, {}, {}, {}
 
         # Prepare q, k, v by node types
         for node_type, x in x_dict.items():
-            k_dict[node_type] = self.k_lin[node_type](x).view(-1, H, D)
-            q_dict[node_type] = self.q_lin[node_type](x).view(-1, H, D)
-            v_dict[node_type] = self.v_lin[node_type](x).view(-1, H, D)
+            x_lin = self.lin_dict[node_type](x) if self.lin_dict is not None else x
+
+            out_node_dict[node_type] = x_lin
+            k_dict[node_type] = self.k_lin[node_type](x_lin).view(-1, H, D)
+            q_dict[node_type] = self.q_lin[node_type](x_lin).view(-1, H, D)
+            v_dict[node_type] = self.v_lin[node_type](x_lin).view(-1, H, D)
             out_dict[node_type] = []
 
         # Iterate over edge-types:
@@ -198,12 +205,8 @@ class HGTConv(torch.nn.Module):
             # out: (N', out_dim)
             out = self.a_lin[node_type](out)
             alpha = torch.sigmoid(self.skip[node_type])
-            # print(self.skip[node_type])
-            # print(alpha)
-            # print(out.shape)
-            # print(x_dict[node_type].shape)
             # out: (N', out_dim)
-            out = alpha * out + (1 - alpha) * x_dict[node_type]
+            out = alpha * out + (1 - alpha) * out_node_dict[node_type]
             out_dict[node_type] = out
         # out_dict: (Num_node_type, N', out_dim)
         return out_dict
@@ -220,8 +223,6 @@ class HGTConv(torch.nn.Module):
     ):
         msg = self.message(q_i, k_j, v_j, rel, edge_index.indices()[1], num_nodes)
         # x: (N'[N after deduplication], out_dim)
-        # print(msg)
-        # print(edge_index.indices()[1])
         x = self.aggregate(msg, edge_index.indices()[1], num_nodes, aggr)
         return x
 
@@ -236,4 +237,4 @@ class HGTConv(torch.nn.Module):
 
     def aggregate(self, msg, tgt_index, num_nodes, aggr):
         if aggr == "sum":
-            return segment_sum(msg, tgt_index, num_nodes)
+            return segment_sum(data=msg, segment_ids=tgt_index, num_segments=num_nodes)

@@ -8,7 +8,6 @@ import torch.nn.functional as F
 
 from rllm.types import ColType
 from rllm.data import GraphData
-from rllm.nn.pre_encoder import TabTransformerEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 
@@ -107,8 +106,8 @@ class TableEncoder(Module):
 
     def __init__(
         self,
-        in_dim,
-        out_dim,
+        in_dim: int,
+        out_dim: int,
         num_layers: int = 1,
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
         table_conv: Type[Module] = TabTransformerConv,
@@ -125,10 +124,7 @@ class TableEncoder(Module):
         x = table.feat_dict
         for conv in self.convs:
             x = conv(x)
-
-        if isinstance(x, dict):
-            x = torch.cat(list(x.values()), dim=1)
-
+        x = torch.cat(list(x.values()), dim=1)
         x = x.mean(dim=1)
         return x
 
@@ -151,20 +147,17 @@ class GraphEncoder(Module):
         out_dim,
         dropout: float = 0.5,
         num_layers: int = 2,
-        graph_transform: Module = None,
         graph_conv: Type[Module] = GCNConv,
     ) -> None:
         super().__init__()
         self.dropout = dropout
-        self.graph_transform = graph_transform
         self.convs = torch.nn.ModuleList()
 
         for _ in range(num_layers - 1):
-            self.convs.append(graph_conv(in_dim, in_dim))
-        self.convs.append(graph_conv(in_dim, out_dim))
+            self.convs.append(graph_conv(in_dim=in_dim, out_dim=in_dim))
+        self.convs.append(graph_conv(in_dim=in_dim, out_dim=out_dim))
 
     def forward(self, x, adj):
-        # adj = self.graph_transform(adj)
         for conv in self.convs[:-1]:
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = F.relu(conv(x, adj))

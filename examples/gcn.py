@@ -100,9 +100,9 @@ def test():
     return accs
 
 
+metric = "Acc"
 best_val_acc = best_test_acc = 0
 times = []
-st = time.time()
 for epoch in range(1, args.epochs + 1):
     start = time.time()
     train_loss = train()
@@ -112,11 +112,10 @@ for epoch in range(1, args.epochs + 1):
         best_test_acc = test_acc
     times.append(time.time() - start)
     print(
-        f"Epoch: [{epoch}/{args.epochs}]"
-        f"Loss: {train_loss:.4f} train_acc: {train_acc:.4f} "
-        f"val_acc: {val_acc:.4f} test_acc: {test_acc:.4f} "
+        f"Epoch: [{epoch}/{args.epochs}] "
+        f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
+        f"Val {metric}: {val_acc:.4f}, Test {metric}: {test_acc:.4f} "
     )
-et = time.time()
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
-print(f"Total time: {et-st}s")
+print(f"Total time: {sum(times):.4f}s")
 print(f"Best test acc: {best_test_acc:.4f}")
