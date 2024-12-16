@@ -47,7 +47,7 @@ data = transform(data)
 data.to(device)
 
 # One-hot encoding for labels
-y_one_hot = F.one_hot(tensor=data.y, num_classes=data.num_classes).float()
+y_one_hot = F.one_hot(input=data.y, num_classes=data.num_classes).float()
 data.trainval_mask = data.train_mask | data.val_mask
 
 # LIM trick, else use trainval_mask to construct S
