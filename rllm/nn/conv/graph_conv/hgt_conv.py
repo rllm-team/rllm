@@ -68,6 +68,7 @@ class HGTConv(torch.nn.Module):
         heads: int = 1,
         group: str = "sum",
         dropout_rate: float = 0.0,
+        use_pre_encoder: bool = False,
     ):
         r"""The Heterogeneous Graph Transformer (HGT)  layer,
         as introduced in the `"Heterogeneous Graph Transformer"
@@ -98,6 +99,12 @@ class HGTConv(torch.nn.Module):
         self.heads = heads
         self.group = group
 
+        self.lin_dict = None
+        if use_pre_encoder:
+            self.lin_dict = nn.ModuleDict()
+            for node_type, in_dim in self.in_dim.items():
+                self.lin_dict[node_type] = torch.nn.Linear(in_dim, out_dim)
+
         self.q_lin = nn.ModuleDict()
         self.k_lin = nn.ModuleDict()
         self.v_lin = nn.ModuleDict()
@@ -107,29 +114,33 @@ class HGTConv(torch.nn.Module):
         self.dropout = nn.Dropout(self.dropout_rate)
 
         # Initialize parameters for each node type
-        for node_type, in_dim in in_dim.items():
-            self.q_lin[node_type] = nn.Linear(in_features=in_dim, out_features=out_dim)
-            self.k_lin[node_type] = nn.Linear(in_features=in_dim, out_features=out_dim)
-            self.v_lin[node_type] = nn.Linear(in_features=in_dim, out_features=out_dim)
+        for node_type, in_dim in self.in_dim.items():
+            self.q_lin[node_type] = nn.Linear(in_features=out_dim, out_features=out_dim)
+            self.k_lin[node_type] = nn.Linear(in_features=out_dim, out_features=out_dim)
+            self.v_lin[node_type] = nn.Linear(in_features=out_dim, out_features=out_dim)
             self.a_lin[node_type] = nn.Linear(in_features=out_dim, out_features=out_dim)
             self.skip[node_type] = nn.Parameter(torch.tensor(1.0))
 
         self.a_rel = nn.ParameterDict()
         self.m_rel = nn.ParameterDict()
         self.p_rel = nn.ParameterDict()
-        dim = out_dim // heads
+        hidden_dim = out_dim // heads
 
         # Initialize parameters for each edge type
         for edge_type in metadata[1]:
             edge_type = "__".join(edge_type)
 
             # Initialize a_rel weights with truncated normal
-            a_weight = nn.Parameter(torch.empty((heads, dim, dim), requires_grad=True))
+            a_weight = nn.Parameter(
+                torch.empty((heads, hidden_dim, hidden_dim), requires_grad=True)
+            )
             nn.init.trunc_normal_(a_weight)
             self.a_rel[edge_type + "a"] = a_weight
 
             # Initialize m_rel weights with truncated normal
-            m_weight = nn.Parameter(torch.empty((heads, dim, dim), requires_grad=True))
+            m_weight = nn.Parameter(
+                torch.empty((heads, hidden_dim, hidden_dim), requires_grad=True)
+            )
             nn.init.trunc_normal_(m_weight)
             self.m_rel[edge_type + "m"] = m_weight
 
@@ -142,13 +153,16 @@ class HGTConv(torch.nn.Module):
         edge_index_dict: Dict[Tuple[str, str], Tensor],  # sparse_coo here!
     ):
         H, D = self.heads, self.out_dim // self.heads
-        k_dict, q_dict, v_dict, out_dict = {}, {}, {}, {}
+        k_dict, q_dict, v_dict, out_node_dict, out_dict = {}, {}, {}, {}, {}
 
         # Prepare q, k, v by node types
         for node_type, x in x_dict.items():
-            k_dict[node_type] = self.k_lin[node_type](x).view(-1, H, D)
-            q_dict[node_type] = self.q_lin[node_type](x).view(-1, H, D)
-            v_dict[node_type] = self.v_lin[node_type](x).view(-1, H, D)
+            x_lin = self.lin_dict[node_type](x) if self.lin_dict is not None else x
+
+            out_node_dict[node_type] = x_lin
+            k_dict[node_type] = self.k_lin[node_type](x_lin).view(-1, H, D)
+            q_dict[node_type] = self.q_lin[node_type](x_lin).view(-1, H, D)
+            v_dict[node_type] = self.v_lin[node_type](x_lin).view(-1, H, D)
             out_dict[node_type] = []
 
         # Iterate over edge-types:
@@ -192,7 +206,7 @@ class HGTConv(torch.nn.Module):
             out = self.a_lin[node_type](out)
             alpha = torch.sigmoid(self.skip[node_type])
             # out: (N', out_dim)
-            out = alpha * out + (1 - alpha) * x_dict[node_type]
+            out = alpha * out + (1 - alpha) * out_node_dict[node_type]
             out_dict[node_type] = out
         # out_dict: (Num_node_type, N', out_dim)
         return out_dict

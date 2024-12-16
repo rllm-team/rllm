@@ -35,14 +35,16 @@ class HAN(torch.nn.Module):
         out_dim: int,
         hidden_dim=128,
         heads=8,
+        metadata: Dict[str, List[str]] = None,
     ):
         super().__init__()
         self.han_conv = HANConv(
-            in_dim,
-            hidden_dim,
+            in_dim=in_dim,
+            out_dim=hidden_dim,
             heads=heads,
             dropout=0.6,
-            metadata=data.metadata(),
+            metadata=metadata,
+            use_pre_encoder=True,
         )
         self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
@@ -58,6 +60,7 @@ in_dim = {node_type: data[node_type].x.shape[1] for node_type in data.node_types
 model = HAN(
     in_dim=in_dim,
     out_dim=3,
+    metadata=data.metadata(),
 ).to(device)
 
 optimizer = torch.optim.Adam(
@@ -94,7 +97,7 @@ def test() -> List[float]:
 metric = "Acc"
 best_val_acc = best_test_acc = 0
 times = []
-for epoch in range(1, 201):
+for epoch in range(1, 51):
     start = time.time()
     train_loss = train()
     train_acc, val_acc, test_acc = test()

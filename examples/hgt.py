@@ -7,7 +7,7 @@
 
 import sys
 import time
-from typing import List
+from typing import Dict, List, Union
 import os.path as osp
 
 import torch
@@ -16,7 +16,6 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import IMDB
-from rllm.data import HeteroGraphData
 from rllm.nn.conv.graph_conv import HGTConv
 
 # Set device
@@ -32,40 +31,43 @@ data.to(device)
 class HGT(torch.nn.Module):
     def __init__(
         self,
-        hidden_dim: int,
+        in_dim: Union[int, Dict[str, int]],
         out_dim: int,
-        data: HeteroGraphData,
+        hidden_dim: int = 128,
         heads=8,
+        metadata: Dict[str, List[str]] = None,
     ):
         super().__init__()
-        self.lin_dict = torch.nn.ModuleDict()
-        for node_type in data.node_types:
-            self.lin_dict[node_type] = torch.nn.Linear(
-                in_features=data.x_dict()[node_type].shape[1],
-                out_features=hidden_dim,
-            )
         self.hgt_conv = HGTConv(
-            hidden_dim,
-            hidden_dim,
+            in_dim=in_dim,
+            out_dim=hidden_dim,
             heads=heads,
             dropout_rate=0.6,
-            metadata=data.metadata(),
+            metadata=metadata,
+            use_pre_encoder=True,
+        )
+        self.hgt_conv2 = HGTConv(
+            in_dim=in_dim,
+            out_dim=hidden_dim,
+            heads=heads,
+            dropout_rate=0.6,
+            metadata=metadata,
         )
         self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x_dict, adj_dict):
-        out = {}
-        for node_type, x in x_dict.items():
-            out[node_type] = self.lin_dict[node_type](x)
-        out = self.hgt_conv(out, adj_dict)
+        out = self.hgt_conv(x_dict, adj_dict)
+        out = self.hgt_conv2(out, adj_dict)
         out = self.lin(out["movie"])
         return out
 
 
+in_dim = {node_type: data[node_type].x.shape[1] for node_type in data.node_types}
+
 model = HGT(
-    data=data,
-    hidden_dim=128,
+    in_dim=in_dim,
     out_dim=3,
+    metadata=data.metadata(),
 ).to(device)
 
 optimizer = torch.optim.Adam(
@@ -103,6 +105,7 @@ def test() -> List[float]:
 metric = "Acc"
 best_val_acc = best_test_acc = 0
 times = []
+start_patience = patience = 20
 for epoch in range(1, 201):
     start = time.time()
     train_loss = train()
@@ -110,12 +113,21 @@ for epoch in range(1, 201):
     if val_acc > best_val_acc:
         best_val_acc = val_acc
         best_test_acc = test_acc
+        patience = start_patience
+    else:
+        patience -= 1
     times.append(time.time() - start)
     print(
-        f"Epoch: [{epoch}/{args.epochs}] "
+        f"Epoch: [{epoch}/{200}] "
         f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
         f"Val {metric}: {val_acc:.4f}, Test {metric}: {test_acc:.4f} "
     )
+    if patience <= 0:
+        print(
+            "Stopping training as validation accuracy did not improve "
+            f"for {start_patience} epochs"
+        )
+        break
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
 print(f"Total time: {sum(times):.4f}s")
 print(f"Best test acc: {best_test_acc:.4f}")
