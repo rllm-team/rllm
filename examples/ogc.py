@@ -38,13 +38,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset, force_reload=True)
-data = dataset[0]
+data = PlanetoidDataset(path, args.dataset, force_reload=True)[0]
 
 # Transform data
-transform = GCNTransform(normalize_features="sum")
-data = transform(data)
-data.to(device)
+transform = GCNTransform()
+data = transform(data).to(device)
 
 # One-hot encoding for labels
 y_one_hot = F.one_hot(input=data.y, num_classes=data.num_classes).float()
@@ -59,6 +57,7 @@ lazy_adj = args.beta * data.adj + (1 - args.beta) * I_N
 lr_sup = args.lr_sup
 
 
+# Define model
 class LinearNeuralNetwork(torch.nn.Module):
     def __init__(self, num_features: int, num_classes: int, bias: bool = True):
         super().__init__()
@@ -97,6 +96,7 @@ class LinearNeuralNetwork(torch.nn.Module):
         return self(U).data, self.W.weight.data
 
 
+# Set up model
 model = LinearNeuralNetwork(
     num_features=data.x.shape[1],
     num_classes=data.num_classes,

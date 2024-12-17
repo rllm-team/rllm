@@ -42,12 +42,7 @@ parser.add_argument("--epochs", type=int, default=50, help="Training epochs")
 args = parser.parse_args()
 
 # Set device
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-    device = torch.device("mps")
-else:
-    device = torch.device("cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
@@ -56,9 +51,10 @@ data = PlanetoidDataset(path, args.dataset, force_reload=True)[0]
 # Transform data
 transform = RECTTransform()
 data = transform(data)
-zs_data = RemoveTrainingClasses(args.unseen_classes)(copy.deepcopy(data))
+zs_data = RemoveTrainingClasses(args.unseen_classes)(copy.deepcopy(data)).to(device)
 
-# Set up model and optimizer
+
+# Set up model, optimizer and loss function
 model = RECT_L(
     in_dim=200,
     hidden_dim=200,
@@ -69,21 +65,19 @@ zs_data.y = model.get_semantic_labels(
     y=zs_data.y,
     mask=zs_data.train_mask,
 )
-zs_data = zs_data.to(device)
-
 optimizer = torch.optim.Adam(
     model.parameters(),
     lr=args.lr,
     weight_decay=args.wd,
 )
-criterion = torch.nn.MSELoss(reduction="sum")
+loss_fn = torch.nn.MSELoss(reduction="sum")
 
 
 def train():
     model.train()
     optimizer.zero_grad()
     out = model(zs_data.x, zs_data.adj)
-    loss = criterion(out[zs_data.train_mask], zs_data.y)
+    loss = loss_fn(out[zs_data.train_mask], zs_data.y)
     loss.backward()
     optimizer.step()
     return loss.item()
@@ -92,11 +86,11 @@ def train():
 @torch.no_grad()
 def test():
     model.eval()
-    h = model.embed(zs_data.x, zs_data.adj).cpu()
+    out = model.embed(zs_data.x, zs_data.adj).cpu()
     reg = LogisticRegression()
-    reg.fit(h[data.train_mask].numpy(), data.y[data.train_mask].numpy())
-    train_acc = reg.score(h[data.train_mask].numpy(), data.y[data.train_mask].numpy())
-    test_acc = reg.score(h[data.test_mask].numpy(), data.y[data.test_mask].numpy())
+    reg.fit(out[data.train_mask].numpy(), data.y[data.train_mask].numpy())
+    train_acc = reg.score(out[data.train_mask].numpy(), data.y[data.train_mask].numpy())
+    test_acc = reg.score(out[data.test_mask].numpy(), data.y[data.test_mask].numpy())
     return train_acc, test_acc
 
 
@@ -105,16 +99,20 @@ best_test_acc = 0
 times = []
 for epoch in range(1, args.epochs + 1):
     start = time.time()
+
     train_loss = train()
     train_acc, test_acc = test()
+
     if test_acc > best_test_acc:
         best_test_acc = test_acc
+
     times.append(time.time() - start)
     print(
         f"Epoch: [{epoch}/{args.epochs}] "
         f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
         f"Test Acc: {test_acc:.4f} "
     )
+
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
 print(f"Total time: {sum(times):.4f}s")
 print(f"Best test acc: {best_test_acc:.4f}")

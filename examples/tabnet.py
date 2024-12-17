@@ -39,13 +39,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = Titanic(cached_dir=path)
-data = dataset[0]
+data = Titanic(cached_dir=path)[0]
 
 # Transform data
 transform = DefaultTransform(out_dim=args.dim)
-data = transform(data)
-data.to(device)
+data = transform(data).to(device)
 data.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
@@ -82,7 +80,6 @@ model = TabNetModel(
     hidden_dim=args.dim,
     metadata=data.metadata,
 ).to(device)
-
 optimizer = torch.optim.Adam(
     model.parameters(),
     lr=args.lr,
@@ -121,11 +118,11 @@ def test(loader: DataLoader) -> float:
 
 
 metric = "Acc"
-best_val_metric = 0
-best_test_metric = 0
+best_val_metric = best_test_metric = 0
 times = []
 for epoch in range(1, args.epochs + 1):
     start = time.time()
+
     train_loss = train(epoch)
     train_metric = test(train_loader)
     val_metric = test(val_loader)
@@ -140,7 +137,6 @@ for epoch in range(1, args.epochs + 1):
         f"Train Loss: {train_loss:.4f}, Train {metric}: {train_metric:.4f}, "
         f"Val {metric}: {val_metric:.4f}, Test {metric}: {test_metric:.4f}"
     )
-    optimizer.step()
 
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
 print(f"Total time: {sum(times):.4f}s")
