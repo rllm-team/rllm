@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Type
 
 import torch
 from torch.nn import Module

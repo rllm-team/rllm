@@ -46,18 +46,10 @@ class HGT(torch.nn.Module):
             metadata=metadata,
             use_pre_encoder=True,
         )
-        self.hgt_conv2 = HGTConv(
-            in_dim=in_dim,
-            out_dim=hidden_dim,
-            heads=heads,
-            dropout_rate=0.6,
-            metadata=metadata,
-        )
         self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x_dict, adj_dict):
         out = self.hgt_conv(x_dict, adj_dict)
-        out = self.hgt_conv2(out, adj_dict)
         out = self.lin(out["movie"])
         return out
 
