@@ -73,6 +73,7 @@ class FTTransformerConv(torch.nn.Module):
                 out_dim=dim,
                 metadata=self.metadata,
             )
+
         self.reset_parameters()
 
     def reset_parameters(self):
