@@ -9,7 +9,7 @@ from rllm.types import ColType, StatType
 from ._col_encoder import ColEncoder
 
 
-class EmbeddingPreEncoder(ColEncoder):
+class EmbeddingEncoder(ColEncoder):
     r"""An simple embedding look-up based Transform for categorical features.
     It applies :class:`torch.nn.Embedding` for each categorical feature and
     concatenates the output embeddings.
