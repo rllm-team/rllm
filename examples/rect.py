@@ -42,54 +42,77 @@ parser.add_argument("--epochs", type=int, default=50, help="Training epochs")
 args = parser.parse_args()
 
 # Set device
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-    device = torch.device("mps")
-else:
-    device = torch.device("cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset, force_reload=True)
-data = dataset[0]
+data = PlanetoidDataset(path, args.dataset, force_reload=True)[0]
 
 # Transform data
 transform = RECTTransform()
 data = transform(data)
-zs_data = RemoveTrainingClasses(args.unseen_classes)(copy.deepcopy(data))
+zs_data = RemoveTrainingClasses(args.unseen_classes)(copy.deepcopy(data)).to(device)
 
-# Set up model and optimizer
+
+# Set up model, optimizer and loss function
 model = RECT_L(
     in_dim=200,
     hidden_dim=200,
     dropout=args.dropout,
+).to(device)
+zs_data.y = model.get_semantic_labels(
+    x=zs_data.x,
+    y=zs_data.y,
+    mask=zs_data.train_mask,
 )
-zs_data.y = model.get_semantic_labels(zs_data.x, zs_data.y, zs_data.train_mask)
-model, zs_data = model.to(device), zs_data.to(device)
 optimizer = torch.optim.Adam(
     model.parameters(),
     lr=args.lr,
     weight_decay=args.wd,
 )
-criterion = torch.nn.MSELoss(reduction="sum")
+loss_fn = torch.nn.MSELoss(reduction="sum")
 
-model.train()
-st = time.time()
-for epoch in range(1, args.epochs + 1):
+
+def train():
+    model.train()
     optimizer.zero_grad()
     out = model(zs_data.x, zs_data.adj)
-    loss = criterion(out[zs_data.train_mask], zs_data.y)
+    loss = loss_fn(out[zs_data.train_mask], zs_data.y)
     loss.backward()
     optimizer.step()
-    print(f"Epoch {epoch:03d}, Loss {loss:.4f}")
-et = time.time()
-model.eval()
-with torch.no_grad():
-    h = model.embed(zs_data.x, zs_data.adj).cpu()
+    return loss.item()
 
-reg = LogisticRegression()
-reg.fit(h[data.train_mask].numpy(), data.y[data.train_mask].numpy())
-test_acc = reg.score(h[data.test_mask].numpy(), data.y[data.test_mask].numpy())
-print(f"Total Time  : {et-st:.4f}s")
-print(f"Test Acc    : {test_acc:.4f}")
+
+@torch.no_grad()
+def test():
+    model.eval()
+    out = model.embed(zs_data.x, zs_data.adj).cpu()
+    reg = LogisticRegression()
+    reg.fit(out[data.train_mask].numpy(), data.y[data.train_mask].numpy())
+    train_acc = reg.score(out[data.train_mask].numpy(), data.y[data.train_mask].numpy())
+    test_acc = reg.score(out[data.test_mask].numpy(), data.y[data.test_mask].numpy())
+    return train_acc, test_acc
+
+
+metric = "Acc"
+best_test_acc = 0
+times = []
+for epoch in range(1, args.epochs + 1):
+    start = time.time()
+
+    train_loss = train()
+    train_acc, test_acc = test()
+
+    if test_acc > best_test_acc:
+        best_test_acc = test_acc
+
+    times.append(time.time() - start)
+    print(
+        f"Epoch: [{epoch}/{args.epochs}] "
+        f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
+        f"Test Acc: {test_acc:.4f} "
+    )
+
+print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
+print(f"Total time: {sum(times):.4f}s")
+print(f"Best test acc: {best_test_acc:.4f}")
