@@ -1,6 +1,5 @@
 from typing import Union, Tuple, List, Dict
 
-from pandas import pivot_table
 import torch
 from torch import Tensor
 from torch.nn import Parameter

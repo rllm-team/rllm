@@ -52,7 +52,7 @@ data.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 26048-6513-16281
 train_loader, val_loader, test_loader = data.get_dataloader(
-    26048, 6513, 16281, batch_size=args.batch_size
+    train_split=26048, val_split=6513, test_split=16281, batch_size=args.batch_size
 )
 
 
