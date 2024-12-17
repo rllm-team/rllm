@@ -2,8 +2,9 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from .pre_encoder import PreEncoder
+from ._embedding_encoder import EmbeddingPreEncoder
+from ._linear_encoder import LinearPreEncoder
 from rllm.types import ColType
-from rllm.nn.pre_encoder import EmbeddingPreEncoder, LinearPreEncoder
 
 
 class FTTransformerPreEncoder(PreEncoder):
