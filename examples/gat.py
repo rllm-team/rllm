@@ -37,15 +37,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset)
-data = dataset[0]
+data = PlanetoidDataset(path, args.dataset)[0]
 
 # Transform data
 transform = GCNTransform()
-data = transform(data)
-data.to(device)
+data = transform(data).to(device)
 
 
+# Define model
 class GAT(torch.nn.Module):
     def __init__(
         self,
@@ -68,6 +67,7 @@ class GAT(torch.nn.Module):
         return x
 
 
+# Set up model, optimizer and loss function
 model = GAT(
     in_dim=data.x.shape[1],
     hidden_dim=args.hidden_dim,
@@ -75,10 +75,11 @@ model = GAT(
     heads=args.heads,
     dropout=args.dropout,
 ).to(device)
-
 optimizer = torch.optim.Adam(
-    model.parameters(), lr=args.lr, weight_decay=args.wd
-)  # Only perform weight-decay on first convolution.
+    model.parameters(),
+    lr=args.lr,
+    weight_decay=args.wd,
+)
 loss_fn = torch.nn.CrossEntropyLoss()
 
 

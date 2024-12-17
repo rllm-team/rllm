@@ -67,7 +67,7 @@ class HGTConv(torch.nn.Module):
         metadata: Tuple[List[str], List[Tuple[str, str]]],
         heads: int = 1,
         group: str = "sum",
-        dropout_rate: float = 0.0,
+        dropout: float = 0.0,
         use_pre_encoder: bool = False,
     ):
         r"""The Heterogeneous Graph Transformer (HGT)  layer,
@@ -84,7 +84,7 @@ class HGTConv(torch.nn.Module):
             heads (int, optional): Number of multi-head attentions. Defaults to 1.
             group (str, optional): Aggregation method, either 'sum', 'mean', or 'max'. Defaults to
                 'sum'.
-            dropout_rate (float, optional): Dropout probability of the normalized attention
+            dropout (float, optional): Dropout probability of the normalized attention
                 coefficients which exposes each node to a stochastically sampled neighborhood during
                 training. Defaults to 0.0.
         """
@@ -110,8 +110,8 @@ class HGTConv(torch.nn.Module):
         self.v_lin = nn.ModuleDict()
         self.a_lin = nn.ModuleDict()
         self.skip = nn.ParameterDict()
-        self.dropout_rate = dropout_rate
-        self.dropout = nn.Dropout(self.dropout_rate)
+        self.dropout = dropout
+        self.dropout = nn.Dropout(self.dropout)
 
         # Initialize parameters for each node type
         for node_type, in_dim in self.in_dim.items():

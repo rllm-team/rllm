@@ -38,13 +38,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-dataset = PlanetoidDataset(path, args.dataset)
-data = dataset[0]
+data = PlanetoidDataset(path, args.dataset)[0]
 
 # Transform data
 transform = GCNTransform()
-data = transform(data)
-data.to(device)
+data = transform(data).to(device)
 
 
 # Define model
@@ -63,17 +61,18 @@ class GCN(torch.nn.Module):
         return x
 
 
-# Set up model and optimizer
+# Set up model, optimizer and loss function
 model = GCN(
     in_dim=data.x.shape[1],
     hidden_dim=args.hidden_dim,
     out_dim=data.num_classes,
     dropout=args.dropout,
 ).to(device)
-
 optimizer = torch.optim.Adam(
-    model.parameters(), lr=args.lr, weight_decay=args.wd
-)  # Only perform weight-decay on first convolution.
+    model.parameters(),
+    lr=args.lr,
+    weight_decay=args.wd,
+)
 loss_fn = torch.nn.CrossEntropyLoss()
 
 
@@ -105,17 +104,21 @@ best_val_acc = best_test_acc = 0
 times = []
 for epoch in range(1, args.epochs + 1):
     start = time.time()
+
     train_loss = train()
     train_acc, val_acc, test_acc = test()
+
     if val_acc > best_val_acc:
         best_val_acc = val_acc
         best_test_acc = test_acc
+
     times.append(time.time() - start)
     print(
         f"Epoch: [{epoch}/{args.epochs}] "
         f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
         f"Val {metric}: {val_acc:.4f}, Test {metric}: {test_acc:.4f} "
     )
+
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
 print(f"Total time: {sum(times):.4f}s")
 print(f"Best test acc: {best_test_acc:.4f}")
