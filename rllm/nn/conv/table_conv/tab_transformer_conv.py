@@ -195,6 +195,12 @@ class TabTransformerConv(nn.Module):
 
         self.reset_parameters()
 
+    def reset_parameters(self) -> None:
+        self.attn.reset_parameters()
+        self.ff.reset_parameters()
+        if self.pre_encoder is not None:
+            self.pre_encoder.reset_parameters()
+
     def forward(self, x, return_attn=False):
         if self.pre_encoder is not None:
             x = self.pre_encoder(x, return_dict=True)
@@ -209,9 +215,3 @@ class TabTransformerConv(nn.Module):
             return x, post_softmax_attn
 
         return x
-
-    def reset_parameters(self) -> None:
-        self.attn.reset_parameters()
-        self.ff.reset_parameters()
-        if self.pre_encoder is not None:
-            self.pre_encoder.reset_parameters()

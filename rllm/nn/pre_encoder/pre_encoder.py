@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 from torch.nn import Module, ModuleDict
 
-from .coltype_pre_encoder import ColPreEncoder
+from ._col_encoder import ColEncoder
 from rllm.types import ColType
 
 
@@ -32,7 +32,7 @@ class PreEncoder(Module, ABC):
         self,
         out_dim: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
-        col_pre_encoder_dict: Dict[ColType, ColPreEncoder],
+        col_pre_encoder_dict: Dict[ColType, ColEncoder],
     ) -> None:
         super().__init__()
 

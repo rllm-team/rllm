@@ -19,7 +19,8 @@ from rllm.transforms.graph_transforms import GCNTransform
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from utils import build_homo_graph, reorder_ids, TableEncoder, GraphEncoder
+from bridge import Bridge, TableEncoder, GraphEncoder
+from utils import build_homo_graph, reorder_ids
 
 
 parser = argparse.ArgumentParser()
@@ -71,24 +72,6 @@ train_mask, val_mask, test_mask = (
     artist_table.test_mask,
 )
 
-
-class Bridge(torch.nn.Module):
-    def __init__(
-        self,
-        table_encoder,
-        graph_encoder,
-    ) -> None:
-        super().__init__()
-        self.table_encoder = table_encoder
-        self.graph_encoder = graph_encoder
-
-    def forward(self, table, non_table, adj):
-        t_embedds = self.table_encoder(table)
-        node_feats = torch.cat([t_embedds, non_table], dim=0)
-        node_feats = self.graph_encoder(node_feats, adj)
-        return node_feats[: len(table), :]
-
-
 t_encoder = TableEncoder(
     in_dim=emb_size,
     out_dim=emb_size,
@@ -97,7 +80,7 @@ t_encoder = TableEncoder(
 )
 g_encoder = GraphEncoder(
     in_dim=emb_size,
-    out_dim=artist_table.num_classes,
+    out_dim=target_table.num_classes,
     graph_conv=GCNConv,
 )
 model = Bridge(
