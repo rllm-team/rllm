@@ -103,8 +103,10 @@ class ExcelFormerConv(torch.nn.Module):
     Args:
         dim (int): Input/output channel dimensionality.
         heads (int): Number of attention heads.
-        dim_head (int):  Dimensionality of each attention head.
-        dropout (float): attention module dropout (default: :obj:`0.3`).
+        dim_head (int):  Dimensionality of each attention head (default: :obj:`16`).
+        dropout (float): Attention module dropout (default: :obj:`0.3`).
+        metadata (Dict[ColType, List[Dict[str, Any]]], optional):
+            Metadata for the pre-encoder (default: :obj:`None`).
     """
 
     def __init__(
