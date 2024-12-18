@@ -57,3 +57,13 @@ def test_trompt():
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
     assert float(stdout[-8:]) > 0.80
+
+
+def test_saint():
+    script = os.path.join(EXAMPLE_ROOT, "saint.py")
+    out = subprocess.run(["python", str(script)], capture_output=True)
+    assert (
+        out.returncode == 0
+    ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
+    stdout = out.stdout.decode("utf-8")
+    assert float(stdout[-8:]) > 0.89
