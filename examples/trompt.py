@@ -22,7 +22,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Adult
-from rllm.transforms.table_transforms import DefaultTransform
+from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
@@ -44,7 +44,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = Adult(cached_dir=path)[0]
 
 # Transform data
-transform = DefaultTransform(out_dim=args.dim)
+transform = DefaultTableTransform(out_dim=args.dim)
 data = transform(data).to(device)
 data.shuffle()
 
