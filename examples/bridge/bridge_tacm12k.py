@@ -19,7 +19,7 @@ from rllm.transforms.graph_transforms import GCNTransform
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from bridge import Bridge, TableEncoder, GraphEncoder
+from rllm.nn.models import Bridge, TableEncoder, GraphEncoder
 from utils import build_homo_graph
 
 

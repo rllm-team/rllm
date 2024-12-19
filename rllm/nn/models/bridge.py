@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Type
 
 import torch
+from torch import Tensor
 from torch.nn import Module
 import torch.nn.functional as F
 
@@ -85,6 +86,18 @@ class GraphEncoder(Module):
 
 
 class Bridge(torch.nn.Module):
+    r"""The Bridge model introduced in the "rLLM: Relational Table Learning with
+    LLMs" paper. Bridge is a simple RTL method based on rLLM framework, which
+    combines table neural networks (TNNs) and graph neural networks (GNNs) to
+    deal with multi-table data and their interrelationships, and uses "foreign
+    keys" to build relationships and analyze them to improve the performance of
+    multi-table joint learning tasks.
+
+    Args:
+        table_encoder (TableEncoder): Encoder for tabular data.
+        graph_encoder (GraphEncoder): Encoder for graph data.
+    """
+
     def __init__(
         self,
         table_encoder: TableEncoder,
@@ -94,7 +107,24 @@ class Bridge(torch.nn.Module):
         self.table_encoder = table_encoder
         self.graph_encoder = graph_encoder
 
-    def forward(self, table, non_table, adj):
+    def forward(
+        self,
+        table: Tensor,
+        non_table: Tensor,
+        adj: Tensor,
+    ) -> Tensor:
+        """
+        TNN first learns the Table. The learning results are concatenated with
+        non_table, and finally GNN learns with Adj and all the data.
+
+        Args:
+            table (Tensor): Input tabular data.
+            non_table (Tensor): Input non-tabular data.
+            adj (Tensor): Adjacency matrix.
+
+        Returns:
+            Tensor: Output node features.
+        """
         t_embedds = self.table_encoder(table)
         node_feats = torch.cat([t_embedds, non_table], dim=0)
         node_feats = self.graph_encoder(node_feats, adj)
