@@ -20,7 +20,7 @@ from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.models import Bridge, TableEncoder, GraphEncoder
-from utils import build_homo_graph, reorder_ids
+from utils import build_homo_graph, reorder_ids, accuracy_score
 
 
 parser = argparse.ArgumentParser()
@@ -98,11 +98,7 @@ optimizer = torch.optim.Adam(
 )
 
 
-def accuracy_score(preds, truth):
-    return (preds == truth).sum(dim=0) / len(truth)
-
-
-def train_epoch() -> float:
+def train() -> float:
     model.train()
     optimizer.zero_grad()
     logits = model(
@@ -117,7 +113,7 @@ def train_epoch() -> float:
 
 
 @torch.no_grad()
-def test_epoch():
+def test():
     model.eval()
     logits = model(
         table=user_table,
@@ -134,8 +130,8 @@ def test_epoch():
 start_time = time.time()
 best_val_acc = best_test_acc = 0
 for epoch in range(1, args.epochs + 1):
-    train_loss = train_epoch()
-    train_acc, val_acc, test_acc = test_epoch()
+    train_loss = train()
+    train_acc, val_acc, test_acc = test()
     print(
         f"Epoch: [{epoch}/{args.epochs}]"
         f"Loss: {train_loss:.4f} train_acc: {train_acc:.4f} "
