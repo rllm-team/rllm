@@ -63,9 +63,9 @@ class TabNetModel(torch.nn.Module):
         super().__init__()
 
         self.backbone = TabNet(
-            out_dim=out_dim,  # dataset.num_classes,
-            cat_emb_dim=hidden_dim,  # args.dim,
-            num_emb_dim=hidden_dim,  # args.dim,
+            out_dim=out_dim,
+            cat_emb_dim=hidden_dim,
+            num_emb_dim=hidden_dim,
             metadata=metadata,
         )
 
@@ -92,9 +92,9 @@ def train(epoch: int, lambda_sparse: float = 1e-4) -> float:
     loss_accum = total_count = 0
     for batch in tqdm(train_loader, desc=f"Epoch: {epoch}"):
         x, y = batch
-        pred, M_loss = model.forward(x)
+        pred, mask_loss = model.forward(x)
         loss = F.cross_entropy(pred, y.long())
-        loss = loss - lambda_sparse * M_loss
+        loss = loss - lambda_sparse * mask_loss
         optimizer.zero_grad()
         loss.backward()
         loss_accum += float(loss) * y.size(0)
