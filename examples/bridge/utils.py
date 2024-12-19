@@ -84,7 +84,3 @@ def build_homo_graph(
     graph = GraphData(x=x, y=y, adj=adj)
 
     return graph
-
-
-def accuracy_score(preds, truth):
-    return (preds == truth).sum(dim=0) / len(truth)
