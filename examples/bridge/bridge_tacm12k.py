@@ -20,14 +20,14 @@ from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.models import Bridge, TableEncoder, GraphEncoder
-from utils import build_homo_graph, accuracy_score
+from utils import build_homo_graph
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
-parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
 # Set random seed and device
@@ -119,10 +119,12 @@ def test():
         adj=adj,
     )
     preds = logits.argmax(dim=1)
-    train_acc = accuracy_score(preds[train_mask], y[train_mask])
-    val_acc = accuracy_score(preds[val_mask], y[val_mask])
-    test_acc = accuracy_score(preds[test_mask], y[test_mask])
-    return train_acc.item(), val_acc.item(), test_acc.item()
+
+    accs = []
+    for mask in [train_mask, val_mask, test_mask]:
+        correct = float(preds[mask].eq(y[mask]).sum().item())
+        accs.append(correct / int(mask.sum()))
+    return accs
 
 
 start_time = time.time()
