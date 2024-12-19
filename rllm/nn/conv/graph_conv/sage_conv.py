@@ -6,63 +6,6 @@ from torch.nn import Parameter
 from torch import Tensor
 
 
-class SAGEConv(torch.nn.Module):
-    r"""Simple SAGEConv layer, similar to <https://arxiv.org/abs/1706.02216>.
-
-    Args:
-        in_dim (int): Size of each input sample.
-        out_dim (int): Size of each output sample.
-        aggr_methods (str): The aggregation method to use,
-        *e.g.*, `mean`, `max_pooling`, `mean_pooling`, `gcn`, `lstm`.
-        act: (Callable): The activation function is applied to aggreagtion,
-            the default function is ReLU.
-        concat (bool): If set to `False`, the multi-head attentions are
-            averaged instead of concatenated.
-        dropout (float): Dropout probability of the normalized
-            attention coefficients which exposes each node to a stochastically
-            sampled neighborhood during training. The default value is 0.0.
-        bias (bool): If set to `False`, no bias terms are added into
-            the final output.
-    """
-
-    def __init__(
-        self,
-        in_dim: int,
-        out_dim: int,
-        aggr_method: str = "mean_pooling",
-        act: Optional[Callable] = torch.nn.ReLU(),
-        concat: bool = False,
-        dropout: float = 0.0,
-        bias: bool = False,
-    ):
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-
-        if aggr_method == "mean":
-            self.aggr_module = MeanAggregator(
-                in_dim, out_dim, act, dropout, dropout, bias
-            )
-        elif aggr_method == "max_pooling":
-            self.aggr_module = MaxPoolingAggregator(
-                in_dim, in_dim, out_dim, act, concat, dropout, bias
-            )
-        elif aggr_method == "mean_pooling":
-            self.aggr_module = MeanPoolingAggregator(
-                in_dim, in_dim, out_dim, act, concat, dropout, bias
-            )
-        elif aggr_method == "gcn":
-            self.aggr_module = GCNAggregator(in_dim, out_dim, act, dropout, bias)
-        elif aggr_method == "lstm":
-            self.aggr_module = LSTMAggregator(
-                in_dim, in_dim, out_dim, act, concat, dropout, bias
-            )
-        else:
-            raise NotImplementedError(f"Method of {aggr_method} is not implemented!")
-
-    def forward(self, self_vecs: Tensor, neigh_vecs: Tensor):
-        return self.aggr_module(self_vecs, neigh_vecs)
-
-
 class Aggregator(torch.nn.Module):
     r"""A base aggregate implementation."""
 
@@ -333,3 +276,60 @@ class LSTMAggregator(Aggregator):
             f"{self.__class__.__name__}({self.self_dim}, {self.neigh_dim}, "  # noqa
             f"{self.out_dim}"
         )  # noqa
+
+
+class SAGEConv(torch.nn.Module):
+    r"""Simple SAGEConv layer, similar to <https://arxiv.org/abs/1706.02216>.
+
+    Args:
+        in_dim (int): Size of each input sample.
+        out_dim (int): Size of each output sample.
+        aggr_methods (str): The aggregation method to use,
+        *e.g.*, `mean`, `max_pooling`, `mean_pooling`, `gcn`, `lstm`.
+        act: (Callable): The activation function is applied to aggreagtion,
+            the default function is ReLU.
+        concat (bool): If set to `False`, the multi-head attentions are
+            averaged instead of concatenated.
+        dropout (float): Dropout probability of the normalized
+            attention coefficients which exposes each node to a stochastically
+            sampled neighborhood during training. The default value is 0.0.
+        bias (bool): If set to `False`, no bias terms are added into
+            the final output.
+    """
+
+    def __init__(
+        self,
+        in_dim: int,
+        out_dim: int,
+        aggr_method: str = "mean_pooling",
+        act: Optional[Callable] = torch.nn.ReLU(),
+        concat: bool = False,
+        dropout: float = 0.0,
+        bias: bool = False,
+    ):
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+
+        if aggr_method == "mean":
+            self.aggr_module = MeanAggregator(
+                in_dim, out_dim, act, dropout, dropout, bias
+            )
+        elif aggr_method == "max_pooling":
+            self.aggr_module = MaxPoolingAggregator(
+                in_dim, in_dim, out_dim, act, concat, dropout, bias
+            )
+        elif aggr_method == "mean_pooling":
+            self.aggr_module = MeanPoolingAggregator(
+                in_dim, in_dim, out_dim, act, concat, dropout, bias
+            )
+        elif aggr_method == "gcn":
+            self.aggr_module = GCNAggregator(in_dim, out_dim, act, dropout, bias)
+        elif aggr_method == "lstm":
+            self.aggr_module = LSTMAggregator(
+                in_dim, in_dim, out_dim, act, concat, dropout, bias
+            )
+        else:
+            raise NotImplementedError(f"Method of {aggr_method} is not implemented!")
+
+    def forward(self, self_vecs: Tensor, neigh_vecs: Tensor):
+        return self.aggr_module(self_vecs, neigh_vecs)
