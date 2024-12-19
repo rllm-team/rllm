@@ -3,14 +3,10 @@ from typing import Optional, Tuple, Dict, List, Any
 
 import torch
 from torch import Tensor
-from torch.nn import (
-    LayerNorm,
-    Parameter,
-    TransformerEncoder,
-    TransformerEncoderLayer,
-)
+from torch.nn import Parameter
 
 from rllm.types import ColType
+from rllm.nn.conv.utils import Transformer
 from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
@@ -41,7 +37,6 @@ class FTTransformerConv(torch.nn.Module):
         dim: int,
         feedforward_dim: Optional[int] = None,
         # Arguments for Transformer
-        layers: int = 3,
         heads: int = 8,
         dropout: float = 0.3,
         activation: str = "relu",
@@ -52,22 +47,15 @@ class FTTransformerConv(torch.nn.Module):
         self.use_cls = use_cls
         self.pre_encoder = None
         self.metadata = metadata
-        encoder_layer = TransformerEncoderLayer(
-            d_model=dim,
-            nhead=heads,
-            dim_feedforward=feedforward_dim or dim,
-            dropout=dropout,
+        self.transformer = Transformer(
+            in_dim=dim,
+            heads=heads,
+            head_dim=dim // heads,
+            attn_dropout=dropout,
+            ff_dropout=dropout,
             activation=activation,
-            # Input and output tensors are provided as
-            # [batch_size, seq_len, dim]
-            batch_first=True,
-        )
-        encoder_norm = LayerNorm(dim)
-        self.transformer = TransformerEncoder(
-            encoder_layer=encoder_layer, num_layers=layers, norm=encoder_norm
         )
         self.cls_embedding = Parameter(torch.empty(dim))
-
         if self.metadata:
             self.pre_encoder = FTTransformerPreEncoder(
                 out_dim=dim,

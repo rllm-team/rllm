@@ -60,17 +60,14 @@ class FTTransformer(torch.nn.Module):
         self,
         hidden_dim: int,
         out_dim: int,
-        layers: int,
+        num_layers: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-
-        self.conv = FTTransformerConv(
-            dim=hidden_dim,
-            layers=layers,
-            use_cls=True,
-            metadata=metadata,
-        )
+        self.convs = torch.nn.ModuleList()
+        self.convs.append(FTTransformerConv(dim=hidden_dim, metadata=metadata))
+        for _ in range(num_layers - 1):
+            self.convs.append(FTTransformerConv(dim=hidden_dim))
 
         self.fc = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
@@ -79,8 +76,9 @@ class FTTransformer(torch.nn.Module):
         )
 
     def forward(self, x) -> Tensor:
-        x_cls = self.conv(x)
-        out = self.fc(x_cls)
+        for conv in self.convs:
+            x = conv(x)
+        out = self.fc(x[:, 0, :])
         return out
 
 
@@ -88,7 +86,7 @@ class FTTransformer(torch.nn.Module):
 model = FTTransformer(
     hidden_dim=args.dim,
     out_dim=data.num_classes,
-    layers=args.num_layers,
+    num_layers=args.num_layers,
     metadata=data.metadata,
 ).to(device)
 optimizer = torch.optim.Adam(
