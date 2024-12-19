@@ -5,7 +5,7 @@ from rllm.types import ColType
 from rllm.transforms.table_transforms import TableTransform
 
 
-class DefaultTransform(TableTransform):
+class DefaultTableTransform(TableTransform):
     r"""Default Table Transform. Only fill the Nan values."""
 
     def __init__(
