@@ -61,17 +61,17 @@ class TabTransformer(torch.nn.Module):
         hidden_dim: int,
         out_dim: int,
         num_layers: int,
-        heads: int,
+        num_heads: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
 
         self.convs = torch.nn.ModuleList()
         self.convs.append(
-            TabTransformerConv(dim=hidden_dim, heads=heads, metadata=metadata)
+            TabTransformerConv(dim=hidden_dim, num_heads=num_heads, metadata=metadata)
         )
         for _ in range(num_layers - 1):
-            self.convs.append(TabTransformerConv(dim=hidden_dim, heads=heads))
+            self.convs.append(TabTransformerConv(dim=hidden_dim, num_heads=num_heads))
 
         self.fc = torch.nn.Linear(hidden_dim, out_dim)
 
@@ -88,7 +88,7 @@ model = TabTransformer(
     hidden_dim=args.dim,
     out_dim=data.num_classes,
     num_layers=args.num_layers,
-    heads=args.num_heads,
+    num_heads=args.num_heads,
     metadata=data.metadata,
 ).to(device)
 optimizer = torch.optim.Adam(

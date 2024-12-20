@@ -2,9 +2,13 @@ from __future__ import annotations
 from typing import Dict, List, Any
 
 import torch
+from torch.nn import (
+    LayerNorm,
+    TransformerEncoderLayer,
+    TransformerEncoder,
+)
 
 from rllm.types import ColType
-from rllm.nn.conv.utils import Transformer
 from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
@@ -29,31 +33,46 @@ class SAINTConv(torch.nn.Module):
         self,
         in_dim,
         feat_num,
-        heads: int = 8,
-        head_dim: int = 16,
-        attn_dropout: float = 0.3,
-        ff_dropout: float = 0.3,
+        num_heads: int = 8,
+        dropout: float = 0.3,
+        activation: str = "relu",
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
+
         # Column Transformer
-        self.col_transformer = Transformer(
-            dim=in_dim,
-            heads=heads,
-            head_dim=head_dim,
-            attn_dropout=attn_dropout,
-            ff_dropout=ff_dropout,
+        col_encoder_layer = TransformerEncoderLayer(
+            d_model=in_dim,
+            nhead=num_heads,
+            dim_feedforward=in_dim,
+            dropout=dropout,
+            activation=activation,
+            batch_first=True,
         )
-        # Row Transformer
-        row_dim = in_dim * feat_num
-        self.row_transformer = Transformer(
-            dim=row_dim,
-            heads=heads,
-            head_dim=head_dim,
-            attn_dropout=attn_dropout,
-            ff_dropout=ff_dropout,
+        col_encoder_norm = LayerNorm(in_dim)
+        self.col_transformer = TransformerEncoder(
+            encoder_layer=col_encoder_layer,
+            num_layers=1,
+            norm=col_encoder_norm,
         )
 
+        # Row Transformer
+        row_encoder_layer = TransformerEncoderLayer(
+            d_model=in_dim * feat_num,
+            nhead=num_heads,
+            dim_feedforward=in_dim * feat_num,
+            dropout=dropout,
+            activation=activation,
+            batch_first=True,
+        )
+        row_encoder_norm = LayerNorm(in_dim * feat_num)
+        self.row_transformer = TransformerEncoder(
+            encoder_layer=row_encoder_layer,
+            num_layers=1,
+            norm=row_encoder_norm,
+        )
+
+        # Define PreEncoder
         self.pre_encoder = None
         if metadata:
             self.pre_encoder = FTTransformerPreEncoder(
@@ -64,8 +83,6 @@ class SAINTConv(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        self.col_transformer.reset_parameters()
-        self.row_transformer.reset_parameters()
         if self.pre_encoder is not None:
             self.pre_encoder.reset_parameters()
 

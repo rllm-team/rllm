@@ -3,10 +3,14 @@ from typing import Optional, Tuple, Dict, List, Any
 
 import torch
 from torch import Tensor
-from torch.nn import Parameter
+from torch.nn import (
+    Parameter,
+    LayerNorm,
+    TransformerEncoder,
+    TransformerEncoderLayer,
+)
 
 from rllm.types import ColType
-from rllm.nn.conv.utils import Transformer
 from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
@@ -36,8 +40,7 @@ class FTTransformerConv(torch.nn.Module):
         self,
         dim: int,
         feedforward_dim: Optional[int] = None,
-        # Arguments for Transformer
-        heads: int = 8,
+        num_heads: int = 8,
         dropout: float = 0.3,
         activation: str = "relu",
         use_cls: bool = False,
@@ -47,13 +50,19 @@ class FTTransformerConv(torch.nn.Module):
         self.use_cls = use_cls
         self.pre_encoder = None
         self.metadata = metadata
-        self.transformer = Transformer(
-            in_dim=dim,
-            heads=heads,
-            head_dim=dim // heads,
-            attn_dropout=dropout,
-            ff_dropout=dropout,
+        encoder_layer = TransformerEncoderLayer(
+            d_model=dim,
+            nhead=num_heads,
+            dim_feedforward=feedforward_dim or dim,
+            dropout=dropout,
             activation=activation,
+            batch_first=True,
+        )
+        encoder_norm = LayerNorm(dim)
+        self.transformer = TransformerEncoder(
+            encoder_layer=encoder_layer,
+            num_layers=1,
+            norm=encoder_norm,
         )
         self.cls_embedding = Parameter(torch.empty(dim))
         if self.metadata:
