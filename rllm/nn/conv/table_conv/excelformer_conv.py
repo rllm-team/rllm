@@ -5,8 +5,26 @@ import torch
 from torch import Tensor
 
 from rllm.types import ColType
-from rllm.nn.conv.utils import GLU
 from rllm.nn.pre_encoder import FTTransformerPreEncoder
+
+
+class GLULayer(torch.nn.Module):
+    def __init__(
+        self,
+        in_dim,
+        out_dim,
+    ):
+        super().__init__()
+        self.fc = torch.nn.Linear(in_dim, 2 * out_dim)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        self.fc.reset_parameters()
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.fc(x)
+        x, gates = x.chunk(2, dim=2)
+        return x * torch.nn.functional.tanh(gates)
 
 
 class SemiPermeableAttention(torch.nn.Module):
@@ -99,7 +117,7 @@ class ExcelFormerConv(torch.nn.Module):
         self.sp_attention = SemiPermeableAttention(
             dim=dim, heads=heads, head_dim=head_dim, dropout=dropout
         )
-        self.glu_layer = GLU(in_dim=dim, out_dim=dim)
+        self.glu_layer = GLULayer(in_dim=dim, out_dim=dim)
         self.pre_encoder = None
 
         if metadata:

@@ -2,9 +2,13 @@ from __future__ import annotations
 from typing import Dict, List, Any
 
 import torch
+from torch.nn import (
+    LayerNorm,
+    TransformerEncoder,
+    TransformerEncoderLayer,
+)
 
 from rllm.types import ColType
-from rllm.nn.conv.utils import Transformer
 from rllm.nn.pre_encoder import TabTransformerPreEncoder
 
 
@@ -24,20 +28,27 @@ class TabTransformerConv(torch.nn.Module):
     def __init__(
         self,
         dim,
-        heads: int = 8,
-        head_dim: int = 16,
-        attn_dropout: float = 0.3,
-        ff_dropout: float = 0.3,
+        num_heads: int = 8,
+        dropout: float = 0.3,
+        activation: str = "relu",
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
-        self.transformer = Transformer(
-            in_dim=dim,
-            heads=heads,
-            head_dim=head_dim,
-            attn_dropout=attn_dropout,
-            ff_dropout=ff_dropout,
+        encoder_layer = TransformerEncoderLayer(
+            d_model=dim,
+            nhead=num_heads,
+            dim_feedforward=dim,
+            dropout=dropout,
+            activation=activation,
+            batch_first=True,
         )
+        encoder_norm = LayerNorm(dim)
+        self.transformer = TransformerEncoder(
+            encoder_layer=encoder_layer,
+            num_layers=1,
+            norm=encoder_norm,
+        )
+
         self.pre_encoder = None
         if metadata:
             self.pre_encoder = TabTransformerPreEncoder(
@@ -48,7 +59,6 @@ class TabTransformerConv(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        self.transformer.reset_parameters()
         if self.pre_encoder is not None:
             self.pre_encoder.reset_parameters()
 
