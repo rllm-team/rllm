@@ -19,17 +19,17 @@ from rllm.transforms.graph_transforms import GCNTransform
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from bridge import Bridge, TableEncoder, GraphEncoder
+from rllm.nn.models import Bridge, TableEncoder, GraphEncoder
 from utils import build_homo_graph, reorder_ids
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--gcn_dropout", type=float, default=0.5, help="Dropout for GCN")
-parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
+parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--wd", type=float, default=1e-4, help="Weight decay")
 args = parser.parse_args()
 
+# Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load data
@@ -98,11 +98,7 @@ optimizer = torch.optim.Adam(
 )
 
 
-def accuracy_score(preds, truth):
-    return (preds == truth).sum(dim=0) / len(truth)
-
-
-def train_epoch() -> float:
+def train() -> float:
     model.train()
     optimizer.zero_grad()
     logits = model(
@@ -117,7 +113,7 @@ def train_epoch() -> float:
 
 
 @torch.no_grad()
-def test_epoch():
+def test():
     model.eval()
     logits = model(
         table=user_table,
@@ -125,17 +121,19 @@ def test_epoch():
         adj=adj,
     )
     preds = logits.argmax(dim=1)
-    train_acc = accuracy_score(preds[train_mask], y[train_mask])
-    val_acc = accuracy_score(preds[val_mask], y[val_mask])
-    test_acc = accuracy_score(preds[test_mask], y[test_mask])
-    return train_acc.item(), val_acc.item(), test_acc.item()
+
+    accs = []
+    for mask in [train_mask, val_mask, test_mask]:
+        correct = float(preds[mask].eq(y[mask]).sum().item())
+        accs.append(correct / int(mask.sum()))
+    return accs
 
 
 start_time = time.time()
 best_val_acc = best_test_acc = 0
 for epoch in range(1, args.epochs + 1):
-    train_loss = train_epoch()
-    train_acc, val_acc, test_acc = test_epoch()
+    train_loss = train()
+    train_acc, val_acc, test_acc = test()
     print(
         f"Epoch: [{epoch}/{args.epochs}]"
         f"Loss: {train_loss:.4f} train_acc: {train_acc:.4f} "

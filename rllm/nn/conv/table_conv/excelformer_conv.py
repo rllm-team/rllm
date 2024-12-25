@@ -8,6 +8,25 @@ from rllm.types import ColType
 from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
+class GLULayer(torch.nn.Module):
+    def __init__(
+        self,
+        in_dim,
+        out_dim,
+    ):
+        super().__init__()
+        self.fc = torch.nn.Linear(in_dim, 2 * out_dim)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        self.fc.reset_parameters()
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.fc(x)
+        x, gates = x.chunk(2, dim=2)
+        return x * torch.nn.functional.tanh(gates)
+
+
 class SemiPermeableAttention(torch.nn.Module):
     r"""Semi-Permeable Attention module propose in the
     `"ExcelFormer: A neural network surpassing GBDTs on tabular data"`
@@ -16,15 +35,15 @@ class SemiPermeableAttention(torch.nn.Module):
     Args:
         dim (int): Input channel dimensionality
         heads (int): Number of heads in Attention module (default: :obj:`8.`)
-        dim_head(int): Dimension of each attention head (default: :obj:`16.`)
+        head_dim(int): Dimension of each attention head (default: :obj:`16.`)
         dropout (float): Percentage of random deactivation (default: :obj:`0.`)
     """
 
-    def __init__(self, dim, heads=8, dim_head=16, dropout=0.0):
+    def __init__(self, dim, heads=8, head_dim=16, dropout=0.0):
         super().__init__()
-        inner_dim = dim_head * heads
+        inner_dim = head_dim * heads
         self.heads = heads
-        self.scale = dim_head**-0.5
+        self.scale = head_dim**-0.5
 
         self.to_qkv = torch.nn.Linear(dim, inner_dim * 3, bias=False)
         self.to_out = torch.nn.Linear(inner_dim, dim)
@@ -71,30 +90,6 @@ class SemiPermeableAttention(torch.nn.Module):
         return attention_mask
 
 
-class GLU_layer(torch.nn.Module):
-    def __init__(
-        self,
-        in_dim,
-        out_dim,
-        fc=None,
-    ):
-        super().__init__()
-
-        self.out_dim = out_dim
-        if fc:
-            self.fc = fc
-        else:
-            self.fc = torch.nn.Linear(in_dim, 2 * out_dim, bias=False)
-
-    def reset_parameters(self) -> None:
-        self.fc.reset_parameters()
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.fc(x)
-        x, gates = x.chunk(2, dim=2)
-        return x * torch.nn.functional.tanh(gates)
-
-
 class ExcelFormerConv(torch.nn.Module):
     r"""The ExcelFormerConv Layer introduced in the
     `"ExcelFormer: A neural network surpassing GBDTs on tabular data"
@@ -103,7 +98,7 @@ class ExcelFormerConv(torch.nn.Module):
     Args:
         dim (int): Input/output channel dimensionality.
         heads (int): Number of attention heads.
-        dim_head (int):  Dimensionality of each attention head (default: :obj:`16`).
+        head_dim (int):  Dimensionality of each attention head (default: :obj:`16`).
         dropout (float): Attention module dropout (default: :obj:`0.3`).
         metadata (Dict[ColType, List[Dict[str, Any]]], optional):
             Metadata for the pre-encoder (default: :obj:`None`).
@@ -113,16 +108,16 @@ class ExcelFormerConv(torch.nn.Module):
         self,
         dim: int,
         heads: int = 8,
-        dim_head: int = 16,
+        head_dim: int = 16,
         dropout: float = 0.5,
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
         self.layer_norm = torch.nn.LayerNorm(dim)
         self.sp_attention = SemiPermeableAttention(
-            dim=dim, heads=heads, dim_head=dim_head, dropout=dropout
+            dim=dim, heads=heads, head_dim=head_dim, dropout=dropout
         )
-        self.glu_layer = GLU_layer(in_dim=dim, out_dim=dim)
+        self.glu_layer = GLULayer(in_dim=dim, out_dim=dim)
         self.pre_encoder = None
 
         if metadata:

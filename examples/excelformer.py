@@ -15,18 +15,17 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets.titanic import Titanic
-from rllm.transforms.table_transforms import DefaultTransform
+from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import ExcelFormerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type=str, default="titanic")
-parser.add_argument("--dim", help="embedding dim.", type=int, default=32)
+parser.add_argument("--emb_dim", help="embedding dim.", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=3)
 parser.add_argument("--batch_size", type=int, default=128)
-parser.add_argument("--lr", type=float, default=1e-3)
 parser.add_argument("--epochs", type=int, default=50)
-parser.add_argument("--seed", type=int, default=0)
+parser.add_argument("--lr", type=float, default=1e-3)
 parser.add_argument("--wd", type=float, default=5e-4)
+parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
 # Set random seed and device
@@ -38,7 +37,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = Titanic(cached_dir=path)[0]
 
 # Transform data
-transform = DefaultTransform(out_dim=args.dim)
+transform = DefaultTableTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)
 data.shuffle()
 
@@ -79,7 +78,7 @@ class ExcelFormer(torch.nn.Module):
 
 # Set up model and optimizer
 model = ExcelFormer(
-    hidden_dim=args.dim,
+    hidden_dim=args.emb_dim,
     out_dim=data.num_classes,
     num_layers=args.num_layers,
     metadata=data.metadata,

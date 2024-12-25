@@ -24,11 +24,11 @@ class LinearEncoder(ColEncoder):
         out_dim: int | None = None,
         stats_list: List[Dict[StatType, Any]] | None = None,
         post_module: Module | None = None,
-        activate: Module | None = None,
+        activation: Module | None = None,
     ):
         super().__init__(out_dim, stats_list, post_module)
         self.in_dim = in_dim
-        self.activate = activate
+        self.activation = activation
 
     def post_init(self):
         r"""This is the actual initialization function."""
@@ -64,6 +64,6 @@ class LinearEncoder(ColEncoder):
         # -> [batch_size, num_cols, out_dim]
         x = x_lin + self.bias
 
-        if self.activate is not None:
-            x = self.activate(x)
+        if self.activation is not None:
+            x = self.activation(x)
         return x

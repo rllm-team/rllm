@@ -22,16 +22,16 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.transforms.table_transforms import DefaultTransform
+from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import FTTransformerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dim", help="embedding dim", type=int, default=32)
+parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=3)
 parser.add_argument("--batch_size", type=int, default=256)
+parser.add_argument("--epochs", type=int, default=100)
 parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--wd", type=float, default=1e-5)
-parser.add_argument("--epochs", type=int, default=100)
 parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
@@ -44,7 +44,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = Titanic(cached_dir=path)[0]
 
 # Transform data
-transform = DefaultTransform(out_dim=args.dim)
+transform = DefaultTableTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)
 data.shuffle()
 
@@ -60,17 +60,14 @@ class FTTransformer(torch.nn.Module):
         self,
         hidden_dim: int,
         out_dim: int,
-        layers: int,
+        num_layers: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-
-        self.conv = FTTransformerConv(
-            dim=hidden_dim,
-            layers=layers,
-            use_cls=True,
-            metadata=metadata,
-        )
+        self.convs = torch.nn.ModuleList()
+        self.convs.append(FTTransformerConv(dim=hidden_dim, metadata=metadata))
+        for _ in range(num_layers - 1):
+            self.convs.append(FTTransformerConv(dim=hidden_dim))
 
         self.fc = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
@@ -79,16 +76,17 @@ class FTTransformer(torch.nn.Module):
         )
 
     def forward(self, x) -> Tensor:
-        x_cls = self.conv(x)
-        out = self.fc(x_cls)
+        for conv in self.convs:
+            x = conv(x)
+        out = self.fc(x[:, 0, :])
         return out
 
 
 # Set up model and optimizer
 model = FTTransformer(
-    hidden_dim=args.dim,
+    hidden_dim=args.emb_dim,
     out_dim=data.num_classes,
-    layers=args.num_layers,
+    num_layers=args.num_layers,
     metadata=data.metadata,
 ).to(device)
 optimizer = torch.optim.Adam(
