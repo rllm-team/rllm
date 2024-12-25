@@ -26,12 +26,13 @@ from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dim", help="embedding dim", type=int, default=128)
+parser.add_argument("--emb_dim", help="embedding dim", type=int, default=128)
 parser.add_argument("--num_layers", type=int, default=6)
+parser.add_argument("--num_prompts", type=int, default=128)
 parser.add_argument("--batch_size", type=int, default=256)
+parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--wd", type=float, default=5e-4)
-parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
@@ -44,7 +45,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = Adult(cached_dir=path)[0]
 
 # Transform data
-transform = DefaultTableTransform(out_dim=args.dim)
+transform = DefaultTableTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)
 data.shuffle()
 
@@ -117,10 +118,10 @@ class Trompt(torch.nn.Module):
 # Set up model and optimizer
 model = Trompt(
     in_dim=data.num_cols,
-    hidden_dim=args.dim,
+    hidden_dim=args.emb_dim,
     out_dim=data.num_classes,
     num_layers=args.num_layers,
-    num_prompts=128,
+    num_prompts=args.num_prompts,
     metadata=data.metadata,
 ).to(device)
 optimizer = torch.optim.Adam(

@@ -25,11 +25,11 @@ from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.models import TabNet
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dim", help="embedding dim", type=int, default=32)
+parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--batch_size", type=int, default=128)
+parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--lr", type=float, default=1e-3)
 parser.add_argument("--wd", type=float, default=5e-4)
-parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
@@ -42,7 +42,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = Titanic(cached_dir=path)[0]
 
 # Transform data
-transform = DefaultTableTransform(out_dim=args.dim)
+transform = DefaultTableTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)
 data.shuffle()
 
@@ -76,8 +76,8 @@ class TabNetModel(torch.nn.Module):
 
 # Set up model and optimizer
 model = TabNetModel(
+    hidden_dim=args.emb_dim,
     out_dim=data.num_classes,
-    hidden_dim=args.dim,
     metadata=data.metadata,
 ).to(device)
 optimizer = torch.optim.Adam(

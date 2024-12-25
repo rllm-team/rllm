@@ -30,7 +30,7 @@ class TabTransformerConv(torch.nn.Module):
         dim,
         num_heads: int = 8,
         dropout: float = 0.3,
-        activation: str = "relu",
+        activation: str = "gelu",
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()

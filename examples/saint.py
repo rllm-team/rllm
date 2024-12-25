@@ -19,8 +19,7 @@ from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv.saint_conv import SAINTConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type=str, default="titanic")
-parser.add_argument("--dim", help="embedding dim.", type=int, default=32)
+parser.add_argument("--emb_dim", help="embedding dim.", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=3)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--lr", type=float, default=1e-3)
@@ -38,7 +37,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = Titanic(cached_dir=path)[0]
 
 # Transform data
-transform = DefaultTableTransform(out_dim=args.dim)
+transform = DefaultTableTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)
 data.shuffle()
 
@@ -54,18 +53,18 @@ class SAINT(torch.nn.Module):
         self,
         hidden_dim: int,
         out_dim: int,
+        num_feats: int,
         num_layers: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
 
-        feat_num = sum([len(metadata[col_type]) for col_type in metadata])
         self.convs = torch.nn.ModuleList()
         self.convs.append(
-            SAINTConv(in_dim=hidden_dim, feat_num=feat_num, metadata=metadata)
+            SAINTConv(in_dim=hidden_dim, num_feats=num_feats, metadata=metadata)
         )
         for _ in range(num_layers - 1):
-            self.convs.append(SAINTConv(in_dim=hidden_dim, feat_num=feat_num))
+            self.convs.append(SAINTConv(in_dim=hidden_dim, num_feats=num_feats))
 
         self.fc = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
@@ -82,9 +81,10 @@ class SAINT(torch.nn.Module):
 
 # Set up model and optimizer
 model = SAINT(
-    hidden_dim=args.dim,
+    hidden_dim=args.emb_dim,
     out_dim=data.num_classes,
     num_layers=args.num_layers,
+    num_feats=data.num_cols,
     metadata=data.metadata,
 ).to(device)
 optimizer = torch.optim.Adam(

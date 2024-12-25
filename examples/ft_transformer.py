@@ -26,12 +26,12 @@ from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import FTTransformerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dim", help="embedding dim", type=int, default=32)
+parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=3)
 parser.add_argument("--batch_size", type=int, default=256)
+parser.add_argument("--epochs", type=int, default=100)
 parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--wd", type=float, default=1e-5)
-parser.add_argument("--epochs", type=int, default=100)
 parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
@@ -44,7 +44,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = Titanic(cached_dir=path)[0]
 
 # Transform data
-transform = DefaultTableTransform(out_dim=args.dim)
+transform = DefaultTableTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)
 data.shuffle()
 
@@ -84,7 +84,7 @@ class FTTransformer(torch.nn.Module):
 
 # Set up model and optimizer
 model = FTTransformer(
-    hidden_dim=args.dim,
+    hidden_dim=args.emb_dim,
     out_dim=data.num_classes,
     num_layers=args.num_layers,
     metadata=data.metadata,
