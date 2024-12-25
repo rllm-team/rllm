@@ -14,7 +14,7 @@ class Aggregator(torch.nn.Module):
         self_dim: int,
         neigh_dim: int,
         out_dim: int,
-        act: Optional[Callable] = torch.nn.ReLU(),
+        activation: Optional[Callable] = torch.nn.ReLU(),
         concat: bool = False,
         dropout: float = 0.0,
         bias: bool = False,
@@ -23,7 +23,7 @@ class Aggregator(torch.nn.Module):
         self.self_dim = self_dim
         self.neigh_dim = neigh_dim
         self.out_dim = out_dim
-        self.act = act
+        self.activation = activation
         self.concat = concat
         self.dropout = dropout
 
@@ -61,7 +61,7 @@ class Aggregator(torch.nn.Module):
         if self.bias is not None:
             out = out + self.bias
 
-        return self.act(out)
+        return self.activation(out)
 
     def aggregate(self, self_vecs: Tensor, neigh_vecs: Tensor):
         raise NotImplementedError
@@ -80,7 +80,7 @@ class MeanAggregator(Aggregator):
         self,
         in_dim: int,
         out_dim: int,
-        act: Optional[Callable] = torch.nn.ReLU(),
+        activation: Optional[Callable] = torch.nn.ReLU(),
         concat: bool = False,
         dropout: float = 0.0,
         bias: bool = False,
@@ -89,7 +89,7 @@ class MeanAggregator(Aggregator):
             self_dim=in_dim,
             neigh_dim=in_dim,
             out_dim=out_dim,
-            act=act,
+            activation=activation,
             concat=concat,
             dropout=dropout,
             bias=bias,
@@ -113,7 +113,7 @@ class MaxPoolingAggregator(Aggregator):
         in_dim: int,
         hidden_dim: int,
         out_dim: int,
-        act: Optional[Callable] = torch.nn.ReLU(),
+        activation: Optional[Callable] = torch.nn.ReLU(),
         concat: bool = False,
         dropout: float = 0.0,
         bias: bool = False,
@@ -122,7 +122,7 @@ class MaxPoolingAggregator(Aggregator):
             self_dim=in_dim,
             neigh_dim=hidden_dim,
             out_dim=out_dim,
-            act=act,
+            activation=activation,
             concat=concat,
             dropout=dropout,
             bias=bias,
@@ -154,7 +154,7 @@ class MeanPoolingAggregator(Aggregator):
         in_dim: int,
         hidden_dim: int,
         out_dim: int,
-        act: Optional[Callable] = torch.nn.ReLU(),
+        activation: Optional[Callable] = torch.nn.ReLU(),
         concat: bool = False,
         dropout: float = 0.0,
         bias: bool = False,
@@ -163,7 +163,7 @@ class MeanPoolingAggregator(Aggregator):
             self_dim=in_dim,
             neigh_dim=hidden_dim,
             out_dim=out_dim,
-            act=act,
+            activation=activation,
             concat=concat,
             dropout=dropout,
             bias=bias,
@@ -194,14 +194,14 @@ class GCNAggregator(torch.nn.Module):
         self,
         in_dim: int,
         out_dim: int,
-        act: Optional[Callable] = torch.nn.ReLU(),
+        activation: Optional[Callable] = torch.nn.ReLU(),
         dropout: float = 0.0,
         bias: bool = False,
     ):
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.act = act
+        self.activation = activation
         self.dropout = dropout
 
         self.weight = Parameter(torch.empty(in_dim, out_dim))
@@ -229,7 +229,7 @@ class GCNAggregator(torch.nn.Module):
         if self.bias is not None:
             out = out + self.bias
 
-        return self.act(out)
+        return self.activation(out)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.in_dim}, " f"{self.out_dim}"
@@ -243,7 +243,7 @@ class LSTMAggregator(Aggregator):
         in_dim: int,
         hidden_dim: int,
         out_dim: int,
-        act: Optional[Callable] = torch.nn.ReLU(),
+        activation: Optional[Callable] = torch.nn.ReLU(),
         concat: bool = False,
         dropout: float = 0.0,
         bias: bool = False,
@@ -252,7 +252,7 @@ class LSTMAggregator(Aggregator):
             self_dim=in_dim,
             neigh_dim=hidden_dim,
             out_dim=out_dim,
-            act=act,
+            activation=activation,
             concat=concat,
             dropout=dropout,
             bias=bias,
@@ -286,7 +286,7 @@ class SAGEConv(torch.nn.Module):
         out_dim (int): Size of each output sample.
         aggr_methods (str): The aggregation method to use,
         *e.g.*, `mean`, `max_pooling`, `mean_pooling`, `gcn`, `lstm`.
-        act: (Callable): The activation function is applied to aggreagtion,
+        activation: (Callable): The activationivation function is applied to aggreagtion,
             the default function is ReLU.
         concat (bool): If set to `False`, the multi-head attentions are
             averaged instead of concatenated.
@@ -302,7 +302,7 @@ class SAGEConv(torch.nn.Module):
         in_dim: int,
         out_dim: int,
         aggr_method: str = "mean_pooling",
-        act: Optional[Callable] = torch.nn.ReLU(),
+        activation: Optional[Callable] = torch.nn.ReLU(),
         concat: bool = False,
         dropout: float = 0.0,
         bias: bool = False,
@@ -312,21 +312,21 @@ class SAGEConv(torch.nn.Module):
 
         if aggr_method == "mean":
             self.aggr_module = MeanAggregator(
-                in_dim, out_dim, act, dropout, dropout, bias
+                in_dim, out_dim, activation, dropout, dropout, bias
             )
         elif aggr_method == "max_pooling":
             self.aggr_module = MaxPoolingAggregator(
-                in_dim, in_dim, out_dim, act, concat, dropout, bias
+                in_dim, in_dim, out_dim, activation, concat, dropout, bias
             )
         elif aggr_method == "mean_pooling":
             self.aggr_module = MeanPoolingAggregator(
-                in_dim, in_dim, out_dim, act, concat, dropout, bias
+                in_dim, in_dim, out_dim, activation, concat, dropout, bias
             )
         elif aggr_method == "gcn":
-            self.aggr_module = GCNAggregator(in_dim, out_dim, act, dropout, bias)
+            self.aggr_module = GCNAggregator(in_dim, out_dim, activation, dropout, bias)
         elif aggr_method == "lstm":
             self.aggr_module = LSTMAggregator(
-                in_dim, in_dim, out_dim, act, concat, dropout, bias
+                in_dim, in_dim, out_dim, activation, concat, dropout, bias
             )
         else:
             raise NotImplementedError(f"Method of {aggr_method} is not implemented!")

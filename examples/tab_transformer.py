@@ -25,7 +25,7 @@ from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dim", help="transform dim", type=int, default=32)
+parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=2)
 parser.add_argument("--num_heads", type=int, default=8)
 parser.add_argument("--batch_size", type=int, default=128)
@@ -44,7 +44,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = Titanic(cached_dir=path)[0]
 
 # Transform data
-transform = TabTransformerTransform(out_dim=args.dim)
+transform = TabTransformerTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)
 data.shuffle()
 
@@ -85,7 +85,7 @@ class TabTransformer(torch.nn.Module):
 
 # Set up model and optimizer
 model = TabTransformer(
-    hidden_dim=args.dim,
+    hidden_dim=args.emb_dim,
     out_dim=data.num_classes,
     num_layers=args.num_layers,
     num_heads=args.num_heads,

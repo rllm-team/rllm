@@ -20,7 +20,7 @@ class SAINTConv(torch.nn.Module):
 
     Args:
         in_dim (int): Input channel dimensionality.
-        feat_num (int): Number of features.
+        num_feats (int): Number of features.
         heads (int): Number of attention heads (default: :obj:`8`).
         head_dim (int): Dimensionality of each attention head (default: :obj:`16`).
         attn_dropout (float): Attention module dropout (default: :obj:`0.3`).
@@ -32,7 +32,7 @@ class SAINTConv(torch.nn.Module):
     def __init__(
         self,
         in_dim,
-        feat_num,
+        num_feats,
         num_heads: int = 8,
         dropout: float = 0.3,
         activation: str = "relu",
@@ -58,14 +58,14 @@ class SAINTConv(torch.nn.Module):
 
         # Row Transformer
         row_encoder_layer = TransformerEncoderLayer(
-            d_model=in_dim * feat_num,
+            d_model=in_dim * num_feats,
             nhead=num_heads,
-            dim_feedforward=in_dim * feat_num,
+            dim_feedforward=in_dim * num_feats,
             dropout=dropout,
             activation=activation,
             batch_first=True,
         )
-        row_encoder_norm = LayerNorm(in_dim * feat_num)
+        row_encoder_norm = LayerNorm(in_dim * num_feats)
         self.row_transformer = TransformerEncoder(
             encoder_layer=row_encoder_layer,
             num_layers=1,
