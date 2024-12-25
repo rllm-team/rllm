@@ -54,6 +54,15 @@ class TromptConv(torch.nn.Module):
 
         self.reset_parameters()
 
+    def reset_parameters(self):
+        torch.nn.init.xavier_uniform_(self.emb_column)
+        torch.nn.init.xavier_uniform_(self.emb_prompt)
+        torch.nn.init.xavier_uniform_(self.linear.weight)
+        torch.nn.init.zeros_(self.linear.bias)
+        torch.nn.init.uniform_(self.expand_weight)
+        if self.pre_encoder is not None:
+            self.pre_encoder.reset_parameters()
+
     def forward(self, x: Tensor, x_prompt: Tensor) -> Tensor:
         if self.pre_encoder is not None:
             x = self.pre_encoder(x)
@@ -86,12 +95,3 @@ class TromptConv(torch.nn.Module):
 
         x = (x * m_importance).sum(dim=2)
         return x
-
-    def reset_parameters(self):
-        torch.nn.init.xavier_uniform_(self.emb_column)
-        torch.nn.init.xavier_uniform_(self.emb_prompt)
-        torch.nn.init.xavier_uniform_(self.linear.weight)
-        torch.nn.init.zeros_(self.linear.bias)
-        torch.nn.init.uniform_(self.expand_weight)
-        if self.pre_encoder is not None:
-            self.pre_encoder.reset_parameters()

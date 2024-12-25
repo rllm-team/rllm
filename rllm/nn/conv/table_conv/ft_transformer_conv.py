@@ -4,8 +4,8 @@ from typing import Optional, Tuple, Dict, List, Any
 import torch
 from torch import Tensor
 from torch.nn import (
-    LayerNorm,
     Parameter,
+    LayerNorm,
     TransformerEncoder,
     TransformerEncoderLayer,
 )
@@ -40,9 +40,7 @@ class FTTransformerConv(torch.nn.Module):
         self,
         dim: int,
         feedforward_dim: Optional[int] = None,
-        # Arguments for Transformer
-        layers: int = 3,
-        heads: int = 8,
+        num_heads: int = 8,
         dropout: float = 0.3,
         activation: str = "relu",
         use_cls: bool = False,
@@ -54,20 +52,19 @@ class FTTransformerConv(torch.nn.Module):
         self.metadata = metadata
         encoder_layer = TransformerEncoderLayer(
             d_model=dim,
-            nhead=heads,
+            nhead=num_heads,
             dim_feedforward=feedforward_dim or dim,
             dropout=dropout,
             activation=activation,
-            # Input and output tensors are provided as
-            # [batch_size, seq_len, dim]
             batch_first=True,
         )
         encoder_norm = LayerNorm(dim)
         self.transformer = TransformerEncoder(
-            encoder_layer=encoder_layer, num_layers=layers, norm=encoder_norm
+            encoder_layer=encoder_layer,
+            num_layers=1,
+            norm=encoder_norm,
         )
         self.cls_embedding = Parameter(torch.empty(dim))
-
         if self.metadata:
             self.pre_encoder = FTTransformerPreEncoder(
                 out_dim=dim,

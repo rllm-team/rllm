@@ -21,15 +21,15 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
-from rllm.transforms.table_transforms import DefaultTransform
+from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.models import TabNet
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dim", help="embedding dim", type=int, default=32)
+parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--batch_size", type=int, default=128)
+parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--lr", type=float, default=1e-3)
 parser.add_argument("--wd", type=float, default=5e-4)
-parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
@@ -42,7 +42,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = Titanic(cached_dir=path)[0]
 
 # Transform data
-transform = DefaultTransform(out_dim=args.dim)
+transform = DefaultTableTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)
 data.shuffle()
 
@@ -63,9 +63,9 @@ class TabNetModel(torch.nn.Module):
         super().__init__()
 
         self.backbone = TabNet(
-            out_dim=out_dim,  # dataset.num_classes,
-            cat_emb_dim=hidden_dim,  # args.dim,
-            num_emb_dim=hidden_dim,  # args.dim,
+            out_dim=out_dim,
+            cat_emb_dim=hidden_dim,
+            num_emb_dim=hidden_dim,
             metadata=metadata,
         )
 
@@ -76,8 +76,8 @@ class TabNetModel(torch.nn.Module):
 
 # Set up model and optimizer
 model = TabNetModel(
+    hidden_dim=args.emb_dim,
     out_dim=data.num_classes,
-    hidden_dim=args.dim,
     metadata=data.metadata,
 ).to(device)
 optimizer = torch.optim.Adam(
@@ -92,9 +92,9 @@ def train(epoch: int, lambda_sparse: float = 1e-4) -> float:
     loss_accum = total_count = 0
     for batch in tqdm(train_loader, desc=f"Epoch: {epoch}"):
         x, y = batch
-        pred, M_loss = model.forward(x)
+        pred, mask_loss = model.forward(x)
         loss = F.cross_entropy(pred, y.long())
-        loss = loss - lambda_sparse * M_loss
+        loss = loss - lambda_sparse * mask_loss
         optimizer.zero_grad()
         loss.backward()
         loss_accum += float(loss) * y.size(0)
