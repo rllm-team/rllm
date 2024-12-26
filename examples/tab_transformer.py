@@ -3,8 +3,8 @@
 # ArXiv: https://arxiv.org/abs/2012.06678
 
 # Datasets  Titanic    Adult
-# AUC       0.809      0.839
-# Time      11.3s      391.1s
+# AUC       0.842      0.842
+# Time      5.26s      152.9s
 
 import argparse
 import sys

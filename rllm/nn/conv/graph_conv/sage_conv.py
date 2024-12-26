@@ -279,13 +279,15 @@ class LSTMAggregator(Aggregator):
 
 
 class SAGEConv(torch.nn.Module):
-    r"""Simple SAGEConv layer, similar to <https://arxiv.org/abs/1706.02216>.
+    r"""Simple SAGEConv layer, as introduced in the
+    `"Inductive Representation Learning on Large Graphs"
+    <https://arxiv.org/abs/1706.02216>`__ paper.
 
     Args:
         in_dim (int): Size of each input sample.
         out_dim (int): Size of each output sample.
         aggr_methods (str): The aggregation method to use,
-        *e.g.*, `mean`, `max_pooling`, `mean_pooling`, `gcn`, `lstm`.
+            *e.g.*, `mean`, `max_pooling`, `mean_pooling`, `gcn`, `lstm`.
         activation: (Callable): The activationivation function is applied to aggreagtion,
             the default function is ReLU.
         concat (bool): If set to `False`, the multi-head attentions are

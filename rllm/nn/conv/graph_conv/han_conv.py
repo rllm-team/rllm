@@ -24,15 +24,15 @@ class HANConv(torch.nn.Module):
         metadata (Tuple[List[str], List[Tuple[str, str, str]]]): The metadata
             of the heterogeneous graph, *i.e.* its node and edge types given
             by a list of strings and a list of string triplets, respectively.
-        heads (int, optional):
-            Number of multi-head-attentions, the default values is 1.
+        num_heads (int, optional):
+            Number of multi-head-attentions (default: :obj:`1`).
         negative_slop (float):
-            LeakyReLU angle of the negative slope, the default value is 0.2.
+            LeakyReLU angle of the negative slope (default: :obj:`0.2`).
         dropout (float): Dropout probability of the normalized
             attention coefficients which exposes each node to a stochastically
-            sampled neighborhood during training. The default value is 0.
-        use_pre_encoder (bool, optional): Whether to use pre-encoder. Defaults
-                to False.
+            sampled neighborhood during training (default: :obj:`0`).
+        use_pre_encoder (bool, optional): Whether to use pre-encoder
+            (default: :obj:`False`).
     """
 
     def __init__(
@@ -40,7 +40,7 @@ class HANConv(torch.nn.Module):
         in_dim: Union[int, Dict[str, int]],
         out_dim: int,
         metadata: Tuple[List[str], List[Tuple[str, str]]],
-        heads: int = 1,
+        num_heads: int = 1,
         negative_slope: float = 0.2,
         dropout: float = 0.0,
         use_pre_encoder: bool = False,
@@ -51,7 +51,7 @@ class HANConv(torch.nn.Module):
 
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.heads = heads
+        self.num_heads = num_heads
         self.dropout = dropout
         self.use_pre_encoder = use_pre_encoder
 
@@ -69,7 +69,7 @@ class HANConv(torch.nn.Module):
             self.conv_dict[edge_type] = GATConv(
                 in_dim=(hidden_dim, hidden_dim),
                 out_dim=out_dim,
-                heads=heads,
+                num_heads=num_heads,
                 negative_slope=negative_slope,
                 dropout=dropout,
             )
@@ -121,9 +121,9 @@ class HANConv(torch.nn.Module):
         return out_dict
 
     def attention(self, xs: Tensor):
-        # [num_edge_types, num_nodes, out_dim*heads]
+        # [num_edge_types, num_nodes, out_dim*num_heads]
         xs = torch.stack(xs, dim=0)
-        # [num_edge_types, out_dim*heads]
+        # [num_edge_types, out_dim*num_heads]
         key = torch.tanh(self.fc_k(xs)).mean(1)
         # [num_edge_types]
         attn_score = (self.q * key).sum(-1)

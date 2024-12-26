@@ -43,7 +43,7 @@ class HGT(torch.nn.Module):
         in_dim: Union[int, Dict[str, int]],
         out_dim: int,
         hidden_dim: int = 128,
-        heads: int = 8,
+        num_heads: int = 8,
         dropout: int = 0.6,
         metadata: Dict[str, List[str]] = None,
     ):
@@ -51,7 +51,7 @@ class HGT(torch.nn.Module):
         self.hgt_conv = HGTConv(
             in_dim=in_dim,
             out_dim=hidden_dim,
-            heads=heads,
+            num_heads=num_heads,
             dropout=dropout,
             metadata=metadata,
             use_pre_encoder=True,

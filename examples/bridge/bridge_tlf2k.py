@@ -53,6 +53,7 @@ ordered_ua = reorder_ids(
     n_src=artist_size,
 )
 
+# Build graph
 graph = build_homo_graph(
     relation_df=ordered_ua,
     n_all=artist_size + user_size,
@@ -66,12 +67,14 @@ target_table = table_transform(target_table)
 graph_transform = GCNTransform()
 adj = graph_transform(graph).adj
 
+# Split data
 train_mask, val_mask, test_mask = (
     artist_table.train_mask,
     artist_table.val_mask,
     artist_table.test_mask,
 )
 
+# Set up model and optimizer
 t_encoder = TableEncoder(
     in_dim=emb_size,
     out_dim=emb_size,

@@ -56,6 +56,7 @@ target_table = user_table.to(device)
 y = user_table.y.long().to(device)
 movie_embeddings = movie_embeddings.to(device)
 
+# Build graph
 graph = build_homo_graph(
     relation_df=ordered_rating,
     n_all=user_size + movie_embeddings.size(0),
@@ -69,13 +70,14 @@ target_table = table_transform(target_table)
 graph_transform = GCNTransform()
 adj = graph_transform(graph).adj
 
+# Split data
 train_mask, val_mask, test_mask = (
     user_table.train_mask,
     user_table.val_mask,
     user_table.test_mask,
 )
 
-
+# Set up model and optimizer
 t_encoder = TableEncoder(
     in_dim=emb_size,
     out_dim=emb_size,

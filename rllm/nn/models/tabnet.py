@@ -557,21 +557,24 @@ class TabNet(torch.nn.Module):
             if int, all categorical features will have same embedding size,
             if list of int, each corresponding feature will have specific size.
         n_independent (int):
-            Number of independent GLU layer in each GLU block (default 2)
+            Number of independent GLU layer in each GLU block (default: :obj:`2`).
         n_shared (int):
-            Number of independent GLU layer in each GLU block (default 2)
+            Number of independent GLU layer in each GLU block (default: :obj:`2`).
         epsilon (float):
-            Avoid log(0), this should be kept very low
+            Avoid log(0), this should be kept very low.
         virtual_batch_size (int):
-            Batch size for Ghost Batch Normalization
+            Batch size for Ghost Batch Normalization.
         momentum float:
             Float value between 0 and 1,
-            which will be used for momentum in all batch norm
+            which will be used for momentum in all batch norm.
         mask_type (str):
-            Either "sparsemax" or "entmax" : this is masking function to use
+            Either "sparsemax" or "entmax" : this is masking function to use.
         group_attention_matrix (Tensor):
             Matrix of size (n_groups, in_dim),
             m_ij = importance within group i of feature j
+        metadata (Dict[ColType, List[Dict[str, Any]]]):
+            Metadata for each column type, specifying the statistics and
+            properties of the columns. (default: :obj:`None`).
     """
 
     def __init__(

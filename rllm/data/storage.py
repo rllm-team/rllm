@@ -1,8 +1,8 @@
 import copy
 import weakref
 from itertools import chain
+from typing import Any, Dict, Optional, Callable, Mapping, Sequence, Union
 from collections.abc import MutableMapping
-from typing import (Any, Dict, Optional, Callable, Mapping, Sequence, Union)
 
 import torch
 from torch import Tensor
@@ -39,14 +39,10 @@ class BaseStorage(MutableMapping):
             self[key] = recursive_apply(value, func)
         return self
 
-    def to(
-        self,
-        device: Union[int, str],
-        *args: str,
-        non_blocking: bool = False
-    ):
+    def to(self, device: Union[int, str], *args: str, non_blocking: bool = False):
         return self.apply(
-            lambda x: x.to(device=device, non_blocking=non_blocking), *args)
+            lambda x: x.to(device=device, non_blocking=non_blocking), *args
+        )
 
     def cpu(self, *args: str):
         return self.apply(lambda x: x.cpu(), *args)
@@ -55,28 +51,27 @@ class BaseStorage(MutableMapping):
         self,
         device: Optional[Union[int, str]] = None,
         *args: str,
-        non_blocking: bool = False
+        non_blocking: bool = False,
     ):
-        return self.apply(lambda x: x.cuda(device, non_blocking=non_blocking),
-                          *args)
+        return self.apply(lambda x: x.cuda(device, non_blocking=non_blocking), *args)
 
     def pin_memory(self, *args: str):
         return self.apply(lambda x: x.pin_memory(), *args)
 
     def __setattr__(self, key: str, value: Any):
         propobj = getattr(self.__class__, key, None)
-        if propobj is not None and getattr(propobj, 'fset', None) is not None:
+        if propobj is not None and getattr(propobj, "fset", None) is not None:
             propobj.fset(self, value)
-        elif key == '_parent':
+        elif key == "_parent":
             self.__dict__[key] = weakref.ref(value)
-        elif key[:1] == '_':
+        elif key[:1] == "_":
             self.__dict__[key] = value
         else:
             self[key] = value
 
     def __getattr__(self, key: str):
         # avoid infinite loop.
-        if key == '_mapping':
+        if key == "_mapping":
             self._mapping = {}
             return self._mapping
         try:
@@ -87,7 +82,7 @@ class BaseStorage(MutableMapping):
             )
 
     def __delattr__(self, key: str) -> None:
-        if key[:1] == '_':
+        if key[:1] == "_":
             del self.__dict__[key]
         else:
             del self[key]
@@ -141,16 +136,17 @@ class NodeStorage(BaseStorage):
     Attributes:
         num_nodes (int): The number of nodes in the storage.
     """
+
     def __init__(self, initialdata: Optional[Dict[str, Any]] = None, **kwargs):
         super().__init__(initialdata, **kwargs)
 
     @property
     def num_nodes(self):
-        if 'num_nodes' in self:
-            return self['num_nodes']
+        if "num_nodes" in self:
+            return self["num_nodes"]
 
         for key, value in self.items():
-            if key in {'x', 'pos', 'batch'} or 'node' in key:
+            if key in {"x", "pos", "batch"} or "node" in key:
                 return len(value)
 
         return -1
@@ -166,17 +162,19 @@ class EdgeStorage(BaseStorage):
     Attributes:
         num_edges (int): The number of edges in the storage.
     """
+
     def __init__(self, initialdata: Optional[Dict[str, Any]] = None, **kwargs):
         super().__init__(initialdata, **kwargs)
 
     @property
     def num_edges(self):
         from rllm.utils.sparse import is_torch_sparse_tensor
-        if 'num_edges' in self:
-            return self['num_edges']
 
-        if 'adj' in self:
-            adj = self['adj']
+        if "num_edges" in self:
+            return self["num_edges"]
+
+        if "adj" in self:
+            adj = self["adj"]
             if is_torch_sparse_tensor(adj):
                 return adj._nnz()
 
@@ -191,7 +189,7 @@ def recursive_apply(data: Any, func: Callable) -> Any:
         return func(data)
     elif isinstance(data, torch.nn.utils.rnn.PackedSequence):
         return func(data)
-    elif isinstance(data, tuple) and hasattr(data, '_fields'):  # namedtuple
+    elif isinstance(data, tuple) and hasattr(data, "_fields"):  # namedtuple
         return type(data)(*(recursive_apply(d, func) for d in data))
     elif isinstance(data, Sequence) and not isinstance(data, str):
         return [recursive_apply(d, func) for d in data]
