@@ -2,7 +2,7 @@
 # ArXiv: https://arxiv.org/abs/2407.20157
 
 # Datasets  TACM12K
-# Acc       0.309
+# Acc       0.293
 
 import time
 import argparse
@@ -27,11 +27,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
-parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
-# Set random seed and device
-torch.manual_seed(args.seed)
+# Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
