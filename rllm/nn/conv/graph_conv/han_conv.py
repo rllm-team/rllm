@@ -20,6 +20,7 @@ class HANConv(torch.nn.Module):
     Args:
         in_dim (int or Dict[str, int]): Size of each input sample of every
             node type.
+        out_dim (int): Size of each output sample of every node type.
         metadata (Tuple[List[str], List[Tuple[str, str, str]]]): The metadata
             of the heterogeneous graph, *i.e.* its node and edge types given
             by a list of strings and a list of string triplets, respectively.
@@ -30,6 +31,8 @@ class HANConv(torch.nn.Module):
         dropout (float): Dropout probability of the normalized
             attention coefficients which exposes each node to a stochastically
             sampled neighborhood during training. The default value is 0.
+        use_pre_encoder (bool, optional): Whether to use pre-encoder. Defaults
+                to False.
     """
 
     def __init__(

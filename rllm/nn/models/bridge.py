@@ -18,7 +18,7 @@ class TableEncoder(Module):
         in_dim (int): Input dimensionality of the table data.
         out_dim (int): Output dimensionality for the encoded table data.
         num_layers (int, optional): Number of convolution layers. Defaults to 1.
-        table_transorm (Module): The transformation module to be applied to the table data.
+        metadata (Dict[ColType, List[Dict[str, Any]]], optional): Metadata for the pre-encoder (default: None).
         table_conv (Type[Module], optional): The convolution module to be used for
             encoding the table data. Defaults to TabTransformerConv.
     """
@@ -53,8 +53,8 @@ class GraphEncoder(Module):
     which mainly performs multi-layer convolution of the incoming graph.
 
     Args:
-        hidden_dim (int): Size of each sample in hidden layer.
-        out_dim (int): Size of each output sample.
+        in_dim (int): Input dimensionality of the data.
+        out_dim (int): Output dimensionality for the encoded data.
         dropout (float): Dropout probability.
         num_layers (int): The number of layers of the convolution.
         graph_conv : Using the graph convolution layer.

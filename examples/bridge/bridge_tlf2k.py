@@ -40,7 +40,8 @@ dataset = TLF2KDataset(cached_dir=path, force_reload=True)
 
 # Get the required data
 artist_table, ua_table, _ = dataset.data_list
-emb_size = 384
+emb_size = 384  # Dataset lacks embeddings, so manually set emb_size to 384 for consistency with other examples.
+
 artist_size = len(artist_table)
 user_size = ua_table.df["userID"].max()
 target_table = artist_table.to(device)

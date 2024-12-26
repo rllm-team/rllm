@@ -89,8 +89,9 @@ class GraphData(BaseGraph):
     into CPU memory.
 
     Args:
-        x (Tensor): Node feature matrix.
-        y (Tensor): Node label matrix.
+        x (Tensor, optional): Node feature matrix.
+        y (Tensor, optional): Node label matrix.
+        adj (torch.sparse.FloatTensor, optional): Adjacency matrix.
         **kwargs (optional): Additional attributes.
 
     Shapes:

@@ -60,6 +60,26 @@ def segment_softmax(data: Tensor, segment_ids: Tensor, num_segments: int):
 
 
 class HGTConv(torch.nn.Module):
+    r"""The Heterogeneous Graph Transformer (HGT)  layer,
+    as introduced in the `"Heterogeneous Graph Transformer"
+    <https://arxiv.org/abs/2003.01332>`__ paper.
+
+
+    Args:
+        in_dim (Union[int, Dict[str, int]]): Size of each input sample of every node type.
+        out_dim (int): Size of each output sample of every node type.
+        metadata (Tuple[List[str], List[Tuple[str, str]]]): The metadata of the heterogeneous
+            graph, *i.e.* its node and edge types given by a list of strings and a list of
+            string triplets, respectively.
+        heads (int, optional): Number of multi-head attentions. Defaults to 1.
+        group (str, optional): Aggregation method, either 'sum', 'mean', or 'max'. Defaults to
+            'sum'.
+        dropout (float, optional): Dropout probability of the normalized attention
+            coefficients which exposes each node to a stochastically sampled neighborhood during
+            training. Defaults to 0.0.
+        use_pre_encoder (bool, optional): Whether to use pre-encoder. Defaults to False.
+    """
+
     def __init__(
         self,
         in_dim: Union[int, Dict[str, int]],
@@ -70,24 +90,6 @@ class HGTConv(torch.nn.Module):
         dropout: float = 0.0,
         use_pre_encoder: bool = False,
     ):
-        r"""The Heterogeneous Graph Transformer (HGT)  layer,
-        as introduced in the `"Heterogeneous Graph Transformer"
-        <https://arxiv.org/abs/2003.01332>`__ paper.
-
-
-        Args:
-            in_dim (Union[int, Dict[str, int]]): Size of each input sample of every node type.
-            out_dim (int): Size of each output sample of every node type.
-            metadata (Tuple[List[str], List[Tuple[str, str]]]): The metadata of the heterogeneous
-                graph, *i.e.* its node and edge types given by a list of strings and a list of
-                string triplets, respectively.
-            heads (int, optional): Number of multi-head attentions. Defaults to 1.
-            group (str, optional): Aggregation method, either 'sum', 'mean', or 'max'. Defaults to
-                'sum'.
-            dropout (float, optional): Dropout probability of the normalized attention
-                coefficients which exposes each node to a stochastically sampled neighborhood during
-                training. Defaults to 0.0.
-        """
 
         super().__init__()
 

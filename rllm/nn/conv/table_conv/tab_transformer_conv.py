@@ -18,11 +18,11 @@ class TabTransformerConv(torch.nn.Module):
     <https://arxiv.org/abs/2012.06678>`_ paper.
 
     Args:
-        dim (int): Input/output channel dimensionality.
-        heads (int): Number of attention heads.
-        head_dim (int):  Dimensionality of each attention head.
-        attn_dropout (float): attention module dropout (default: :obj:`0.`).
-        ffn_dropout (float): attention module dropout (default: :obj:`0.`).
+        dim (int): The input/output channel dimensionality.
+        num_heads (int, optional): Number of attention heads (default: 8).
+        dropout (float, optional): Dropout rate for the attention module (default: 0.3).
+        activation (str, optional): Activation function to use (default: "gelu").
+        metadata (Dict[ColType, List[Dict[str, Any]]], optional): Metadata for the pre-encoder (default: None).
     """
 
     def __init__(
