@@ -70,18 +70,27 @@ class TableData(BaseTable):
     r"""A base class for creating single table data.
 
     Args:
-        df (DataFrame): The tabular data frame.
-        col_types (Dict[str, ColType]): A dictionary that maps
-            each column in the data frame to a semantic type.
-        target_col (str, optional): The column used as target.
-            (default: :obj:`None`)
+        df (DataFrame): The tabular data frame containing the dataset.
+        col_types (Dict[str, ColType]): A dictionary mapping each column
+            in the data frame to a semantic type (e.g., CATEGORICAL, NUMERICAL).
+        target_col (str, optional): The column name used as the target for
+            prediction tasks. Defaults to None.
+        feat_dict (Dict[ColType, Tensor], optional): A dictionary storing
+            tensors for each column type. Defaults to None, in which case it
+            will be generated.
+        y (Tensor, optional): A tensor containing the target values. Defaults
+            to None, in which case it will be generated.
+        metadata (Dict[ColType, List[dict[str, Any]]], optional): Metadata for
+            each column type. Defaults to None, in which case it will be
+            generated.
+        **kwargs: Additional key-value attributes to set as instance variables.
     """
 
     def __init__(
         self,
         df: DataFrame,
         col_types: Dict[str, ColType],
-        target_col: str | None = None,
+        target_col: Optional[str] = None,
         # TODO: The following variables should not be explicitly defined
         feat_dict: Dict[ColType, Tensor] = None,
         y: Tensor = None,
