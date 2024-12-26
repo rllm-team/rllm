@@ -1,17 +1,16 @@
 from __future__ import annotations
-
 from collections.abc import Iterable
 from typing import Any, Dict, List, Union, Tuple, Callable, Optional
 
 import torch
 import numpy as np
 from pandas import DataFrame
+from sklearn.preprocessing import LabelEncoder
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import LabelEncoder
 
-from rllm.data.storage import BaseStorage
 from rllm.types import ColType, TaskType, StatType
+from rllm.data.storage import BaseStorage
 
 
 class BaseTable:
@@ -70,18 +69,27 @@ class TableData(BaseTable):
     r"""A base class for creating single table data.
 
     Args:
-        df (DataFrame): The tabular data frame.
-        col_types (Dict[str, ColType]): A dictionary that maps
-            each column in the data frame to a semantic type.
-        target_col (str, optional): The column used as target.
-            (default: :obj:`None`)
+        df (DataFrame): The tabular data frame containing the dataset.
+        col_types (Dict[str, ColType]): A dictionary mapping each column
+            in the data frame to a semantic type (e.g., CATEGORICAL, NUMERICAL).
+        target_col (str, optional): The column name used as the target for
+            prediction tasks. (default: :obj:`None`)
+        feat_dict (Dict[ColType, Tensor], optional): A dictionary storing
+            tensors for each column type
+            (default: :obj:`None`, in which case it will be generated).
+        y (Tensor, optional): A tensor containing the target values
+            (default: :obj:`None`, in which case it will be generated).
+        metadata (Dict[ColType, List[dict[str, Any]]], optional):
+            Metadata for each column type, specifying the statistics and
+            properties of the columns (default: :obj:`None`).
+        **kwargs: Additional key-value attributes to set as instance variables.
     """
 
     def __init__(
         self,
         df: DataFrame,
         col_types: Dict[str, ColType],
-        target_col: str | None = None,
+        target_col: Optional[str] = None,
         # TODO: The following variables should not be explicitly defined
         feat_dict: Dict[ColType, Tensor] = None,
         y: Tensor = None,

@@ -1,8 +1,17 @@
+# The SAINT method from the
+# "SAINT: Improved Neural Networks for Tabular Data
+# via Row Attention and Contrastive Pre-Training" paper.
+# ArXiv: https://arxiv.org/abs/2106.01342
+
+# Datasets  Titanic    Adult
+# AUC       0.900      0.914
+# Time      11.3s      336.6s
+
 import argparse
-import os.path as osp
 import sys
 import time
 from typing import Any, Dict, List
+import os.path as osp
 
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score

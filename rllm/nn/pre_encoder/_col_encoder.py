@@ -17,22 +17,19 @@ def _reset_parameters_soft(module: Module):
 
 
 class ColEncoder(Module, ABC):
-    r"""Base class for columns Transform. This module transforms tensor of some
+    r"""Base class for columns pre_encoder. This module encodes tensor of some
     specific columns type into 3-dimensional column-wise tensor
     that is input into tabular deep learning models.
-    Columns with same ColType will be transformed into tensors.
+    Columns with same ColType will be encoded into tensors.
 
     Args:
         out_dim (int): The output dim dimensionality
         stats_list (List[Dict[StatType]]): The list
             of stats for each column within the same column type.
-        col_type (stype): The stype of the Transform input.
         post_module (Module, optional): The post-hoc module applied to the
             output, such as activation function and normalization. Must
             preserve the shape of the output. If :obj:`None`, no module will be
             applied to the output. (default: :obj:`None`)
-        na_mode (NAMode, optional): The instruction that indicates how to
-            impute NaN values. (default: :obj:`None`)
     """
 
     supported_types: set[ColType] = {}

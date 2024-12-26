@@ -34,15 +34,15 @@ class SemiPermeableAttention(torch.nn.Module):
 
     Args:
         dim (int): Input channel dimensionality
-        heads (int): Number of heads in Attention module (default: :obj:`8.`)
+        num_heads (int): Number of heads in Attention module (default: :obj:`8.`)
         head_dim(int): Dimension of each attention head (default: :obj:`16.`)
         dropout (float): Percentage of random deactivation (default: :obj:`0.`)
     """
 
-    def __init__(self, dim, heads=8, head_dim=16, dropout=0.0):
+    def __init__(self, dim, num_heads=8, head_dim=16, dropout=0.0):
         super().__init__()
-        inner_dim = head_dim * heads
-        self.heads = heads
+        inner_dim = head_dim * num_heads
+        self.num_heads = num_heads
         self.scale = head_dim**-0.5
 
         self.to_qkv = torch.nn.Linear(dim, inner_dim * 3, bias=False)
@@ -53,8 +53,8 @@ class SemiPermeableAttention(torch.nn.Module):
     def _rearrange_qkv(self, x: Tensor) -> Tensor:
         # reshape b n (h d) -> b h n d
         b, num_cols, dim = x.shape
-        d_head = dim // self.heads
-        x = x.reshape(b, num_cols, self.heads, d_head)
+        d_head = dim // self.num_heads
+        x = x.reshape(b, num_cols, self.num_heads, d_head)
         x = x.permute(0, 2, 1, 3)
         return x
 
@@ -80,13 +80,13 @@ class SemiPermeableAttention(torch.nn.Module):
         self.to_out.reset_parameters()
 
     def get_attention_mask(self, input_shape, device):
-        bs, heads, seq_len, _ = input_shape
+        bs, num_heads, seq_len, _ = input_shape
         seq_ids = torch.arange(seq_len, device=device)
         attention_mask = (
             seq_ids[None, None, :].repeat(bs, seq_len, 1) <= seq_ids[None, :, None]
         )
         attention_mask = (1.0 - attention_mask.float()) * -1e4
-        attention_mask = attention_mask.unsqueeze(1).repeat(1, heads, 1, 1)
+        attention_mask = attention_mask.unsqueeze(1).repeat(1, num_heads, 1, 1)
         return attention_mask
 
 
@@ -97,17 +97,18 @@ class ExcelFormerConv(torch.nn.Module):
 
     Args:
         dim (int): Input/output channel dimensionality.
-        heads (int): Number of attention heads.
+        num_heads (int): Number of attention heads.
         head_dim (int):  Dimensionality of each attention head (default: :obj:`16`).
         dropout (float): Attention module dropout (default: :obj:`0.3`).
         metadata (Dict[ColType, List[Dict[str, Any]]], optional):
-            Metadata for the pre-encoder (default: :obj:`None`).
+            Metadata for each column type, specifying the statistics and
+            properties of the columns. (default: :obj:`None`).
     """
 
     def __init__(
         self,
         dim: int,
-        heads: int = 8,
+        num_heads: int = 8,
         head_dim: int = 16,
         dropout: float = 0.5,
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
@@ -115,7 +116,7 @@ class ExcelFormerConv(torch.nn.Module):
         super().__init__()
         self.layer_norm = torch.nn.LayerNorm(dim)
         self.sp_attention = SemiPermeableAttention(
-            dim=dim, heads=heads, head_dim=head_dim, dropout=dropout
+            dim=dim, num_heads=num_heads, head_dim=head_dim, dropout=dropout
         )
         self.glu_layer = GLULayer(in_dim=dim, out_dim=dim)
         self.pre_encoder = None

@@ -1,8 +1,16 @@
+# The ExcelFormer method from the
+# "ExcelFormer: A neural network surpassing GBDTs on tabular data" paper.
+# ArXiv: https://arxiv.org/abs/2301.02819
+
+# Datasets  Titanic    Adult
+# AUC       0.920      0.913
+# Time      7.3s       231.1s
+
 import argparse
-import os.path as osp
 import sys
 import time
 from typing import Any, Dict, List
+import os.path as osp
 
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score

@@ -10,7 +10,7 @@ from ._col_encoder import ColEncoder
 
 
 class EmbeddingEncoder(ColEncoder):
-    r"""An simple embedding look-up based Transform for categorical features.
+    r"""An simple embedding look-up based ColEncoder for categorical features.
     It applies :class:`torch.nn.Embedding` for each categorical feature and
     concatenates the output embeddings.
     """

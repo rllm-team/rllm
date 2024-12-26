@@ -8,6 +8,20 @@ from rllm.types import ColType
 
 
 class FTTransformerPreEncoder(PreEncoder):
+    r"""
+    The FTTransformerPreEncoder class is a specialized pre-encoder for the
+    FTTransformer model. It initializes column-specific encoders for
+    categorical and numerical features based on the provided metadata.
+
+    Args:
+        out_dim (int): The output dimensionality.
+        metadata (Dict[ColType, List[Dict[str, Any]]]):
+            Metadata for each column type, specifying the statistics and
+            properties of the columns.
+        in_dim (int, optional): The input dimensionality for numerical features
+            (default: :obj:`1`).
+    """
+
     def __init__(
         self,
         out_dim: int,
