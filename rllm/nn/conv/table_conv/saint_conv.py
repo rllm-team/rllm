@@ -23,8 +23,7 @@ class SAINTConv(torch.nn.Module):
         num_feats (int): Number of features.
         heads (int): Number of attention heads (default: :obj:`8`).
         head_dim (int): Dimensionality of each attention head (default: :obj:`16`).
-        attn_dropout (float): Attention module dropout (default: :obj:`0.3`).
-        ff_dropout (float): Feedforward module dropout (default: :obj:`0.3`).
+        dropout (float): Attention module dropout (default: :obj:`0.3`).
         metadata (Dict[ColType, List[Dict[str, Any]]], optional):
             Metadata for the pre-encoder (default: :obj:`None`).
     """

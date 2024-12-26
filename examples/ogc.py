@@ -59,9 +59,9 @@ lr_sup = args.lr_sup
 
 # Define model
 class LinearNeuralNetwork(torch.nn.Module):
-    def __init__(self, num_features: int, num_classes: int, bias: bool = True):
+    def __init__(self, num_feats: int, num_classes: int, bias: bool = True):
         super().__init__()
-        self.W = torch.nn.Linear(num_features, num_classes, bias=bias)
+        self.W = torch.nn.Linear(num_feats, num_classes, bias=bias)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.W(x)
@@ -98,7 +98,7 @@ class LinearNeuralNetwork(torch.nn.Module):
 
 # Set up model
 model = LinearNeuralNetwork(
-    num_features=data.x.shape[1],
+    num_feats=data.x.shape[1],
     num_classes=data.num_classes,
     bias=False,
 ).to(device)
