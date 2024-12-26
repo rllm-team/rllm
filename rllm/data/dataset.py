@@ -1,6 +1,6 @@
-import os.path as osp
 from typing import Optional
 from abc import ABC, abstractmethod
+import os.path as osp
 
 from torch.utils.data import Dataset
 
@@ -12,14 +12,11 @@ class Dataset(Dataset, ABC):
         forced_reload (bool): If set to `True`, this dataset will
             be re-process again.
     """
-    def __init__(
-        self,
-        root: str,
-        force_reload: Optional[bool] = False
-    ):
+
+    def __init__(self, root: str, force_reload: Optional[bool] = False):
         self.root = root
-        self.raw_dir = osp.join(self.root, 'raw')
-        self.processed_dir = osp.join(self.root, 'processed')
+        self.raw_dir = osp.join(self.root, "raw")
+        self.processed_dir = osp.join(self.root, "processed")
         self.force_reload = force_reload
 
         if not self.has_download:
@@ -45,17 +42,13 @@ class Dataset(Dataset, ABC):
     @property
     def processed_paths(self):
         r"""absolute paths for processed files"""
-        return [
-            osp.join(self.processed_dir, file)
-            for file in self.processed_filenames
-        ]
+        return [osp.join(self.processed_dir, file) for file in self.processed_filenames]
 
     @property
     def has_download(self):
         r"""check whether data has been downloaded"""
         return all(
-            osp.exists(osp.join(self.raw_dir, file))
-            for file in self.raw_filenames
+            osp.exists(osp.join(self.raw_dir, file)) for file in self.raw_filenames
         )
 
     @property

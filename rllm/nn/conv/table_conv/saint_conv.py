@@ -25,7 +25,8 @@ class SAINTConv(torch.nn.Module):
         dropout (float, optional): Attention module dropout (default: 0.3).
         activation (str, optional): Activation function (default: "relu").
         metadata (Dict[ColType, List[Dict[str, Any]]], optional):
-            Metadata for the pre-encoder (default: None).
+            Metadata for each column type, specifying the statistics and
+            properties of the columns. (default: :obj:`None`).
     """
 
     def __init__(

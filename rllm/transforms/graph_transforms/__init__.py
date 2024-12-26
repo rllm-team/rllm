@@ -1,4 +1,4 @@
-from .base_transform import NETransform
+from .node_edge_transform import NETransform  # noqa
 from .compose import Compose  # noqa
 from .add_remaining_self_loops import AddRemainingSelfLoops  # noqa
 from .remove_self_loops import RemoveSelfLoops  # noqa

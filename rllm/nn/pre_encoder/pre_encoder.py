@@ -16,14 +16,13 @@ class PreEncoder(Module, ABC):
 
     Args:
         out_dim (int): Output dimensionality.
-        metadata
-            (Dict[class:`rllm.types.ColType`, List[dict[StatType]]):
-            A dictionary that maps column type into stats.
+        metadata(Dict[ColType, List[Dict[str, Any]]]):Metadata for each column
+            type, specifying the statistics and properties of the columns.
         col_pre_encoder_dict
             (Dict[:class:`rllm.types.ColType`,
-            :class:`rllm.nn.encoder.ColTypeTransform`]):
+            :class:`rllm.nn.encoder.ColEncoder]):
             A dictionary that maps :class:`rllm.types.ColType` into
-            :class:`rllm.nn.encoder.ColTypeTransform` class. Only
+            :class:`rllm.nn.encoder.ColEncoder` class. Only
             parent :class:`stypes <rllm.types.ColType>` are supported
             as keys.
     """

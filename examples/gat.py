@@ -25,7 +25,7 @@ parser.add_argument(
     "--dataset", type=str, default="cora", choices=["citeseer", "cora", "pubmed"]
 )
 parser.add_argument("--hidden_dim", type=int, default=8)
-parser.add_argument("--heads", type=int, default=8, help="Attention heads")
+parser.add_argument("--num_heads", type=int, default=8, help="Attention num_heads")
 parser.add_argument("--lr", type=float, default=5e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
@@ -52,12 +52,12 @@ class GAT(torch.nn.Module):
         hidden_dim,
         out_dim,
         dropout: float = 0.0,
-        heads: int = 8,
+        num_heads: int = 8,
     ):
         super().__init__()
         self.dropout = dropout
-        self.conv1 = GATConv(in_dim, hidden_dim, heads=heads, concat=True)
-        self.conv2 = GATConv(hidden_dim * heads, out_dim, heads=1)
+        self.conv1 = GATConv(in_dim, hidden_dim, num_heads=num_heads, concat=True)
+        self.conv2 = GATConv(hidden_dim * num_heads, out_dim, num_heads=1)
 
     def forward(self, x, adj):
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -72,7 +72,7 @@ model = GAT(
     in_dim=data.x.shape[1],
     hidden_dim=args.hidden_dim,
     out_dim=data.num_classes,
-    heads=args.heads,
+    num_heads=args.num_heads,
     dropout=args.dropout,
 ).to(device)
 optimizer = torch.optim.Adam(

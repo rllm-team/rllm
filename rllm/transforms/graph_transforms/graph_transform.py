@@ -8,6 +8,16 @@ from rllm.data.graph_data import GraphData, HeteroGraphData
 
 
 class GraphTransform(Module, ABC):
+    r"""
+    The GraphTransform class is a base class for applying a series of
+    transformations to graph data. It supports both homogeneous and
+    heterogeneous graph data.
+
+    Args:
+        transforms (List[Callable]): A list of transformation functions to be
+            applied to the graph data.
+    """
+
     def __init__(
         self,
         transforms: List[Callable],

@@ -42,7 +42,7 @@ class HAN(torch.nn.Module):
         in_dim: Union[int, Dict[str, int]],
         out_dim: int,
         hidden_dim=128,
-        heads: int = 8,
+        num_heads: int = 8,
         dropout: int = 0.6,
         metadata: Dict[str, List[str]] = None,
     ):
@@ -50,7 +50,7 @@ class HAN(torch.nn.Module):
         self.han_conv = HANConv(
             in_dim=in_dim,
             out_dim=hidden_dim,
-            heads=heads,
+            num_heads=num_heads,
             dropout=dropout,
             metadata=metadata,
             use_pre_encoder=True,

@@ -13,6 +13,15 @@ def reorder_ids(
     tgt_col_name: str,
     n_src: int,
 ):
+    r"""Reorders the IDs in the relationship DataFrame by adjusting the
+    original source IDs and target column IDs.
+
+    Args:
+        relation_df (pd.DataFrame): DataFrame containing the relationships.
+        src_col_name (str): Name of the source column in the DataFrame.
+        tgt_col_name (str): Name of the target column in the DataFrame.
+        n_src (int): Number of source nodes.
+    """
     # Making relationship
     ordered_rating = relation_df.assign(
         **{
