@@ -33,7 +33,12 @@ class GCNConv(torch.nn.Module):
             node features :math:`(|\mathcal{V}|, F_{out})`
     """
 
-    def __init__(self, in_dim: int, out_dim: int, bias: bool = True):
+    def __init__(
+        self,
+        in_dim: int,
+        out_dim: int,
+        bias: bool = True,
+    ):
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim

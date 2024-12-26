@@ -20,6 +20,9 @@ class TromptConv(torch.nn.Module):
         out_dim (int): Hidden layer dimensionality.
         num_prompts (int): Number of prompts.
         num_groups (int): Number of groups for group normalization (default: 2).
+        metadata (Dict[ColType, List[Dict[str, Any]]], optional):
+            Metadata for each column type, specifying the statistics and
+            properties of the columns. (default: :obj:`None`).
     """
 
     def __init__(

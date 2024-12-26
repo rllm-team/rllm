@@ -10,7 +10,7 @@ from ._col_encoder import ColEncoder
 
 
 class LinearEncoder(ColEncoder):
-    r"""A linear function based Transform for numerical features. It applies
+    r"""A linear function based ColEncoder for numerical features. It applies
     linear layer :obj:`torch.nn.Linear(in_dim, out_dim)` on each raw numerical
     feature and concatenates the output embeddings. Note that the
     implementation does this for all numerical features in a batched manner.

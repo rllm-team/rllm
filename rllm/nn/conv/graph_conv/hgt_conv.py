@@ -60,34 +60,38 @@ def segment_softmax(data: Tensor, segment_ids: Tensor, num_segments: int):
 
 
 class HGTConv(torch.nn.Module):
+    r"""The Heterogeneous Graph Transformer (HGT)  layer,
+    as introduced in the `"Heterogeneous Graph Transformer"
+    <https://arxiv.org/abs/2003.01332>`__ paper.
+
+    Args:
+        in_dim (Union[int, Dict[str, int]]):
+            Size of each input sample of every node type.
+        out_dim (int): Size of each output sample of every node type.
+        metadata (Tuple[List[str], List[Tuple[str, str]]]): The metadata of
+            the heterogeneous graph, *i.e.* its node and edge types given
+            by a list of strings and a list of string triplets, respectively.
+        num_heads (int, optional):
+            Number of multi-head attentions (default: :obj:`1`).
+        group (str, optional):
+            Aggregation method, either 'sum', 'mean', or 'max' (default: :obj:`sum`).
+        dropout (float, optional): Dropout probability of the normalized
+            attention coefficients which exposes each node to a stochastically
+            sampled neighborhood during training (default: :obj:`0.0`).
+        use_pre_encoder (bool, optional):
+            Whether to use pre-encoder (default: :obj:`False`).
+    """
+
     def __init__(
         self,
         in_dim: Union[int, Dict[str, int]],
         out_dim: int,
         metadata: Tuple[List[str], List[Tuple[str, str]]],
-        heads: int = 1,
+        num_heads: int = 1,
         group: str = "sum",
         dropout: float = 0.0,
         use_pre_encoder: bool = False,
     ):
-        r"""The Heterogeneous Graph Transformer (HGT)  layer,
-        as introduced in the `"Heterogeneous Graph Transformer"
-        <https://arxiv.org/abs/2003.01332>`__ paper.
-
-
-        Args:
-            in_dim (Union[int, Dict[str, int]]): Size of each input sample of every node type.
-            out_dim (int): Size of each output sample of every node type.
-            metadata (Tuple[List[str], List[Tuple[str, str]]]): The metadata of the heterogeneous
-                graph, *i.e.* its node and edge types given by a list of strings and a list of
-                string triplets, respectively.
-            heads (int, optional): Number of multi-head attentions. Defaults to 1.
-            group (str, optional): Aggregation method, either 'sum', 'mean', or 'max'. Defaults to
-                'sum'.
-            dropout (float, optional): Dropout probability of the normalized attention
-                coefficients which exposes each node to a stochastically sampled neighborhood during
-                training. Defaults to 0.0.
-        """
 
         super().__init__()
 
@@ -96,7 +100,7 @@ class HGTConv(torch.nn.Module):
 
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.heads = heads
+        self.num_heads = num_heads
         self.group = group
 
         self.lin_dict = None
@@ -124,7 +128,7 @@ class HGTConv(torch.nn.Module):
         self.a_rel = nn.ParameterDict()
         self.m_rel = nn.ParameterDict()
         self.p_rel = nn.ParameterDict()
-        hidden_dim = out_dim // heads
+        hidden_dim = out_dim // num_heads
 
         # Initialize parameters for each edge type
         for edge_type in metadata[1]:
@@ -132,27 +136,27 @@ class HGTConv(torch.nn.Module):
 
             # Initialize a_rel weights with truncated normal
             a_weight = nn.Parameter(
-                torch.empty((heads, hidden_dim, hidden_dim), requires_grad=True)
+                torch.empty((num_heads, hidden_dim, hidden_dim), requires_grad=True)
             )
             nn.init.trunc_normal_(a_weight)
             self.a_rel[edge_type + "a"] = a_weight
 
             # Initialize m_rel weights with truncated normal
             m_weight = nn.Parameter(
-                torch.empty((heads, hidden_dim, hidden_dim), requires_grad=True)
+                torch.empty((num_heads, hidden_dim, hidden_dim), requires_grad=True)
             )
             nn.init.trunc_normal_(m_weight)
             self.m_rel[edge_type + "m"] = m_weight
 
             # Initialize p_rel weights with ones
-            self.p_rel[edge_type] = nn.Parameter(torch.ones(heads))
+            self.p_rel[edge_type] = nn.Parameter(torch.ones(num_heads))
 
     def forward(
         self,
         x_dict: Dict[str, Tensor],
         edge_index_dict: Dict[Tuple[str, str], Tensor],  # sparse_coo here!
     ):
-        H, D = self.heads, self.out_dim // self.heads
+        H, D = self.num_heads, self.out_dim // self.num_heads
         k_dict, q_dict, v_dict, out_node_dict, out_dict = {}, {}, {}, {}, {}
 
         # Prepare q, k, v by node types

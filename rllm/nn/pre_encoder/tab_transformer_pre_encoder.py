@@ -8,6 +8,17 @@ from rllm.types import ColType
 
 
 class TabTransformerPreEncoder(PreEncoder):
+    r"""The TabTransformerPreEncoder class is a specialized pre-encoder for the
+    TabTransformer model. It initializes column-specific encoders for
+    categorical and numerical features based on the provided metadata.
+
+    Args:
+        out_dim (int): The output dimensionality.
+        metadata (Dict[ColType, List[Dict[str, Any]]]):
+            Metadata for each column type, specifying the statistics and
+            properties of the columns.
+    """
+
     def __init__(
         self,
         out_dim: int,

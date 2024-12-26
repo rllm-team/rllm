@@ -32,7 +32,7 @@ class GATConv(torch.nn.Module):
     Args:
         in_dim (int): Size of each input sample.
         out_dim (int): Size of each output sample.
-        heads (int): Number of multi-head-attentions, the default value is 1.
+        num_heads (int): Number of multi-head-attentions, the default value is 1.
         concat (bool): If set to `False`, the multi-head attentions
             are averaged instead of concatenated.
         negative_slop (float): LeakyReLU angle of the negative slope,
@@ -64,7 +64,7 @@ class GATConv(torch.nn.Module):
         self,
         in_dim: Union[int, Tuple[int, int]],
         out_dim: int,
-        heads: int = 8,
+        num_heads: int = 8,
         concat: bool = False,
         negative_slope: float = 0.2,
         skip_connection: bool = False,
@@ -74,30 +74,30 @@ class GATConv(torch.nn.Module):
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.heads = heads
+        self.num_heads = num_heads
         self.concat = concat
         self.skip_connection = skip_connection
 
         if isinstance(in_dim, int):
             self.lin_src = self.lin_tgt = torch.nn.Linear(
-                in_dim, heads * out_dim, bias=False
+                in_dim, num_heads * out_dim, bias=False
             )
         else:
-            self.lin_src = torch.nn.Linear(in_dim[0], heads * out_dim, bias=False)
-            self.lin_tgt = torch.nn.Linear(in_dim[1], heads * out_dim, bias=False)
+            self.lin_src = torch.nn.Linear(in_dim[0], num_heads * out_dim, bias=False)
+            self.lin_tgt = torch.nn.Linear(in_dim[1], num_heads * out_dim, bias=False)
 
         if self.skip_connection:
-            self.skip = nn.Linear(in_dim[1], heads * out_dim, bias=False)
+            self.skip = nn.Linear(in_dim[1], num_heads * out_dim, bias=False)
 
         # Define the attention source/target weights as a learnable parameter.
-        # Shape: (1, heads, out_dim), where:
+        # Shape: (1, num_heads, out_dim), where:
         # - 1 represents a batch dimension
-        # - heads is the number of attention heads
+        # - num_heads is the number of attention heads
         # - out_dim is the size of each head's output feature
-        self.attention_target = nn.Parameter(torch.Tensor(1, heads, out_dim))
-        self.attention_source = nn.Parameter(torch.Tensor(1, heads, out_dim))
+        self.attention_target = nn.Parameter(torch.Tensor(1, num_heads, out_dim))
+        self.attention_source = nn.Parameter(torch.Tensor(1, num_heads, out_dim))
         if bias and concat:
-            self.bias = nn.Parameter(torch.empty(heads * out_dim))
+            self.bias = nn.Parameter(torch.empty(num_heads * out_dim))
         elif bias and not concat:
             self.bias = nn.Parameter(torch.empty(out_dim))
         else:
@@ -124,8 +124,12 @@ class GATConv(torch.nn.Module):
         # the number of attention heads * the number of hidden units.
         # shape = (N, F_IN) -> (N, H, F_OUT)
         num_nodes = inputs[1].size(0)
-        nodes_features_src = self.lin_src(inputs[0]).view(-1, self.heads, self.out_dim)
-        nodes_features_tgt = self.lin_tgt(inputs[1]).view(-1, self.heads, self.out_dim)
+        nodes_features_src = self.lin_src(inputs[0]).view(
+            -1, self.num_heads, self.out_dim
+        )
+        nodes_features_tgt = self.lin_tgt(inputs[1]).view(
+            -1, self.num_heads, self.out_dim
+        )
 
         # shape = (N, H, F_OUT) * (1, H, F_OUT) -> (N, H, F_OUT) -> (N, H)
         scores_source = (nodes_features_src * self.attention_source).sum(dim=-1)
@@ -193,7 +197,7 @@ class GATConv(torch.nn.Module):
             out_dim = out_dim.contiguous()
 
         if self.concat:
-            out_dim = out_dim.view(-1, self.heads * self.out_dim)
+            out_dim = out_dim.view(-1, self.num_heads * self.out_dim)
         else:
             out_dim = out_dim.mean(dim=self.head_dim)
 
@@ -201,7 +205,7 @@ class GATConv(torch.nn.Module):
             if out_dim.shape[-1] == in_dim.shape[-1]:
                 out_dim += in_dim.unsqueeze(1)
             else:
-                out_dim += self.skip(in_dim).view(-1, self.heads * self.out_dim)
+                out_dim += self.skip(in_dim).view(-1, self.num_heads * self.out_dim)
 
         if self.bias is not None:
             out_dim += self.bias
@@ -237,5 +241,5 @@ class GATConv(torch.nn.Module):
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}({self.in_dim}, "
-            f"{self.out_dim}, heads={self.heads})"
+            f"{self.out_dim}, num_heads={self.num_heads})"
         )

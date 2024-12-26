@@ -31,9 +31,13 @@ class FTTransformerConv(torch.nn.Module):
             feedforward network of the Transformer model. If :obj:`None`, it
             will be set to :obj:`dim` (default: :obj:`None`)
         layers (int): Number of transformer encoder layers. (default: 3)
-        heads (int): Number of heads in multi-head attention (default: 8)
+        num_heads (int): Number of heads in multi-head attention (default: 8)
         dropout (int): The dropout value (default: 0.1)
         activation (str): The activation function (default: :obj:`relu`)
+        use_cls (bool): Whether to use a CLS token (default: :obj:`False`).
+        metadata (Optional[Dict[ColType, List[Dict[str, Any]]]]): Metadata for
+            each column type, specifying the statistics and properties of the
+            columns (default: :obj:`None`).
     """
 
     def __init__(

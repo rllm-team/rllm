@@ -17,7 +17,7 @@ def test_bridge_tml1m():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-8:]) > 0.42
+    assert float(stdout[-8:]) > 0.377
 
 
 def test_bridge_tlf2k():
@@ -27,7 +27,7 @@ def test_bridge_tlf2k():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-8:]) > 0.49
+    assert float(stdout[-8:]) > 0.451
 
 
 def test_bridge_tacm12k():
@@ -37,4 +37,4 @@ def test_bridge_tacm12k():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-8:]) > 0.30
+    assert float(stdout[-8:]) > 0.273

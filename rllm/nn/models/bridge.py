@@ -17,10 +17,14 @@ class TableEncoder(Module):
     Args:
         in_dim (int): Input dimensionality of the table data.
         out_dim (int): Output dimensionality for the encoded table data.
-        num_layers (int, optional): Number of convolution layers. Defaults to 1.
-        table_transorm (Module): The transformation module to be applied to the table data.
-        table_conv (Type[Module], optional): The convolution module to be used for
-            encoding the table data. Defaults to TabTransformerConv.
+        num_layers (int, optional):
+            Number of convolution layers (default: :obj:`1`).
+        metadata (Dict[ColType, List[Dict[str, Any]]], optional):
+            Metadata for each column type, specifying the statistics and
+            properties of the columns. (default: :obj:`None`).
+        table_conv (Type[Module], optional):
+            The convolution module to be used for encoding the table data
+            (default: :obj:`rllm.nn.conv.table_conv.TabTransformerConv`).
     """
 
     def __init__(
@@ -53,8 +57,8 @@ class GraphEncoder(Module):
     which mainly performs multi-layer convolution of the incoming graph.
 
     Args:
-        hidden_dim (int): Size of each sample in hidden layer.
-        out_dim (int): Size of each output sample.
+        in_dim (int): Input dimensionality of the data.
+        out_dim (int): Output dimensionality for the encoded data.
         dropout (float): Dropout probability.
         num_layers (int): The number of layers of the convolution.
         graph_conv : Using the graph convolution layer.
@@ -86,8 +90,9 @@ class GraphEncoder(Module):
 
 
 class Bridge(torch.nn.Module):
-    r"""The Bridge model introduced in the "rLLM: Relational Table Learning with
-    LLMs" paper. Bridge is a simple RTL method based on rLLM framework, which
+    r"""The Bridge model introduced in the `"rLLM: Relational Table Learning
+    with LLMs" <https://arxiv.org/abs/2407.20157>`__ paper.
+    Bridge is a simple RTL method based on rLLM framework, which
     combines table neural networks (TNNs) and graph neural networks (GNNs) to
     deal with multi-table data and their interrelationships, and uses "foreign
     keys" to build relationships and analyze them to improve the performance of
@@ -114,8 +119,10 @@ class Bridge(torch.nn.Module):
         adj: Tensor,
     ) -> Tensor:
         """
-        TNN first learns the Table. The learning results are concatenated with
-        non_table, and finally GNN learns with Adj and all the data.
+        First, the Table Neural Network (TNN) learns the tabular data.
+        Second, the learned representations are concatenated with the non-tabular data.
+        Third, the Graph Neural Network (GNN) processes the combined data
+        along with the adjacency matrix to learn the overall representation.
 
         Args:
             table (Tensor): Input tabular data.

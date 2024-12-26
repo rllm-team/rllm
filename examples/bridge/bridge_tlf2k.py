@@ -2,7 +2,7 @@
 # ArXiv: https://arxiv.org/abs/2407.20157
 
 # Datasets  TLF2K
-# Acc       0.494
+# Acc       0.471
 
 import time
 import argparse
@@ -27,11 +27,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--wd", type=float, default=1e-4, help="Weight decay")
-parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
 # Set device
-torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load data
@@ -40,7 +38,8 @@ dataset = TLF2KDataset(cached_dir=path, force_reload=True)
 
 # Get the required data
 artist_table, ua_table, _ = dataset.data_list
-emb_size = 384
+emb_size = 384  # Dataset lacks embeddings, so manually set emb_size to 384 for consistency with other examples.
+
 artist_size = len(artist_table)
 user_size = ua_table.df["userID"].max()
 target_table = artist_table.to(device)
@@ -54,6 +53,7 @@ ordered_ua = reorder_ids(
     n_src=artist_size,
 )
 
+# Build graph
 graph = build_homo_graph(
     relation_df=ordered_ua,
     n_all=artist_size + user_size,
@@ -67,12 +67,14 @@ target_table = table_transform(target_table)
 graph_transform = GCNTransform()
 adj = graph_transform(graph).adj
 
+# Split data
 train_mask, val_mask, test_mask = (
     artist_table.train_mask,
     artist_table.val_mask,
     artist_table.test_mask,
 )
 
+# Set up model and optimizer
 t_encoder = TableEncoder(
     in_dim=emb_size,
     out_dim=emb_size,

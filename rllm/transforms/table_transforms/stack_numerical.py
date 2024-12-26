@@ -4,10 +4,10 @@ import torch
 
 from rllm.types import ColType, StatType
 from rllm.data import TableData
-from .base_transform import BaseTransform
+from .col_transform import ColTransform
 
 
-class StackNumerical(BaseTransform):
+class StackNumerical(ColTransform):
     def __init__(
         self,
         out_dim: int,
@@ -33,7 +33,7 @@ class StackNumerical(BaseTransform):
         return data
 
 
-class ColumnNormalize(BaseTransform):
+class ColumnNormalize(ColTransform):
     def __init__(
         self,
         out_dim: int,

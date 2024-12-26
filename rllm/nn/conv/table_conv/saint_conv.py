@@ -21,12 +21,12 @@ class SAINTConv(torch.nn.Module):
     Args:
         in_dim (int): Input channel dimensionality.
         num_feats (int): Number of features.
-        heads (int): Number of attention heads (default: :obj:`8`).
-        head_dim (int): Dimensionality of each attention head (default: :obj:`16`).
-        attn_dropout (float): Attention module dropout (default: :obj:`0.3`).
-        ff_dropout (float): Feedforward module dropout (default: :obj:`0.3`).
+        num_heads (int, optional): Number of attention heads (default: 8).
+        dropout (float, optional): Attention module dropout (default: 0.3).
+        activation (str, optional): Activation function (default: "relu").
         metadata (Dict[ColType, List[Dict[str, Any]]], optional):
-            Metadata for the pre-encoder (default: :obj:`None`).
+            Metadata for each column type, specifying the statistics and
+            properties of the columns. (default: :obj:`None`).
     """
 
     def __init__(
