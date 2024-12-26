@@ -2,7 +2,7 @@
 # ArXiv: https://arxiv.org/abs/2407.20157
 
 # Datasets  TLF2K
-# Acc       0.494
+# Acc       0.471
 
 import time
 import argparse
@@ -27,11 +27,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--wd", type=float, default=1e-4, help="Weight decay")
-parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
 # Set device
-torch.manual_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load data

@@ -2,7 +2,7 @@
 # ArXiv: https://arxiv.org/abs/2407.20157
 
 # Datasets  TML1M
-# Acc       0.428
+# Acc       0.397
 
 import time
 import argparse
