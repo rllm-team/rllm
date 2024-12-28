@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 
 import torch
 from torch import Tensor
-from torch.nn import Module, Parameter
+from torch.nn import Parameter
 
 from rllm.types import ColType, StatType
 from ._col_encoder import ColEncoder
@@ -23,8 +23,8 @@ class LinearEncoder(ColEncoder):
         in_dim: int = 1,
         out_dim: int | None = None,
         stats_list: List[Dict[StatType, Any]] | None = None,
-        post_module: Module | None = None,
-        activation: Module | None = None,
+        post_module: torch.nn.Module | None = None,
+        activation: torch.nn.Module | None = None,
     ):
         super().__init__(out_dim, stats_list, post_module)
         self.in_dim = in_dim

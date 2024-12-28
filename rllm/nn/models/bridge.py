@@ -2,7 +2,6 @@ from typing import Any, Dict, List, Type
 
 import torch
 from torch import Tensor
-from torch.nn import Module
 import torch.nn.functional as F
 
 from rllm.types import ColType
@@ -10,7 +9,7 @@ from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 
 
-class TableEncoder(Module):
+class TableEncoder(torch.nn.Module):
     r"""TableEncoder is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming table.
 
@@ -22,7 +21,7 @@ class TableEncoder(Module):
         metadata (Dict[ColType, List[Dict[str, Any]]], optional):
             Metadata for each column type, specifying the statistics and
             properties of the columns. (default: :obj:`None`).
-        table_conv (Type[Module], optional):
+        table_conv (Type[torch.nn.Module], optional):
             The convolution module to be used for encoding the table data
             (default: :obj:`rllm.nn.conv.table_conv.TabTransformerConv`).
     """
@@ -33,7 +32,7 @@ class TableEncoder(Module):
         out_dim: int,
         num_layers: int = 1,
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
-        table_conv: Type[Module] = TabTransformerConv,
+        table_conv: Type[torch.nn.Module] = TabTransformerConv,
     ) -> None:
 
         super().__init__()
@@ -52,7 +51,7 @@ class TableEncoder(Module):
         return x
 
 
-class GraphEncoder(Module):
+class GraphEncoder(torch.nn.Module):
     r"""GraphEncoder is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming graph.
 
@@ -61,7 +60,9 @@ class GraphEncoder(Module):
         out_dim (int): Output dimensionality for the encoded data.
         dropout (float): Dropout probability.
         num_layers (int): The number of layers of the convolution.
-        graph_conv : Using the graph convolution layer.
+        graph_conv (Type[torch.nn.Module], optional):
+            The convolution module to be used for encoding the graph data
+            (default: :obj:`rllm.nn.conv.graph_conv.GCNConv`).
     """
 
     def __init__(
@@ -70,7 +71,7 @@ class GraphEncoder(Module):
         out_dim,
         dropout: float = 0.5,
         num_layers: int = 2,
-        graph_conv: Type[Module] = GCNConv,
+        graph_conv: Type[torch.nn.Module] = GCNConv,
     ) -> None:
         super().__init__()
         self.dropout = dropout

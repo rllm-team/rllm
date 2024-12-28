@@ -2,11 +2,6 @@ from __future__ import annotations
 from typing import Dict, List, Any
 
 import torch
-from torch.nn import (
-    LayerNorm,
-    TransformerEncoder,
-    TransformerEncoderLayer,
-)
 
 from rllm.types import ColType
 from rllm.nn.pre_encoder import TabTransformerPreEncoder
@@ -36,7 +31,7 @@ class TabTransformerConv(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
-        encoder_layer = TransformerEncoderLayer(
+        encoder_layer = torch.nn.TransformerEncoderLayer(
             d_model=dim,
             nhead=num_heads,
             dim_feedforward=dim,
@@ -44,8 +39,8 @@ class TabTransformerConv(torch.nn.Module):
             activation=activation,
             batch_first=True,
         )
-        encoder_norm = LayerNorm(dim)
-        self.transformer = TransformerEncoder(
+        encoder_norm = torch.nn.LayerNorm(dim)
+        self.transformer = torch.nn.TransformerEncoder(
             encoder_layer=encoder_layer,
             num_layers=1,
             norm=encoder_norm,

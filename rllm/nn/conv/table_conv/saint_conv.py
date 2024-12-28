@@ -2,11 +2,6 @@ from __future__ import annotations
 from typing import Dict, List, Any
 
 import torch
-from torch.nn import (
-    LayerNorm,
-    TransformerEncoderLayer,
-    TransformerEncoder,
-)
 
 from rllm.types import ColType
 from rllm.nn.pre_encoder import FTTransformerPreEncoder
@@ -41,7 +36,7 @@ class SAINTConv(torch.nn.Module):
         super().__init__()
 
         # Column Transformer
-        col_encoder_layer = TransformerEncoderLayer(
+        col_encoder_layer = torch.nn.TransformerEncoderLayer(
             d_model=in_dim,
             nhead=num_heads,
             dim_feedforward=in_dim,
@@ -49,15 +44,15 @@ class SAINTConv(torch.nn.Module):
             activation=activation,
             batch_first=True,
         )
-        col_encoder_norm = LayerNorm(in_dim)
-        self.col_transformer = TransformerEncoder(
+        col_encoder_norm = torch.nn.LayerNorm(in_dim)
+        self.col_transformer = torch.nn.TransformerEncoder(
             encoder_layer=col_encoder_layer,
             num_layers=1,
             norm=col_encoder_norm,
         )
 
         # Row Transformer
-        row_encoder_layer = TransformerEncoderLayer(
+        row_encoder_layer = torch.nn.TransformerEncoderLayer(
             d_model=in_dim * num_feats,
             nhead=num_heads,
             dim_feedforward=in_dim * num_feats,
@@ -65,8 +60,8 @@ class SAINTConv(torch.nn.Module):
             activation=activation,
             batch_first=True,
         )
-        row_encoder_norm = LayerNorm(in_dim * num_feats)
-        self.row_transformer = TransformerEncoder(
+        row_encoder_norm = torch.nn.LayerNorm(in_dim * num_feats)
+        self.row_transformer = torch.nn.TransformerEncoder(
             encoder_layer=row_encoder_layer,
             num_layers=1,
             norm=row_encoder_norm,

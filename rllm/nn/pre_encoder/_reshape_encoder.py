@@ -1,8 +1,8 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
+import torch
 from torch import Tensor
-from torch.nn import Module
 
 from ._col_encoder import ColEncoder
 from rllm.types import ColType, StatType
@@ -30,7 +30,7 @@ class ReshapeEncoder(ColEncoder):
         self,
         out_dim: int | None = 1,
         stats_list: List[Dict[StatType, Any]] | None = None,
-        post_module: Module | None = None,
+        post_module: torch.nn.Module | None = None,
     ) -> None:
         super().__init__(
             out_dim,

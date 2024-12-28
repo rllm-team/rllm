@@ -2,7 +2,6 @@ from typing import Any, Dict, List
 
 import numpy as np
 import torch
-from torch.nn import Linear, BatchNorm1d, ReLU
 import torch.nn.functional as F
 
 from rllm.types import ColType
@@ -137,7 +136,7 @@ class GBN(torch.nn.Module):
 
         self.in_dim = in_dim
         self.virtual_batch_size = virtual_batch_size
-        self.bn = BatchNorm1d(self.in_dim, momentum=momentum)
+        self.bn = torch.nn.BatchNorm1d(self.in_dim, momentum=momentum)
 
     def forward(self, x):
         chunks = x.chunk(int(np.ceil(x.shape[0] / self.virtual_batch_size)), 0)
@@ -168,7 +167,7 @@ class AttentiveTransformer(torch.nn.Module):
         momentum=0.02,
     ):
         super().__init__()
-        self.fc = Linear(in_dim, group_dim, bias=False)
+        self.fc = torch.nn.Linear(in_dim, group_dim, bias=False)
         initialize_non_glu(self.fc, in_dim, group_dim)
         self.bn = GBN(
             group_dim, virtual_batch_size=virtual_batch_size, momentum=momentum
@@ -302,7 +301,7 @@ class GLU_Layer(torch.nn.Module):
         if fc:
             self.fc = fc
         else:
-            self.fc = Linear(in_dim, 2 * out_dim, bias=False)
+            self.fc = torch.nn.Linear(in_dim, 2 * out_dim, bias=False)
         initialize_glu(self.fc, in_dim, 2 * out_dim)
 
         self.bn = GBN(
@@ -346,7 +345,7 @@ class TabNetEncoder(torch.nn.Module):
         self.n_independent = n_independent
         self.n_shared = n_shared
         self.virtual_batch_size = virtual_batch_size
-        self.initial_bn = BatchNorm1d(self.in_dim, momentum=0.01)
+        self.initial_bn = torch.nn.BatchNorm1d(self.in_dim, momentum=0.01)
         self.group_attention_matrix = group_attention_matrix
 
         if self.group_attention_matrix is None:
@@ -361,11 +360,11 @@ class TabNetEncoder(torch.nn.Module):
             for i in range(self.n_shared):
                 if i == 0:
                     shared_feat_transform.append(
-                        Linear(self.in_dim, 2 * (n_d + n_a), bias=False)
+                        torch.nn.Linear(self.in_dim, 2 * (n_d + n_a), bias=False)
                     )
                 else:
                     shared_feat_transform.append(
-                        Linear(n_d + n_a, 2 * (n_d + n_a), bias=False)
+                        torch.nn.Linear(n_d + n_a, 2 * (n_d + n_a), bias=False)
                     )
 
         else:
@@ -424,7 +423,7 @@ class TabNetEncoder(torch.nn.Module):
             )
             masked_x = torch.mul(M_feature_level, x)
             out = self.feat_transformers[step](masked_x)
-            d = ReLU()(out[:, : self.n_d])
+            d = torch.nn.ReLU()(out[:, : self.n_d])
             steps_output.append(d)
             # update attention
             att = out[:, self.n_d :]
@@ -449,7 +448,7 @@ class TabNetEncoder(torch.nn.Module):
             # output
             masked_x = torch.mul(M_feature_level, x)
             out = self.feat_transformers[step](masked_x)
-            d = ReLU()(out[:, : self.n_d])
+            d = torch.nn.ReLU()(out[:, : self.n_d])
             # explain
             step_importance = torch.sum(d, dim=1)
             M_explain += torch.mul(M_feature_level, step_importance.unsqueeze(dim=1))
@@ -489,7 +488,7 @@ class TabNetNoEmbeddings(torch.nn.Module):
         self.n_independent = n_independent
         self.n_shared = n_shared
         self.virtual_batch_size = virtual_batch_size
-        self.initial_bn = BatchNorm1d(self.in_dim, momentum=0.01)
+        self.initial_bn = torch.nn.BatchNorm1d(self.in_dim, momentum=0.01)
 
         self.encoder = TabNetEncoder(
             in_dim=in_dim,
@@ -509,11 +508,11 @@ class TabNetNoEmbeddings(torch.nn.Module):
         if self.is_multi_task:
             self.multi_task_mappings = torch.nn.ModuleList()
             for task_dim in out_dim:
-                task_mapping = Linear(n_d, task_dim, bias=False)
+                task_mapping = torch.nn.Linear(n_d, task_dim, bias=False)
                 initialize_non_glu(task_mapping, n_d, task_dim)
                 self.multi_task_mappings.append(task_mapping)
         else:
-            self.final_mapping = Linear(n_d, out_dim, bias=False)
+            self.final_mapping = torch.nn.Linear(n_d, out_dim, bias=False)
             initialize_non_glu(self.final_mapping, n_d, out_dim)
 
     def forward(self, x):

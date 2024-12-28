@@ -1,3 +1,16 @@
+# This file contains unit tests for various Graph Neural Network (GNN) examples
+# in the rLLM framework. The tests ensure that the example scripts run
+# successfully and produce the expected output.
+
+# The following example scripts are tested:
+# 1. gcn.py: Tests the GCN model.
+# 2. gat.py: Tests the GAT model.
+# 3. rect.py: Tests the ReCT model.
+# 4. ogc.py: Tests the OGC model.
+
+# Each test function runs the corresponding example script and verifies the
+# output to ensure it meets the expected criteria.
+
 import os
 import subprocess
 
