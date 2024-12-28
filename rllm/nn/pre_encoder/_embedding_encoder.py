@@ -3,7 +3,6 @@ from typing import Any, Dict, List
 
 import torch
 from torch import Tensor
-from torch.nn import Embedding, Module
 
 from rllm.types import ColType, StatType
 from ._col_encoder import ColEncoder
@@ -21,7 +20,7 @@ class EmbeddingEncoder(ColEncoder):
         self,
         out_dim: int | None = None,
         stats_list: List[Dict[StatType, Any]] | None = None,
-        post_module: Module | None = None,
+        post_module: torch.nn.Module | None = None,
     ) -> None:
         super().__init__(out_dim, stats_list, post_module)
 
@@ -34,7 +33,7 @@ class EmbeddingEncoder(ColEncoder):
         # Single embedding module that stores embeddings of all categories
         # across all categorical columns.
         # 0-th category is for NaN.
-        self.emb = Embedding(
+        self.emb = torch.nn.Embedding(
             sum(num_categories_list) + 1,
             self.out_dim,
             padding_idx=0,

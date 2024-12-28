@@ -1,6 +1,5 @@
 import torch
 from torch import Tensor
-from torch.nn import Linear
 import torch.nn.functional as F
 
 from rllm.nn.conv.graph_conv import GCNConv
@@ -32,7 +31,7 @@ class RECT_L(torch.nn.Module):
         self.dropout = dropout
         self.prelu = torch.nn.PReLU()
         self.conv = GCNConv(in_dim, hidden_dim)
-        self.lin = Linear(hidden_dim, in_dim)
+        self.lin = torch.nn.Linear(hidden_dim, in_dim)
         self.reset_parameters()
 
     def reset_parameters(self):

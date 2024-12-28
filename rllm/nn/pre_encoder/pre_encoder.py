@@ -4,13 +4,12 @@ from abc import ABC
 
 import torch
 from torch import Tensor
-from torch.nn import Module, ModuleDict
 
 from ._col_encoder import ColEncoder
 from rllm.types import ColType
 
 
-class PreEncoder(Module, ABC):
+class PreEncoder(torch.nn.Module, ABC):
     r"""Table Transform that encoders each ColType tensor into embeddings and
     performs the final concatenation.
 
@@ -36,7 +35,7 @@ class PreEncoder(Module, ABC):
         super().__init__()
 
         self.metadata = metadata
-        self.pre_encoder_dict = ModuleDict()
+        self.pre_encoder_dict = torch.nn.ModuleDict()
 
         for col_type, col_pre_encoder in col_pre_encoder_dict.items():
             if col_type not in col_pre_encoder.supported_types:
