@@ -34,8 +34,8 @@ class SemiPermeableAttention(torch.nn.Module):
 
     Args:
         dim (int): Input channel dimensionality
-        num_heads (int): Number of heads in Attention module (default: :obj:`8.`)
-        head_dim(int): Dimension of each attention head (default: :obj:`16.`)
+        num_heads (int): Number of heads in Attention module (default: :obj:`8`)
+        head_dim(int): Dimension of each attention head (default: :obj:`16`)
         dropout (float): Percentage of random deactivation (default: :obj:`0.`)
     """
 
@@ -79,7 +79,7 @@ class SemiPermeableAttention(torch.nn.Module):
         self.to_qkv.reset_parameters()
         self.to_out.reset_parameters()
 
-    def get_attention_mask(self, input_shape, device):
+    def get_attention_mask(self, input_shape: Tuple, device):
         bs, num_heads, seq_len, _ = input_shape
         seq_ids = torch.arange(seq_len, device=device)
         attention_mask = (
@@ -95,12 +95,20 @@ class ExcelFormerConv(torch.nn.Module):
     `"ExcelFormer: A neural network surpassing GBDTs on tabular data"
     <https://arxiv.org/abs/2301.02819>`_ paper.
 
+    This layer is designed to handle tabular data by applying a combination of
+    normalization, attention, and gated linear unit (GLU). In essence, it is
+    a variant of the attention mechanism tailored for tabular data.  If
+    metadata is provided, the pre-encoder is used to preprocess the input data
+    before applying the subsequent encoders. The layer normalizes the input,
+    applies semi-permeable attention, and then uses a GLU layer to enhance the
+    representation learning capability.
+
     Args:
         dim (int): Input/output channel dimensionality.
-        num_heads (int): Number of attention heads.
+        num_heads (int): Number of attention heads (default: :obj:`8`).
         head_dim (int):  Dimensionality of each attention head (default: :obj:`16`).
         dropout (float): Attention module dropout (default: :obj:`0.3`).
-        metadata (Dict[ColType, List[Dict[str, Any]]], optional):
+        metadata (Dict[rllm.types.ColType, List[Dict[str, Any]]], optional):
             Metadata for each column type, specifying the statistics and
             properties of the columns. (default: :obj:`None`).
     """
@@ -136,7 +144,7 @@ class ExcelFormerConv(torch.nn.Module):
         if self.pre_encoder:
             self.pre_encoder.reset_parameters()
 
-    def forward(self, x: Union[Dict, Tensor]) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: Union[Dict, Tensor]) -> Tensor:
         if self.pre_encoder:
             x = self.pre_encoder(x)
         x = self.layer_norm(x)

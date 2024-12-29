@@ -11,9 +11,24 @@ from ._col_encoder import ColEncoder
 
 class LinearEncoder(ColEncoder):
     r"""A linear function based ColEncoder for numerical features. It applies
-    linear layer :obj:`torch.nn.Linear(in_dim, out_dim)` on each raw numerical
+    a linear transformation using :obj:`torch.einsum` on each raw numerical
     feature and concatenates the output embeddings. Note that the
     implementation does this for all numerical features in a batched manner.
+
+    Args:
+        in_dim (int, optional): The input dimensionality
+            for each numerical feature (default: :obj:`1`).
+        out_dim (int, optional): The output dimensionality (default: :obj:`1`).
+        stats_list (List[Dict[rllm.types.StatType, Any]], optional):
+            The list of statistics for each column within the same column type
+            (default: :obj:`None`).
+        post_module (torch.nn.Module, optional): The post-hoc module applied
+            to the output, such as activation function and normalization. Must
+            preserve the shape of the output. If :obj:`None`, no module will
+            be applied to the output (default: :obj:`None`).
+        activation (torch.nn.Module, optional): The activation function
+            applied after the linear transformation. If :obj:`None`,
+            no activation function will be applied (default: :obj:`None`).
     """
 
     supported_types = {ColType.NUMERICAL}

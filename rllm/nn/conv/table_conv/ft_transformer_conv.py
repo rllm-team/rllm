@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, Tuple, Dict, List, Any
+from typing import Optional, Union, Dict, List, Any
 
 import torch
 from torch import Tensor
@@ -80,17 +80,17 @@ class FTTransformerConv(torch.nn.Module):
         if self.pre_encoder:
             self.pre_encoder.reset_parameters()
 
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: Union[Dict, Tensor]) -> Tensor:
         r"""CLS-token augmented Transformer convolution.
 
         Args:
-            x (Tensor): Input tensor of shape [batch_size, num_cols, dim]
+            x (Union[Dict, Tensor]): Input tensor of shape [batch_size, num_cols, dim]
 
         Returns:
-            (torch.Tensor, torch.Tensor): (Output tensor of shape
-            [batch_size, num_cols, dim] corresponding to the input
-            columns, Output tensor of shape [batch_size, dim],
-            corresponding to the added CLS token column.)
+            torch.Tensor: Output tensor of shape [batch_size, num_cols, dim]
+            corresponding to the input columns, or output tensor of shape
+            [batch_size, num_cols + 1, dim], corresponding to the
+            added CLS token column.
         """
         if self.pre_encoder is not None:
             x = self.pre_encoder(x)

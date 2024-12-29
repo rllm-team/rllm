@@ -1,7 +1,8 @@
 from __future__ import annotations
-from typing import Dict, List, Any
+from typing import Union, Dict, List, Any
 
 import torch
+from torch import Tensor
 
 from rllm.types import ColType
 from rllm.nn.pre_encoder import TabTransformerPreEncoder
@@ -11,6 +12,9 @@ class TabTransformerConv(torch.nn.Module):
     r"""The TabTransformer LayerConv introduced in the
     `"TabTransformer: Tabular Data Modeling Using Contextual Embeddings"
     <https://arxiv.org/abs/2012.06678>`_ paper.
+
+    This layer leverages the power of the Transformer architecture to capture
+    complex patterns and relationships within the categorical data.
 
     Args:
         dim (int): The input/output channel dimensionality.
@@ -24,7 +28,7 @@ class TabTransformerConv(torch.nn.Module):
 
     def __init__(
         self,
-        dim,
+        dim: int,
         num_heads: int = 8,
         dropout: float = 0.3,
         activation: str = "relu",
@@ -59,7 +63,7 @@ class TabTransformerConv(torch.nn.Module):
         if self.pre_encoder is not None:
             self.pre_encoder.reset_parameters()
 
-    def forward(self, x):
+    def forward(self, x: Union[Dict, Tensor]):
         if self.pre_encoder is not None:
             x = self.pre_encoder(x, return_dict=True)
 

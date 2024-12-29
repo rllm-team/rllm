@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List, Any
+from typing import Union, Dict, List, Any
 
 import torch
 from torch import Tensor
@@ -14,6 +14,12 @@ class TromptConv(torch.nn.Module):
     `"Trompt: Towards a Better Deep Neural Network for Tabular Data"
     <https://arxiv.org/abs/2305.18446>`_ paper. Also it is konwn as TromptCell
     in the original paper.
+
+    This layer first derives feature importance based on the
+    `emb_column` and prompt embeddings `x_prompt`. Subsequently, it embeds
+    the input features using a pre-encoder to obtain feature embeddings.
+    Finally, it expands the features using the derived feature importance
+    and the feature embeddings.
 
     Args:
         in_dim (int): Input dimensionality.
@@ -66,7 +72,7 @@ class TromptConv(torch.nn.Module):
         if self.pre_encoder is not None:
             self.pre_encoder.reset_parameters()
 
-    def forward(self, x: Tensor, x_prompt: Tensor) -> Tensor:
+    def forward(self, x: Union[Dict, Tensor], x_prompt: Tensor) -> Tensor:
         if self.pre_encoder is not None:
             x = self.pre_encoder(x)
 
