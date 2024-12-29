@@ -10,8 +10,11 @@ from rllm.types import ColType
 
 
 class PreEncoder(torch.nn.Module, ABC):
-    r"""Table Transform that encoders each ColType tensor into embeddings and
-    performs the final concatenation.
+    r"""The PreEncoder class is designed to transform table data by encoding
+    each column type tensor into embeddings and performing the final
+    concatenation. It supports different types of column encoders for
+    categorical and numerical features, allowing for flexible and
+    efficient preprocessing of tabular data.
 
     Args:
         out_dim (int): Output dimensionality.

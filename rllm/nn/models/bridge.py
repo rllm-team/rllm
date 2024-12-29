@@ -5,6 +5,7 @@ from torch import Tensor
 import torch.nn.functional as F
 
 from rllm.types import ColType
+from rllm.data import TableData
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 
@@ -12,6 +13,10 @@ from rllm.nn.conv.graph_conv import GCNConv
 class TableEncoder(torch.nn.Module):
     r"""TableEncoder is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming table.
+    The TableEncoder takes as input :class:`rllm.data.TableData` representing
+    the tabular data and applies multiple convolutional layers to capture
+    complex patterns and relationships within the data. Before outputting,
+    the feature dictionary is concatenated to facilitate subsequent operations.
 
     Args:
         in_dim (int): Input dimensionality of the table data.
@@ -42,7 +47,7 @@ class TableEncoder(torch.nn.Module):
         for _ in range(num_layers - 1):
             self.convs.append(table_conv(dim=out_dim))
 
-    def forward(self, table):
+    def forward(self, table: TableData) -> Tensor:
         x = table.feat_dict
         for conv in self.convs:
             x = conv(x)
@@ -54,6 +59,10 @@ class TableEncoder(torch.nn.Module):
 class GraphEncoder(torch.nn.Module):
     r"""GraphEncoder is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming graph.
+    This submodule is designed to handle graph-structured data. And it takes
+    as input two tensor representing the node feature and graph structure.
+    Each convolutional layer is followed by activation functions and optional
+    normalization layers to enhance the representation learning capability.
 
     Args:
         in_dim (int): Input dimensionality of the data.
@@ -81,7 +90,7 @@ class GraphEncoder(torch.nn.Module):
             self.convs.append(graph_conv(in_dim=in_dim, out_dim=in_dim))
         self.convs.append(graph_conv(in_dim=in_dim, out_dim=out_dim))
 
-    def forward(self, x, adj):
+    def forward(self, x: Tensor, adj: Tensor) -> Tensor:
         for conv in self.convs[:-1]:
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = F.relu(conv(x, adj))

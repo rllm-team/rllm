@@ -1,7 +1,8 @@
 from __future__ import annotations
-from typing import Dict, List, Any
+from typing import Union, Dict, List, Any
 
 import torch
+from torch import Tensor
 
 from rllm.types import ColType
 from rllm.nn.pre_encoder import FTTransformerPreEncoder
@@ -13,21 +14,27 @@ class SAINTConv(torch.nn.Module):
         and Contrastive Pre-Training"
     <https://arxiv.org/abs/2106.01342>`_ paper.
 
+    This layer applies two `TransformerEncoder` modules: one for aggregating
+    information between columns, and another for aggregating information
+    between samples. This dual attention mechanism allows the model to capture
+    complex relationships both within the features of a single sample and
+    across different samples.
+
     Args:
         in_dim (int): Input channel dimensionality.
         num_feats (int): Number of features.
         num_heads (int, optional): Number of attention heads (default: 8).
         dropout (float, optional): Attention module dropout (default: 0.3).
         activation (str, optional): Activation function (default: "relu").
-        metadata (Dict[ColType, List[Dict[str, Any]]], optional):
+        metadata (Dict[rllm.types.ColType, List[Dict[str, Any]]], optional):
             Metadata for each column type, specifying the statistics and
             properties of the columns. (default: :obj:`None`).
     """
 
     def __init__(
         self,
-        in_dim,
-        num_feats,
+        in_dim: int,
+        num_feats: int,
         num_heads: int = 8,
         dropout: float = 0.3,
         activation: str = "relu",
@@ -81,7 +88,7 @@ class SAINTConv(torch.nn.Module):
         if self.pre_encoder is not None:
             self.pre_encoder.reset_parameters()
 
-    def forward(self, x):
+    def forward(self, x: Union[Dict, Tensor]):
         if self.pre_encoder is not None:
             x = self.pre_encoder(x)
         x = self.col_transformer(x)

@@ -18,8 +18,8 @@ class ReshapeEncoder(ColEncoder):
         out_dim (int, optional): The output dimensionality (default: :obj:`1`).
         stats_list (List[Dict[StatType, Any]], optional): The list of statistics
             for each column within the same column type (default: :obj:`None`).
-        post_module (Module, optional): The post-hoc module applied to the
-            output, such as activation function and normalization. Must
+        post_module (torch.nn.Module, optional): The post-hoc module applied
+            to the output, such as activation function and normalization. Must
             preserve the shape of the output. If :obj:`None`, no module will
             be applied to the output (default: :obj:`None`).
     """
@@ -32,11 +32,7 @@ class ReshapeEncoder(ColEncoder):
         stats_list: List[Dict[StatType, Any]] | None = None,
         post_module: torch.nn.Module | None = None,
     ) -> None:
-        super().__init__(
-            out_dim,
-            stats_list,
-            post_module,
-        )
+        super().__init__(out_dim, stats_list, post_module)
 
     def post_init(self) -> None:
         pass
