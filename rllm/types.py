@@ -35,7 +35,7 @@ class ColType(Enum):
 class TaskType(Enum):
     r"""The semantic type of a task.
 
-        Attributes:
+    Attributes:
         REGRESSION: Regression task.
         MULTI_CLASSIFICATION: Multi-class classification task.
         BINARY_CLASSIFICATION: Binary classification task.
@@ -44,13 +44,14 @@ class TaskType(Enum):
     REGRESSION = 'regression'
     MULTI_CLASSIFICATION = 'multiclass_classification'
     BINARY_CLASSIFICATION = 'binary_classification'
+    # TODO: support multi-label
     MULTILABEL_CLASSIFICATION = 'multilabel_classification'
 
 
 class NAMode(Enum):
     r"""The semantic type of how to process na value.
 
-        Attributes:
+    Attributes:
         MOST_FREQUENT: Use most frequent number in column to replace nan.
         MAX: Use max number in column to replace nan.
         MIN: Use min number in column to replace nan.
