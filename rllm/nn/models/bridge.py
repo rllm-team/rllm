@@ -131,7 +131,7 @@ class Bridge(torch.nn.Module):
         """
         First, the Table Neural Network (TNN) learns the tabular data.
         Second, the learned representations are concatenated with the non-tabular data.
-        Third, the Graph Neural Network (GNN) processes the combined data
+        Third, the Graph Neural Network (GNN) processes the combined data.
         along with the adjacency matrix to learn the overall representation.
 
         Args:
