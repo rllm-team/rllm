@@ -1,14 +1,9 @@
 from __future__ import annotations
-from typing import Optional, Tuple, Dict, List, Any
+from typing import Optional, Union, Dict, List, Any
 
 import torch
 from torch import Tensor
-from torch.nn import (
-    Parameter,
-    LayerNorm,
-    TransformerEncoder,
-    TransformerEncoderLayer,
-)
+from torch.nn import Parameter
 
 from rllm.types import ColType
 from rllm.nn.pre_encoder import FTTransformerPreEncoder
@@ -54,7 +49,7 @@ class FTTransformerConv(torch.nn.Module):
         self.use_cls = use_cls
         self.pre_encoder = None
         self.metadata = metadata
-        encoder_layer = TransformerEncoderLayer(
+        encoder_layer = torch.nn.TransformerEncoderLayer(
             d_model=dim,
             nhead=num_heads,
             dim_feedforward=feedforward_dim or dim,
@@ -62,8 +57,8 @@ class FTTransformerConv(torch.nn.Module):
             activation=activation,
             batch_first=True,
         )
-        encoder_norm = LayerNorm(dim)
-        self.transformer = TransformerEncoder(
+        encoder_norm = torch.nn.LayerNorm(dim)
+        self.transformer = torch.nn.TransformerEncoder(
             encoder_layer=encoder_layer,
             num_layers=1,
             norm=encoder_norm,
@@ -85,17 +80,17 @@ class FTTransformerConv(torch.nn.Module):
         if self.pre_encoder:
             self.pre_encoder.reset_parameters()
 
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: Union[Dict, Tensor]) -> Tensor:
         r"""CLS-token augmented Transformer convolution.
 
         Args:
-            x (Tensor): Input tensor of shape [batch_size, num_cols, dim]
+            x (Union[Dict, Tensor]): Input tensor of shape [batch_size, num_cols, dim]
 
         Returns:
-            (torch.Tensor, torch.Tensor): (Output tensor of shape
-            [batch_size, num_cols, dim] corresponding to the input
-            columns, Output tensor of shape [batch_size, dim],
-            corresponding to the added CLS token column.)
+            torch.Tensor: Output tensor of shape [batch_size, num_cols, dim]
+            corresponding to the input columns, or output tensor of shape
+            [batch_size, num_cols + 1, dim], corresponding to the
+            added CLS token column.
         """
         if self.pre_encoder is not None:
             x = self.pre_encoder(x)

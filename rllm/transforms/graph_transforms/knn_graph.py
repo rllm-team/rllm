@@ -11,7 +11,7 @@ class KNNGraph(NETransform):  # TODO: add force_undirected option.
     r"""Creates a k-NN graph based on node features
 
     Args:
-        k (int, optional): The number of neighbors. (default: 6)
+        num_neighbors (int, optional): The number of neighbors. (default: 6)
         mode (str[`connectivity`, `distance`], optional):
             Type of returned matrix: `connectivity` will return the
             connectivity matrix with ones and zeros, while `distance`
@@ -23,6 +23,7 @@ class KNNGraph(NETransform):  # TODO: add force_undirected option.
             Default is `minkowski`, which results in the
             standard Euclidean distance when p = 2.
             (default: `minkowski`)
+        p (float): Power parameter for the Minkowski metric (default: `2`).
         metric_paramsdict (dict, optinal):
             Additional keyword arguments
             for the metric function.
@@ -34,7 +35,7 @@ class KNNGraph(NETransform):  # TODO: add force_undirected option.
 
     def __init__(
         self,
-        k: Optional[int] = 6,
+        num_neighbors: Optional[int] = 6,
         mode: Optional[str] = "connectivity",
         metric: Optional[str] = "minkowski",
         p: Optional[int] = 2,
@@ -42,7 +43,7 @@ class KNNGraph(NETransform):  # TODO: add force_undirected option.
         include_self: Optional[bool] = False,
         n_jobs: int = 1,
     ):
-        self.k = k
+        self.num_neighbors = num_neighbors
         self.mode = mode
         self.metric = metric
         self.p = p
@@ -59,7 +60,7 @@ class KNNGraph(NETransform):  # TODO: add force_undirected option.
 
         knn_adj = knn_graph(
             x,
-            self.k,
+            self.num_neighbors,
             self.mode,
             self.metric,
             self.p,

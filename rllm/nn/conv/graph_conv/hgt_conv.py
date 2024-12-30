@@ -6,8 +6,10 @@ import torch.nn as nn
 from torch import Tensor
 
 
-def segment_sum(data, segment_ids, num_segments):
-    """
+def segment_sum(data: Tensor, segment_ids: Tensor, num_segments: int):
+    r"""Computes the sum of elements in `data` for each segment
+    specified by `segment_ids`.
+
     Args:
         data (Tensor): A tensor, typically two-dimensional.
         segment_ids (Tensor): A one-dimensional tensor that indicates the
@@ -26,7 +28,10 @@ def segment_sum(data, segment_ids, num_segments):
 
 
 def segment_softmax(data: Tensor, segment_ids: Tensor, num_segments: int):
-    """
+    r"""Computes the softmax scores of elements in `data` for each segment
+    specified by `segment_ids`.
+
+
     Args:
         data (Tensor): A tensor, typically two-dimensional.
         segment_ids (Tensor): A one-dimensional tensor that indicates the

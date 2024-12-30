@@ -1,15 +1,28 @@
+# This file contains unit tests for column pre-encoders used in the rLLM
+# framework. The tests ensure that the pre-encoders correctly transform the
+# input features as expected.
+
+# The following pre-encoders are tested:
+# 1. ReshapeEncoder: Tests the reshaping of numerical and categorical features.
+# 2. EmbeddingEncoder: Placeholder for testing the embedding of categorical features.
+# 3. LinearEncoder: Placeholder for testing the linear transformation of numerical features.
+
+# Each test function creates a sample DataFrame, initializes the corresponding
+# pre-encoder, and verifies the output shapes and values.
+
 import numpy as np
 import pandas as pd
+
 import torch
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData
-from rllm.nn.pre_encoder import DefaultPreEncoder
-from rllm.nn.pre_encoder import EmbeddingPreEncoder
-from rllm.nn.pre_encoder import LinearPreEncoder
+from rllm.nn.pre_encoder._reshape_encoder import ReshapeEncoder
+from rllm.nn.pre_encoder._embedding_encoder import EmbeddingEncoder
+from rllm.nn.pre_encoder._linear_encoder import LinearEncoder
 
 
-def test_default_pre_encoder():
+def test_reshape_encoder():
     df = pd.DataFrame(
         {
             "num_1": np.random.random(10),
@@ -29,7 +42,7 @@ def test_default_pre_encoder():
     }
     dataset = TableData(df, col_types, target_col="cat_3")
 
-    pre_encoder = DefaultPreEncoder()
+    pre_encoder = ReshapeEncoder()
     pre_encoder.post_init()
 
     x_num = dataset.get_feat_dict()[ColType.NUMERICAL].clone()
@@ -46,7 +59,7 @@ def test_default_pre_encoder():
     assert torch.allclose(x_cat, dataset.get_feat_dict()[ColType.CATEGORICAL])
 
 
-def test_embedding_pre_encoder():
+def test_embedding_encoder():
     df = pd.DataFrame(
         {
             "cat_1": np.arange(10),
@@ -61,7 +74,7 @@ def test_embedding_pre_encoder():
         "cat_3": ColType.CATEGORICAL,
     }
     dataset = TableData(df, col_types, target_col="cat_3")
-    pre_encoder = EmbeddingPreEncoder(
+    pre_encoder = EmbeddingEncoder(
         out_dim=4,
         stats_list=dataset.metadata[ColType.CATEGORICAL],
     )
@@ -78,7 +91,7 @@ def test_embedding_pre_encoder():
     assert (x_perturbed[:, 1:, :] == x_emb[:, 1:, :]).all()
 
 
-def test_linear_pre_encoder():
+def test_linear_encoder():
     df = pd.DataFrame(
         {
             "num_1": np.random.random(10),
@@ -93,7 +106,7 @@ def test_linear_pre_encoder():
         "num_3": ColType.NUMERICAL,
     }
     dataset = TableData(df, col_types, target_col="num_3")
-    pre_encoder = LinearPreEncoder(
+    pre_encoder = LinearEncoder(
         out_dim=4,
         stats_list=dataset.metadata[ColType.NUMERICAL],
     )

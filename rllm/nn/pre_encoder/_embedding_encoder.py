@@ -3,7 +3,6 @@ from typing import Any, Dict, List
 
 import torch
 from torch import Tensor
-from torch.nn import Embedding, Module
 
 from rllm.types import ColType, StatType
 from ._col_encoder import ColEncoder
@@ -13,6 +12,15 @@ class EmbeddingEncoder(ColEncoder):
     r"""An simple embedding look-up based ColEncoder for categorical features.
     It applies :class:`torch.nn.Embedding` for each categorical feature and
     concatenates the output embeddings.
+
+    Args:
+        out_dim (int, optional): The output dimensionality (default: :obj:`1`).
+        stats_list (List[Dict[rllm.types.StatType, Any]], optional): The list of statistics
+            for each column within the same column type (default: :obj:`None`).
+        post_module (torch.nn.Module, optional): The post-hoc module applied to the
+            output, such as activation function and normalization. Must
+            preserve the shape of the output. If :obj:`None`, no module will
+            be applied to the output (default: :obj:`None`).
     """
 
     supported_types = {ColType.CATEGORICAL}
@@ -21,7 +29,7 @@ class EmbeddingEncoder(ColEncoder):
         self,
         out_dim: int | None = None,
         stats_list: List[Dict[StatType, Any]] | None = None,
-        post_module: Module | None = None,
+        post_module: torch.nn.Module | None = None,
     ) -> None:
         super().__init__(out_dim, stats_list, post_module)
 
@@ -34,7 +42,7 @@ class EmbeddingEncoder(ColEncoder):
         # Single embedding module that stores embeddings of all categories
         # across all categorical columns.
         # 0-th category is for NaN.
-        self.emb = Embedding(
+        self.emb = torch.nn.Embedding(
             sum(num_categories_list) + 1,
             self.out_dim,
             padding_idx=0,

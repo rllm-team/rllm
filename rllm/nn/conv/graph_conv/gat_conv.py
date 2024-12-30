@@ -35,7 +35,7 @@ class GATConv(torch.nn.Module):
         num_heads (int): Number of multi-head-attentions, the default value is 1.
         concat (bool): If set to `False`, the multi-head attentions
             are averaged instead of concatenated.
-        negative_slop (float): LeakyReLU angle of the negative slope,
+        negative_slope (float): LeakyReLU angle of the negative slope,
             the default value is 0.2.
         skip_connection (bool): If set to :obj:`True`, the layer will add
             a learnable skip-connection. (default: :obj:`False`)

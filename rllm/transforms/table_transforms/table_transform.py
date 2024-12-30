@@ -4,13 +4,12 @@ from typing import Dict, List, Callable
 
 import torch
 from torch import Tensor
-from torch.nn import Module, Sequential
 
 from rllm.data import TableData
 from rllm.types import ColType, NAMode, StatType
 
 
-def _reset_parameters_soft(module: Module):
+def _reset_parameters_soft(module: torch.nn.Module):
     r"""Call reset_parameters() only when it exists. Skip activation module."""
     if hasattr(module, "reset_parameters") and callable(module.reset_parameters):
         module.reset_parameters()
@@ -29,11 +28,12 @@ def _get_na_mask(tensor: Tensor) -> Tensor:
     return na_mask
 
 
-class TableTransform(Module, ABC):
-    r"""Base class for columns Transform. This module transforms tensor of some
-    specific columns type into 3-dimensional column-wise tensor
-    that is input into tabular deep learning models.
-    Columns with same ColType will be transformed into tensors.
+class TableTransform(torch.nn.Module, ABC):
+    r"""Base class for table Transform. This module transforms tensor of some
+    specific columns type into 3-dimensional column-wise tensor that is input
+    into tabular deep learning models. Columns with same ColType will be
+    transformed into tensors. By default, it handles missing values (NaNs)
+    according to the specified `na_mode`.
 
     Args:
         out_dim (int): The output dim dimensionality
@@ -54,7 +54,7 @@ class TableTransform(Module, ABC):
         self,
         out_dim: int | None = None,
         col_type: ColType | None = None,
-        post_module: Module | None = None,
+        post_module: torch.nn.Module | None = None,
         na_mode: Dict[StatType, NAMode] | None = None,
         transforms: List[Callable] | None = None,
     ):
@@ -88,7 +88,7 @@ class TableTransform(Module, ABC):
     def reset_parameters(self):
         r"""Initialize the parameters of `post_module`."""
         if self.post_module is not None:
-            if isinstance(self.post_module, Sequential):
+            if isinstance(self.post_module, torch.nn.Sequential):
                 for m in self.post_module:
                     _reset_parameters_soft(m)
             else:
