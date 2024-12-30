@@ -1,3 +1,16 @@
+# This file contains unit tests for pre-encoders used in the rLLM framework.
+# The tests ensure that the pre-encoders correctly transform the input features
+# as expected.
+
+# The following pre-encoders are tested:
+# 1. TabTransformerPreEncoder: Tests the encoding of numerical and categorical
+#    features for the TabTransformer model.
+# 2. FTTransformerPreEncoder: Tests the encoding of numerical and categorical
+#    features for the FTTransformer model.
+
+# Each test function creates a sample DataFrame, initializes the corresponding
+# pre-encoder, and verifies the output shapes and values.
+
 import numpy as np
 import pandas as pd
 

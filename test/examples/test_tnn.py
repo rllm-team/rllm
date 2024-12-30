@@ -1,3 +1,18 @@
+# This file contains unit tests for various Table Neural Network (TNN) examples
+# in the rLLM framework. The tests ensure that the example scripts run
+# successfully and produce the expected output.
+
+# The following example scripts are tested:
+# 1. ft_transformer.py: Tests the FT-Transformer model.
+# 2. tab_transformer.py: Tests the Tab-Transformer model.
+# 3. tabnet.py: Tests the TabNet model.
+# 4. excelformer.py: Tests the ExcelFormer model.
+# 5. trompt.py: Tests the Trompt model.
+# 6. saint.py: Tests the SAINT model.
+
+# Each test function runs the corresponding example script and verifies the
+# output to ensure it meets the expected criteria.
+
 import os
 import subprocess
 

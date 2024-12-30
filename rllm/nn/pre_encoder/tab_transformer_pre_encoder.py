@@ -9,8 +9,10 @@ from rllm.types import ColType
 
 class TabTransformerPreEncoder(PreEncoder):
     r"""The TabTransformerPreEncoder class is a specialized pre-encoder for the
-    TabTransformer model. It initializes column-specific encoders for
+    TabTransformer model. It initializes a column-specific encoder dict for
     categorical and numerical features based on the provided metadata.
+    Specifically, it uses `EmbeddingEncoder` for categorical features and
+    `ReshapeEncoder` for numerical features.
 
     Args:
         out_dim (int): The output dimensionality.

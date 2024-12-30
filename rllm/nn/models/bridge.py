@@ -2,17 +2,21 @@ from typing import Any, Dict, List, Type
 
 import torch
 from torch import Tensor
-from torch.nn import Module
 import torch.nn.functional as F
 
 from rllm.types import ColType
+from rllm.data import TableData
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 
 
-class TableEncoder(Module):
+class TableEncoder(torch.nn.Module):
     r"""TableEncoder is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming table.
+    The TableEncoder takes as input :class:`rllm.data.TableData` representing
+    the tabular data and applies multiple convolutional layers to capture
+    complex patterns and relationships within the data. Before outputting,
+    the feature dictionary is concatenated to facilitate subsequent operations.
 
     Args:
         in_dim (int): Input dimensionality of the table data.
@@ -22,7 +26,7 @@ class TableEncoder(Module):
         metadata (Dict[ColType, List[Dict[str, Any]]], optional):
             Metadata for each column type, specifying the statistics and
             properties of the columns. (default: :obj:`None`).
-        table_conv (Type[Module], optional):
+        table_conv (Type[torch.nn.Module], optional):
             The convolution module to be used for encoding the table data
             (default: :obj:`rllm.nn.conv.table_conv.TabTransformerConv`).
     """
@@ -33,7 +37,7 @@ class TableEncoder(Module):
         out_dim: int,
         num_layers: int = 1,
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
-        table_conv: Type[Module] = TabTransformerConv,
+        table_conv: Type[torch.nn.Module] = TabTransformerConv,
     ) -> None:
 
         super().__init__()
@@ -43,7 +47,7 @@ class TableEncoder(Module):
         for _ in range(num_layers - 1):
             self.convs.append(table_conv(dim=out_dim))
 
-    def forward(self, table):
+    def forward(self, table: TableData) -> Tensor:
         x = table.feat_dict
         for conv in self.convs:
             x = conv(x)
@@ -52,16 +56,22 @@ class TableEncoder(Module):
         return x
 
 
-class GraphEncoder(Module):
+class GraphEncoder(torch.nn.Module):
     r"""GraphEncoder is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming graph.
+    This submodule is designed to handle graph-structured data. And it takes
+    as input two tensor representing the node feature and graph structure.
+    Each convolutional layer is followed by activation functions and optional
+    normalization layers to enhance the representation learning capability.
 
     Args:
         in_dim (int): Input dimensionality of the data.
         out_dim (int): Output dimensionality for the encoded data.
         dropout (float): Dropout probability.
         num_layers (int): The number of layers of the convolution.
-        graph_conv : Using the graph convolution layer.
+        graph_conv (Type[torch.nn.Module], optional):
+            The convolution module to be used for encoding the graph data
+            (default: :obj:`rllm.nn.conv.graph_conv.GCNConv`).
     """
 
     def __init__(
@@ -70,7 +80,7 @@ class GraphEncoder(Module):
         out_dim,
         dropout: float = 0.5,
         num_layers: int = 2,
-        graph_conv: Type[Module] = GCNConv,
+        graph_conv: Type[torch.nn.Module] = GCNConv,
     ) -> None:
         super().__init__()
         self.dropout = dropout
@@ -80,7 +90,7 @@ class GraphEncoder(Module):
             self.convs.append(graph_conv(in_dim=in_dim, out_dim=in_dim))
         self.convs.append(graph_conv(in_dim=in_dim, out_dim=out_dim))
 
-    def forward(self, x, adj):
+    def forward(self, x: Tensor, adj: Tensor) -> Tensor:
         for conv in self.convs[:-1]:
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = F.relu(conv(x, adj))
@@ -121,7 +131,7 @@ class Bridge(torch.nn.Module):
         """
         First, the Table Neural Network (TNN) learns the tabular data.
         Second, the learned representations are concatenated with the non-tabular data.
-        Third, the Graph Neural Network (GNN) processes the combined data
+        Third, the Graph Neural Network (GNN) processes the combined data.
         along with the adjacency matrix to learn the overall representation.
 
         Args:

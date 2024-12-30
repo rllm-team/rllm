@@ -6,7 +6,14 @@ from rllm.transforms.table_transforms import TableTransform
 
 
 class DefaultTableTransform(TableTransform):
-    r"""Default Table Transform. Only fill the Nan values."""
+    r"""Default Table Transform. Only fill the Nan values.
+
+    Args:
+        out_dim (int): The output dimensionality.
+        metadata (Dict[ColType, List[Dict[str, Any]]], optional): Metadata
+            containing information about the columns, such as statistics.
+            (default: :obj:`None`)
+    """
 
     def __init__(
         self,

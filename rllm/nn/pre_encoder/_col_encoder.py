@@ -5,18 +5,17 @@ from abc import ABC, abstractmethod
 
 import torch
 from torch import Tensor
-from torch.nn import Module, Sequential
 
 from rllm.types import ColType, StatType
 
 
-def _reset_parameters_soft(module: Module):
+def _reset_parameters_soft(module: torch.nn.Module):
     r"""Call reset_parameters() only when it exists. Skip activation module."""
     if hasattr(module, "reset_parameters") and callable(module.reset_parameters):
         module.reset_parameters()
 
 
-class ColEncoder(Module, ABC):
+class ColEncoder(torch.nn.Module, ABC):
     r"""Base class for columns pre_encoder. This module encodes tensor of some
     specific columns type into 3-dimensional column-wise tensor
     that is input into tabular deep learning models.
@@ -26,7 +25,7 @@ class ColEncoder(Module, ABC):
         out_dim (int): The output dim dimensionality
         stats_list (List[Dict[StatType]]): The list
             of stats for each column within the same column type.
-        post_module (Module, optional): The post-hoc module applied to the
+        post_module (torch.nn.Module, optional): The post-hoc module applied to the
             output, such as activation function and normalization. Must
             preserve the shape of the output. If :obj:`None`, no module will be
             applied to the output. (default: :obj:`None`)
@@ -38,7 +37,7 @@ class ColEncoder(Module, ABC):
         self,
         out_dim: int | None = None,
         stats_list: List[Dict[StatType]] | None = None,
-        post_module: Module | None = None,
+        post_module: torch.nn.Module | None = None,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""
@@ -56,7 +55,7 @@ class ColEncoder(Module, ABC):
     def reset_parameters(self):
         r"""Initialize the parameters of `post_module`."""
         if self.post_module is not None:
-            if isinstance(self.post_module, Sequential):
+            if isinstance(self.post_module, torch.nn.Sequential):
                 for m in self.post_module:
                     _reset_parameters_soft(m)
             else:

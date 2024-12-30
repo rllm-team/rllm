@@ -4,15 +4,17 @@ from abc import ABC
 
 import torch
 from torch import Tensor
-from torch.nn import Module, ModuleDict
 
 from ._col_encoder import ColEncoder
 from rllm.types import ColType
 
 
-class PreEncoder(Module, ABC):
-    r"""Table Transform that encoders each ColType tensor into embeddings and
-    performs the final concatenation.
+class PreEncoder(torch.nn.Module, ABC):
+    r"""The PreEncoder class is designed to transform table data by encoding
+    each column type tensor into embeddings and performing the final
+    concatenation. It supports different types of column encoders for
+    categorical and numerical features, allowing for flexible and
+    efficient preprocessing of tabular data.
 
     Args:
         out_dim (int): Output dimensionality.
@@ -36,7 +38,7 @@ class PreEncoder(Module, ABC):
         super().__init__()
 
         self.metadata = metadata
-        self.pre_encoder_dict = ModuleDict()
+        self.pre_encoder_dict = torch.nn.ModuleDict()
 
         for col_type, col_pre_encoder in col_pre_encoder_dict.items():
             if col_type not in col_pre_encoder.supported_types:

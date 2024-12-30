@@ -286,7 +286,7 @@ class SAGEConv(torch.nn.Module):
     Args:
         in_dim (int): Size of each input sample.
         out_dim (int): Size of each output sample.
-        aggr_methods (str): The aggregation method to use,
+        aggr_method (str): The aggregation method to use,
             *e.g.*, `mean`, `max_pooling`, `mean_pooling`, `gcn`, `lstm`.
         activation: (Callable): The activationivation function is applied to aggreagtion,
             the default function is ReLU.
