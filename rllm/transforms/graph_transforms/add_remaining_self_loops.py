@@ -18,7 +18,7 @@ class AddRemainingSelfLoops(NETransform):
             the default values is 1.0
     """
 
-    def __init__(self, fill_value=1.0, use_cache=False):
+    def __init__(self, fill_value=1.0):
         self.fill_value = fill_value
         self.data = None
 
