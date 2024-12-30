@@ -29,10 +29,11 @@ def _get_na_mask(tensor: Tensor) -> Tensor:
 
 
 class TableTransform(torch.nn.Module, ABC):
-    r"""Base class for columns Transform. This module transforms tensor of some
-    specific columns type into 3-dimensional column-wise tensor
-    that is input into tabular deep learning models.
-    Columns with same ColType will be transformed into tensors.
+    r"""Base class for table Transform. This module transforms tensor of some
+    specific columns type into 3-dimensional column-wise tensor that is input
+    into tabular deep learning models. Columns with same ColType will be
+    transformed into tensors. By default, it handles missing values (NaNs)
+    according to the specified `na_mode`.
 
     Args:
         out_dim (int): The output dim dimensionality
