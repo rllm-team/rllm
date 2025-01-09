@@ -52,7 +52,7 @@ class BankMarketing(Dataset):
     Args:
         cached_dir (str): Root directory where dataset should be saved.
         forced_reload (bool): If set to `True`, this dataset will be
-        re-processed again.
+            re-processed again.
 
     .. parsed-literal::
 
