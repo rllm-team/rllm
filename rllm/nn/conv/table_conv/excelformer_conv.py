@@ -33,7 +33,7 @@ class SemiPermeableAttention(torch.nn.Module):
     <https://arxiv.org/abs/2301.02819>`_ paper.
 
     Args:
-        dim (int): Input channel dimensionality
+        dim (int): Input dimensionality
         num_heads (int): Number of heads in Attention module (default: :obj:`8`)
         head_dim(int): Dimension of each attention head (default: :obj:`16`)
         dropout (float): Percentage of random deactivation (default: :obj:`0.`)
@@ -104,10 +104,11 @@ class ExcelFormerConv(torch.nn.Module):
     representation learning capability.
 
     Args:
-        dim (int): Input/output channel dimensionality.
+        conv_dim (int): Input/Output dimensionality.
         num_heads (int): Number of attention heads (default: :obj:`8`).
         head_dim (int):  Dimensionality of each attention head (default: :obj:`16`).
         dropout (float): Attention module dropout (default: :obj:`0.3`).
+        use_pre_encoder (bool): Whether to use a pre-encoder (default: :obj:`False`).
         metadata (Dict[rllm.types.ColType, List[Dict[str, Any]]], optional):
             Metadata for each column type, specifying the statistics and
             properties of the columns. (default: :obj:`None`).
@@ -115,23 +116,25 @@ class ExcelFormerConv(torch.nn.Module):
 
     def __init__(
         self,
-        dim: int,
+        conv_dim: int,
         num_heads: int = 8,
         head_dim: int = 16,
         dropout: float = 0.5,
+        use_pre_encoder: bool = False,
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
-        self.layer_norm = torch.nn.LayerNorm(dim)
+        self.layer_norm = torch.nn.LayerNorm(conv_dim)
         self.sp_attention = SemiPermeableAttention(
-            dim=dim, num_heads=num_heads, head_dim=head_dim, dropout=dropout
+            dim=conv_dim, num_heads=num_heads, head_dim=head_dim, dropout=dropout
         )
-        self.glu_layer = GLULayer(in_dim=dim, out_dim=dim)
-        self.pre_encoder = None
+        self.glu_layer = GLULayer(in_dim=conv_dim, out_dim=conv_dim)
 
-        if metadata:
+        # Define PreEncoder
+        self.pre_encoder = None
+        if use_pre_encoder:
             self.pre_encoder = FTTransformerPreEncoder(
-                out_dim=dim,
+                out_dim=conv_dim,
                 metadata=metadata,
             )
 
