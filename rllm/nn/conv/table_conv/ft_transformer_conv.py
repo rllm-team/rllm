@@ -21,7 +21,7 @@ class FTTransformerConv(torch.nn.Module):
     tensor, and (2) :obj:`x_cls`, corresponding to the CLS token tensor.
 
     Args:
-        dim (int): Input/output channel dimensionality
+        conv_dim (int): Input/Output dimensionality.
         feedforward_dim (int, optional): Hidden dimensionality used by
             feedforward network of the Transformer model. If :obj:`None`, it
             will be set to :obj:`dim` (default: :obj:`None`)
@@ -30,6 +30,7 @@ class FTTransformerConv(torch.nn.Module):
         dropout (int): The dropout value (default: 0.1)
         activation (str): The activation function (default: :obj:`relu`)
         use_cls (bool): Whether to use a CLS token (default: :obj:`False`).
+        use_pre_encoder (bool): Whether to use a pre-encoder (default: :obj:`False`).
         metadata (Optional[Dict[ColType, List[Dict[str, Any]]]]): Metadata for
             each column type, specifying the statistics and properties of the
             columns (default: :obj:`None`).
@@ -37,36 +38,39 @@ class FTTransformerConv(torch.nn.Module):
 
     def __init__(
         self,
-        dim: int,
+        conv_dim: int,
         feedforward_dim: Optional[int] = None,
         num_heads: int = 8,
         dropout: float = 0.3,
         activation: str = "relu",
         use_cls: bool = False,
+        use_pre_encoder: bool = False,
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
         self.use_cls = use_cls
-        self.pre_encoder = None
         self.metadata = metadata
         encoder_layer = torch.nn.TransformerEncoderLayer(
-            d_model=dim,
+            d_model=conv_dim,
             nhead=num_heads,
-            dim_feedforward=feedforward_dim or dim,
+            dim_feedforward=feedforward_dim or conv_dim,
             dropout=dropout,
             activation=activation,
             batch_first=True,
         )
-        encoder_norm = torch.nn.LayerNorm(dim)
+        encoder_norm = torch.nn.LayerNorm(conv_dim)
         self.transformer = torch.nn.TransformerEncoder(
             encoder_layer=encoder_layer,
             num_layers=1,
             norm=encoder_norm,
         )
-        self.cls_embedding = Parameter(torch.empty(dim))
-        if self.metadata:
+        self.cls_embedding = Parameter(torch.empty(conv_dim))
+
+        # Define PreEncoder
+        self.pre_encoder = None
+        if use_pre_encoder:
             self.pre_encoder = FTTransformerPreEncoder(
-                out_dim=dim,
+                out_dim=conv_dim,
                 metadata=self.metadata,
             )
 

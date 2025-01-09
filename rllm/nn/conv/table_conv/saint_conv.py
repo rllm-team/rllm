@@ -21,11 +21,12 @@ class SAINTConv(torch.nn.Module):
     across different samples.
 
     Args:
-        in_dim (int): Input channel dimensionality.
+        conv_dim (int): Input/Output dimensionality.
         num_feats (int): Number of features.
         num_heads (int, optional): Number of attention heads (default: 8).
         dropout (float, optional): Attention module dropout (default: 0.3).
         activation (str, optional): Activation function (default: "relu").
+        use_pre_encoder (bool, optional): Whether to use a pre-encoder (default: :obj:`False`).
         metadata (Dict[rllm.types.ColType, List[Dict[str, Any]]], optional):
             Metadata for each column type, specifying the statistics and
             properties of the columns. (default: :obj:`None`).
@@ -33,25 +34,26 @@ class SAINTConv(torch.nn.Module):
 
     def __init__(
         self,
-        in_dim: int,
+        conv_dim: int,
         num_feats: int,
         num_heads: int = 8,
         dropout: float = 0.3,
         activation: str = "relu",
+        use_pre_encoder: bool = False,
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
 
         # Column Transformer
         col_encoder_layer = torch.nn.TransformerEncoderLayer(
-            d_model=in_dim,
+            d_model=conv_dim,
             nhead=num_heads,
-            dim_feedforward=in_dim,
+            dim_feedforward=conv_dim,
             dropout=dropout,
             activation=activation,
             batch_first=True,
         )
-        col_encoder_norm = torch.nn.LayerNorm(in_dim)
+        col_encoder_norm = torch.nn.LayerNorm(conv_dim)
         self.col_transformer = torch.nn.TransformerEncoder(
             encoder_layer=col_encoder_layer,
             num_layers=1,
@@ -60,14 +62,14 @@ class SAINTConv(torch.nn.Module):
 
         # Row Transformer
         row_encoder_layer = torch.nn.TransformerEncoderLayer(
-            d_model=in_dim * num_feats,
+            d_model=conv_dim * num_feats,
             nhead=num_heads,
-            dim_feedforward=in_dim * num_feats,
+            dim_feedforward=conv_dim * num_feats,
             dropout=dropout,
             activation=activation,
             batch_first=True,
         )
-        row_encoder_norm = torch.nn.LayerNorm(in_dim * num_feats)
+        row_encoder_norm = torch.nn.LayerNorm(conv_dim * num_feats)
         self.row_transformer = torch.nn.TransformerEncoder(
             encoder_layer=row_encoder_layer,
             num_layers=1,
@@ -76,9 +78,9 @@ class SAINTConv(torch.nn.Module):
 
         # Define PreEncoder
         self.pre_encoder = None
-        if metadata:
+        if use_pre_encoder:
             self.pre_encoder = FTTransformerPreEncoder(
-                out_dim=in_dim,
+                out_dim=conv_dim,
                 metadata=metadata,
             )
 
