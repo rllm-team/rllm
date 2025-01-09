@@ -43,6 +43,9 @@ Single Table Datasets
    :template: autosummary/class.rst
 
    Titanic
+   Adult
+   BankMarketing
+   ChurnModelling
 
 Multi-Table Datasets
 ^^^^^^^^^^^^^^^^^^^^
@@ -53,6 +56,8 @@ Multi-Table Datasets
    :nosignatures:
    :template: autosummary/class.rst
 
+   TACM12KDataset
+   TLF2KDataset
    TML1MDataset
 
 

@@ -4,34 +4,47 @@ rllm.nn
 Conv
 ----------------------
 
-.. currentmodule:: rllm.nn.conv
+Graph Conv
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. currentmodule:: rllm.nn.conv.graph_conv
 
 .. autosummary::
    :nosignatures:
    :template: autosummary/class.rst
 
-   FTTransformerConvs
    GATConv
    GCNConv
    HANConv
+   HGTConv
    SAGEConv
-   TabTransformerConv
 
+Table Conv
+^^^^^^^^^^^^^^^^^^^^^^
 
-Encoder 
-----------------
-
-.. currentmodule:: rllm.nn.encoder
+.. currentmodule:: rllm.nn.conv.table_conv
 
 .. autosummary::
    :nosignatures:
    :template: autosummary/class.rst
 
-   CategoricalTransform
-   LinearTransform
-   StackTransform
-   NumericalTransform
-   TableTransform
+   ExcelFormerConv
+   FTTransformerConv
+   SAINTConv
+   TabTransformerConv
+   TromptConv
+
+Pre-Encoder
+----------------
+
+.. currentmodule:: rllm.nn.pre_encoder
+
+.. autosummary::
+   :nosignatures:
+   :template: autosummary/class.rst
+
+   FTTransformerPreEncoder
+   TabTransformerPreEncoder
 
 
 Models
@@ -43,8 +56,7 @@ Models
    :nosignatures:
    :template: autosummary/class.rst
 
-   FTTransformer
+   Bridge
    RECT_L
-   TabTransformer
    TabNet
 
