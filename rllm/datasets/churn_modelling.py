@@ -11,7 +11,8 @@ from rllm.utils.download import download_url
 
 
 class ChurnModelling(Dataset):
-    r"""The Churn Modelling dataset is used to predict which customers are
+    r"""`The Churn Modelling dataset <https://www.kaggle.com/shrutimechlearn/
+    churn-modelling>`__ is used to predict which customers are
     likely to churn from the organization by analyzing various attributes and
     applying machine learning and deep learning techniques.
 
@@ -30,20 +31,20 @@ class ChurnModelling(Dataset):
     their interactions with the company. The primary objective is to predict
     whether a customer will churn:
 
-        RowNumber: Row number.
-        CustomerId: Unique identifier for the customer.
-        Surname: Surname of the customer.
-        CreditScore: Credit score of the customer.
-        Geography: Country of the customer (France, Spain, Germany).
-        Gender: Gender of the customer (Male, Female).
-        Age: Age of the customer.
-        Tenure: Number of years the customer has been with the company.
-        Balance: Account balance of the customer.
-        NumOfProducts: Number of products the customer has with the company.
-        HasCrCard: Does the customer have a credit card? (0 = No, 1 = Yes).
-        IsActiveMember: Is the customer an active member? (0 = No, 1 = Yes).
-        EstimatedSalary: Estimated salary of the customer.
-        Exited: Did the customer churn? (0 = No, 1 = Yes).
+    .. RowNumber: Row number.
+    .. CustomerId: Unique identifier for the customer.
+    .. Surname: Surname of the customer.
+    .. CreditScore: Credit score of the customer.
+    .. Geography: Country of the customer (France, Spain, Germany).
+    .. Gender: Gender of the customer (Male, Female).
+    .. Age: Age of the customer.
+    .. Tenure: Number of years the customer has been with the company.
+    .. Balance: Account balance of the customer.
+    .. NumOfProducts: Number of products the customer has with the company.
+    .. HasCrCard: Does the customer have a credit card? (0 = No, 1 = Yes).
+    .. IsActiveMember: Is the customer an active member? (0 = No, 1 = Yes).
+    .. EstimatedSalary: Estimated salary of the customer.
+    .. Exited: Did the customer churn? (0 = No, 1 = Yes).
 
     Args:
         cached_dir (str): Root directory where dataset should be saved.

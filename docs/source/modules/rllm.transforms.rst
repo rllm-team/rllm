@@ -2,39 +2,82 @@ rllm.transforms
 ====================
 
 
-General Transforms
+Graph Transforms
 -----------------------
 
-.. currentmodule:: rllm.transforms
+Basic Level
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. currentmodule:: rllm.transforms.graph_transforms
 
 .. autosummary::
    :nosignatures:
    :template: autosummary/class.rst
 
-   BaseTransform
-   Compose
-   NormalizeFeatures
-   SVDFeatureReduction
-   RemoveTrainingClasses
+    NETransform
+    Compose
+    AddRemainingSelfLoops
+    RemoveSelfLoops
+    KNNGraph
+    GCNNorm
+    GDC
 
-   
-Graph Transforms
--------------------------
+Model Level
+^^^^^^^^^^^^^^^^^^^^^^^
 
-.. currentmodule:: rllm.transforms
+.. currentmodule:: rllm.transforms.graph_transforms
 
 .. autosummary::
    :nosignatures:
    :template: autosummary/class.rst
 
-   AddRemainingSelfLoops
-   RemoveSelfLoops
-   KNNGraph
-   GCNNorm
+    GraphTransform
+    GCNTransform
+    RECTTransform
 
+Table Transforms
+-----------------------
 
+Basic Level
+^^^^^^^^^^^^^^^^^^^^^^^
 
+.. currentmodule:: rllm.transforms.table_transforms
 
+.. autosummary::
+   :nosignatures:
+   :template: autosummary/class.rst
+
+    ColTransform
+    ColumnNormalize
+    OneHotTransform
+    StackNumerical
+
+Model Level
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. currentmodule:: rllm.transforms.table_transforms
+
+.. autosummary::
+   :nosignatures:
+   :template: autosummary/class.rst
+
+    TableTransform
+    DefaultTableTransform
+    TabTransformerTransform
+
+Utils
+-----------------------
+
+.. currentmodule:: rllm.transforms.utils
+
+.. autosummary::
+   :nosignatures:
+   :template: autosummary/class.rst
+
+    BaseTransform
+    NormalizeFeatures
+    SVDFeatureReduction
+    RemoveTrainingClasses
 
 
 
