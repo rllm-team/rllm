@@ -17,7 +17,7 @@ class Titanic(Dataset):
 
     The dataset contains various features related to the passengers
     aboard the Titanic, and the task is to predict whether a
-    passenger survived:
+    passenger survived.
 
     .. PassengerId: Unique identifier for each passenger.
     .. Survived: Survival status (0 = No, 1 = Yes).

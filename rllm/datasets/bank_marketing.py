@@ -21,7 +21,7 @@ class BankMarketing(Dataset):
 
     The dataset encompasses a variety of features pertaining to clients and
     their banking information. The primary objective is to predict whether
-    a client will subscribe to a term deposit:
+    a client will subscribe to a term deposit.
 
     .. Age: Age of the client.
     .. Job: Type of job (admin, blue-collar, entrepreneur, housemaid,
