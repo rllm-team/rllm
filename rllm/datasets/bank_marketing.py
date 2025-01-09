@@ -23,8 +23,7 @@ class BankMarketing(Dataset):
     their banking information. The primary objective is to predict whether
     a client will subscribe to a term deposit:
 
-    Age: Age of the client.
-
+    .. Age: Age of the client.
     .. Job: Type of job (admin, blue-collar, entrepreneur, housemaid,
     ..     management, retired, self-employed, services, student, technician,
     ..     unemployed, unknown).
