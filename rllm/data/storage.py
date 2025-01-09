@@ -128,6 +128,7 @@ class BaseStorage(MutableMapping):
 
 class NodeStorage(BaseStorage):
     """A storage class for node attributes in a graph.
+
     Args:
         initialdata (Optional[Dict[str, Any]]): Initial data to
             populate the storage.
@@ -154,6 +155,7 @@ class NodeStorage(BaseStorage):
 
 class EdgeStorage(BaseStorage):
     """A storage class for edge attributes in a graph.
+
     Args:
         initialdata (Optional[Dict[str, Any]]): Initial data to
             populate the storage.
@@ -200,3 +202,4 @@ def recursive_apply(data: Any, func: Callable) -> Any:
             return func(data)
         except Exception:
             return data
+

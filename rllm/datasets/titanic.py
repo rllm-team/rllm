@@ -19,19 +19,19 @@ class Titanic(Dataset):
     aboard the Titanic, and the task is to predict whether a
     passenger survived:
 
-    PassengerId: Unique identifier for each passenger.
-    Survived: Survival status (0 = No, 1 = Yes).
-    Pclass: Passenger class (1 = 1st, 2 = 2nd, 3 = 3rd).
-    Name: Name of the passenger.
-    Sex: Gender of the passenger.
-    Age: Age of the passenger in years.
-    SibSp: Number of siblings/spouses aboard the Titanic.
-    Parch: Number of parents/children aboard the Titanic.
-    Ticket: Ticket number.
-    Fare: Passenger fare.
-    Cabin: Cabin number.
-    Embarked: Port of embarkation
-        (C = Cherbourg, Q = Queenstown, S = Southampton).
+    .. PassengerId: Unique identifier for each passenger.
+    .. Survived: Survival status (0 = No, 1 = Yes).
+    .. Pclass: Passenger class (1 = 1st, 2 = 2nd, 3 = 3rd).
+    .. Name: Name of the passenger.
+    .. Sex: Gender of the passenger.
+    .. Age: Age of the passenger in years.
+    .. SibSp: Number of siblings/spouses aboard the Titanic.
+    .. Parch: Number of parents/children aboard the Titanic.
+    .. Ticket: Ticket number.
+    .. Fare: Passenger fare.
+    .. Cabin: Cabin number.
+    .. Embarked: Port of embarkation
+    ..     (C = Cherbourg, Q = Queenstown, S = Southampton).
 
     Args:
         cached_dir (str): Root directory where dataset should be saved.

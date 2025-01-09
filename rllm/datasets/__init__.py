@@ -1,4 +1,5 @@
 from .adult import Adult
+from .bank_marketing import BankMarketing
 from .churn_modelling import ChurnModelling
 from .dblp import DBLP
 from .imdb import IMDB
@@ -12,6 +13,7 @@ from .tagdataset import TAGDataset
 
 __all__ = [
     "Adult",
+    "BankMarketing",
     "ChurnModelling",
     "DBLP",
     "IMDB",

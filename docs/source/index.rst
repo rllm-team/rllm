@@ -35,6 +35,8 @@ Highlight Features:
    tutorial/tnns
    tutorial/rtls
    tutorial/llm_methods
+   tutorial/convolutions
+   tutorial/transforms
 
 
 .. toctree::
@@ -58,7 +60,11 @@ Highlight Features:
    cheatsheet/dataset_cheatsheets
 
 
-   
+.. toctree::
+   :maxdepth: 1
+   :caption: EXTERNAL RESOURCES
+
+   external_resources/external_resources
 
 
 
