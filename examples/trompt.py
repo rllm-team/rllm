@@ -77,6 +77,7 @@ class Trompt(torch.nn.Module):
                     in_dim=in_dim,
                     out_dim=hidden_dim,
                     num_prompts=num_prompts,
+                    use_pre_encoder=True,
                     metadata=metadata,
                 )
             )

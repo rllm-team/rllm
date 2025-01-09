@@ -70,10 +70,15 @@ class SAINT(torch.nn.Module):
 
         self.convs = torch.nn.ModuleList()
         self.convs.append(
-            SAINTConv(in_dim=hidden_dim, num_feats=num_feats, metadata=metadata)
+            SAINTConv(
+                conv_dim=hidden_dim,
+                num_feats=num_feats,
+                use_pre_encoder=True,
+                metadata=metadata,
+            )
         )
         for _ in range(num_layers - 1):
-            self.convs.append(SAINTConv(in_dim=hidden_dim, num_feats=num_feats))
+            self.convs.append(SAINTConv(conv_dim=hidden_dim, num_feats=num_feats))
 
         self.fc = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),

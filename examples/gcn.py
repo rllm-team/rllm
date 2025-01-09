@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--dataset", type=str, default="cora", choices=["citeseer", "cora", "pubmed"]
 )
-parser.add_argument("--hidden_dim", type=int, default=16, help="Hidden channel")
+parser.add_argument("--hidden_dim", type=int, default=16, help="Hidden dim")
 parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
 parser.add_argument("--epochs", type=int, default=200, help="Training epochs")

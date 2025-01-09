@@ -23,9 +23,10 @@ class TromptConv(torch.nn.Module):
 
     Args:
         in_dim (int): Input dimensionality.
-        out_dim (int): Hidden layer dimensionality.
+        out_dim (int): Output dimensionality, and hidden layer dimensionality.
         num_prompts (int): Number of prompts.
         num_groups (int): Number of groups for group normalization (default: 2).
+        use_pre_encoder (bool): Whether to use a pre-encoder (default: :obj:`False`).
         metadata (Dict[ColType, List[Dict[str, Any]]], optional):
             Metadata for each column type, specifying the statistics and
             properties of the columns. (default: :obj:`None`).
@@ -37,6 +38,7 @@ class TromptConv(torch.nn.Module):
         out_dim: int,
         num_prompts: int,
         num_groups: int = 2,
+        use_pre_encoder: bool = False,
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
@@ -55,7 +57,9 @@ class TromptConv(torch.nn.Module):
             num_channels=num_prompts,
         )
 
-        if metadata:
+        # Define PreEncoder
+        self.pre_encoder = None
+        if use_pre_encoder:
             self.pre_encoder = FTTransformerPreEncoder(
                 out_dim=out_dim,
                 metadata=metadata,

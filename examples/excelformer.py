@@ -67,9 +67,15 @@ class ExcelFormer(torch.nn.Module):
         super().__init__()
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(ExcelFormerConv(dim=hidden_dim, metadata=metadata))
+        self.convs.append(
+            ExcelFormerConv(
+                conv_dim=hidden_dim,
+                use_pre_encoder=True,
+                metadata=metadata,
+            )
+        )
         for _ in range(num_layers - 1):
-            self.convs.append(ExcelFormerConv(dim=hidden_dim))
+            self.convs.append(ExcelFormerConv(conv_dim=hidden_dim))
 
         self.fc = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),

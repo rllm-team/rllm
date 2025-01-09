@@ -43,9 +43,11 @@ class TableEncoder(torch.nn.Module):
         super().__init__()
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(table_conv(dim=out_dim, metadata=metadata))
+        self.convs.append(
+            table_conv(conv_dim=out_dim, use_pre_encoder=True, metadata=metadata)
+        )
         for _ in range(num_layers - 1):
-            self.convs.append(table_conv(dim=out_dim))
+            self.convs.append(table_conv(conv_dim=out_dim))
 
     def forward(self, table: TableData) -> Tensor:
         x = table.feat_dict
