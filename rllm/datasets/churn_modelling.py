@@ -29,7 +29,7 @@ class ChurnModelling(Dataset):
 
     The dataset encompasses a variety of features pertaining to customers and
     their interactions with the company. The primary objective is to predict
-    whether a customer will churn:
+    whether a customer will churn.
 
     .. RowNumber: Row number.
     .. CustomerId: Unique identifier for the customer.
