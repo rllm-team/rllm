@@ -5,9 +5,9 @@ What is a Transform?
 ----------------
 Transform is a common operation in Graph Neural Networks (GNNs) code, referring to the essential preprocessing step applied to the data before the convolution operation. We extend this concept to Tabular/Table Neural Networks (TNNs) as well. This operation does not involve any trainable parameters and only needs to be performed once before training.
 
-In Graph Neural Networks (GNNs), the Transform operation preprocesses the nodes and edges. For instance, :obj:`GCNTransform` normalizes node features, while for the adjacency matrix (representing edges), it adds self-loops and performs symmetric normalization to prevent issues like exploding values during matrix multiplications. In comparison, :obj:`RECTTransform` incorporates dimensionality reduction via Singular Value Decomposition (:obj:`SVD`), which helps to avoid problems with high-dimensional data.
+In GNNs, the Transform operation preprocesses the nodes and edges. For instance, :obj:`GCNTransform` normalizes node features, while for the adjacency matrix (representing edges), it adds self-loops and performs symmetric normalization to prevent issues like exploding values during matrix multiplications. In comparison, :obj:`RECTTransform` incorporates dimensionality reduction via Singular Value Decomposition (:obj:`SVD`), helping to address the curse of dimensionality in high-dimensional data.
 
-In Tabular/Table Neural Networks (TNNs), the Transform operation preprocesses the rows and columns. By default, each Transform operation performs a fill-in operation (e.g., filling missing values). In :obj:`TabTransformerTransform`, the dimensionality of numerical features is increased via :obj:`StackNumerical` to match the dimension of categorical features, ensuring consistency for subsequent processing and prediction tasks.
+In TNNs, the Transform operation preprocesses the rows and columns. By default, each Transform operation performs a fill-in operation (e.g., filling missing values). In :obj:`TabTransformerTransform`, the dimensionality of numerical features is increased via :obj:`StackNumerical` to match the dimension of categorical features, ensuring consistency for subsequent processing and prediction tasks.
 
 When creating a :obj:`Transform` module, we recommend implementing each atomic operation first and then assembling them, much like building with blocks. The advantage of this approach is that it makes the module easier to maintain and extend. Additionally, we suggest starting with the implementation of the submodule functions before expanding them into a class.
 
@@ -106,7 +106,7 @@ Finally, :obj:`GCNTransform` is a subclass of the :obj:`GraphTransform` class. T
 
 Construct a TabTransformerTransform
 ----------------
-:obj:`TabTransformer` is a typical Transformer-based deep learning method for tabular data. In addition to the default handling of missing values, :obj:`TabTransformerTransform` also performs dimensionality expansion on numerical features. Currently, the submodules of :obj:`TableTransform` are relatively simple, so they are not abstracted into separate functions.
+:obj:`TabTransformer` is a typical Transformer-based deep learning method for tabular data. In addition to the default handling of missing values, :obj:`TabTransformerTransform` also performs dimensionality expansion (also called pre-encoding in our project) on numerical features. Currently, the submodules of :obj:`TableTransform` are relatively simple, so they are not abstracted into separate functions.
 
 First, we implement the :obj:`StackNumerical` submodule. This submodule first applies standard normalization to the columns and then performs dimensionality expansion.
 
