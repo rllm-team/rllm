@@ -48,7 +48,7 @@ class Adult(Dataset):
     Args:
         cached_dir (str): Root directory where dataset should be saved.
         forced_reload (bool): If set to `True`, this dataset will be
-        re-process again.
+            re-process again.
 
     .. parsed-literal::
 
