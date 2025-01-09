@@ -12,13 +12,13 @@ from rllm.utils.download import download_url
 
 class Adult(Dataset):
     r"""The Adult dataset is a dataset from a classic data mining project,
-    which was extracted from `the 1994 U.S. Census database
+    which was extracted from `the 1994 Census database
     <https://archive.ics.uci.edu/dataset/2/adult>`__.
-    The default partition is train-val-test [26048, 6513, 16281]
+    The default partition is train-val-test [26048, 6513, 16281].
 
     The dataset encompasses a variety of features pertaining to adults and
     their income. The primary objective is to predict whether an individual's
-    annual income surpasses $50,000:
+    annual income surpasses $50,000.
 
     .. Age: Age of the individual.
     .. Workclass: Type of industry (Private, Self-emp-not-inc, Self-emp-inc,
