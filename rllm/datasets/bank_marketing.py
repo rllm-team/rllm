@@ -11,7 +11,8 @@ from rllm.utils.download import download_url
 
 
 class BankMarketing(Dataset):
-    r"""The Bank Marketing dataset is related to direct marketing campaigns of
+    r"""`The Bank Marketing dataset <https://archive.ics.uci.edu/dataset/
+    222/bank+marketing>`__ is related to direct marketing campaigns of
     a Portuguese banking institution. The marketing campaigns were based on
     phone calls. Often, more than one contact to the same client was required
     in order to assess if the product (bank term deposit) would be subscribed.
@@ -22,31 +23,31 @@ class BankMarketing(Dataset):
     their banking information. The primary objective is to predict whether
     a client will subscribe to a term deposit:
 
-    Age: Age of the client.
-    Job: Type of job (admin, blue-collar, entrepreneur, housemaid,
-        management, retired, self-employed, services, student, technician,
-        unemployed, unknown).
-    Marital: Marital status of the client (divorced, married, single).
-    Education: The highest level of education achieved (unknown, secondary,
-        primary, tertiary).
-    Default: Has credit in default?
-    Balance: Average yearly balance, in euros.
-    Housing: Has housing loan?
-    Loan: Has personal loan?
-    Contact: Contact communication type (unknown, telephone, cellular).
-    Day: Last contact day of the month.
-    Month: Last contact month of the year (jan, feb, mar, apr, may, jun, jul,
-        aug, sep, oct, nov, dec).
-    Duration: Last contact duration, in seconds.
-    Campaign: Number of contacts performed during this campaign and for this
-        client.
-    Pdays: Number of days that passed by after the client was last contacted
-        from a previous campaign.
-    Previous: Number of contacts performed before this campaign and for this
-        client.
-    Poutcome: Outcome of the previous marketing campaign (unknown, other,
-        failure, success).
-    Target: Has the client subscribed a term deposit?
+    .. Age: Age of the client.
+    .. Job: Type of job (admin, blue-collar, entrepreneur, housemaid,
+    ..     management, retired, self-employed, services, student, technician,
+    ..     unemployed, unknown).
+    .. Marital: Marital status of the client (divorced, married, single).
+    .. Education: The highest level of education achieved (unknown, secondary,
+    ..     primary, tertiary).
+    .. Default: Has credit in default?
+    .. Balance: Average yearly balance, in euros.
+    .. Housing: Has housing loan?
+    .. Loan: Has personal loan?
+    .. Contact: Contact communication type (unknown, telephone, cellular).
+    .. Day: Last contact day of the month.
+    .. Month: Last contact month of the year (jan, feb, mar, apr, may, jun, jul,
+    ..     aug, sep, oct, nov, dec).
+    .. Duration: Last contact duration, in seconds.
+    .. Campaign: Number of contacts performed during this campaign and for this
+    ..     client.
+    .. Pdays: Number of days that passed by after the client was last contacted
+    ..     from a previous campaign.
+    .. Previous: Number of contacts performed before this campaign and for this
+    ..     client.
+    .. Poutcome: Outcome of the previous marketing campaign (unknown, other,
+    ..     failure, success).
+    .. Target: Has the client subscribed a term deposit?
 
     Args:
         cached_dir (str): Root directory where dataset should be saved.

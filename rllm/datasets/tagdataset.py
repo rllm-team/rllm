@@ -25,7 +25,7 @@ class TAGDataset(Dataset):
     indexing system <https://dl.acm.org/doi/10.1145/276675.276685>`__ paper.
     This dataset also contains cached LLM predictions and confidences
     provided by the paper `Label-free Node Classification on Graphs
-    with Large Language Models (LLMS) <https://arxiv.org/abs/2310.04668>`.
+    with Large Language Models (LLMS) <https://arxiv.org/abs/2310.04668>`__.
 
     Args:
         cached_dir (str):

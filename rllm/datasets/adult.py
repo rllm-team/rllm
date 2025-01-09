@@ -12,43 +12,43 @@ from rllm.utils.download import download_url
 
 class Adult(Dataset):
     r"""The Adult dataset is a dataset from a classic data mining project,
-    which was extracted from the 1994 U.S. Census database
-    <https://archive.ics.uci.edu/dataset/2/adult>`.
+    which was extracted from `the 1994 U.S. Census database
+    <https://archive.ics.uci.edu/dataset/2/adult>`__.
     The default partition is train-val-test [26048, 6513, 16281]
 
     The dataset encompasses a variety of features pertaining to adults and
     their income. The primary objective is to predict whether an individual's
     annual income surpasses $50,000:
 
-    Age: Age of the individual.
-    Workclass: Type of industry (Private, Self-emp-not-inc, Self-emp-inc,
-        Federal-gov, Local-gov, State-gov, Without-pay, Never-worked).
-    fnlwgt: The number of people the census believes have this job.
-    Education: The highest level of education achieved (Bachelors,
-        Some-college, 11th, HS-grad, Prof-school, Assoc-acdm, Assoc-voc, 9th,
-        7th-8th, 12th, Masters, 1st-4th, 10th, Doctorate, 5th-6th, Preschool).
-    Education-Num: A numeric version of Education.
-    Marital-Status: Marital status of the individual (Married-civ-spouse,
-        Divorced, Never-married, Separated, Widowed, Married-spouse-absent, Married-AF-spouse).
-    Occupation: The kind of work individuals perform (Tech-support,
-        Craft-repair, Other-service, Sales, Exec-managerial, Prof-specialty,
-        Handlers-cleaners, Machine-op-inspct, Adm-clerical, Farming-fishing,
-        Transport-moving, Priv-house-serv, Protective-serv, Armed-Forces).
-    Relationship: Relationship to head-of-household (Wife, Own-child, Husband,
-        Not-in-family, Other-relative, Unmarried).
-    Race: Race of the individual (White, Asian-Pac-Islander,
-        Amer-Indian-Eskimo, Other, Black).
-    Sex: Gender of the individual.
-    Capital-Gain: Total capital gains.
-    Capital-Loss: Total capital losses.
-    Hours-per-week: Average hours worked per week.
-    Native-Country: Country of origin of the individual.
-    Target: Income level.
+    .. Age: Age of the individual.
+    .. Workclass: Type of industry (Private, Self-emp-not-inc, Self-emp-inc,
+    ..     Federal-gov, Local-gov, State-gov, Without-pay, Never-worked).
+    .. fnlwgt: The number of people the census believes have this job.
+    .. Education: The highest level of education achieved (Bachelors,
+    ..     Some-college, 11th, HS-grad, Prof-school, Assoc-acdm, Assoc-voc, 9th,
+    ..     7th-8th, 12th, Masters, 1st-4th, 10th, Doctorate, 5th-6th, Preschool).
+    .. Education-Num: A numeric version of Education.
+    .. Marital-Status: Marital status of the individual (Married-civ-spouse,
+    ..     Divorced, Never-married, Separated, Widowed, Married-spouse-absent, Married-AF-spouse).
+    .. Occupation: The kind of work individuals perform (Tech-support,
+    ..     Craft-repair, Other-service, Sales, Exec-managerial, Prof-specialty,
+    ..     Handlers-cleaners, Machine-op-inspct, Adm-clerical, Farming-fishing,
+    ..     Transport-moving, Priv-house-serv, Protective-serv, Armed-Forces).
+    .. Relationship: Relationship to head-of-household (Wife, Own-child, Husband,
+    ..     Not-in-family, Other-relative, Unmarried).
+    .. Race: Race of the individual (White, Asian-Pac-Islander,
+    ..     Amer-Indian-Eskimo, Other, Black).
+    .. Sex: Gender of the individual.
+    .. Capital-Gain: Total capital gains.
+    .. Capital-Loss: Total capital losses.
+    .. Hours-per-week: Average hours worked per week.
+    .. Native-Country: Country of origin of the individual.
+    .. Target: Income level.
 
     Args:
         cached_dir (str): Root directory where dataset should be saved.
         forced_reload (bool): If set to `True`, this dataset will be
-            re-process again.
+        re-process again.
 
     .. parsed-literal::
 
