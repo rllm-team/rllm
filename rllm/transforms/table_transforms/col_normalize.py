@@ -7,8 +7,8 @@ from rllm.data import TableData
 from .col_transform import ColTransform
 
 
-class ColumnNormalize(ColTransform):
-    r"""The ColumnNormalize class is designed to normalize numerical features
+class ColNormalize(ColTransform):
+    r"""The ColNormalize class is designed to normalize numerical features
     in tabular data. This transformation standardizes the numerical features by
     subtracting the mean and dividing by the standard deviation.
     """
