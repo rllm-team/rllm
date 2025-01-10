@@ -142,7 +142,7 @@ class Bridge(torch.nn.Module):
             adj (Tensor): Adjacency matrix.
 
         Returns:
-            Tensor: Output node features.
+            Tensor: Output table embedding features.
         """
         t_embedds = self.table_encoder(table)
         node_feats = torch.cat([t_embedds, non_table], dim=0)
