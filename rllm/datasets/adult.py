@@ -12,7 +12,7 @@ from rllm.utils.download import download_url
 
 class Adult(Dataset):
     r"""The Adult dataset is a dataset from a classic data mining project,
-    which was extracted from `the 1994 Census database
+    which was extracted from the `1994 Census database
     <https://archive.ics.uci.edu/dataset/2/adult>`__.
     The default partition is train-val-test [26048, 6513, 16281].
 
