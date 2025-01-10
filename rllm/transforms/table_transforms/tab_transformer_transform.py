@@ -1,13 +1,13 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
-from rllm.transforms.table_transforms.column_normalize import ColumnNormalize
+from rllm.transforms.table_transforms.column_normalize import ColNormalize
 from rllm.types import ColType
 from rllm.transforms.table_transforms import StackNumerical, TableTransform
 
 
 class TabTransformerTransform(TableTransform):
-    r"""TabTransformerTransform applies ColumnNormalize and StackNumerical
+    r"""TabTransformerTransform applies ColNormalize and StackNumerical
     transform to tabular data specifically for the TabTransformer model.
 
     Args:
@@ -24,7 +24,7 @@ class TabTransformerTransform(TableTransform):
     ) -> None:
         super().__init__(
             out_dim=out_dim,
-            transforms=[ColumnNormalize(), StackNumerical(out_dim)],
+            transforms=[ColNormalize(), StackNumerical(out_dim)],
         )
         self.metadata = metadata
 

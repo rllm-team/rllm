@@ -48,7 +48,7 @@ Basic Level
    :template: autosummary/class.rst
 
     ColTransform
-    ColumnNormalize
+    ColNormalize
     OneHotTransform
     StackNumerical
 
