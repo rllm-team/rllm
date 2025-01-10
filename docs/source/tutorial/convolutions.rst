@@ -5,8 +5,6 @@ What is a convolution?
 ----------------
 In machine learning, convolution generally involves combining an input signal with a filter to produce an output signal. Specifically, for image signals, convolution refers to aggregating nearby pixels around the central pixel. For graph signals, it involves aggregating information from connected nodes around the central node. For table signals, it refers to aggregating entries from different columns within each row. Therefore, designing an effective convolution operation is a key challenge in deep learning methods.
 
-In recent years, with the rise of Tabular/Table Neural Networks (TNNs), the concept of "convolution" has also been extended to tabular data. In TNNs, "convolution" refers to the aggregation of entries within the same row and column of a table. The central goal is to uncover the relationships between individual table units and their related counterparts across the table.
-
 
 Construct a GCN Convolution Layer
 ----------------
