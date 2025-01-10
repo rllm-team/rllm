@@ -11,6 +11,7 @@
 ----
 
 *Latest News* 🔥  
+- [2025.01] We’ve updated to **rLLM v0.1.1** for improved uniformity between Transform and Convolution operations. See our [blog](https://rllm-project.github.io/2025-01-10-rLLM-v0.1.1-Achieving-Greater-Uniformity-Between-Transform-and-Convolution/).
 - [2024.12] rLLM was featured in the famous technical magzine **MIT Technology Review**. Read the report [here (Chinese)](https://www.mittrchina.com/news/detail/14162) or [here (English)](https://www-mittrchina-com.translate.goog/news/detail/14162?_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=wapp).  
 - [2024.11] This work has been approved by **Snowflake** (AI Data Cloud leader, NYSE: $57.46B) as a nice tool for RTL-type tasks. See paper: [arXiv:2411.11829](https://arxiv.org/abs/2411.11829).
 - [2024.10] We have recently added the state-of-the-art GNN method **OGC** [[TNNLS 2024](https://arxiv.org/abs/2309.13599)], the TNN method **ExcelFormer** [[KDD 2024](https://arxiv.org/abs/2301.02819)] and **Trompt** [[ICML 2023](https://arxiv.org/abs/2305.18446)].  
