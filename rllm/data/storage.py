@@ -11,7 +11,7 @@ from rllm.data.view import KeysView, ValuesView, ItemsView
 
 
 class BaseStorage(MutableMapping):
-    r"""Copy ideas from pytorch_geometric.
+    r"""A base class for storing nodes or edges in a graph.
     This class wraps a Python dictionary and extends it as follows:
 
     1. It allows attribute assignments, e.g.:
