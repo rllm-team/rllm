@@ -5,7 +5,10 @@ from rllm.transforms.graph_transforms import NETransform
 
 
 class Compose(NETransform):
-    r"""Composes several transforms together.
+    r"""Composes several NETransforms together into a single Transform.
+    This class allows for the sequential application of a list of NETransforms
+    to graph data. It is particularly useful in scenarios where multiple
+    preprocessing steps need to be applied to graph data in a specific order.
 
     Args:
         transforms (List[Callable]): List of transforms to compose.

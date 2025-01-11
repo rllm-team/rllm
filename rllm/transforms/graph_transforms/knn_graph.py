@@ -8,7 +8,7 @@ from rllm.transforms.graph_transforms.functional import knn_graph
 
 
 class KNNGraph(NETransform):  # TODO: add force_undirected option.
-    r"""Creates a k-NN graph based on node features
+    r"""Creates a k-NN graph based on node features.
 
     Args:
         num_neighbors (int, optional): The number of neighbors. (default: 6)
