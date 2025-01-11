@@ -1,5 +1,5 @@
 from .col_transform import ColTransform
-from .column_normalize import ColumnNormalize
+from .col_normalize import ColNormalize
 from .one_hot_transform import OneHotTransform
 from .stack_numerical import StackNumerical
 from .table_transform import TableTransform
@@ -8,7 +8,7 @@ from .default_table_transform import DefaultTableTransform
 
 __all__ = [
     "ColTransform",
-    "ColumnNormalize",
+    "ColNormalize",
     "OneHotTransform",
     "StackNumerical",
     "TableTransform",
