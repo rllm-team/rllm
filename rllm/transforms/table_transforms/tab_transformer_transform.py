@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
-from rllm.transforms.table_transforms.column_normalize import ColNormalize
+from rllm.transforms.table_transforms.col_normalize import ColNormalize
 from rllm.types import ColType
 from rllm.transforms.table_transforms import StackNumerical, TableTransform
 

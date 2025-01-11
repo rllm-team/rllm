@@ -202,4 +202,3 @@ def recursive_apply(data: Any, func: Callable) -> Any:
             return func(data)
         except Exception:
             return data
-

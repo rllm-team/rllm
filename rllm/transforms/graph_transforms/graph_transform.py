@@ -8,8 +8,7 @@ from rllm.data.graph_data import GraphData, HeteroGraphData
 
 
 class GraphTransform(torch.nn.Module, ABC):
-    r"""
-    The GraphTransform class is a base class for applying a series of
+    r"""The GraphTransform class is a base class for applying a series of
     transformations to graph data. It supports both homogeneous and
     heterogeneous graph data.
 
