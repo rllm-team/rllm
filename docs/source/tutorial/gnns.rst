@@ -1,6 +1,11 @@
 Design of GNNs
 ===============
 
+What is GNN?
+----------------
+In machine learning, **Graph Neural Networks (GNNs)** are a class of neural networks specifically designed to process graph-structured data. In a GNN, the input is represented as a graph, where nodes (vertices) correspond to entities and edges represent the relationships or interactions between these entities. A typical GNN architecture consists of an initial Transform followed by multiple Convolution layers, as detailed in *Understanding Transforms* and *Understanding Convolutions*.
+
+
 Construct a GCN 
 ----------------
 In this tutorial, we will discuss how to train a simple Graph Convolutional Network (GCN). Since their introduction, Graph Neural Networks (GNNs) have significantly impacted various fields such as social network analysis, recommendation systems, and link prediction. The GCN model, proposed in the paper `[Semi-supervised Classification with Graph Convolutional Networks] <https://arxiv.org/abs/1609.02907>`__ , is one of the most classic models in GNN research. Next, we will build a simple GCN and use it to perform node classification on the Cora citation network dataset.
@@ -12,16 +17,19 @@ First, we need to load the Cora dataset, add self-loops to the adjacency matrix,
     import os.path as osp
 
     from rllm.datasets import PlanetoidDataset
-    import rllm.transforms as T
+    from rllm.transforms.graph_transforms import GCNTransform
 
-    transform = T.Compose([
-        T.GCNNorm(), # Add self-loops and normalize
-        T.NormalizeFeatures('l2') # Normalize node features
-    ])
+    # Set random seed and device
+    torch.manual_seed(args.seed)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    path = osp.join(osp.dirname(osp.realpath(__file__)), 'data/Cora')
-    dataset = PlanetoidDataset(path, name='cora', transform=transform)
-    data = dataset[0]
+    # Load dataset
+    path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
+    data = PlanetoidDataset(path, args.dataset)[0]
+
+    # Transform data
+    transform = GCNTransform()
+    data = transform(data).to(device)
 
 Next, we can construct a two-layer GCN and use ReLU as the activation function:
 
@@ -29,7 +37,7 @@ Next, we can construct a two-layer GCN and use ReLU as the activation function:
 
     import torch
     import torch.nn.functional as F
-    from rllm.nn.conv import GCNConv
+    from rllm.nn.conv.graph_conv import GCNConv
 
     class GCN(torch.nn.Module):
         def __init__(self, in_channels, hidden_channels, out_channels):
@@ -44,31 +52,40 @@ Next, we can construct a two-layer GCN and use ReLU as the activation function:
             x = self.conv2(x, adj)
             return x
 
-We can initialize the optimizer and loss function, and train the constructed GCN model on the Cora dataset for 200 epochs:
+We can initialize the optimizer and loss function.
 
 .. code-block:: python
 
+    # Set up model, optimizer and loss function
     model = GCN(
-        in_channels=data.x.shape[1],
-        hidden_channels=32,
-        out_channels=data.num_classes,
+        in_dim=data.x.shape[1],
+        hidden_dim=args.hidden_dim,
+        out_dim=data.num_classes,
+        dropout=args.dropout,
+    ).to(device)
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=args.lr,
+        weight_decay=args.wd,
     )
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
     loss_fn = torch.nn.CrossEntropyLoss()
-    for epoch in range(200):
+
+Finally, we need to implement a :obj:`train()` function and a :obj:`test()` function, the latter of which does not require gradient tracking. The model can then be trained on the training and validation sets, and the classification results can be obtained from the test set.
+
+.. code-block:: python
+
+    def train():
         model.train()
         optimizer.zero_grad()
         out = model(data.x, data.adj)
         loss = loss_fn(out[data.train_mask], data.y[data.train_mask])
         loss.backward()
         optimizer.step()
+        return loss.item()
 
-Finally, we can validate the training results on the predefined test set and print the accuracy:
 
-.. code-block:: python
-
-    with torch.no_grad():
+    @torch.no_grad()
+    def test():
         model.eval()
         out = model(data.x, data.adj)
         pred = out.argmax(dim=1)
@@ -77,5 +94,29 @@ Finally, we can validate the training results on the predefined test set and pri
         for mask in [data.train_mask, data.val_mask, data.test_mask]:
             correct = float(pred[mask].eq(data.y[mask]).sum().item())
             accs.append(correct / int(mask.sum()))
+        return accs
 
-    print(f"Train acc: {accs[0]:.4f}, Val acc: {accs[1]:.4f}, Test acc: {accs[2]:.4f}")
+
+    metric = "Acc"
+    best_val_acc = best_test_acc = 0
+    times = []
+    for epoch in range(1, args.epochs + 1):
+        start = time.time()
+
+        train_loss = train()
+        train_acc, val_acc, test_acc = test()
+
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_test_acc = test_acc
+
+        times.append(time.time() - start)
+        print(
+            f"Epoch: [{epoch}/{args.epochs}] "
+            f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
+            f"Val {metric}: {val_acc:.4f}, Test {metric}: {test_acc:.4f} "
+        )
+
+    print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
+    print(f"Total time: {sum(times):.4f}s")
+    print(f"Best test acc: {best_test_acc:.4f}")
