@@ -6,9 +6,9 @@ What is RTL?
 In machine learning, **Relational Table Learnings (RTLs)** typically refers to the learning of relational table data, which consists of multiple interconnected tables with significant heterogeneity. In an RTL, the input comprises multiple table signals that are interrelated.  A typical RTL architecture consists of one or more Transforms followed by multiple Convolution layers, as detailed in **Understanding Transforms** and **Understanding Convolutions**.
 
 
-Construct a Bridge
+Construct a BRIDGE
 ----------------
-We can jointly construct a `[Bridge] <https://arxiv.org/abs/2407.20157>`__ using TNNs and GNNs to address multi-table relational learning problems.
+We can jointly construct a `[BRIDGE] <https://arxiv.org/abs/2407.20157>`__ using TNNs and GNNs to address multi-table relational learning problems.
 
 First, let's create datasets with Table-MovieLens1M dataset as an example.
 
@@ -59,7 +59,7 @@ For convenience, we will construct a basic homogeneous graph here, even though m
         n_all=user_size + movie_embeddings.size(0),
     ).to(device)
 
-Additionally, the :obj:`Bridge` method requires separate transformations for the table data and the graph data. Similarly, after data processing, the dataset is split into training, validation, and test sets.
+Additionally, the :obj:`BRIDGE` method requires separate transformations for the table data and the graph data. Similarly, after data processing, the dataset is split into training, validation, and test sets.
 
 .. code-block:: python
 
@@ -88,7 +88,7 @@ After initializing the data, we instantiate the model. Since the task of the TML
     
     from rllm.nn.conv.graph_conv import GCNConv
     from rllm.nn.conv.table_conv import TabTransformerConv
-    from rllm.nn.models import Bridge, TableEncoder, GraphEncoder
+    from rllm.nn.models import BRIDGE, TableEncoder, GraphEncoder
 
     # Set up model and optimizer
     t_encoder = TableEncoder(
@@ -102,7 +102,7 @@ After initializing the data, we instantiate the model. Since the task of the TML
         out_dim=target_table.num_classes,
         graph_conv=GCNConv,
     )
-    model = Bridge(
+    model = BRIDGE(
         table_encoder=t_encoder,
         graph_encoder=g_encoder,
     ).to(device)
@@ -161,7 +161,7 @@ Finally, we need to implement a :obj:`train()` function and a :obj:`test()` func
 
     print(f"Total Time: {time.time() - start_time:.4f}s")
     print(
-        "Bridge result: "
+        "BRIDGE result: "
         f"Best Val acc: {best_val_acc:.4f}, "
         f"Best Test acc: {best_test_acc:.4f}"
     )

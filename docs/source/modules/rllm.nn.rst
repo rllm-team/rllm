@@ -56,7 +56,7 @@ Models
    :nosignatures:
    :template: autosummary/class.rst
 
-   Bridge
+   BRIDGE
    RECT_L
    TabNet
 

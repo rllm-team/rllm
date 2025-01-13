@@ -1,8 +1,8 @@
-﻿rllm.nn.models.Bridge
+﻿rllm.nn.models.BRIDGE
 =====================
 .. currentmodule:: rllm.nn.models
 
-.. autoclass:: Bridge
+.. autoclass:: BRIDGE
    :show-inheritance:
    :members:
 

@@ -101,10 +101,10 @@ class GraphEncoder(torch.nn.Module):
         return x
 
 
-class Bridge(torch.nn.Module):
-    r"""The Bridge model introduced in the `"rLLM: Relational Table Learning
+class BRIDGE(torch.nn.Module):
+    r"""The BRIDGE model introduced in the `"rLLM: Relational Table Learning
     with LLMs" <https://arxiv.org/abs/2407.20157>`__ paper.
-    Bridge is a simple RTL method based on rLLM framework, which
+    BRIDGE is a simple RTL method based on rLLM framework, which
     combines table neural networks (TNNs) and graph neural networks (GNNs) to
     deal with multi-table data and their interrelationships, and uses "foreign
     keys" to build relationships and analyze them to improve the performance of
