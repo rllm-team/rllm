@@ -1,4 +1,4 @@
-Design of Transforms
+Understanding Transform
 ===============
 
 What is a Transform?
