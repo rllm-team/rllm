@@ -1,4 +1,4 @@
-Design of Convolutions
+Understanding Convolution
 ===============
 
 What is a convolution?
