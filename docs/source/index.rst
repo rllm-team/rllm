@@ -31,12 +31,12 @@ Highlight Features:
    :maxdepth: 1
    :caption: TUTORIALS
 
+   tutorial/transforms
+   tutorial/convolutions
    tutorial/gnns
    tutorial/tnns
    tutorial/rtls
    tutorial/llm_methods
-   tutorial/convolutions
-   tutorial/transforms
 
 
 .. toctree::
@@ -56,8 +56,7 @@ Highlight Features:
    :maxdepth: 1
    :caption: CHEATSHEETS
 
-   cheatsheet/model_cheatsheets
-   cheatsheet/dataset_cheatsheets
+   cheatsheet/model_cheatsheet
 
 
 .. toctree::
