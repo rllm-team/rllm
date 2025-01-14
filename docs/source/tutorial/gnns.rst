@@ -1,7 +1,7 @@
 Design of GNNs
 ===============
 
-What is GNN?
+What is a GNN?
 ----------------
 In machine learning, **Graph Neural Networks (GNNs)** are a class of neural networks specifically designed to process graph-structured data. In a GNN, the input is represented as a graph, where nodes (vertices) correspond to entities and edges represent the relationships or interactions between these entities. A typical GNN architecture consists of an initial Transform followed by multiple Convolution layers, as detailed in *Understanding Transforms* and *Understanding Convolutions*.
 

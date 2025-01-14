@@ -1,7 +1,7 @@
 Understanding Convolution
 ===============
 
-What is a convolution?
+What is a Convolution?
 ----------------
 In machine learning, convolution generally involves combining an input signal with a filter to produce an output signal. Specifically, for image signals, convolution refers to aggregating nearby pixels around the central pixel. For graph signals, it involves aggregating information from connected nodes around the central node. For table signals, it refers to aggregating entries from different columns within each row. Therefore, designing an effective convolution operation is a key challenge in deep learning methods.
 
