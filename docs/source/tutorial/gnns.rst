@@ -3,12 +3,12 @@ Design of GNNs
 
 What is a GNN?
 ----------------
-In machine learning, **Graph Neural Networks (GNNs)** are a class of neural networks specifically designed to process graph-structured data. In a GNN, the input is represented as a graph, where nodes (vertices) correspond to entities and edges represent the relationships or interactions between these entities. A typical GNN architecture consists of an initial Transform followed by multiple Convolution layers, as detailed in *Understanding Transforms* and *Understanding Convolutions*.
+In machine learning, **Graph Neural Networks (GNNs)** are a class of neural networks specifically designed to process graph-structured data. In a GNN, the input is represented as a graph, where nodes (vertices) correspond to entities and edges represent the relationships or interactions between these entities. A typical GNN architecture consists of an initial Transform followed by multiple Convolution layers, as detailed in *Understanding Transform* and *Understanding Convolution*.
 
 
 Construct a GCN 
 ----------------
-In this tutorial, we will discuss how to train a simple Graph Convolutional Network (GCN). Since their introduction, Graph Neural Networks (GNNs) have significantly impacted various fields such as social network analysis, recommendation systems, and link prediction. The GCN model, proposed in the paper `[Semi-supervised Classification with Graph Convolutional Networks] <https://arxiv.org/abs/1609.02907>`__ , is one of the most classic models in GNN research. Next, we will build a simple GCN and use it to perform node classification on the Cora citation network dataset.
+In this tutorial, we will discuss how to train a simple Graph Convolutional Network (GCN). Since their introduction, Graph Neural Networks (GNNs) have significantly impacted various fields such as social network analysis, recommendation systems, and link prediction. The GCN model, proposed in the paper `[Semi-supervised Classification with Graph Convolutional Networks] <https://arxiv.org/abs/1609.02907>`__, is one of the most classic models in GNN research. Next, we will build a simple GCN and use it to perform node classification on the Cora citation network dataset.
 
 First, we need to load the Cora dataset, add self-loops to the adjacency matrix, and normalize it:
 
