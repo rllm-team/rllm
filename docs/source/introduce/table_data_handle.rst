@@ -6,8 +6,8 @@ Data Handling of Tables
 
 A table contains many different columns with many different types. Each column type in Rllm is described by a certain semantic type, i.e., ColType. Rllm supports two basic column types so far:
 
-- :obj:`ColType.CATEGORICAL`:represent categorical or discrete data, such as grade levels in a student dataset and diabetes types in a diabetes dataset.
-- :obj:`ColType.NUMERICAL`:represent numerical or continuous data, such as such as temperature in a weather dataset and income in a salary dataset.
+- :obj:`ColType.CATEGORICAL`: represent categorical or discrete data, such as grade levels in a student dataset and diabetes types in a diabetes dataset.
+- :obj:`ColType.NUMERICAL`: represent numerical or continuous data, such as such as temperature in a weather dataset and income in a salary dataset.
 
 A table in Rllm is described by an instance of :class:`~rllm.data.table_data.TableData` with many default attributes:
 

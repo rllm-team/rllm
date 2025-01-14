@@ -10,9 +10,8 @@ from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
 class FTTransformerConv(torch.nn.Module):
-    r"""The FT-Transformer backbone in the
-    `"Revisiting Deep Learning Models for Tabular Data"
-    <https://arxiv.org/abs/2106.11959>`_ paper.
+    r"""The FT-Transformer backbone in the `"Revisiting Deep Learning
+    Models for Tabular Data" <https://arxiv.org/abs/2106.11959>`_ paper.
 
     This module concatenates a learnable CLS token embedding :obj:`x_cls` to
     the input tensor :obj:`x` and applies a multi-layer Transformer on the
