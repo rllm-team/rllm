@@ -11,10 +11,9 @@ from rllm.nn.pre_encoder import FTTransformerPreEncoder
 class SAINTConv(torch.nn.Module):
     r"""The SAINTConv Layer introduced in the
     `"SAINT: Improved Neural Networks for Tabular Data via Row Attention
-        and Contrastive Pre-Training"
-    <https://arxiv.org/abs/2106.01342>`_ paper.
+    and Contrastive Pre-Training" <https://arxiv.org/abs/2106.01342>`__ paper.
 
-    This layer applies two `TransformerEncoder` modules: one for aggregating
+    This layer applies two :obj:`TransformerEncoder` modules: one for aggregating
     information between columns, and another for aggregating information
     between samples. This dual attention mechanism allows the model to capture
     complex relationships both within the features of a single sample and
