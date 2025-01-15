@@ -41,9 +41,9 @@ TNN Cheatsheet
     * - TabNet
       - The TabNet model introduced in the `"TabNet: Attentive Interpretable Tabular Learning" <https://arxiv.org/abs/1908.07442>`_ paper.
     * - Excelformer
-      - The ExcelFormerConv Layer introduced in the `"ExcelFormer: A neural network surpassing GBDTs on tabular data" <https://arxiv.org/abs/2301.02819>`_ paper.
+      - The ExcelFormer model introduced in the `"ExcelFormer: A neural network surpassing GBDTs on tabular data" <https://arxiv.org/abs/2301.02819>`_ paper.
     * - Trompt
-      - The TromptConv Layer introduced in the `"Trompt: Towards a Better Deep Neural Network for Tabular Data" <https://arxiv.org/abs/2305.18446>`_ paper.
+      - The Trompt model introduced in the `"Trompt: Towards a Better Deep Neural Network for Tabular Data" <https://arxiv.org/abs/2305.18446>`_ paper.
 
 
 RTL Cheatsheet
