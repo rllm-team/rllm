@@ -8,7 +8,7 @@ import torch
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData
-from rllm.data.dataset import Dataset
+from rllm.datasets.dataset import Dataset
 from rllm.utils.download import download_url
 from rllm.utils.extract import extract_zip
 

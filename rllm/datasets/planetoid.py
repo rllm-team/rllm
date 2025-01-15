@@ -13,7 +13,7 @@ import torch
 
 # import sys
 # sys.path.append('../')
-from rllm.data.dataset import Dataset
+from rllm.datasets.dataset import Dataset
 from rllm.data.graph_data import GraphData
 from rllm.utils.sparse import sparse_mx_to_torch_sparse_tensor
 from rllm.datasets.utils import index2mask
