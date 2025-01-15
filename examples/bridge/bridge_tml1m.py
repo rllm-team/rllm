@@ -14,6 +14,7 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
+sys.path.append("../../")
 from rllm.datasets import TML1MDataset
 from rllm.transforms.graph_transforms import GCNTransform
 from rllm.transforms.table_transforms import TabTransformerTransform
@@ -128,6 +129,8 @@ def test():
     for mask in [train_mask, val_mask, test_mask]:
         correct = float(preds[mask].eq(y[mask]).sum().item())
         accs.append(correct / int(mask.sum()))
+        print(mask.sum())
+    exit(0)
     return accs
 
 
