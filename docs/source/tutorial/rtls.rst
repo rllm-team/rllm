@@ -1,9 +1,9 @@
 Design of RTLs
 ==============
 
-What is a RTL?
+What is RTL?
 ----------------
-In machine learning, **Relational Table Learnings (RTLs)** typically refers to the learning of relational table data, which consists of multiple interconnected tables with significant heterogeneity. In an RTL, the input comprises multiple table signals that are interrelated.  A typical RTL architecture consists of one or more Transforms followed by multiple Convolution layers, as detailed in *Understanding Transform* and *Understanding Convolution*.
+In machine learning, **Relational Table Learnings (RTLs)** typically refers to the learning of relational table data, which consists of multiple interconnected tables with significant heterogeneity. In an RTL, the input comprises multiple table signals that are interrelated.  A typical RTL architecture consists of one or more Transforms followed by multiple Convolution layers, as detailed in **Understanding Transforms** and **Understanding Convolutions**.
 
 
 Construct a BRIDGE
@@ -41,7 +41,7 @@ For convenience, we will construct a basic homogeneous graph here, even though m
 
 .. code-block:: python
 
-    from utils import build_homo_graph, reorder_ids
+    from examples.bridge.utils import build_homo_graph, reorder_ids
 
     # Original movie id in datasets is unordered, so we reorder them. 
     ordered_rating = reorder_ids(
@@ -106,31 +106,24 @@ After initializing the data, we instantiate the model. Since the task of the TML
         table_encoder=t_encoder,
         graph_encoder=g_encoder,
     ).to(device)
-    optimizer = torch.optim.Adam(
-        model.parameters(),
-        lr=args.lr,
-        weight_decay=args.wd,
-    )
+    optimizer = torch.optim.Adam(model.parameters())
 
-Finally, we need to implement a :obj:`train()` function and a :obj:`test()` function, the latter of which does not require gradient tracking. The model can then be trained on the training and validation sets, and the classification results can be obtained from the test set.
+Finally, we jointly train the model and evaluate the results on the test set.
 
 .. code-block:: python
 
-    def train() -> float:
-    model.train()
-    optimizer.zero_grad()
-    logits = model(
-        table=user_table,
-        non_table=movie_embeddings,
-        adj=adj,
-    )
-    loss = F.cross_entropy(logits[train_mask].squeeze(), y[train_mask])
-    loss.backward()
-    optimizer.step()
-    return loss.item()
+    for epoch in range(50):
+        optimizer.zero_grad()
+        logits = model(
+            table=user_table,
+            non_table=movie_embeddings,
+            adj=adj,
+        )
+        loss = F.cross_entropy(logits[train_mask].squeeze(), y[train_mask])
+        loss.backward()
+        optimizer.step()
 
-    @torch.no_grad()
-    def test():
+    with torch.no_grad():
         model.eval()
         logits = model(
             table=user_table,
@@ -138,30 +131,6 @@ Finally, we need to implement a :obj:`train()` function and a :obj:`test()` func
             adj=adj,
         )
         preds = logits.argmax(dim=1)
-
-        accs = []
-        for mask in [train_mask, val_mask, test_mask]:
-            correct = float(preds[mask].eq(y[mask]).sum().item())
-            accs.append(correct / int(mask.sum()))
-        return accs
-
-    start_time = time.time()
-    best_val_acc = best_test_acc = 0
-    for epoch in range(1, args.epochs + 1):
-        train_loss = train()
-        train_acc, val_acc, test_acc = test()
-        print(
-            f"Epoch: [{epoch}/{args.epochs}]"
-            f"Loss: {train_loss:.4f} train_acc: {train_acc:.4f} "
-            f"val_acc: {val_acc:.4f} test_acc: {test_acc:.4f} "
-        )
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            best_test_acc = test_acc
-
-    print(f"Total Time: {time.time() - start_time:.4f}s")
-    print(
-        "BRIDGE result: "
-        f"Best Val acc: {best_val_acc:.4f}, "
-        f"Best Test acc: {best_test_acc:.4f}"
-    )
+        acc = (preds[test_mask] == y[test_mask]).sum(dim=0) / test_mask.sum()
+    print(f'Accuracy: {acc:.4f}')
+    >>> 0.3860
