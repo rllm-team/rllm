@@ -14,7 +14,7 @@ from scipy.sparse._csr import csr_matrix
 
 import torch
 
-from rllm.data.dataset import Dataset
+from rllm.datasets.dataset import Dataset
 from rllm.data.graph_data import GraphData
 from rllm.utils.sparse import sparse_mx_to_torch_sparse_tensor
 from rllm.utils.extract import extract_zip

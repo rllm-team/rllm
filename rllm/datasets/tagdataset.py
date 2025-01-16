@@ -7,7 +7,7 @@ from typing import Optional, Callable
 
 import torch
 
-from rllm.data.dataset import Dataset
+from rllm.datasets.dataset import Dataset
 from rllm.data.graph_data import GraphData
 from rllm.utils.download import download_url
 from rllm.data.storage import BaseStorage
