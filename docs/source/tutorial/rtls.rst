@@ -123,13 +123,14 @@ Finally, we jointly train the model and evaluate the results on the test set.
         loss.backward()
         optimizer.step()
 
-    model.eval()
-    logits = model(
-        table=user_table,
-        non_table=movie_embeddings,
-        adj=adj,
-    )
-    preds = logits.argmax(dim=1)
-    acc = (preds[test_mask] == y[test_mask]).sum(dim=0) / test_mask.sum()
+    with torch.no_grad():
+        model.eval()
+        logits = model(
+            table=user_table,
+            non_table=movie_embeddings,
+            adj=adj,
+        )
+        preds = logits.argmax(dim=1)
+        acc = (preds[test_mask] == y[test_mask]).sum(dim=0) / test_mask.sum()
     print(f'Accuracy: {acc:.4f}')
     >>> 0.3860

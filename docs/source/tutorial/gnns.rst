@@ -74,18 +74,15 @@ Finally, we need to implement a :obj:`train()` function and a :obj:`test()` func
 
 .. code-block:: python
 
-    def train():
+    for epoch in range(200):
         model.train()
         optimizer.zero_grad()
         out = model(data.x, data.adj)
         loss = loss_fn(out[data.train_mask], data.y[data.train_mask])
         loss.backward()
         optimizer.step()
-        return loss.item()
 
-
-    @torch.no_grad()
-    def test():
+    with torch.no_grad():
         model.eval()
         out = model(data.x, data.adj)
         pred = out.argmax(dim=1)
@@ -94,29 +91,6 @@ Finally, we need to implement a :obj:`train()` function and a :obj:`test()` func
         for mask in [data.train_mask, data.val_mask, data.test_mask]:
             correct = float(pred[mask].eq(data.y[mask]).sum().item())
             accs.append(correct / int(mask.sum()))
-        return accs
 
-
-    metric = "Acc"
-    best_val_acc = best_test_acc = 0
-    times = []
-    for epoch in range(1, args.epochs + 1):
-        start = time.time()
-
-        train_loss = train()
-        train_acc, val_acc, test_acc = test()
-
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            best_test_acc = test_acc
-
-        times.append(time.time() - start)
-        print(
-            f"Epoch: [{epoch}/{args.epochs}] "
-            f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
-            f"Val {metric}: {val_acc:.4f}, Test {metric}: {test_acc:.4f} "
-        )
-
-    print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
-    print(f"Total time: {sum(times):.4f}s")
-    print(f"Best test acc: {best_test_acc:.4f}")
+    print(f"Accuracy: {acc:.4f}")
+    >>> 0.8150
