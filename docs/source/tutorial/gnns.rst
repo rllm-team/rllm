@@ -87,10 +87,8 @@ Finally, we need to implement a :obj:`train()` function and a :obj:`test()` func
         out = model(data.x, data.adj)
         pred = out.argmax(dim=1)
 
-        accs = []
-        for mask in [data.train_mask, data.val_mask, data.test_mask]:
-            correct = float(pred[mask].eq(data.y[mask]).sum().item())
-            accs.append(correct / int(mask.sum()))
+        correct = float(pred[data.test_mask].eq(data.y[data.test_mask]).sum().item())
+        acc = correct / int(data.test_mask.sum())
 
     print(f"Accuracy: {acc:.4f}")
     >>> 0.8150
