@@ -99,13 +99,14 @@ Finally, we train our model and get the classification results on the test set.
             loss.backward()
             optimizer.step()
     
-    model.eval()
-    correct = 0
-    for tf in test_loader:
-        x, y = batch
-        pred = model(x)
-        pred_class = pred.argmax(dim=-1)
-        correct += (y == pred_class).sum()
-    acc = int(correct) / len(test_dataset)
+    with torch.no_grad():
+        model.eval()
+        correct = 0
+        for tf in test_loader:
+            x, y = batch
+            pred = model(x)
+            pred_class = pred.argmax(dim=-1)
+            correct += (y == pred_class).sum()
+        acc = int(correct) / len(test_dataset)
     print(f'Accuracy: {acc:.4f}')
     >>> 0.8082
