@@ -2,7 +2,7 @@ Design of TNNs
 ===============
 What is a TNN?
 ----------------
-In machine learning, **Table/Tabular Neural Networks (TNNs)** are recently emerging neural networks specifically designed to process tabular data. In a TNN, the input is structured tabular data, usually organized in rows and columns. A typical TNN architecture consists of an initial Transform followed by multiple Convolution layers, as detailed in *Understanding Transform* and *Understanding Convolution*.
+In machine learning, **Table/Tabular Neural Networks (TNNs)** are recently emerging neural networks specifically designed to process tabular data. In a TNN, the input is structured tabular data, usually organized in rows and columns. A typical TNN architecture consists of an initial Transform followed by multiple Convolution layers, as detailed in `Understanding Transform <transforms>` and :doc:`Understanding Convolution <convolutions>`.
 
 
 Construct a TabTransformer

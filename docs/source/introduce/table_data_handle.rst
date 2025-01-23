@@ -4,12 +4,12 @@ Table Data Handle
 Data Handling of Tables
 -----------------------
 
-A table contains many different columns with many different types. Each column type in Rllm is described by a certain semantic type, i.e., ColType. Rllm supports two basic column types so far:
+A table contains many different columns with many different types. Each column type in rLLM is described by a certain semantic type, i.e., ColType. rLLM supports two basic column types so far:
 
 - :obj:`ColType.CATEGORICAL`: represent categorical or discrete data, such as grade levels in a student dataset and diabetes types in a diabetes dataset.
 - :obj:`ColType.NUMERICAL`: represent numerical or continuous data, such as such as temperature in a weather dataset and income in a salary dataset.
 
-A table in Rllm is described by an instance of :class:`~rllm.data.table_data.TableData` with many default attributes:
+A table in rLLM is described by an instance of :class:`~rllm.data.table_data.TableData` with many default attributes:
 
 - :obj:`df`: A `pandas.DataFrame`_ stores raw tabular data.
 - :obj:`col_types`: A dictionary indicating :class:`~rllm.types.ColType` of each column.
@@ -73,10 +73,10 @@ A table in Rllm is described by an instance of :class:`~rllm.data.table_data.Tab
     dataset.y
     >>> tensor([0, 1, 1,  ..., 0, 1, 0])
 
-    dataset.stats_dict[ColType.CATEGORICAL][0] 
+    dataset.stats_dict[ColType.CATEGORICAL][0]
     >>> {<StatType.COUNT: 'COUNT'>: 3, <StatType.MOST_FREQUENT: 'MOST_FREQUENT'>: 2, <StatType.COLNAME: 'COLNAME'>: 'Pclass'}
 
-    dataset.stats_dict[ColType.NUMERICAL][0]   
+    dataset.stats_dict[ColType.NUMERICAL][0]
     >>> {<StatType.MEAN: 'MEAN'>: 29.69911766052246, <StatType.MAX: 'MAX'>: 80.0, <StatType.MIN: 'MIN'>: 0.41999998688697815, <StatType.STD: 'STD'>: 14.526496887207031, <StatType.QUANTILES: 'QUANTILES'>: [0.41999998688697815, 20.125, 28.0, 38.0, 80.0], <StatType.COLNAME: 'COLNAME'>: 'Age'}
 
 Also, an instance of :class:`~rllm.data.table_data.TableData` contains many basic properties:
@@ -105,9 +105,9 @@ We support transferring the data in a :class:`~rllm.data.table_data.TableData` t
 Common Benchmark Datasets (Table Part)
 ---------------------------------------
 
-Rllm contains a large number of common benchmark datasets. The list of all datasets are available in :mod:`~rllm.datasets`. Our dataset includes graph datasets and tabular datasets. We use tabular data for the demonstration.
+rLLM contains a large number of common benchmark datasets. The list of all datasets are available in :mod:`~rllm.datasets`. Our dataset includes graph datasets and tabular datasets. We use tabular data for the demonstration.
 
-Initializing tabular datasets is straightforward in Rllm. An initialization of a dataset will automatically download its raw files and process its columns.
+Initializing tabular datasets is straightforward in rLLM. An initialization of a dataset will automatically download its raw files and process its columns.
 
 In the below example, we will use one of the pre-loaded datasets, containing the Titanic passengers.
 
@@ -138,7 +138,7 @@ In the below example, we will use one of the pre-loaded datasets, containing the
 
         [5 rows x 11 columns]
 
-Rllm also supports a custom dataset, so that you can use Rllm for your own problem. Assume you prepare your `pandas.DataFrame`_ as :obj:`df` with five columns: :obj:`cat1`, :obj:`cat2`, :obj:`num1`, :obj:`num2`, and :obj:`y`. Creating :class:`~rllm.data.table_data.TableData` object is very easy.
+rLLM also supports a custom dataset, so that you can use rLLM for your own problem. Assume you prepare your `pandas.DataFrame`_ as :obj:`df` with five columns: :obj:`cat1`, :obj:`cat2`, :obj:`num1`, :obj:`num2`, and :obj:`y`. Creating :class:`~rllm.data.table_data.TableData` object is very easy.
 
 .. _pandas.DataFrame: http://pandas.pydata.org/pandas-docs/dev/reference/api/pandas.DataFrame.html#pandas.DataFrame
 
