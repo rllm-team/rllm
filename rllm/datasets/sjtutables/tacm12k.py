@@ -63,11 +63,11 @@ class TACM12KDataset(Dataset):
 
     def __init__(self, cached_dir: str, force_reload: Optional[bool] = False) -> None:
         # self.name = 'TACM12K'
-        self.name = "Table-ACM12K"
+        self.name = "Table_ACM12K"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
-        # Table-ACM12K data_list:
+        # Table_ACM12K data_list:
         # 0: papers_table
         # 1: authors_table
         # 2: citations_table
@@ -96,7 +96,7 @@ class TACM12KDataset(Dataset):
     @property
     def processed_filenames(self):
         return [
-            "paper_datas.pt",
+            "paper_data.pt",
             "authors_data.pt",
             "citations_data.pt",
             "writings_data.pt",
