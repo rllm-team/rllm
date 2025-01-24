@@ -54,11 +54,11 @@ class TLF2KDataset(Dataset):
     url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/main/sjtutables/TLF2K.zip"  # noqa
 
     def __init__(self, cached_dir: str, force_reload: Optional[bool] = False) -> None:
-        self.name = "Table-LastFM2K"
+        self.name = "Table_LastFM2K"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
-        # Table-LastFM2K data_list:
+        # Table_LastFM2K data_list:
         # 0: artists_table
         # 1: user_artists_table
         # 2: user_friends_ table
