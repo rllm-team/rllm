@@ -1,4 +1,4 @@
-from .dataset import Dataset  # noqa
+from ..datasets.dataset import Dataset  # noqa
 from .graph_data import BaseGraph, GraphData, HeteroGraphData  # noqa
 from .table_data import BaseTable, TableData, TableDataset  # noqa
 from .storage import BaseStorage, NodeStorage, EdgeStorage, recursive_apply  # noqa
