@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 # -- Project information -----------------------------------------------------
 
 project = 'rLLM'
-copyright = '2024, Rllm Team'
+copyright = '2024, rLLM Team'
 author = 'Zheng Wang, Weichen Li, Xiaotong Huang, Enze Zhang'
 version = '1.0'
 # The full version, including alpha/beta/rc tags
