@@ -7,7 +7,7 @@ import numpy as np
 import scipy.sparse as sp
 import torch
 
-from rllm.data.dataset import Dataset
+from rllm.datasets.dataset import Dataset
 from rllm.data.graph_data import HeteroGraphData
 from rllm.utils.graph_utils import sparse_mx_to_torch_sparse_tensor
 from rllm.utils.download import download_url
