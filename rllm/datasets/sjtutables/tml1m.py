@@ -57,12 +57,14 @@ class TML1MDataset(Dataset):
 
     url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/main/sjtutables/TML1M.zip"  # noqa
 
-    def __init__(self, cached_dir: str, force_reload: Optional[bool] = False, transform=None) -> None:
-        self.name = "Table-MovieLens1M"
+    def __init__(
+        self, cached_dir: str, force_reload: Optional[bool] = False, transform=None
+    ) -> None:
+        self.name = "Table_MovieLens1M"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
-        # Table-MovieLens1M data_list
+        # Table_MovieLens1M data_list
         # 0: users_table
         # 1: movies_table
         # 2: ratings_table
@@ -77,8 +79,7 @@ class TML1MDataset(Dataset):
 
         self.transform = transform
         if self.transform is not None:
-             self.data_list[0] = self.transform(self.data_list[0])
-
+            self.data_list[0] = self.transform(self.data_list[0])
 
     @property
     def raw_filenames(self):
