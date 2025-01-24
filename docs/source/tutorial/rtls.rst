@@ -3,7 +3,7 @@ Design of RTLs
 
 What is RTL?
 ----------------
-In machine learning, **Relational Table Learnings (RTLs)** typically refers to the learning of relational table data, which consists of multiple interconnected tables with significant heterogeneity. In an RTL, the input comprises multiple table signals that are interrelated.  A typical RTL architecture consists of one or more Transforms followed by multiple Convolution layers, as detailed in **Understanding Transforms** and **Understanding Convolutions**.
+In machine learning, **Relational Table Learnings (RTLs)** typically refers to the learning of relational table data, which consists of multiple interconnected tables with significant heterogeneity. In an RTL, the input comprises multiple table signals that are interrelated.  A typical RTL architecture consists of one or more Transforms followed by multiple Convolution layers, as detailed in :doc:`Understanding Transforms <transforms>` and :doc:`Understanding Convolutions <convolutions>`.
 
 
 Construct a BRIDGE
@@ -132,5 +132,6 @@ Finally, we jointly train the model and evaluate the results on the test set.
         )
         preds = logits.argmax(dim=1)
         acc = (preds[test_mask] == y[test_mask]).sum(dim=0) / test_mask.sum()
+        
     print(f'Accuracy: {acc:.4f}')
     >>> 0.3860
