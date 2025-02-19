@@ -8,6 +8,12 @@ from torch import Tensor
 
 from table import Table
 
+
+class Relation:
+    """
+    Relation shows the relationship between two tables.
+    """
+
 class RelationFrame:
     """
     RelationFrame is tables with relations
