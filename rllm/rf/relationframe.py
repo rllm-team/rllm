@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import cached_property
 
 import networkx as nx
+import pandas as pd
 
 sys.path.append("./")
 sys.path.append("../")
@@ -28,15 +29,7 @@ class Relation:
         assert self.pkey in self.pkey_table.cols, "Primary key should be in the table."
 
     def __repr__(self):
-        try:
-            fkey_table_name = self.fkey_table.table_name
-        except AttributeError:
-            fkey_table_name = "fkey_table"
-        try:
-            pkey_table_name = self.pkey_table.table_name
-        except AttributeError:
-            pkey_table_name = "pkey_table"
-        return f"{fkey_table_name}.{self.fkey} ----> {pkey_table_name}.{self.pkey}"
+        return f"{self.fkey_table.table_name}.{self.fkey} ----> {self.pkey_table.table_name}.{self.pkey}"
 
 
 class RelationFrame:
@@ -75,6 +68,17 @@ class RelationFrame:
         return self._meta_g.to_undirected(as_view=True)
 
     # funcs
+    def reset_table_index(self):
+        r"""
+        Reset the index of tables. This func will overwrite the original index.
+        """
+        for table in self.tables:
+            if isinstance(table.df.index, pd.RangeIndex):
+                continue
+            o_index_name = table.index_col
+            table.df.reset_index(drop=True, inplace=True)
+            table.df.index.name = o_index_name
+
     def _infer_relation(self):
         r"""
         Infer the relation between tables.
