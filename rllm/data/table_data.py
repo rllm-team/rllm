@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections.abc import Iterable
-from typing import Any, Dict, List, Union, Tuple, Callable, Optional
+from functools import cached_property, lru_cache
+from typing import Any, Dict, List, Union, Tuple, Callable, Optional, overload
 
 import torch
 import numpy as np
@@ -110,6 +111,9 @@ class TableData(BaseTable):
 
         if feat_dict is None or y is None:
             self._generate_feat_dict()
+            self._inherit_feat_dict=False
+        else:
+            self._inherit_feat_dict=True
         if metadata is None:
             self._generate_metadata()
 
@@ -161,13 +165,84 @@ class TableData(BaseTable):
     def __len__(self) -> int:
         return len(self.df)
 
-    def __getitem__(self, index: Union[int, Iterable, ColType]) -> Any:
+    @overload
+    def __getitem__(self, index: ColType) -> Tensor:
+        ...
+    
+    @overload
+    def __getitem__(self, index: Union[int, Iterable, slice]) -> TableData:
+        ...
+
+    def __getitem__(self, index: Union[ColType, int, Iterable, slice]) -> Any:
         """TODO: ColType; Return df and tensor simultaneously."""
         if isinstance(index, ColType):
             # Each ColType consists many column,
             # ordered by col_types given in init function.
             assert index in self.col_types.values()
             return self.feat_dict[index]
+
+        # ZK: I write slice mode for sampled table data; DO not inherit metadata and _mapping storage.
+        else:
+            if self._inherit_feat_dict:
+                if isinstance(index, slice):
+                    assert (index.start >= 0 
+                            and index.stop <= len(self)
+                            and index.start < index.stop
+                            ), "Slice index must be within the range of the dataframe!"
+                    feat_dict = self.get_feat_dict(index.start, index.stop)
+                    y = self.y[index]
+                    index = list(range(index.start, index.stop))
+                elif isinstance(index, int):
+                    feat_dict = self.get_feat_dict(index, index + 1)
+                    y = self.y[index]
+                elif isinstance(index, Iterable):
+                    try:
+                        mask = torch.tensor(index, dtype=torch.long)
+                        feat_dict = self.get_feat_dict_from_mask(mask)
+                        y = self.y[mask]
+                        index = list(index)
+                    except:
+                        raise ValueError("Iterable index must be convertible to tensor!")
+                else:
+                    raise ValueError("Slice index must be int, slice or iterable!")
+                
+            if isinstance(index, int):
+                df = self.df.iloc[[index]].reset_index(drop=True)
+                index = [index]
+            else:
+                df = self.df.iloc[index].reset_index(drop=True)
+
+            if self._inherit_feat_dict:
+                # return TableData(df, self.col_types, self.target_col, feat_dict, y)
+                return SubTableData(index,
+                                    df=df,
+                                    col_types=self.col_types,
+                                    target_col=self.target_col,
+                                    feat_dict=feat_dict,
+                                    y=y)
+            else:
+                # return TableData(df, self.col_types, self.target_col)
+                return SubTableData(index,
+                                    df=df,
+                                    col_types=self.col_types,
+                                    target_col=self.target_col)
+
+    @cached_property
+    def index_col(self) -> Optional[str]:
+        r"""The name of the index column, i.e. pkey column."""
+        return self.df.index.name
+    
+    @lru_cache
+    def fkey_index(self, fkey_col: str) -> np.ndarray:
+        r"""fkey_index for sampler."""
+        return self.df[fkey_col].values
+
+    @property
+    def cols(self) -> List[str]:
+        r"""The columns of the table data, including index and target columns."""
+        if self.df.index.name is not None:
+            return [self.df.index.name] + list(self.df.columns)
+        return list(self.df.columns)
 
     @property
     def feat_cols(self) -> List[str]:
@@ -198,6 +273,7 @@ class TableData(BaseTable):
 
     @property
     def num_cols(self):
+        # BUG: feat cols num != cols num
         r"""The number of columns we usedt."""
         return len(self.feat_cols)
 
@@ -408,3 +484,24 @@ class TableData(BaseTable):
 
         self.metadata = metadata
         return self
+
+
+class SubTableData(TableData):
+    r"""
+    A class for creating sub-table data from a TableData object.
+
+    Args:
+        oind (List[int]): The original indices in TableData of the sub-table.
+    """
+    def __init__(self, oind: List[int], **kwargs):
+        super().__init__(**kwargs)
+        self._oind = oind
+        self._subtable = True
+
+    @property
+    def is_subtable(self):
+        return self._subtable
+    
+    @property
+    def oind(self):
+        return self._oind

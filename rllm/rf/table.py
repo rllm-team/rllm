@@ -1,3 +1,6 @@
+"""
+Deprecated. Use rllm.data.table_data.TableData instead.
+"""
 from typing import List, Tuple, Dict, Any, Union, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -25,11 +28,13 @@ class Table:
         self.df = df
 
         if 'pkey' in kwargs:
-            assert isinstance(kwargs['pkey'], str), "Primary key col should be `str`."
-            self.pkey = kwargs['pkey']
+            if isinstance(kwargs['pkey'], str) and kwargs['pkey'] in self.df.columns:
+                self.pkey = (kwargs['pkey'],)
+            elif isinstance(kwargs['pkey'], tuple) and all(pkey in self.df.columns for pkey in kwargs['pkey']):
+                self.pkey = kwargs['pkey']
         else:
             try:
-                self.pkey = self.df.columns[0]
+                self.pkey = (self.df.columns[0],)
             except IndexError:
                 raise ValueError("Primary key col should be provided or \
                                   the table should have at least one column.")
@@ -58,13 +63,15 @@ class Table:
 if __name__ == "__main__":
     # Test Table
     df = pd.DataFrame({
-        "a": [1, 2, 3, 4],
-        "b": [5, 6, 7, 8],
+        "UserID": [1, 1, 1, 1, 1],
+        "MovieID": [1177, 656, 903, 3340, 2287],
+        "Rating": [5, 3, 3, 4, 5],
+        "Timestamp": [978300760, 978302109, 978301968, 978300275, 978824291]
     })
-    table = Table(df)
+    table = Table(df, pkey=('UserID', 'MovieID'), fkeys=['UserID', 'MovieID'])
     print(table.pkey)
     print(len(table))
     print(table.df)
     print(table.fkeys)
-    table.fkeys = ['a']
-    print(table.fkeys)
+    # table.fkeys = ['a']
+    # print(table.fkeys)
