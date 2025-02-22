@@ -4,7 +4,6 @@ from os import path as osp
 
 import torch
 from torch import Tensor
-import pandas as pd
 import numpy as np
 
 sys.path.append("./")
@@ -24,6 +23,7 @@ dataset = TML1MDataset(cached_dir=path, force_reload=True)
     movie_embeddings,
 ) = dataset.data_list
 
+
 def timer(func):
     def wrapper(*args, **kwargs):
         tik = time.perf_counter()
@@ -32,6 +32,7 @@ def timer(func):
         print(f"Execution time: {tok - tik} seconds")
         return result
     return wrapper
+
 
 @timer
 def tensor_t():
@@ -42,6 +43,7 @@ def tensor_t():
         cur = torch.stack([cur, torch.full_like(cur, i)], dim=1)
         res = torch.cat((res, cur), dim=0)
     return res
+
 
 @timer
 def tensor_t_2():
@@ -54,6 +56,7 @@ def tensor_t_2():
         res = torch.cat((res, cur), dim=0)
     return res
 
+
 @timer
 def pd_t():
     pd_index = rating_table.df['UserID'].values
@@ -64,6 +67,7 @@ def pd_t():
         res = np.concatenate((res, cur), axis=0)
     return res
 
+
 @timer
 def pd_t_2():
     pd_index = rating_table.df['UserID'].values
@@ -73,6 +77,7 @@ def pd_t_2():
         cur = np.stack((cur, np.full_like(cur, i)), axis=1)
         res = np.concatenate((res, cur), axis=0)
     return res
+
 
 # print(len(tensor_t_2()))
 # print(len(pd_t_2()))

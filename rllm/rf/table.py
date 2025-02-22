@@ -1,15 +1,10 @@
 """
 Deprecated. Use rllm.data.table_data.TableData instead.
 """
-from typing import List, Tuple, Dict, Any, Union, Optional
-from dataclasses import dataclass
-from enum import Enum
+from typing import List
 import warnings
 
 import pandas as pd
-import numpy as np
-import torch
-from torch import Tensor
 
 
 class Table:
@@ -19,7 +14,6 @@ class Table:
 
     TODO: for now, ignore **union** primary or foreign keys.
     """
-    
     def __init__(
         self,
         df: pd.DataFrame,
@@ -38,12 +32,12 @@ class Table:
             except IndexError:
                 raise ValueError("Primary key col should be provided or \
                                   the table should have at least one column.")
-        
+
         if 'fkeys' in kwargs:
             self._fkeys = kwargs['fkeys']
         else:
             self._fkeys = None
-            
+
     def __len__(self):
         return self.df.shape[0]
 
@@ -57,7 +51,6 @@ class Table:
         if self._fkeys:
             warnings.warn("Foreign keys are being overwritten.")
         self._fkeys = fkeys
-
 
 
 if __name__ == "__main__":

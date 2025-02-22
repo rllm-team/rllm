@@ -4,19 +4,19 @@ import torch
 from torch import Tensor
 import torch.utils
 import torch.utils.data
-import numpy as np
 
 from relationframe import RelationFrame
 from sampler.base import BaseSampler
 
+
 class EntryLoader(torch.utils.data.DataLoader):
     r"""
-    relationframe(pandas) -> tensor -> sampler -> batch -> collate_fn -> filter_fn 
+    relationframe(pandas) -> tensor -> sampler -> batch -> collate_fn -> filter_fn
 
     e.g.
     loader = EntryLoader(rf, user_table, batch_size=32, shuffle=True)
     """
-    
+
     def __init__(
         self,
         rf: RelationFrame,
@@ -30,8 +30,10 @@ class EntryLoader(torch.utils.data.DataLoader):
         self.sampler = sampler
         self.batch_size = batch_size
 
-        super().__init__(rf, batch_size=batch_size, collate_fn=self.collate_fn, **kwargs)
-    
+        super().__init__(
+            rf, batch_size=batch_size, collate_fn=self.collate_fn, **kwargs
+        )
+
     def __call__(
         self,
         index: Union[Tensor, List[int]],
@@ -41,6 +43,6 @@ class EntryLoader(torch.utils.data.DataLoader):
         if not self.filter_per_worker:
             out = self.filter_fn(out)
         return out
-    
+
     def collate_fn(self, batch: List[Any]) -> Any:
         return batch

@@ -1,18 +1,12 @@
 import sys
-from typing import List, Tuple, Dict, Any, Union, Iterable
+from typing import List
 from dataclasses import dataclass
 from functools import cached_property
 
 import networkx as nx
-import pandas as pd
-from pandas import DataFrame as df
-import numpy as np
-import torch
-from torch import Tensor
 
-# from table import Table
 sys.path.append("./")
-sys.path.append('../')
+sys.path.append("../")
 from rllm.data.table_data import TableData
 
 
@@ -23,6 +17,7 @@ class Relation:
 
     fkey_table.fkey ----> pkey_table.pkey
     """
+
     fkey_table: TableData
     fkey: str
     pkey_table: TableData
@@ -35,11 +30,11 @@ class Relation:
     def __repr__(self):
         try:
             fkey_table_name = self.fkey_table.table_name
-        except:
+        except AttributeError:
             fkey_table_name = "fkey_table"
         try:
-            pkey_table_name =  self.pkey_table.table_name
-        except:
+            pkey_table_name = self.pkey_table.table_name
+        except AttributeError:
             pkey_table_name = "pkey_table"
         return f"{fkey_table_name}.{self.fkey} ----> {pkey_table_name}.{self.pkey}"
 
@@ -56,16 +51,16 @@ class RelationFrame:
     ):
         self.tables = tables
 
-        if 'relation' in kwargs:
-            self._relations = kwargs['relation']
+        if "relation" in kwargs:
+            self._relations = kwargs["relation"]
         else:
             self._relations = self._infer_relation()
-        
-        if 'meta_graph' in kwargs:
-            self._meta_g = kwargs['meta_graph']
+
+        if "meta_graph" in kwargs:
+            self._meta_g = kwargs["meta_graph"]
         else:
             self._meta_g = self._construct_meta_graph()
-    
+
     @property
     def relations(self):
         return self._relations
@@ -73,12 +68,12 @@ class RelationFrame:
     @property
     def meta_graph(self):
         return self._meta_g
-    
+
     @cached_property
     def undirected_meta_graph(self):
         # as_view=True to keep Relation and TableData.
         return self._meta_g.to_undirected(as_view=True)
-    
+
     # funcs
     def _infer_relation(self):
         r"""
@@ -90,11 +85,10 @@ class RelationFrame:
                 if col == fkey_table.index_col:
                     continue
                 for pkey_table in self.tables:
-                    if (pkey_table != fkey_table 
-                        and col == pkey_table.index_col):
+                    if pkey_table != fkey_table and col == pkey_table.index_col:
                         relations.append(Relation(fkey_table, col, pkey_table, col))
         return relations
-    
+
     def _construct_meta_graph(self):
         r"""
         Construct a meta graph from the relations.
