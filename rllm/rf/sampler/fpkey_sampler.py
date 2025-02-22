@@ -1,15 +1,11 @@
 import sys
 from collections import deque
-from typing import Any, Dict, List, Literal, Optional, Union, Tuple, Iterable
+from typing import Any, List, Iterable
 
-import torch
-from torch import Tensor
 import numpy as np
-import networkx as nx
 
 sys.path.append("./")
-from rllm.data.table_data import TableData, SubTableData
-from rllm.data.graph_data import GraphData
+from rllm.data.table_data import TableData
 from rllm.rf.relationframe import RelationFrame, Relation
 from rllm.rf.sampler.base import BaseSampler, Block
 
@@ -27,7 +23,6 @@ class FPkeySampler(BaseSampler):
         self.rf = rf
         assert seed_table in rf.tables, "seed_table should be in rf.tables."
         self.seed_table = seed_table
-        # self._hierarchical_rels() # deprecated
         self._f_p_path = self._bfs_meta_g()
         super().__init__(**kwargs)
 
@@ -55,12 +50,11 @@ class FPkeySampler(BaseSampler):
                     rels_l.remove(rel)
             if cur_path:
                 _f_p_path.append(cur_path)
-            
             if not rels_l:
                 break
 
         return _f_p_path
-    
+
     def _bfs_meta_g(self) -> List[TableData]:
         r"""BFS traverse the undirected relationframe meta graph."""
         visited = set()
@@ -76,15 +70,7 @@ class FPkeySampler(BaseSampler):
                     if neigh not in visited:
                         queue.append(neigh)
         return res
-    
-    # def tensorize(self):
-    #     r"""Tensorize the fkey-pkey cols to accelerate sample."""
-    #     pass
 
-    #TODO：目前还是麻烦了，想办法提前构建rel的边索引，然后直接取就行了
-    #TODO：返回值目前还没想好，rf的话有些臃肿，但是方便把方法集成好
-    #TODO：或者直接返回edgelist 的 tensor + tables? 那感觉不如返回rf
-    #TODO：现在的BRIDGE里为什么TNN只作用于target table？别的table不需要TNN吗？那adj里是啥。。。？
     def sample(self, index: Iterable) -> Any:
         """
         Samples from the seed_table.
@@ -96,7 +82,7 @@ class FPkeySampler(BaseSampler):
             Warning("Only seed_table, no need to sample.")
             sampled_table_data = self.seed_table[index]
             return sampled_table_data, None
-        
+
         blocks = []
         sampled_tables = [self.seed_table[index]]
         for layer in range(sampling_depth):
@@ -105,7 +91,7 @@ class FPkeySampler(BaseSampler):
             """
             rel: fkey_table.fkey_col ----> pkey_table.pkey_col
             """
-            rel: Relation = self.rf.undirected_meta_graph.edges[src_table, dst_table]['relation'] # sampled edge dirc
+            rel: Relation = self.rf.undirected_meta_graph.edges[src_table, dst_table]['relation']  # sampled edge dirc
 
             if rel.fkey_table is src_table:
                 """
@@ -113,7 +99,7 @@ class FPkeySampler(BaseSampler):
                 For each src entry, sample one dst entry. O(k)
                 """
                 dst_index = np.array(src_table.fkey_index(rel.fkey)[index], dtype=np.int64)
-                blocks.append(Block(edge_list=np.stack([index, dst_index],axis=1), rel=rel))
+                blocks.append(Block(edge_list=np.stack([index, dst_index], axis=1), rel=rel))
                 sampled_tables.append(dst_table[dst_index])
                 index = dst_index
             elif rel.pkey_table is src_table:
@@ -130,13 +116,11 @@ class FPkeySampler(BaseSampler):
                 sampled_tables.append(dst_table[edges[:, 0]])
                 index = edges[:, 0]
             else:
-                raise ValueError("Invalid: Src_table: {}, Dst_table: {}, Rel: {}".format(src_table.table_name,
-                                                                                        dst_table.table_name,
-                                                                                        rel))
+                raise ValueError("Invalid: Src_table: {}, Dst_table: {}, Rel: {}".format(
+                    src_table.table_name,
+                    dst_table.table_name,
+                    rel))
 
         return RelationFrame(tables=sampled_tables,
                              relation=self.rf.relations,
                              meta_graph=self.rf.meta_graph), blocks
-    
-        
-

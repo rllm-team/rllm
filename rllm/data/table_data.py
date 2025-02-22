@@ -111,9 +111,9 @@ class TableData(BaseTable):
 
         if feat_dict is None or y is None:
             self._generate_feat_dict()
-            self._inherit_feat_dict=False
+            self._inherit_feat_dict = False
         else:
-            self._inherit_feat_dict=True
+            self._inherit_feat_dict = True
         if metadata is None:
             self._generate_metadata()
 
@@ -168,7 +168,7 @@ class TableData(BaseTable):
     @overload
     def __getitem__(self, index: ColType) -> Tensor:
         ...
-    
+
     @overload
     def __getitem__(self, index: Union[int, Iterable, slice]) -> TableData:
         ...
@@ -185,10 +185,9 @@ class TableData(BaseTable):
         else:
             if self._inherit_feat_dict:
                 if isinstance(index, slice):
-                    assert (index.start >= 0 
-                            and index.stop <= len(self)
-                            and index.start < index.stop
-                            ), "Slice index must be within the range of the dataframe!"
+                    assert (
+                        index.start >= 0 and index.stop <= len(self) and index.start < index.stop
+                    ), "Slice index must be within the range of the dataframe!"
                     feat_dict = self.get_feat_dict(index.start, index.stop)
                     y = self.y[index]
                     index = list(range(index.start, index.stop))
@@ -201,11 +200,13 @@ class TableData(BaseTable):
                         feat_dict = self.get_feat_dict_from_mask(mask)
                         y = self.y[mask]
                         index = list(index)
-                    except:
-                        raise ValueError("Iterable index must be convertible to tensor!")
+                    except ValueError:
+                        raise ValueError(
+                            "Iterable index must be convertible to tensor!"
+                        )
                 else:
                     raise ValueError("Slice index must be int, slice or iterable!")
-                
+
             if isinstance(index, int):
                 df = self.df.iloc[[index]].reset_index(drop=True)
                 index = [index]
@@ -214,24 +215,25 @@ class TableData(BaseTable):
 
             if self._inherit_feat_dict:
                 # return TableData(df, self.col_types, self.target_col, feat_dict, y)
-                return SubTableData(index,
-                                    df=df,
-                                    col_types=self.col_types,
-                                    target_col=self.target_col,
-                                    feat_dict=feat_dict,
-                                    y=y)
+                return SubTableData(
+                    index,
+                    df=df,
+                    col_types=self.col_types,
+                    target_col=self.target_col,
+                    feat_dict=feat_dict,
+                    y=y,
+                )
             else:
                 # return TableData(df, self.col_types, self.target_col)
-                return SubTableData(index,
-                                    df=df,
-                                    col_types=self.col_types,
-                                    target_col=self.target_col)
+                return SubTableData(
+                    index, df=df, col_types=self.col_types, target_col=self.target_col
+                )
 
     @cached_property
     def index_col(self) -> Optional[str]:
         r"""The name of the index column, i.e. pkey column."""
         return self.df.index.name
-    
+
     @lru_cache
     def fkey_index(self, fkey_col: str) -> np.ndarray:
         r"""fkey_index for sampler."""
@@ -493,6 +495,7 @@ class SubTableData(TableData):
     Args:
         oind (List[int]): The original indices in TableData of the sub-table.
     """
+
     def __init__(self, oind: List[int], **kwargs):
         super().__init__(**kwargs)
         self._oind = oind
@@ -501,7 +504,7 @@ class SubTableData(TableData):
     @property
     def is_subtable(self):
         return self._subtable
-    
+
     @property
     def oind(self):
         return self._oind
