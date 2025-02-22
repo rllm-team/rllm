@@ -48,8 +48,10 @@ user_table.table_name = "user_table"
 movie_table.table_name = "movie_table"
 rf = RelationFrame([user_table, rating_table, movie_table])
 my_fpkey_sampler = FPkeySampler(rf, user_table)
-print("============")
-sampled_rf, blocks = my_fpkey_sampler.sample([1, 3, 4])
-print(sampled_rf.tables)
-print(blocks)
-print(sampled_rf.tables[0].df, len(sampled_rf.tables[0].df))
+for t in rf.tables:
+    print(t.table_name)
+# print("============")
+# sampled_rf, blocks = my_fpkey_sampler.sample([1])
+# print(sampled_rf.tables)
+# print(blocks)
+# print(sampled_rf.tables[0].df, len(sampled_rf.tables[0].df))

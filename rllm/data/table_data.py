@@ -2,6 +2,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from functools import cached_property, lru_cache
 from typing import Any, Dict, List, Union, Tuple, Callable, Optional, overload
+from uuid import uuid4
 
 import torch
 import numpy as np
@@ -90,6 +91,7 @@ class TableData(BaseTable):
         self,
         df: DataFrame,
         col_types: Dict[str, ColType],
+        name: Optional[str] = None,
         target_col: Optional[str] = None,
         # TODO: The following variables should not be explicitly defined
         feat_dict: Dict[ColType, Tensor] = None,
@@ -105,6 +107,8 @@ class TableData(BaseTable):
         self.col_types = col_types
         self.feat_dict = feat_dict
         self.y = y
+
+        self.table_name = name or "table_" + str(uuid4())
 
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -209,9 +213,11 @@ class TableData(BaseTable):
 
             if isinstance(index, int):
                 df = self.df.iloc[[index]].reset_index(drop=True)
+                df.index.name = self.index_col
                 index = [index]
             else:
                 df = self.df.iloc[index].reset_index(drop=True)
+                df.index.name = self.index_col
 
             if self._inherit_feat_dict:
                 # return TableData(df, self.col_types, self.target_col, feat_dict, y)
