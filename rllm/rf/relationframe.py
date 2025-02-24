@@ -41,6 +41,12 @@ class Block:
     edge_list: (src, dst), i.e., (fkey, pkey)
     It's worth noting that the direction of the edges here corresponds to the rel,
     while in the sampler, it may be reversed (for sample path is topological traveral).
+
+    Args:
+        edge_list (Union[Tuple[np.ndarray, np.ndarray], List[np.ndarray]]): A list of edges.
+        rel (Relation): The relation of the block.
+        src_nodes_ (Union[np.ndarray, pd.Index]): The source nodes.
+        dst_nodes_ (Union[np.ndarray, pd.Index]): The destination nodes.
     """
     edge_list: Union[Tuple[np.ndarray, np.ndarray], List[np.ndarray]]
     # edge_val = Tensor
@@ -170,8 +176,9 @@ class RelationFrame:
         r"""
         Construct a meta graph from the relations.
         """
-        G = nx.DiGraph()
+        G = nx.MultiDiGraph()
         for rel in self.relations:
+            # G.add_edge((rel.fkey_table, rel.fkey), (rel.pkey_table, rel.pkey), relation=rel)
             G.add_edge(rel.fkey_table, rel.pkey_table, relation=rel)
         return G
 

@@ -4,6 +4,7 @@ from typing import List
 from time import perf_counter
 
 import torch
+import pandas as pd
 
 sys.path.append("./")
 from rllm.data.table_data import TableData
@@ -51,6 +52,8 @@ def load_tables(set_name: str) -> List[TableData]:
 def batch_generator(len_target_entry):
     for start in range(0, len_target_entry, 64):
         end = min(start + 64, len_target_entry)
+        if end - start < 2:
+            break
         yield list(range(start, end))
 
 
@@ -59,6 +62,9 @@ def test_tml1m():
     user_table = tables[0]
     rf = RelationFrame(tables)
     my_fpkey_sampler = FPkeySampler(rf, tables[0])
+    for src, dst, rel in my_fpkey_sampler.f_p_path:
+        print(f"sampling order: {src.table_name} ----> {dst.table_name}")
+        print("relation:", rel)
     train_mask, _, _ = (
         user_table.train_mask,
         user_table.val_mask,
@@ -67,7 +73,7 @@ def test_tml1m():
     tik = perf_counter()
     for i, batch in enumerate(batch_generator(len(train_mask))):
         new_rf = my_fpkey_sampler.sample(batch)
-        print(f"""====> Batch {i},
+        print(f"""====> Batch {i}:
               table {new_rf.tables[0].table_name} has {len(new_rf.tables[0].df)} entries,
               table {new_rf.tables[1].table_name} has {len(new_rf.tables[1].df)} entries,
               table {new_rf.tables[2].table_name} has {len(new_rf.tables[2].df)} entries""")
@@ -87,23 +93,73 @@ def test_tacm12k():
     rel4 = Relation(fkey_table=writings_table, fkey="author_id", pkey_table=authors_table, pkey="author_id")
     rel_l = [rel1, rel2, rel3, rel4]
     rf = RelationFrame(tables, relations=rel_l)
-    print(rf.meta_graph)
-    # my_fpkey_sampler = FPkeySampler(rf, tables[0])
-    # train_mask, _, _ = (
-    #     papers_table.train_mask,
-    #     papers_table.val_mask,
-    #     papers_table.test_mask,
-    # )
-    # tik = perf_counter()
-    # for i, batch in enumerate(batch_generator(len(train_mask))):
-    #     new_rf = my_fpkey_sampler.sample(batch)
-    #     print(f"""====> Batch {i},
-    #           table {new_rf.tables[0].table_name} has {len(new_rf.tables[0].df)} entries,
-    #           table {new_rf.tables[1].table_name} has {len(new_rf.tables[1].df)} entries,
-    #           table {new_rf.tables[2].table_name} has {len(new_rf.tables[2].df)} entries,
-    #           table {new_rf.tables[3].table_name} has {len(new_rf.tables[3].df)} entries""")
-    # tok = perf_counter()
-    # print(f"===Total sampling time: {tok-tik :.4} s===")
+    my_fpkey_sampler = FPkeySampler(rf, tables[0])
+    for src, dst, rel in my_fpkey_sampler.f_p_path:
+        print(f"sampling order: {src.table_name} ----> {dst.table_name}")
+        print("relation:", rel)
+    train_mask, _, _ = (
+        papers_table.train_mask,
+        papers_table.val_mask,
+        papers_table.test_mask,
+    )
+    tik = perf_counter()
+    for i, batch in enumerate(batch_generator(len(train_mask))):
+        new_rf = my_fpkey_sampler.sample(batch)
+        print(f"""====> Batch {i},
+              table {new_rf.tables[0].table_name} has {len(new_rf.tables[0].df)} entries,
+              table {new_rf.tables[1].table_name} has {len(new_rf.tables[1].df)} entries,
+              table {new_rf.tables[2].table_name} has {len(new_rf.tables[2].df)} entries,
+              table {new_rf.tables[3].table_name} has {len(new_rf.tables[3].df)} entries""")
+    tok = perf_counter()
+    print(f"===Total sampling time: {tok-tik :.4} s===")
 
 
-test_tacm12k()
+def test_tlf2k():
+    def virtual_user_table(n_users: int) -> TableData:
+        user_table = TableData(
+            df=pd.DataFrame(
+                {
+                    "userID": [i for i in range(1, n_users + 1)]
+                },
+            ),
+            col_types={},
+        )
+        user_table.df.set_index('userID', inplace=True)
+        user_table.table_name = "user_table"
+        return user_table
+
+    tables = load_tables('tlf2k')
+    artist_table = tables[0]
+    artist_table.df.set_index('artistID', inplace=True)
+    user_artists_table = tables[1]
+    user_friends_table = tables[2]
+    n_users = len(user_artists_table.df['userID'].unique())
+    user_table = virtual_user_table(n_users)
+    tables.append(user_table)
+
+    rel1 = Relation(fkey_table=user_artists_table, fkey="artistID", pkey_table=artist_table, pkey="artistID")
+    rel2 = Relation(fkey_table=user_artists_table, fkey="userID", pkey_table=user_table, pkey="userID")
+    rel3 = Relation(fkey_table=user_friends_table, fkey="userID", pkey_table=user_table, pkey="userID")
+    rel4 = Relation(fkey_table=user_friends_table, fkey="friendID", pkey_table=user_table, pkey="userID")
+    rel_l = [rel1, rel2, rel3, rel4]
+
+    rf = RelationFrame(tables, relations=rel_l)
+    my_fpkey_sampler = FPkeySampler(rf, artist_table)
+    for src, dst, rel in my_fpkey_sampler.f_p_path:
+        print(f"sampling order: {src.table_name} ----> {dst.table_name}")
+        print("relation:", rel)
+    tik = perf_counter()
+    for i, batch in enumerate(batch_generator(len(artist_table.train_mask))):
+        new_rf = my_fpkey_sampler.sample(batch)
+        print(f"""====> Batch {i},
+              table {new_rf.tables[0].table_name} has {len(new_rf.tables[0].df)} entries,
+              table {new_rf.tables[1].table_name} has {len(new_rf.tables[1].df)} entries,
+              table {new_rf.tables[2].table_name} has {len(new_rf.tables[2].df)} entries,
+              table {new_rf.tables[3].table_name} has {len(new_rf.tables[3].df)} entries""")
+    tok = perf_counter()
+    print(f"===Total sampling time: {tok-tik :.4} s===")
+
+
+# test_tml1m()
+# test_tacm12k()
+# test_tlf2k()
