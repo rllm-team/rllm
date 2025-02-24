@@ -51,20 +51,3 @@ class Table:
         if self._fkeys:
             warnings.warn("Foreign keys are being overwritten.")
         self._fkeys = fkeys
-
-
-if __name__ == "__main__":
-    # Test Table
-    df = pd.DataFrame({
-        "UserID": [1, 1, 1, 1, 1],
-        "MovieID": [1177, 656, 903, 3340, 2287],
-        "Rating": [5, 3, 3, 4, 5],
-        "Timestamp": [978300760, 978302109, 978301968, 978300275, 978824291]
-    })
-    table = Table(df, pkey=('UserID', 'MovieID'), fkeys=['UserID', 'MovieID'])
-    print(table.pkey)
-    print(len(table))
-    print(table.df)
-    print(table.fkeys)
-    # table.fkeys = ['a']
-    # print(table.fkeys)
