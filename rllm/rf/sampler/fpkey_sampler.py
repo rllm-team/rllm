@@ -4,6 +4,7 @@ from typing import List, Iterable, Tuple, Union
 
 import numpy as np
 import pandas as pd
+import networkx as nx
 
 sys.path.append("./")
 from rllm.data.table_data import TableData
@@ -30,7 +31,7 @@ class FPkeySampler(BaseSampler):
         self.rf = rf
         assert seed_table in rf.tables, "seed_table should be in rf.tables."
         self.seed_table = seed_table
-        self._f_p_path = self._bfs_meta_g()
+        self._f_p_path = self.__bfs_meta_g()
         super().__init__(**kwargs)
 
     @property
@@ -38,45 +39,29 @@ class FPkeySampler(BaseSampler):
         r"""Returns the fkey-pkey paths."""
         return self._f_p_path
 
-    def _hierarchical_rels(self):
-        r"""Construct hierarchical relations from the seed_table."""
-        _f_p_path = []
-        q = deque([self.seed_table])
-        rels_l: List[Relation] = self.rf.relations.copy()
-        while q:
-            cur_table = q.popleft()
-            cur_path = []
-            for rel in rels_l:
-                if rel.fkey_table is cur_table:
-                    cur_path.append()
-                    q.append(rel.pkey_table)
-                    rels_l.remove(rel)
-                elif rel.pkey_table is cur_table:
-                    cur_path.append(rel)
-                    q.append(rel.fkey_table)
-                    rels_l.remove(rel)
-            if cur_path:
-                _f_p_path.append(cur_path)
-            if not rels_l:
-                break
-
-        return _f_p_path
-
-    def _bfs_meta_g(self) -> List[Tuple[TableData, TableData]]:
-        # TODO (ZK), use degrees and directed graph BFS instead to take multi-edge graph into account.
-        r"""BFS traverse the undirected relationframe meta graph."""
+    def __bfs_meta_g(self) -> List[Tuple[TableData, TableData, Relation]]:
+        r"""BFS traverse the relationframe meta graph."""
+        meta_g: nx.MultiDiGraph = self.rf.meta_graph
         visited = set()
         queue = deque([self.seed_table])
         res = []
-
         while queue:
             cur = queue.popleft()
             if cur not in visited:
                 visited.add(cur)
-                for neigh in self.rf.undirected_meta_graph.neighbors(cur):
+                for neigh in meta_g.neighbors(cur):
                     if neigh not in visited:
                         queue.append(neigh)
-                        res.append((cur, neigh, self.rf.undirected_meta_graph.edges[cur, neigh]['relation']))
+                        for e_data in meta_g.get_edge_data(cur, neigh).values():
+                            res.append((cur, neigh, e_data['relation']))
+                for neigh_ in meta_g.predecessors(cur):
+                    if neigh_ not in visited:
+                        queue.append(neigh_)
+                        for e_data in meta_g.get_edge_data(neigh_, cur).values():
+                            """
+                            Direction here implies the sampling order, but not the relation's direction.
+                            """
+                            res.append((cur, neigh_, e_data['relation']))
 
         assert len(res) == len(self.rf.relations), "The meta graph is not connected."
         return res

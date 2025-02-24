@@ -170,32 +170,43 @@ class TableData(BaseTable):
     def __len__(self) -> int:
         return len(self.df)
 
-    def __get_item_do(self, index: Union[int, Iterable, slice, pd.Index], keep_oind: bool = False):
+    def __get_item_do(
+            self,
+            index: Union[int, Iterable, slice, pd.Index],
+            keep_oind: bool = False,
+            keep_feat_dict: bool = False,
+            keep_metadata: bool = False,
+    ) -> TableData | SubTableData:
         r"""Get item from TableData.
 
         Args:
             index (Union[int, Iterable, slice, pd.Index]): The index of the item.
             keep_oind (bool, optional): Whether to keep the original index. Defaults to False.
                 if set to False, the original index will be kept in the `self.oind`.
+            keep_feat_dict (bool, optional): Whether to keep the feat_dict. Defaults to False.
+            keep_metadata (bool, optional): Whether to keep the metadata. Defaults to False.
+
+        Returns:
+            TableData | SubTableData: The selected sub-table data.
         """
         if isinstance(index, pd.Index):
             index = self.df.index.get_indexer(index)
-        if self._inherit_feat_dict:
+        if self._inherit_feat_dict or keep_feat_dict or keep_metadata:
             if isinstance(index, slice):
                 assert (
                     index.start >= 0 and index.stop <= len(self) and index.start < index.stop
                 ), "Slice index must be within the range of the dataframe!"
                 feat_dict = self.get_feat_dict(index.start, index.stop)
-                y = self.y[index]
+                y = self.y[index] if self.y is not None else None
                 index = list(range(index.start, index.stop))
             elif isinstance(index, int):
                 feat_dict = self.get_feat_dict(index, index + 1)
-                y = self.y[index]
+                y = self.y[index] if self.y is not None else None
             elif isinstance(index, Iterable):
                 try:
                     mask = torch.tensor(index, dtype=torch.long)
                     feat_dict = self.get_feat_dict_from_mask(mask)
-                    y = self.y[mask]
+                    y = self.y[mask] if self.y is not None else None
                     index = list(index)
                 except ValueError:
                     raise ValueError(
@@ -212,9 +223,19 @@ class TableData(BaseTable):
             df = self.df.iloc[index]
             df.index.name = self.index_col
 
-        if self._inherit_feat_dict:
-            # return TableData(df, self.col_types, self.target_col, feat_dict, y)
-            if keep_oind:
+        if keep_metadata:
+            return SubTableData(
+                oind=index,
+                df=df.reset_index(drop=True),
+                col_types=self.col_types,
+                name=self.table_name,
+                target_col=self.target_col,
+                feat_dict=feat_dict,
+                y=y,
+                metadata=self.metadata,
+            )
+        if self._inherit_feat_dict or keep_feat_dict:
+            if not keep_oind:
                 return TableData(
                     df=df,
                     col_types=self.col_types,
@@ -234,8 +255,7 @@ class TableData(BaseTable):
                     y=y,
                 )
         else:
-            # return TableData(df, self.col_types, self.target_col)
-            if keep_oind:
+            if not keep_oind:
                 return TableData(
                     df=df,
                     col_types=self.col_types,
@@ -532,13 +552,9 @@ class TableData(BaseTable):
         return self
 
     # For sampling #############################################
-    def sample(self, index: Union[int, Iterable, slice, pd.Index], keep_oind: bool = True):
+    def sample(self, index: Union[int, Iterable, slice, pd.Index]):
         r"""Sample a new TableData."""
-        if keep_oind:
-            new_t = self.__get_item_do(index, keep_oind=True)
-        else:
-            new_t = self.__get_item_do(index, keep_oind=False)
-        return new_t
+        return self.__get_item_do(index, keep_oind=True, keep_feat_dict=True, keep_metadata=True)
 
 
 class SubTableData(TableData):
