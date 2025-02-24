@@ -1,18 +1,23 @@
 import sys
 from collections import deque
-from typing import Any, List, Iterable, Tuple
+from typing import List, Iterable, Tuple, Union
 
 import numpy as np
+import pandas as pd
 
 sys.path.append("./")
 from rllm.data.table_data import TableData
-from rllm.rf.relationframe import RelationFrame, Relation
-from rllm.rf.sampler.base import BaseSampler, Block
+from rllm.rf.relationframe import RelationFrame, Relation, Block
+from rllm.rf.sampler.base import BaseSampler
 
 
 class FPkeySampler(BaseSampler):
     r"""
     fpkey_sampler samples from `seed_table`via the fkey-pkey relation in `rf`.
+
+    Args:
+        rf: RelationFrame
+        seed_table: TableData
     """
     def __init__(
         self,
@@ -20,6 +25,8 @@ class FPkeySampler(BaseSampler):
         seed_table: TableData,
         **kwargs
     ):
+        assert rf.validate_rels()
+        rf.unify_f_pkey_dtype()
         self.rf = rf
         assert seed_table in rf.tables, "seed_table should be in rf.tables."
         self.seed_table = seed_table
@@ -56,6 +63,7 @@ class FPkeySampler(BaseSampler):
         return _f_p_path
 
     def _bfs_meta_g(self) -> List[Tuple[TableData, TableData]]:
+        # TODO (ZK), use degrees and directed graph BFS instead to take multi-edge graph into account.
         r"""BFS traverse the undirected relationframe meta graph."""
         visited = set()
         queue = deque([self.seed_table])
@@ -73,12 +81,43 @@ class FPkeySampler(BaseSampler):
         assert len(res) == len(self.rf.relations), "The meta graph is not connected."
         return res
 
-    # 先全采好，然后拼接；结构和原来一样
-    def sample(self, index: Iterable) -> Any:
+    def index_union(self, indexes: Union[List[pd.Index], List[np.ndarray]]) -> pd.Index:
+        r"""Union the indexes."""
+        if isinstance(indexes[0], np.ndarray):
+            indexes = [pd.Index(i) for i in indexes]
+        res = indexes[0]
+        for i in indexes[1:]:
+            res = res.union(i)
+        return res
+
+    def merge_tables(self, blocks: List[Block]) -> RelationFrame:
+        r"""Merge the blocks."""
+        sampled_tables = []
+
+        for table in self.rf.tables:
+            cur_index = []
+            for block in blocks:
+                if block.rel.fkey_table is table:
+                    cur_index.append(block.src_nodes)
+                elif block.rel.pkey_table is table:
+                    cur_index.append(block.dst_nodes)
+
+            cur_index = self.index_union(cur_index)
+            new_table = table.sample(cur_index)
+            sampled_tables.append(new_table)
+
+        rf = RelationFrame(tables=sampled_tables, _blocks=blocks)
+        return rf
+
+    def sample(self, index: Iterable) -> RelationFrame:
         """
         Samples from the seed_table.
+
+        Args:
+            index: The sampling index of the seed_table. From 0 to len(seed_table).
         """
-        seed_index = np.array(self.seed_table.df.index[index], dtype=np.int64)
+
+        seed_index = self.seed_table.df.index[index]
 
         if len(self._f_p_path) == 0:
             Warning("Only seed_table, no need to sample.")
@@ -86,9 +125,6 @@ class FPkeySampler(BaseSampler):
             return sampled_table_data, None
 
         blocks = []
-        # seed_table = self.seed_table[seed_index]
-        # sampled_tables = [seed_table]
-        # cur_table = seed_table
         cur_table = self.seed_table
         cur_src_index = seed_index
 
@@ -99,61 +135,65 @@ class FPkeySampler(BaseSampler):
             if src_table is not cur_table:
                 # update cur_src_index
                 cur_table = src_table
-                cur_src_index = np.empty((0,), dtype=np.int64)
+                cur_src_index = []
                 for b in blocks:
                     if b.rel.fkey_table is cur_table:
-                        cur_src_index = np.concatenate((cur_src_index, b.src_nodes), axis=0)
+                        cur_src_index.append(b.src_nodes)
                     elif b.rel.pkey_table is cur_table:
-                        cur_src_index = np.concatenate((cur_src_index, b.dst_nodes), axis=0)
-                
+                        cur_src_index.append(b.dst_nodes)
+                if cur_src_index:
+                    cur_src_index = self.index_union(cur_src_index)
+                else:
+                    raise ValueError("No blocks are sampled.")
+
             if src_table is rel.fkey_table:
                 """
                 src_table.fkey ----> dst_table.pkey
                 1 - 1
                 """
-                dst_index = np.array(src_table.fkey_index(rel.fkey)[cur_src_index], dtype=np.int64)
+                dst_index = src_table.fkey_index(rel.fkey)[cur_src_index]
+                block = Block(
+                    edge_list=(cur_src_index, dst_index),
+                    rel=rel,
+                    src_nodes_=cur_src_index,
+                    dst_nodes_=dst_index
+                )
+                blocks.append(block)
 
-        # for sample_depth, item in enumerate(self._f_p_path):
-        #     """
-        #     rel: fkey_table.fkey_col ----> pkey_table.pkey_col
-        #     """
-        #     src_table, dst_table, rel = item
-        #     # if sample_depth == 0:
-        #     #     p_index = seed_index
-            
-        #     if src_table is not cur_table:
-        #         sampled_src_table = []
-        #         for t in sampled_tables:
-        #             if t.table_name == src_table.table_name:
-        #                 sampled_src_table.append(t)
+            elif src_table is rel.pkey_table:
+                """
+                src_table.pkey ----> dst_table.fkey
+                1 - n
+                """
+                edges = [np.empty((0,), dtype=int), np.empty((0,), dtype=int)]
+                for i in cur_src_index:
+                    indices = np.where(dst_table.fkey_index(rel.fkey) == i)[0]
+                    # trans array indices to df.index
+                    cur_fkey_ind = dst_table.df.index[indices]
+                    cur_src_edges = np.full((len(cur_fkey_ind),), i)
+                    edges[0] = (np.concatenate((edges[0], cur_fkey_ind), axis=0, dtype=cur_fkey_ind.dtype))
+                    edges[1] = (np.concatenate((edges[1], cur_src_edges), axis=0, dtype=cur_src_edges.dtype))
 
-        #     if rel.fkey_table is src_table:
-        #         """
-        #         1 - 1
-        #         For each src entry, sample one dst entry. O(k)
-        #         """
-        #         dst_index = np.array(src_table.fkey_index(rel.fkey)[p_index], dtype=np.int64)
-        #         blocks.append(Block(edge_list=np.stack([p_index, dst_index], axis=1), rel=rel))
-        #         dst_table = dst_table[dst_index]
-        #         sampled_tables.append(dst_table)
-                
-        #     elif rel.pkey_table is src_table:
-        #         """
-        #         1 - n
-        #         For each src entry, sample all dst entries. O(k*n)
-        #         """
-        #         edges = np.empty((0, 2), dtype=np.int64)
-        #         for i in p_index:
-        #             cur = np.where(dst_table.fkey_index(rel.fkey) == i)[0]
-        #             cur = np.stack([cur, np.full_like(cur, i, dtype=np.int64)], axis=1)
-        #             edges = np.concatenate((edges, cur), axis=0)
-        #         blocks.append(Block(edge_list=edges, rel=rel))
-        #         sampled_tables.append(dst_table[edges[:, 0]])
-        #         # self._f_p_path[i][1] = dst_table
-        #     else:
-        #         raise ValueError("Invalid: Src_table: {}, Dst_table: {}, Rel: {}".format(
-        #             src_table.table_name,
-        #             dst_table.table_name,
-        #             rel))
+                """
+                Sampling edge order is reversed to the block edge order.
+                Sampling edge order: src_table(fpkey_table).pkey ----> dst_table(fkey_table).fkey
+                Block edge order: fkey_table.fkey ----> pkey_table.pkey
+                """
+                block = Block(
+                    edge_list=edges,
+                    rel=rel,
+                    src_nodes_=edges[0],
+                    dst_nodes_=cur_src_index
+                )
+                blocks.append(block)
 
-        return RelationFrame(tables=sampled_tables), blocks
+            else:
+                raise ValueError("Invalid: Src_table: {}, Dst_table: {}, Rel: {}".format(
+                    src_table.table_name,
+                    dst_table.table_name,
+                    rel))
+
+        if blocks:
+            return self.merge_tables(blocks)
+        else:
+            raise ValueError("No blocks are sampled.")

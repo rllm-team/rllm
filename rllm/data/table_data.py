@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import torch
 import numpy as np
+import pandas as pd
 from pandas import DataFrame
 from sklearn.preprocessing import LabelEncoder
 from torch import Tensor
@@ -169,12 +170,95 @@ class TableData(BaseTable):
     def __len__(self) -> int:
         return len(self.df)
 
+    def __get_item_do(self, index: Union[int, Iterable, slice, pd.Index], keep_oind: bool = False):
+        r"""Get item from TableData.
+
+        Args:
+            index (Union[int, Iterable, slice, pd.Index]): The index of the item.
+            keep_oind (bool, optional): Whether to keep the original index. Defaults to False.
+                if set to False, the original index will be kept in the `self.oind`.
+        """
+        if isinstance(index, pd.Index):
+            index = self.df.index.get_indexer(index)
+        if self._inherit_feat_dict:
+            if isinstance(index, slice):
+                assert (
+                    index.start >= 0 and index.stop <= len(self) and index.start < index.stop
+                ), "Slice index must be within the range of the dataframe!"
+                feat_dict = self.get_feat_dict(index.start, index.stop)
+                y = self.y[index]
+                index = list(range(index.start, index.stop))
+            elif isinstance(index, int):
+                feat_dict = self.get_feat_dict(index, index + 1)
+                y = self.y[index]
+            elif isinstance(index, Iterable):
+                try:
+                    mask = torch.tensor(index, dtype=torch.long)
+                    feat_dict = self.get_feat_dict_from_mask(mask)
+                    y = self.y[mask]
+                    index = list(index)
+                except ValueError:
+                    raise ValueError(
+                        "Iterable index must be convertible to tensor!"
+                    )
+            else:
+                raise ValueError("Slice index must be int, slice or iterable!")
+
+        if isinstance(index, int):
+            df = self.df.iloc[[index]]
+            df.index.name = self.index_col
+            index = [index]
+        else:
+            df = self.df.iloc[index]
+            df.index.name = self.index_col
+
+        if self._inherit_feat_dict:
+            # return TableData(df, self.col_types, self.target_col, feat_dict, y)
+            if keep_oind:
+                return TableData(
+                    df=df,
+                    col_types=self.col_types,
+                    name=self.table_name,
+                    target_col=self.target_col,
+                    feat_dict=feat_dict,
+                    y=y,
+                )
+            else:
+                return SubTableData(
+                    oind=index,
+                    df=df.reset_index(drop=True),
+                    col_types=self.col_types,
+                    name=self.table_name,
+                    target_col=self.target_col,
+                    feat_dict=feat_dict,
+                    y=y,
+                )
+        else:
+            # return TableData(df, self.col_types, self.target_col)
+            if keep_oind:
+                return TableData(
+                    df=df,
+                    col_types=self.col_types,
+                    name=self.table_name,
+                    target_col=self.target_col,
+                )
+            else:
+                return SubTableData(
+                    oind=index,
+                    df=df.reset_index(drop=True),
+                    col_types=self.col_types,
+                    name=self.table_name,
+                    target_col=self.target_col
+                )
+
     @overload
     def __getitem__(self, index: ColType) -> Tensor:
+        # Return feat_dict tensor of certain column type.
         ...
 
     @overload
     def __getitem__(self, index: Union[int, Iterable, slice]) -> TableData:
+        # Return a new TableData with choiced data and reset index.
         ...
 
     def __getitem__(self, index: Union[ColType, int, Iterable, slice]) -> Any:
@@ -187,53 +271,7 @@ class TableData(BaseTable):
 
         # ZK: I write slice mode for sampled table data; DO not inherit metadata and _mapping storage.
         else:
-            if self._inherit_feat_dict:
-                if isinstance(index, slice):
-                    assert (
-                        index.start >= 0 and index.stop <= len(self) and index.start < index.stop
-                    ), "Slice index must be within the range of the dataframe!"
-                    feat_dict = self.get_feat_dict(index.start, index.stop)
-                    y = self.y[index]
-                    index = list(range(index.start, index.stop))
-                elif isinstance(index, int):
-                    feat_dict = self.get_feat_dict(index, index + 1)
-                    y = self.y[index]
-                elif isinstance(index, Iterable):
-                    try:
-                        mask = torch.tensor(index, dtype=torch.long)
-                        feat_dict = self.get_feat_dict_from_mask(mask)
-                        y = self.y[mask]
-                        index = list(index)
-                    except ValueError:
-                        raise ValueError(
-                            "Iterable index must be convertible to tensor!"
-                        )
-                else:
-                    raise ValueError("Slice index must be int, slice or iterable!")
-
-            if isinstance(index, int):
-                df = self.df.iloc[[index]].reset_index(drop=True)
-                df.index.name = self.index_col
-                index = [index]
-            else:
-                df = self.df.iloc[index].reset_index(drop=True)
-                df.index.name = self.index_col
-
-            if self._inherit_feat_dict:
-                # return TableData(df, self.col_types, self.target_col, feat_dict, y)
-                return SubTableData(
-                    index,
-                    df=df,
-                    col_types=self.col_types,
-                    target_col=self.target_col,
-                    feat_dict=feat_dict,
-                    y=y,
-                )
-            else:
-                # return TableData(df, self.col_types, self.target_col)
-                return SubTableData(
-                    index, df=df, col_types=self.col_types, target_col=self.target_col
-                )
+            return self.__get_item_do(index, keep_oind=False)
 
     @cached_property
     def index_col(self) -> Optional[str]:
@@ -492,6 +530,15 @@ class TableData(BaseTable):
 
         self.metadata = metadata
         return self
+
+    # For sampling #############################################
+    def sample(self, index: Union[int, Iterable, slice, pd.Index], keep_oind: bool = True):
+        r"""Sample a new TableData."""
+        if keep_oind:
+            new_t = self.__get_item_do(index, keep_oind=True)
+        else:
+            new_t = self.__get_item_do(index, keep_oind=False)
+        return new_t
 
 
 class SubTableData(TableData):
