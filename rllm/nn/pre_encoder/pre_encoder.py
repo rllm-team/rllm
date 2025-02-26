@@ -50,8 +50,8 @@ class PreEncoder(torch.nn.Module, ABC):
                 col_pre_encoder.out_dim = out_dim
             if col_type in metadata.keys():
                 col_pre_encoder.stats_list = metadata[col_type]
-            self.pre_encoder_dict[col_type.value] = col_pre_encoder
-            col_pre_encoder.post_init()
+                self.pre_encoder_dict[col_type.value] = col_pre_encoder
+                col_pre_encoder.post_init()
         self.reset_parameters()
 
     def reset_parameters(self):
