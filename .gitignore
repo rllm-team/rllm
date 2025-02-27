@@ -32,7 +32,7 @@ examples/**/*.pdf
 benchmark/results/
 .mypy_cache/
 .flake8
-rllm/rf/**/draft.*
+draft.*
 
 !rllm/data/
 !test/data/
