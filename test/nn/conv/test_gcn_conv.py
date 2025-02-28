@@ -1,4 +1,8 @@
+import sys
+
 import torch
+
+sys.path.append("./")
 from rllm.nn.conv.graph_conv import GCNConv
 
 
@@ -23,3 +27,6 @@ def test_gcn_conv():
 
     x_out = conv(x, adj)
     assert x_out.shape == (node_size, out_dim)
+
+
+test_gcn_conv()
