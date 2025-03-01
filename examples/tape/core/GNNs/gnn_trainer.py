@@ -39,7 +39,6 @@ class GNNTrainer:
             use_gpt=False,
             use_preds=True,
             topk=3 if self.dataset_name == "pubmed" else 5,
-            seed=self.seed,
         )
         data = dataset[0]
 
