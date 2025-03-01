@@ -23,7 +23,9 @@ from tqdm import tqdm
 
 sys.path.append("../")
 
-import rllm.transforms.graph_transforms as T
+from rllm.transforms.graph_transforms.gcn_norm import GCNNorm
+from rllm.transforms.graph_transforms.compose import Compose
+from rllm.transforms.utils.normalize_features import NormalizeFeatures
 from annotation.annotation import annotate
 from node_selection.node_selection import active_generate_mask, post_filter
 from rllm.datasets.tagdataset import TAGDataset
@@ -98,7 +100,7 @@ args = parser.parse_args()
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 
-transform = T.Compose([T.NormalizeFeatures("l2"), T.GCNNorm()])
+transform = Compose([NormalizeFeatures("l2"), GCNNorm()])
 dataset = TAGDataset(
     path,
     args.dataset,
