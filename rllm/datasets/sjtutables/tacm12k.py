@@ -62,8 +62,7 @@ class TACM12KDataset(Dataset):
     url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/main/sjtutables/TACM12K.zip"  # noqa
 
     def __init__(self, cached_dir: str, force_reload: Optional[bool] = False) -> None:
-        # self.name = 'TACM12K'
-        self.name = "Table_ACM12K"
+        self.name = "tacm12k"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
