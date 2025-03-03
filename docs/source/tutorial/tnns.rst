@@ -5,13 +5,14 @@ What is TNN?
 In machine learning, **Table/Tabular Neural Networks (TNNs)** are recently emerging neural networks specifically designed to process tabular data. In a TNN, the input is structured tabular data, usually organized in rows and columns. A typical TNN architecture consists of an initial Transform followed by multiple Convolution layers, as detailed in :doc:`Understanding Transforms <transforms>` and :doc:`Understanding Convolutions <convolutions>`.
 
 
-
 Construct a TabTransformer
 ----------------
 In this tutorial, we will learn the basic workflow of using `[TabTransformer] <https://arxiv.org/abs/2012.06678>`__ for tabular classification, i.e., predicting the category of a row in a table.
 
 First, we use the :obj:`Titanic` dataset as an example, which can be loaded using the built-in dataloaders. Also, we instantiate a :obj:`TabTransformerTransform`, corresponding to the :obj:`TabTransformer` method. After applying the transformation and shuffling the data, we proceed to split the dataset into training, testing, and validation sets, following standard practices in deep learning.
+
 .. code-block:: python
+
     import os.path as osp
 
     import torch

@@ -44,7 +44,7 @@ class LMTrainer():
 
         # Preprocess data
         use_gpt = cfg.lm.train.use_gpt
-        dataset = TAPEDataset('./cached', self.dataset_name, use_text=True, use_gpt=cfg.lm.train.use_gpt, seed=self.seed)
+        dataset = TAPEDataset('./cached', self.dataset_name, use_text=True, use_gpt=cfg.lm.train.use_gpt)
         # data, num_classes, text = load_data(
             # dataset=self.dataset_name, use_text=True, use_gpt=cfg.lm.train.use_gpt, seed=self.seed)
         self.data = dataset[0]

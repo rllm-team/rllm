@@ -267,7 +267,7 @@ class TAPEDataset(Dataset):
         edges = np.array(list(map(idx_map.get, edges_unordered.flatten()))).reshape(
             edges_unordered.shape
         )
-        data_edges = np.array(edges[~(edges is None).max(1)], dtype="int")
+        data_edges = np.array(edges[~(edges == None).max(1)], dtype="int")
         data_edges = np.vstack((data_edges, np.fliplr(data_edges)))
         data_edges = np.unique(data_edges, axis=0)
 
