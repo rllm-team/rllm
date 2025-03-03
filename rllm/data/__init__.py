@@ -3,6 +3,7 @@ from .graph_data import BaseGraph, GraphData, HeteroGraphData  # noqa
 from .table_data import BaseTable, TableData, TableDataset  # noqa
 from .storage import BaseStorage, NodeStorage, EdgeStorage, recursive_apply  # noqa
 from .view import MappingView, KeysView, ValuesView, ItemsView  # noqa
+from .relationframe import RelationFrame, Relation, Block  # noqa
 
 __all__ = [
     # dataset_classes
@@ -25,4 +26,8 @@ __all__ = [
     "KeysView",
     "ValuesView",
     "ItemsView",
+    # relationframe_classes
+    "RelationFrame",
+    "Relation",
+    "Block",
 ]

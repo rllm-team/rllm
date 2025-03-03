@@ -12,6 +12,9 @@ from .sage_conv import (
     # LSTMAggregator
 )
 
+# Keep convs w/o message passing in ./wo_msp/*.py
+from .wo_msp.gcn_conv import GCNConv as GCNConv_wo_msp
+
 __all__ = [
     "GATConv",
     "GCNConv",
@@ -24,4 +27,5 @@ __all__ = [
     # 'MeanPoolingAggregator',
     # 'GCNAggregator',
     # 'LSTMAggregator',
+    "GCNConv_wo_msp"
 ]

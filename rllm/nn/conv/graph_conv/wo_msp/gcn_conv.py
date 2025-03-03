@@ -1,17 +1,11 @@
-from typing import Optional, Union
-
 import torch
+from torch.nn import Parameter
 from torch import Tensor
-from torch.nn import Linear, Parameter
-import torch.nn.init as init
-from torch.sparse import Tensor as SparseTensor
-
-from rllm.nn.conv.graph_conv.message_passing import MessagePassing
 
 
-class GCNConv(MessagePassing):
-    r"""The GCN (Graph Convolutional Network) model re-implementation with message passing,
-    based on the `"Semi-supervised Classification with Graph Convolutional Networks"
+class GCNConv(torch.nn.Module):
+    r"""The GCN (Graph Convolutional Network) model, based on the
+    `"Semi-supervised Classification with Graph Convolutional Networks"
     <https://arxiv.org/abs/1609.02907>`__ paper.
 
     This model applies convolution operations to graph-structured data,
@@ -40,15 +34,16 @@ class GCNConv(MessagePassing):
     """
 
     def __init__(
-            self,
-            in_dim: int,
-            out_dim: int,
-            bias: bool = True,
+        self,
+        in_dim: int,
+        out_dim: int,
+        bias: bool = True,
     ):
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.linear = Linear(in_dim, out_dim, bias=False)
+        self.weight = Parameter(torch.empty(in_dim, out_dim))
+
         if bias:
             self.bias = Parameter(torch.empty(out_dim))
         else:
@@ -56,22 +51,17 @@ class GCNConv(MessagePassing):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        init.xavier_normal_(self.linear.weight)
+        torch.nn.init.xavier_normal_(self.weight)
         if self.bias is not None:
-            init.zeros_(self.bias)
+            torch.nn.init.zeros_(self.bias)
 
-    def forward(
-            self,
-            x: Tensor,
-            edge_index: Union[Tensor, SparseTensor],
-            edge_weight: Optional[Tensor] = None,
-            num_nodes: Optional[int] = None
-    ) -> Tensor:
-        x = self.linear(x)
-        out = self.propagate(x, edge_index, edge_weight=edge_weight, num_nodes=num_nodes)
+    def forward(self, inputs: Tensor, adj: Tensor):
+        support = torch.mm(inputs, self.weight)
+        output = torch.spmm(adj, support)
         if self.bias is not None:
-            out += self.bias
-        return out
+            return output + self.bias
+        else:
+            return output
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.in_dim}, " f"{self.out_dim})"
