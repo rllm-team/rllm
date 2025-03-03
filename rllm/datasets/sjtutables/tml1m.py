@@ -60,7 +60,7 @@ class TML1MDataset(Dataset):
     def __init__(
         self, cached_dir: str, force_reload: Optional[bool] = False, transform=None
     ) -> None:
-        self.name = "Table_MovieLens1M"
+        self.name = "tml1m"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 

@@ -7,7 +7,11 @@ class GCNTransform(GT.GraphTransform):
     `"Semi-supervised Classification with Graph Convolutional Networks"
     <https://arxiv.org/abs/1609.02907>`__ paper.
     GCNTransform applies a series of transformations to a graph,
-    including feature normalization and adjacency matrix normalization.
+    including:
+        1. Feature Normalization
+        2. Adjacency Matrix Normalization
+            a. Adding Self-Loops
+            b. Symmetric Normalization
 
     Args:
         normalize_features (str):
