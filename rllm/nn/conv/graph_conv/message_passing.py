@@ -35,7 +35,7 @@ class MessagePassing(torch.nn.Module, ABC):
             edge_index (Union[Tensor, SparseTensor]): The edge indices. Tensor, :math:`(2, |E|)`
 
         """
-        num_nodes = kwargs['num_nodes'] if 'num_nodes' in kwargs else x.size(0)
+        num_nodes = kwargs['num_nodes'] if ('num_nodes' in kwargs and kwargs['num_nodes'] is not None) else x.size(0)
 
         if self.__msg_aggr__:
             msg_aggr_kwargs = self.__collect__(
@@ -70,7 +70,7 @@ class MessagePassing(torch.nn.Module, ABC):
         Returns:
             Tensor: The message tensor with size :math:`(|V_{src}|, \text{message_dim})`.
         """
-        if isinstance(edge_index, SparseTensor):
+        if edge_index.is_sparse:
             edge_index, edge_weight = self.__adj2edges__(edge_index)
         src_index = edge_index[0, :]
         msgs = x.index_select(dim=0, index=src_index)
@@ -79,7 +79,6 @@ class MessagePassing(torch.nn.Module, ABC):
             return msgs * edge_weight.view(-1, 1)
         return msgs
 
-    # TODO: use torch index_add instead of scatter_add_
     def aggregate(
             self,
             msgs: Tensor,
@@ -104,7 +103,7 @@ class MessagePassing(torch.nn.Module, ABC):
                 Default supported options: 'sum', 'mean', 'max'.
         """
         # TODO: `scatter_add_` behaves nondeterministically, need to find a substitute.
-        if isinstance(edge_index, SparseTensor):
+        if edge_index.is_sparse:
             edge_index, _ = self.__adj2edges__(edge_index)
         dst_index = edge_index[1, :]
         if num_nodes is None:
@@ -113,14 +112,18 @@ class MessagePassing(torch.nn.Module, ABC):
             assert num_nodes >= dst_index.max().item() + 1, (
                 f"Number of nodes should be equal or greater than {dst_index.max().item() + 1}"
             )
-        output: Tensor = torch.zeros(num_nodes, dtype=msgs.dtype)
+        # output: Tensor = torch.zeros(num_nodes, dtype=msgs.dtype)
+        output: Tensor = torch.zeros((num_nodes, msgs.size(1)), dtype=msgs.dtype, device=msgs.device)
         if aggr == 'add' or aggr == 'sum':
-            return output.scatter_add_(0, dst_index, msgs)
+            return output.index_add_(0, dst_index, msgs)
         elif aggr == 'mean':
-            cnt = torch.zeros(num_nodes, dtype=msgs.dtype).scatter_add_(0, dst_index, torch.ones_like(msgs))
-            return output.scatter_add_(0, dst_index, msgs) / cnt
+            count = torch.zeros(num_nodes, dtype=msgs.dtype, device=msgs.device)
+            count.index_add_(0, dst_index, torch.ones_like(dst_index, dtype=msgs.dtype))
+            count = torch.where(count == 0, torch.tensor(1e-10, dtype=count.dtype, device=count.device), count)
+            output.index_add_(0, dst_index, msgs)
+            return output / count.unsqueeze(-1)
         elif aggr == 'max':
-            return output.scatter_(0, dst_index, msgs, reduce='amax')
+            return output.scatter_(0, dst_index.unsqueeze(-1).expand_as(msgs), msgs)
         else:
             raise ValueError(f"Aggregation method {aggr} not supported.")
 
@@ -157,7 +160,7 @@ class MessagePassing(torch.nn.Module, ABC):
     @lru_cache
     def __adj2edges__(self, adj: SparseTensor) -> Tuple[Tensor, Tensor]:
         r"""Converts a sparse adjacency matrix to edge indices."""
-        if isinstance(adj, SparseTensor):
+        if adj.is_sparse:
             coo_adj = adj.to_sparse_coo().coalesce()
             s, d, vs = coo_adj.indices()[0], coo_adj.indices()[1], coo_adj.values()
             return torch.stack([s, d]), vs

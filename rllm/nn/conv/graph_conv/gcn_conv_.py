@@ -10,7 +10,33 @@ from rllm.nn.conv.graph_conv.message_passing import MessagePassing
 
 
 class GCNConv(MessagePassing):
-    r"""
+    r"""The GCN (Graph Convolutional Network) model, based on the
+    `"Semi-supervised Classification with Graph Convolutional Networks"
+    <https://arxiv.org/abs/1609.02907>`__ paper.
+
+    This model applies convolution operations to graph-structured data,
+    allowing for the aggregation of feature information from neighboring nodes.
+
+    .. math::
+        \mathbf{X}^{\prime} = \mathbf{\hat{A}} \mathbf{X} \mathbf{W}
+
+    Args:
+        in_dim (int): Size of each input sample.
+        out_dim (int): Size of each output sample.
+        bias (bool): If set to `False`,
+            no bias terms are added into the final output.
+
+    Shapes:
+
+        - **input:**
+
+            node features :math:`(|\mathcal{V}|, F_{in})`
+
+            sparse adjacency matrix :math:`(|\mathcal{V}|, |\mathcal{V}|)`
+
+        - **output:**
+
+            node features :math:`(|\mathcal{V}|, F_{out})`
     """
 
     def __init__(
