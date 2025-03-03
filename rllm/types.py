@@ -144,6 +144,8 @@ class StatType(Enum):
 
         # stat_type for categorical
         if stat_type == StatType.COUNT:
+            if tensor[tensor == -1].numel() <= 0:
+                return 0
             return int(torch.max(tensor[tensor != -1]).item() + 1)
         if stat_type == StatType.MOST_FREQUENT:
             counter = Counter(tensor[tensor != -1].tolist())
