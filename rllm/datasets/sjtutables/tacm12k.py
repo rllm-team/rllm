@@ -59,7 +59,7 @@ class TACM12KDataset(Dataset):
             edges       37,055      2
     """
 
-    url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/main/sjtutables/TACM12K.zip"  # noqa
+    url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/refs/heads/main/sjtutables/tacm12k.zip"  # noqa
 
     def __init__(self, cached_dir: str, force_reload: Optional[bool] = False) -> None:
         self.name = "tacm12k"

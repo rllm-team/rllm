@@ -55,7 +55,7 @@ class TML1MDataset(Dataset):
             nodes       1,000,209   4
     """
 
-    url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/main/sjtutables/TML1M.zip"  # noqa
+    url = "https://github.com/rllm-project/rllm_datasets/raw/refs/heads/main/sjtutables/tml1m.zip"  # noqa
 
     def __init__(
         self, cached_dir: str, force_reload: Optional[bool] = False, transform=None

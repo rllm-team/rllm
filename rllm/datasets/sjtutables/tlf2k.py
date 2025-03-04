@@ -51,7 +51,7 @@ class TLF2KDataset(Dataset):
             nodes       12,717      2
     """
 
-    url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/main/sjtutables/TLF2K.zip"  # noqa
+    url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/refs/heads/main/sjtutables/tlf2k.zip"  # noqa
 
     def __init__(self, cached_dir: str, force_reload: Optional[bool] = False) -> None:
         self.name = "tlf2k"
