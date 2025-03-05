@@ -55,12 +55,12 @@ class TML1MDataset(Dataset):
             nodes       1,000,209   4
     """
 
-    url = "https://raw.githubusercontent.com/rllm-project/rllm_datasets/main/sjtutables/TML1M.zip"  # noqa
+    url = "https://github.com/rllm-project/rllm_datasets/raw/refs/heads/main/sjtutables/tml1m.zip"  # noqa
 
     def __init__(
         self, cached_dir: str, force_reload: Optional[bool] = False, transform=None
     ) -> None:
-        self.name = "Table_MovieLens1M"
+        self.name = "tml1m"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
