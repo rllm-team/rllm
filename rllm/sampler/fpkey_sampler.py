@@ -13,6 +13,9 @@ class FPkeySampler(BaseSampler):
     r"""
     fpkey_sampler samples from `seed_table`via the fkey-pkey relation in `rf`.
 
+    seed_table will always be the first table to sample, which keeps training/val/test
+    mask can be accessed by ``seed_table.xxx[ : batch_size]``.
+
     Args:
         rf: RelationFrame
         seed_table: TableData
@@ -21,6 +24,7 @@ class FPkeySampler(BaseSampler):
         self,
         rf: RelationFrame,
         seed_table: TableData,
+        f_p_path: List[Tuple[TableData, TableData, Relation]] = None,
         **kwargs
     ):
         assert rf.validate_rels()
@@ -28,11 +32,17 @@ class FPkeySampler(BaseSampler):
         self.rf = rf
         assert seed_table in rf.tables, "seed_table should be in rf.tables."
         self.seed_table = seed_table
-        self._f_p_path = self.__bfs_meta_g()
+
+        # sampling order
+        if f_p_path is not None:
+            self._f_p_path = f_p_path
+        else:
+            self._f_p_path = self.__bfs_meta_g()
+
         super().__init__(**kwargs)
 
     @property
-    def f_p_path(self) -> List[Tuple[TableData, TableData]]:
+    def f_p_path(self) -> List[Tuple[TableData, TableData, Relation]]:
         r"""Returns the fkey-pkey paths."""
         return self._f_p_path
 
@@ -74,21 +84,27 @@ class FPkeySampler(BaseSampler):
 
     def merge_tables(self, blocks: List[Block]) -> RelationFrame:
         r"""Merge the blocks."""
-        sampled_tables = []
 
-        for table in self.rf.tables:
+        def merge_one(table: TableData) -> TableData:
+            r"""Merge one table."""
             cur_index = []
             for block in blocks:
-                if block.rel.fkey_table is table:
+                if block.nrel.fkey_table == table.table_name:
                     cur_index.append(block.src_nodes)
-                elif block.rel.pkey_table is table:
+                elif block.nrel.pkey_table == table.table_name:
                     cur_index.append(block.dst_nodes)
-
             cur_index = self.index_union(cur_index)
-            new_table = table.sample(cur_index)
-            sampled_tables.append(new_table)
+            return table.sample(cur_index)
 
-        rf = RelationFrame(tables=sampled_tables, _blocks=blocks)
+        sampled_tables = [merge_one(self.seed_table)]  # Always put seed_table at first.
+
+        tables = set(self.rf.tables) - {self.seed_table}
+        while tables:
+            table = tables.pop()
+            sampled_tables.append(merge_one(table))
+
+        nrels = [b.nrel for b in blocks]
+        rf = RelationFrame(sampled_tables, sampled=True, _blocks=blocks, relations=nrels)
         return rf
 
     def sample(self, index: Iterable) -> RelationFrame:
@@ -107,26 +123,13 @@ class FPkeySampler(BaseSampler):
             return sampled_table_data, None
 
         blocks = []
-        cur_table = self.seed_table
+        # cur_table = self.seed_table
         cur_src_index = seed_index
 
         for src_table, dst_table, rel in self._f_p_path:
             """
             rel: fkey_table.fkey ----> pkey_table.pkey
             """
-            if src_table is not cur_table:
-                # update cur_src_index
-                cur_table = src_table
-                cur_src_index = []
-                for b in blocks:
-                    if b.rel.fkey_table is cur_table:
-                        cur_src_index.append(b.src_nodes)
-                    elif b.rel.pkey_table is cur_table:
-                        cur_src_index.append(b.dst_nodes)
-                if cur_src_index:
-                    cur_src_index = self.index_union(cur_src_index)
-                else:
-                    raise ValueError("No blocks are sampled.")
 
             if src_table is rel.fkey_table:
                 """
@@ -136,7 +139,7 @@ class FPkeySampler(BaseSampler):
                 dst_index = src_table.fkey_index(rel.fkey)[cur_src_index]
                 block = Block(
                     edge_list=(cur_src_index, dst_index),
-                    rel=rel,
+                    nrel=rel.to_name(),
                     src_nodes_=cur_src_index,
                     dst_nodes_=dst_index
                 )
@@ -163,7 +166,7 @@ class FPkeySampler(BaseSampler):
                 """
                 block = Block(
                     edge_list=edges,
-                    rel=rel,
+                    nrel=rel.to_name(),
                     src_nodes_=edges[0],
                     dst_nodes_=cur_src_index
                 )
@@ -175,7 +178,22 @@ class FPkeySampler(BaseSampler):
                     dst_table.table_name,
                     rel))
 
+            # update cur_src_index
+            cur_src_index = []
+            for block in blocks:
+                if block.nrel.pkey_table == dst_table.table_name:
+                    cur_src_index.append(block.dst_nodes)
+                elif block.nrel.fkey_table == dst_table.table_name:
+                    cur_src_index.append(block.src_nodes)
+            if cur_src_index:
+                cur_src_index = self.index_union(cur_src_index)
+            else:
+                raise ValueError("No blocks are sampled.")
+
         if blocks:
-            return self.merge_tables(blocks)
+            rf = self.merge_tables(blocks)
+            setattr(rf, 'target_table_name', self.seed_table.table_name)
+            setattr(rf, 'sampling_seeds', list(seed_index))
+            return rf
         else:
             raise ValueError("No blocks are sampled.")

@@ -7,20 +7,20 @@ import torch.utils.data
 
 from rllm.data import RelationFrame, TableData
 from rllm.sampler import BaseSampler, FPkeySampler
+from rllm.dataloader.base import LoaderMixin
 
 
-class EntryLoader(torch.utils.data.DataLoader):
+class EntryLoader(
+    torch.utils.data.DataLoader,
+    LoaderMixin
+):
     r"""
-    relationframe(pandas) -> tensor -> sampler -> batch -> collate_fn -> filter_fn
-
-    e.g.
-    loader = EntryLoader(rf, user_table, batch_size=32, shuffle=True)
     """
 
     def __init__(
         self,
+        set_: Union[Tensor, Iterable],
         seed_table: TableData,
-        set: Union[Tensor, Iterable],
         *,
         sampling: bool,
         rf: RelationFrame,
@@ -29,12 +29,7 @@ class EntryLoader(torch.utils.data.DataLoader):
         **kwargs
     ):
         self.seed_table = seed_table
-
-        if isinstance(set, Tensor):
-            if set.dtype == torch.bool:
-                set = set.nonzero().flatten()
-            set = set.tolist()
-        self.set = set
+        self.set_ = self.unify_set_(set_)
 
         if sampling:
             if Sampler is None or rf is None:
@@ -42,19 +37,19 @@ class EntryLoader(torch.utils.data.DataLoader):
             elif not issubclass(Sampler, BaseSampler):
                 raise ValueError("sampler should be a subclass of BaseSampler.")
             self.sampling = True
-            self._sampler = Sampler(rf, seed_table=seed_table)
+            self._sampler, kwargs = self.init_sampler(Sampler, rf, seed_table, **kwargs)
 
         self.batch_size = batch_size
 
         super().__init__(
-            set, batch_size=batch_size, collate_fn=self.collate_fn, **kwargs
+            self.set_, batch_size=batch_size, collate_fn=self.collate_fn, **kwargs
         )
 
     def __call__(self, index: Union[Tensor, Iterable]) -> RelationFrame:
         if isinstance(index, Tensor):
             index = index.tolist()
 
-        index = self.set[index]
+        index = self.set_[index]
         out = self.collate_fn(index)
         return out
 

@@ -114,7 +114,7 @@ class TableData(BaseTable):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-        if feat_dict is None or y is None:
+        if feat_dict is None:
             self._generate_feat_dict()
             self._inherit_feat_dict = False
         else:
@@ -195,7 +195,8 @@ class TableData(BaseTable):
         """
         if isinstance(index, pd.Index):
             index = self.df.index.get_indexer(index)
-        if self._inherit_feat_dict or keep_feat_dict or keep_metadata:
+
+        if self._inherit_feat_dict or keep_feat_dict or keep_metadata or sampling:
             if isinstance(index, slice):
                 assert (
                     index.start >= 0 and index.stop <= len(self) and index.start < index.stop
@@ -219,6 +220,25 @@ class TableData(BaseTable):
             else:
                 raise ValueError("Slice index must be int, slice or iterable!")
 
+        # sampling mode, do not slice dataframe.
+        if sampling:
+            return SubTableData(
+                oind=index,
+                df=None,
+                col_types=self.col_types,
+                name=self.table_name,
+                target_col=self.target_col,
+                feat_dict=feat_dict,
+                y=y,
+                metadata=self.metadata,
+                # df_attrs, manually inherit
+                cols=self.cols,
+                index_col=self.index_col,
+                num_classes=self.num_classes,
+                # count_categorical_features=self.count_categorical_features(),
+            )
+
+        # slice dataframe
         if isinstance(index, int):
             df = self.df.iloc[[index]]
             df.index.name = self.index_col
@@ -227,6 +247,7 @@ class TableData(BaseTable):
             df = self.df.iloc[index]
             df.index.name = self.index_col
 
+        # keep metadata and feat_dict
         if keep_metadata:
             return SubTableData(
                 oind=index,
@@ -238,6 +259,7 @@ class TableData(BaseTable):
                 y=y,
                 metadata=self.metadata,
             )
+        # drop metadata, keep feat_dict
         if self._inherit_feat_dict or keep_feat_dict:
             if not keep_oind:
                 return TableData(
@@ -258,6 +280,7 @@ class TableData(BaseTable):
                     feat_dict=feat_dict,
                     y=y,
                 )
+        # drop feat_dict and metadata
         else:
             if not keep_oind:
                 return TableData(
@@ -295,7 +318,7 @@ class TableData(BaseTable):
 
         # ZK: I write slice mode for sampled table data; DO not inherit metadata and _mapping storage.
         else:
-            return self.__get_item_do(index, keep_oind=False)
+            return self.__get_item_do(index, keep_oind=False, keep_feat_dict=True, keep_metadata=True)
 
     @cached_property
     def index_col(self) -> Optional[str]:
@@ -348,8 +371,11 @@ class TableData(BaseTable):
         return len(self.feat_cols)
 
     @property
-    def num_classes(self) -> int:
-        assert self.target_col is not None
+    def num_classes(self) -> Optional[int]:
+        # assert self.target_col is not None
+        # ZK: If none, return None, but raise error. I change this for sampling.
+        if self.target_col is None:
+            return None
         num_classes = self.df[self.target_col].nunique()
         assert num_classes > 1
         return num_classes
@@ -558,7 +584,7 @@ class TableData(BaseTable):
     # For sampling #############################################
     def sample(self, index: Union[int, Iterable, slice, pd.Index]):
         r"""Sample a new TableData."""
-        return self.__get_item_do(index, keep_oind=True, keep_feat_dict=True, keep_metadata=True)
+        return self.__get_item_do(index, keep_oind=True, sampling=True)
 
 
 class SubTableData(TableData):
@@ -569,14 +595,54 @@ class SubTableData(TableData):
         oind (List[int]): The original indices in TableData of the sub-table.
     """
 
+    df_attrs = {
+        "index_col",
+        "fkey_index",
+        "cols",
+        "num_rows",
+        "num_classes",
+        "count_categorical_features",
+        "shuffle"
+    }
+
     def __init__(self, oind: List[int], **kwargs):
-        super().__init__(**kwargs)
         self._oind = oind
         self._subtable = True
+        self._sampled = True if kwargs['df'] is None else False
+
+        self._inherit_df_attrs = dict()
+
+        # assign df_attrs
+        if self._sampled:
+            for attr in self.df_attrs:
+                if attr in kwargs:
+                    self._inherit_df_attrs[attr] = kwargs[attr]
+                    kwargs.pop(attr)
+        super().__init__(**kwargs)
+
+    def __len__(self):
+        if self._sampled:
+            return len(self._oind)
+        else:
+            return super().__len__()
+
+    def __getattr__(self, key):
+        r"""Get attributes from TableData. If sampled, df_attrs are only accessible via _inherit_df_attrs."""
+        if key in self.df_attrs and self._sampled:
+            if key in self._inherit_df_attrs:
+                return self._inherit_df_attrs[key]
+            else:
+                raise AttributeError(f"{key} is not available in sampled TableData for dataframe is dropped.")
+        else:
+            return super().__getattr__(key)
 
     @property
     def is_subtable(self):
         return self._subtable
+
+    @property
+    def is_sampled(self):
+        return self._sampled
 
     @property
     def oind(self):

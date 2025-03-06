@@ -60,8 +60,8 @@ def test_tml1m():
     user_table = tables[0]
     rf = RelationFrame(tables)
     dataloader = EntryLoader(
-        user_table,
         user_table.train_mask,
+        user_table,
         sampling=True,
         rf=rf,
         Sampler=FPkeySampler,
@@ -70,9 +70,9 @@ def test_tml1m():
     tik = perf_counter()
     for i, batch in enumerate(dataloader):
         print(f"""====> Batch {i},
-              table {batch.tables[0].table_name} has {len(batch.tables[0].df)} entries,
-              table {batch.tables[1].table_name} has {len(batch.tables[1].df)} entries,
-              table {batch.tables[2].table_name} has {len(batch.tables[2].df)} entries""")
+              table {batch.tables[0].table_name} has {len(batch.tables[0])} entries,
+              table {batch.tables[1].table_name} has {len(batch.tables[1])} entries,
+              table {batch.tables[2].table_name} has {len(batch.tables[2])} entries""")
     tok = perf_counter()
     print(f"===Total sampling time: {tok-tik :.4} s===")
 
@@ -89,22 +89,26 @@ def test_tacm12k():
     rel4 = Relation(fkey_table=writings_table, fkey="author_id", pkey_table=authors_table, pkey="author_id")
     rel_l = [rel1, rel2, rel3, rel4]
     rf = RelationFrame(tables, relations=rel_l)
-
+    f_p_path = [(papers_table, citations_table, rel1),
+                (citations_table, papers_table, rel2),
+                (writings_table, papers_table, rel3),
+                (writings_table, authors_table, rel4)]
     tik = perf_counter()
-    dataloader = EntryLoader(
-        papers_table,
-        papers_table.train_mask,
+    train_loader, _, _ = EntryLoader.create(
+        [papers_table.train_mask, papers_table.val_mask, papers_table.test_mask],
+        seed_table=papers_table,
         sampling=True,
         rf=rf,
         Sampler=FPkeySampler,
-        batch_size=32
+        batch_size=32,
+        f_p_path=f_p_path,
     )
-    for i, batch in enumerate(dataloader):
+    for i, batch in enumerate(train_loader):
         print(f"""====> Batch {i},
-              table {batch.tables[0].table_name} has {len(batch.tables[0].df)} entries,
-              table {batch.tables[1].table_name} has {len(batch.tables[1].df)} entries,
-              table {batch.tables[2].table_name} has {len(batch.tables[2].df)} entries,
-              table {batch.tables[3].table_name} has {len(batch.tables[3].df)} entries""")
+              table {batch.tables[0].table_name} has {len(batch.tables[0])} entries,
+              table {batch.tables[1].table_name} has {len(batch.tables[1])} entries,
+              table {batch.tables[2].table_name} has {len(batch.tables[2])} entries,
+              table {batch.tables[3].table_name} has {len(batch.tables[3])} entries""")
     tok = perf_counter()
     print(f"===Total sampling time: {tok-tik :.4} s===")
 
@@ -140,19 +144,31 @@ def test_tlf2k():
 
     rf = RelationFrame(tables, relations=rel_l)
 
+    f_p_path = [(artist_table, user_artists_table, rel1),
+                (user_artists_table, user_table, rel2),
+                (user_table, user_friends_table, rel3),
+                (user_friends_table, user_table, rel4)]
+
     dataloader = EntryLoader(
-        artist_table,
         artist_table.train_mask,
+        artist_table,
         sampling=True,
         rf=rf,
         Sampler=FPkeySampler,
-        batch_size=32
+        batch_size=32,
+        f_p_path=f_p_path,
     )
     tik = perf_counter()
     for i, batch in enumerate(dataloader):
         print(f"""====> Batch {i},
-              table {batch.tables[0].table_name} has {len(batch.tables[0].df)} entries,
-              table {batch.tables[1].table_name} has {len(batch.tables[1].df)} entries,
-              table {batch.tables[2].table_name} has {len(batch.tables[2].df)} entries""")
+              table {batch.tables[0].table_name} has {len(batch.tables[0])} entries,
+              table {batch.tables[1].table_name} has {len(batch.tables[1])} entries,
+              table {batch.tables[2].table_name} has {len(batch.tables[2])} entries,
+              table {batch.tables[3].table_name} has {len(batch.tables[3])} entries,""")
     tok = perf_counter()
     print(f"===Total sampling time: {tok-tik :.4} s===")
+
+
+test_tml1m()  # 0.08559s, 4 batches
+test_tacm12k()  # 0.07748s, 8 batches
+test_tlf2k()  # 0.4241s, 6 batches

@@ -71,6 +71,7 @@ train_mask, val_mask, test_mask = (
     target_table.test_mask,
 )
 
+
 # Set up model and optimizer
 t_encoder = TableEncoder(
     in_dim=emb_size,
@@ -99,7 +100,7 @@ def train() -> float:
     optimizer.zero_grad()
     logits = model(
         table=target_table,
-        non_table=paper_embeddings[len(target_table) :, :],
+        non_table=paper_embeddings[:len(target_table), :],
         adj=adj,
     )
     loss = F.cross_entropy(logits[train_mask].squeeze(), y[train_mask])
@@ -113,7 +114,7 @@ def test():
     model.eval()
     logits = model(
         table=target_table,
-        non_table=paper_embeddings[len(target_table) :, :],
+        non_table=paper_embeddings[:len(target_table), :],
         adj=adj,
     )
     preds = logits.argmax(dim=1)

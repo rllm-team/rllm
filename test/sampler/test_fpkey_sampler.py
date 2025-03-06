@@ -1,7 +1,7 @@
 """
-# test_tml1m()  # 0.07984s 4 batches
-# test_tacm12k()  # 0.07431s 8 batches
-# test_tlf2k()  # 0.4031s 6 batches
+test_tml1m()  # 0.07824s 4 batches
+test_tlf2k()  # 1.679s 6 batches
+test_tacm12k()  # 0.01513 8 batches
 """
 import sys
 from os import path as osp
@@ -78,9 +78,9 @@ def test_tml1m():
     for i, batch in enumerate(batch_generator(torch.nonzero(train_mask).flatten().tolist())):
         new_rf = my_fpkey_sampler.sample(batch)
         print(f"""====> Batch {i}:
-              table {new_rf.tables[0].table_name} has {len(new_rf.tables[0].df)} entries,
-              table {new_rf.tables[1].table_name} has {len(new_rf.tables[1].df)} entries,
-              table {new_rf.tables[2].table_name} has {len(new_rf.tables[2].df)} entries""")
+              table {new_rf.tables[0].table_name} has {len(new_rf.tables[0])} entries,
+              table {new_rf.tables[1].table_name} has {len(new_rf.tables[1])} entries,
+              table {new_rf.tables[2].table_name} has {len(new_rf.tables[2])} entries""")
     tok = perf_counter()
     print(f"===Total sampling time: {tok-tik :.4} s===")
 
@@ -97,7 +97,11 @@ def test_tacm12k():
     rel4 = Relation(fkey_table=writings_table, fkey="author_id", pkey_table=authors_table, pkey="author_id")
     rel_l = [rel1, rel2, rel3, rel4]
     rf = RelationFrame(tables, relations=rel_l)
-    my_fpkey_sampler = FPkeySampler(rf, tables[0])
+    f_p_path = [(citations_table, papers_table, rel1),
+                (citations_table, papers_table, rel2),
+                (writings_table, papers_table, rel3),
+                (writings_table, authors_table, rel4)]
+    my_fpkey_sampler = FPkeySampler(rf, tables[0], f_p_path=f_p_path)
     for src, dst, rel in my_fpkey_sampler.f_p_path:
         print(f"sampling order: {src.table_name} ----> {dst.table_name}")
         print("relation:", rel)
@@ -110,10 +114,10 @@ def test_tacm12k():
     for i, batch in enumerate(batch_generator(torch.nonzero(train_mask).flatten().tolist())):
         new_rf = my_fpkey_sampler.sample(batch)
         print(f"""====> Batch {i},
-              table {new_rf.tables[0].table_name} has {len(new_rf.tables[0].df)} entries,
-              table {new_rf.tables[1].table_name} has {len(new_rf.tables[1].df)} entries,
-              table {new_rf.tables[2].table_name} has {len(new_rf.tables[2].df)} entries,
-              table {new_rf.tables[3].table_name} has {len(new_rf.tables[3].df)} entries""")
+              table {new_rf.tables[0].table_name} has {len(new_rf.tables[0])} entries,
+              table {new_rf.tables[1].table_name} has {len(new_rf.tables[1])} entries,
+              table {new_rf.tables[2].table_name} has {len(new_rf.tables[2])} entries,
+              table {new_rf.tables[3].table_name} has {len(new_rf.tables[3])} entries""")
     tok = perf_counter()
     print(f"===Total sampling time: {tok-tik :.4} s===")
 
@@ -146,8 +150,12 @@ def test_tlf2k():
     rel3 = Relation(fkey_table=user_friends_table, fkey="userID", pkey_table=user_table, pkey="userID")
     rel4 = Relation(fkey_table=user_friends_table, fkey="friendID", pkey_table=user_table, pkey="userID")
     rel_l = [rel1, rel2, rel3, rel4]
+    f_p_path = [(artist_table, user_artists_table, rel1),
+                (user_artists_table, user_table, rel2),
+                (user_table, user_friends_table, rel3),
+                (user_friends_table, user_table, rel4)]
 
-    rf = RelationFrame(tables, relations=rel_l)
+    rf = RelationFrame(tables, relations=rel_l, f_p_path=f_p_path)
     my_fpkey_sampler = FPkeySampler(rf, artist_table)
     for src, dst, rel in my_fpkey_sampler.f_p_path:
         print(f"sampling order: {src.table_name} ----> {dst.table_name}")
@@ -157,9 +165,9 @@ def test_tlf2k():
     for i, batch in enumerate(batch_generator(torch.nonzero(artist_table.train_mask).flatten().tolist())):
         new_rf = my_fpkey_sampler.sample(batch)
         print(f"""====> Batch {i},
-              table {new_rf.tables[0].table_name} has {len(new_rf.tables[0].df)} entries,
-              table {new_rf.tables[1].table_name} has {len(new_rf.tables[1].df)} entries,
-              table {new_rf.tables[2].table_name} has {len(new_rf.tables[2].df)} entries,
-              table {new_rf.tables[3].table_name} has {len(new_rf.tables[3].df)} entries""")
+              table {new_rf.tables[0].table_name} has {len(new_rf.tables[0])} entries,
+              table {new_rf.tables[1].table_name} has {len(new_rf.tables[1])} entries,
+              table {new_rf.tables[2].table_name} has {len(new_rf.tables[2])} entries,
+              table {new_rf.tables[3].table_name} has {len(new_rf.tables[3])} entries""")
     tok = perf_counter()
     print(f"===Total sampling time: {tok-tik :.4} s===")

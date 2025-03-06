@@ -1,4 +1,5 @@
 from typing import Union
+from functools import lru_cache
 
 from torch import Tensor
 
@@ -23,9 +24,11 @@ class GCNNorm(NETransform):
     def __init__(self):
         self.data = None
 
+    @lru_cache(maxsize=128)
     def forward(self, data: Union[Tensor, GraphData, HeteroGraphData]):
-        if self.data is not None:
-            return self.data
+        # ZK: for batchlize training, we do not use cache here.
+        # if self.data is not None:
+        #     return self.data
 
         if isinstance(data, GraphData):
             assert data.adj is not None
