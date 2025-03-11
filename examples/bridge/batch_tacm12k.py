@@ -133,7 +133,7 @@ def train():
         adj = graph_transform(data=graph).adj
         logits = model(
             table=batch.target_table,
-            non_table=paper_embeddings[torch.tensor(batch.target_table.oind, dtype=torch.long)],
+            non_table=torch.empty(paper_embeddings[torch.tensor(batch.target_table.oind, dtype=torch.long)].size()),
             adj=adj
         )
         loss = F.cross_entropy(logits[batch.target_index],
@@ -157,7 +157,7 @@ def test(loader):
         adj = graph_transform(data=graph).adj
         logits = model(
             table=batch.target_table,
-            non_table=paper_embeddings[torch.tensor(batch.target_table.oind, dtype=torch.long)],
+            non_table=torch.empty(paper_embeddings[torch.tensor(batch.target_table.oind, dtype=torch.long)].size()),
             adj=adj
         )
         y = batch.y.long().to(device)

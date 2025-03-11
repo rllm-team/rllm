@@ -6,7 +6,7 @@ from torch import Tensor
 from rllm.data.graph_data import GraphData, HeteroGraphData
 from rllm.transforms.graph_transforms import NETransform
 from rllm.transforms.graph_transforms.functional import (
-    add_remaining_self_loops,
+    add_remaining_self_loops_,
     symmetric_norm,
 )
 
@@ -47,5 +47,5 @@ class GCNNorm(NETransform):
         return data
 
     def gcn_norm(self, adj: Tensor):
-        adj = add_remaining_self_loops(adj)
+        adj = add_remaining_self_loops_(adj)
         return symmetric_norm(adj)

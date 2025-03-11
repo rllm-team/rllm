@@ -15,6 +15,15 @@ class EntryLoader(
     LoaderMixin
 ):
     r"""
+    EntryLoader is a dataloader for the entry-level task.
+
+    Args:
+        set_ (Union[Tensor, Iterable]): the set of entry indices to sample.
+        seed_table (TableData): the seed table.
+        sampling (bool): whether to sample.
+        rf (RelationFrame): the relation frame.
+        Sampler (Type[BaseSampler]): the sampler.
+        batch_size (int): the batch size.
     """
 
     def __init__(

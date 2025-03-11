@@ -4,7 +4,7 @@ from torch import Tensor
 from rllm.utils.sparse import is_torch_sparse_tensor
 
 
-def add_remaining_self_loops(adj: Tensor, fill_value=1.0):
+def add_remaining_self_loops_(adj: Tensor, fill_value=1.0):
     r"""Add self-loops into the adjacency matrix.
 
     .. math::

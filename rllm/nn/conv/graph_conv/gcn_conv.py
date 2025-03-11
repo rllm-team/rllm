@@ -6,7 +6,7 @@ from torch.nn import Linear, Parameter
 import torch.nn.init as init
 from torch.sparse import Tensor as SparseTensor
 
-from rllm.nn.conv.graph_conv.message_passing import MessagePassing
+from rllm.nn.conv.graph_conv import MessagePassing
 
 
 class GCNConv(MessagePassing):
@@ -45,7 +45,7 @@ class GCNConv(MessagePassing):
             out_dim: int,
             bias: bool = True,
     ):
-        super().__init__()
+        super().__init__(aggr='gcn')
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.linear = Linear(in_dim, out_dim, bias=False)
@@ -65,10 +65,9 @@ class GCNConv(MessagePassing):
             x: Tensor,
             edge_index: Union[Tensor, SparseTensor],
             edge_weight: Optional[Tensor] = None,
-            num_nodes: Optional[int] = None
     ) -> Tensor:
         x = self.linear(x)
-        out = self.propagate(x, edge_index, edge_weight=edge_weight, num_nodes=num_nodes)
+        out = self.propagate(x, edge_index, edge_weight=edge_weight)
         if self.bias is not None:
             out += self.bias
         return out

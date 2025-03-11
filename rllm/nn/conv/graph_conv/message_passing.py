@@ -8,16 +8,25 @@ import torch
 from torch import Tensor
 from torch.sparse import Tensor as SparseTensor
 
+from rllm.nn.conv.graph_conv.aggrs import Aggregator
+
 
 class MessagePassing(torch.nn.Module, ABC):
     r"""Base class for message passing.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        aggr: Optional[Union[str, Aggregator]] = 'sum',
+        *,
+        aggr_kwargs: Optional[Dict[str, Any]] = None
+    ):
         super().__init__()
 
         self.__explain__ = self.__is_overrided__(self.explain)
         self.__msg_aggr__ = self.__is_overrided__(self.message_and_aggregate)
+
+        self.aggr_module = self.aggr_revoler(aggr, **(aggr_kwargs or {}))
 
     def propagate(
             self,
@@ -34,8 +43,8 @@ class MessagePassing(torch.nn.Module, ABC):
             x (Tensor): The input node feature matrix. :math:`(|V|, F_{in})`
             edge_index (Union[Tensor, SparseTensor]): The edge indices. Tensor, :math:`(2, |E|)`
         """
-        if 'num_nodes' not in kwargs or kwargs['num_nodes'] is None:
-            kwargs['num_nodes'] = x.size(0)
+        # if 'num_nodes' not in kwargs or kwargs['num_nodes'] is None:
+        #     kwargs['num_nodes'] = x.size(0)
 
         # message and aggregate
         if self.__msg_aggr__:
@@ -87,6 +96,27 @@ class MessagePassing(torch.nn.Module, ABC):
         return msgs
 
     def aggregate(
+        self,
+        msgs: Tensor,
+        edge_index: Union[Tensor, SparseTensor],
+        dim: int = 0,
+        dim_size: Optional[int] = None
+    ):
+        r"""
+        Aggrate messages from src nodes to dst nodes.
+
+        Args:
+            msgs (Tensor): The messages to aggregate.
+            edge_index (Union[Tensor, SparseTensor]): The edge indices.
+            dim (int): The dimension to aggregate.
+                (default: :obj:`0`)
+            dim_size (Optional[int]): The size of output tensor at dim.
+                (default: :obj:`None`)
+        """
+        edge_index, _ = self.__unify_edgeindex__(edge_index)
+        return self.aggr_module(msgs, edge_index[1:].squeeze(), dim=dim, dim_size=dim_size)
+
+    def aggregate_(
             self,
             msgs: Tensor,
             edge_index: Union[Tensor, SparseTensor],
@@ -94,6 +124,7 @@ class MessagePassing(torch.nn.Module, ABC):
             aggr: str = 'sum'
     ) -> Tensor:
         r"""
+        Deprecated. Use :meth:`aggregate` instead.
         Aggrate messages from src nodes :math:`v_j` to dst nodes :math:`v_i`, i.e.
         compute the new features for each node by aggregating its neighbors' messages.
 
@@ -189,6 +220,29 @@ class MessagePassing(torch.nn.Module, ABC):
         r"""Check if the function is overridden. If so, return True."""
         return getattr(self.__class__, func.__name__, None) \
             != getattr(MessagePassing, func.__name__)
+
+    def aggr_revoler(self, target_aggr: Union[str, Aggregator], **kwargs) -> Aggregator:
+        r"""Resolve the aggregator."""
+        if isinstance(target_aggr, Aggregator):
+            return target_aggr
+
+        import rllm.nn.conv.graph_conv.aggrs as aggrs
+        aggrs_l = [
+            getattr(aggrs, name) for name in dir(aggrs)
+            if inspect.isclass(getattr(aggrs, name))
+        ]
+
+        def normalize_str(s: str) -> str:
+            return s.lower().replace('_', '').replace('-', '').replace(' ', '')
+
+        norm_target_aggr = normalize_str(target_aggr)
+
+        for aggr in aggrs_l:
+            aggr_name = normalize_str(aggr.__name__)
+            if norm_target_aggr in [aggr_name, aggr_name.replace('aggregator', '')]:
+                return aggr(**kwargs)
+
+        raise ValueError(f"Aggregator {target_aggr} not found.")
 
     @property
     def if_message_and_aggregate(self) -> bool:

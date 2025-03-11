@@ -9,6 +9,8 @@ from .graph_transform import GraphTransform  # noqa
 from .gcn_transform import GCNTransform  # noqa
 from .rect_transform import RECTTransform  # noqa
 
+# utility functions
+from .functional import add_remaining_self_loops_
 
 __all__ = [
     # general transforms
@@ -24,4 +26,6 @@ __all__ = [
     "GraphTransform",
     "GCNTransform",
     "RECTTransform",
+    # utility functions
+    "add_remaining_self_loops_",
 ]

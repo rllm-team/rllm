@@ -17,6 +17,7 @@ def test_gcn_conv():
             [1.0, 0.0, 0.0, 0.0],
         ]
     )
+    adj = adj.to_sparse()
 
     conv = GCNConv(in_dim, out_dim)
     assert str(conv) == "GCNConv(16, 8)"

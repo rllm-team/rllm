@@ -4,7 +4,7 @@ from torch import Tensor
 
 from rllm.data.graph_data import GraphData, HeteroGraphData
 from rllm.transforms.graph_transforms import NETransform
-from rllm.transforms.graph_transforms.functional import add_remaining_self_loops
+from rllm.transforms.graph_transforms.functional import add_remaining_self_loops_
 
 
 class AddRemainingSelfLoops(NETransform):
@@ -28,14 +28,14 @@ class AddRemainingSelfLoops(NETransform):
 
         if isinstance(data, Union[GraphData, HeteroGraphData]):
             assert data.adj is not None
-            data.adj = add_remaining_self_loops(data.adj, self.fill_value)
+            data.adj = add_remaining_self_loops_(data.adj, self.fill_value)
         elif isinstance(data, HeteroGraphData):
             for store in data.edge_stores:
                 if "adj" not in store or not store.is_bipartite():
                     continue
-                store.adj = add_remaining_self_loops(store.adj, self.fill_value)
+                store.adj = add_remaining_self_loops_(store.adj, self.fill_value)
         elif isinstance(data, Tensor):
             assert data.size(0) == data.size(1)
-            data = add_remaining_self_loops(data, self.fill_value)
+            data = add_remaining_self_loops_(data, self.fill_value)
         self.data = data
         return data
