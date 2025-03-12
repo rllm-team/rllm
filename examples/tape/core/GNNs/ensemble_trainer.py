@@ -1,3 +1,5 @@
+import os.path as osp
+
 import torch
 
 from core.GNNs.gnn_trainer import GNNTrainer
@@ -23,7 +25,8 @@ class EnsembleTrainer():
         self.weight_decay = cfg.gnn.train.weight_decay
 
         # ! Load data
-        dataset = TAPEDataset('./cached', file_name=self.dataset_name, use_text=False, use_gpt=False, use_preds=False)
+        path = osp.join(osp.dirname(osp.realpath(__file__)), "../../../..", "data")
+        dataset = TAPEDataset(path, file_name=self.dataset_name, use_text=False, use_gpt=False, use_preds=False)
         data = dataset[0]
         data.y = data.y.squeeze()
         self.data = data.to(self.device)
