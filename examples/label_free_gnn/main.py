@@ -14,6 +14,7 @@
 import argparse
 import os.path as osp
 import sys
+import time
 
 import torch
 import torch.nn.functional as F
@@ -130,46 +131,32 @@ class GCN(torch.nn.Module):
 
 
 class Trainer:
-    def __init__(self, data, model, optimizer, masks, epochs, val, weighted_loss):
+    def __init__(self, data, model, optimizer, masks, val, weighted_loss):
         self.data = data
         self.model = model
         self.optimizer = optimizer
         self.train_mask = masks["train_mask"]
         self.val_mask = masks["val_mask"]
         self.test_mask = masks["test_mask"]
-        self.epochs = epochs
         self.val = val
         self.weighted_loss = weighted_loss
-        self.losses = []
 
     def train(self):
-        best_val_acc = 0
-        best_test_acc = 0
-        for epoch in tqdm(range(1, self.epochs + 1)):
-            self.model.train()
-            self.optimizer.zero_grad()
-            out = self.model(self.data.x, data.adj)
-            loss_fn = torch.nn.CrossEntropyLoss()
-            if self.weighted_loss:
-                loss = (
-                    loss_fn(out[self.train_mask], self.data.pl[self.train_mask])
-                    * self.data.conf[self.train_mask].mean()
-                )
-            else:
-                loss = loss_fn(out[train_mask], data.pl[train_mask])
-            loss.backward()
-            self.optimizer.step()
-            self.losses.append(loss.item())
-            if self.val:
-                train_acc, val_acc, test_acc = trainer.test()
-                if val_acc > best_val_acc:
-                    best_val_acc = val_acc
-                    best_test_acc = test_acc
-            else:
-                train_acc, test_acc = trainer.test()
-                if test_acc > best_test_acc:
-                    best_test_acc = test_acc
-        return best_test_acc
+        self.model.train()
+        self.optimizer.zero_grad()
+        out = self.model(self.data.x, data.adj)
+        loss_fn = torch.nn.CrossEntropyLoss()
+        if self.weighted_loss:
+            loss = (
+                loss_fn(out[self.train_mask], self.data.pl[self.train_mask])
+                * self.data.conf[self.train_mask].mean()
+            )
+        else:
+            loss = loss_fn(out[train_mask], data.pl[train_mask])
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
+
 
     @torch.no_grad()
     def test(self):
@@ -201,32 +188,62 @@ if args.weighted_loss:
 
 print(f"using dataset: {args.dataset}, method: {method}")
 
-for i in range(args.n_rounds):
-    train_mask, val_mask, test_mask = active_generate_mask(
-        data, method=args.active_method, val=args.val, budget=args.budget
-    )
-    if not args.use_cache:
-        pl_indices = torch.nonzero(train_mask | val_mask, as_tuple=False).squeeze()
-        data = annotate(data, pl_indices, llm, args.n_tries)
-    if args.post_filter:
-        filtered_mask = post_filter(data, train_mask | val_mask, args.filter_strategy)
-        train_mask = train_mask & filtered_mask
-        val_mask = val_mask & filtered_mask
+train_mask, val_mask, test_mask = active_generate_mask(
+    data, method=args.active_method, val=args.val, budget=args.budget
+)
+if not args.use_cache:
+    pl_indices = torch.nonzero(train_mask | val_mask, as_tuple=False).squeeze()
+    data = annotate(data, pl_indices, llm, args.n_tries)
+if args.post_filter:
+    filtered_mask = post_filter(data, train_mask | val_mask, args.filter_strategy)
+    train_mask = train_mask & filtered_mask
+    val_mask = val_mask & filtered_mask
 
-    model = GCN(
-        in_channels=data.x.shape[1],
-        hidden_channels=args.hidden_channels,
-        out_channels=data.num_classes,
-    )
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
-    masks = {"train_mask": train_mask, "val_mask": val_mask, "test_mask": test_mask}
+model = GCN(
+    in_channels=data.x.shape[1],
+    hidden_channels=args.hidden_channels,
+    out_channels=data.num_classes,
+)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
+masks = {"train_mask": train_mask, "val_mask": val_mask, "test_mask": test_mask}
 
-    trainer = Trainer(
-        data, model, optimizer, masks, args.epochs, args.val, args.weighted_loss
-    )
-    best_test_acc = trainer.train()
-    acc_list.append(best_test_acc)
-    print(f"round {i} best test acc: {best_test_acc:.4f}")
+trainer = Trainer(
+    data, model, optimizer, masks, args.val, args.weighted_loss
+)
 
+metric = "Acc"
+best_val_acc = best_test_acc = 0
+times = []
+for epoch in range(1, args.epochs + 1):
+    start = time.time()
 
-print(f"dataset: {args.dataset}, method: {method}, mean accuracy: {mean(acc_list)}")
+    train_loss = trainer.train()
+
+    if args.val:
+        train_acc, val_acc, test_acc = trainer.test()
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_test_acc = test_acc
+    else:
+        train_acc, test_acc = trainer.test()
+        if test_acc > best_test_acc:
+            best_test_acc = test_acc
+
+    times.append(time.time() - start)
+
+    if args.val:
+        print(
+            f"Epoch: [{epoch}/{args.epochs}] "
+            f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
+            f"Val {metric}: {val_acc:.4f}, Test {metric}: {test_acc:.4f} "
+        )
+    else:
+        print(
+            f"Epoch: [{epoch}/{args.epochs}] "
+            f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
+            f"Test {metric}: {test_acc:.4f} "
+        )
+
+print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
+print(f"Total time: {sum(times):.4f}s")
+print(f"Best test acc: {best_test_acc:.4f}")
