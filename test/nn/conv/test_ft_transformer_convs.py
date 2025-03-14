@@ -11,5 +11,6 @@ def test_ft_transformer_convs():
 
     conv_cls = FTTransformerConv(dim=8, use_cls=True)
     x_cls = conv_cls(x)
+
     # The first added column corresponds to CLS token.
     assert x_cls.shape == (10, 8)
