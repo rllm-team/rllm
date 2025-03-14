@@ -20,10 +20,11 @@ sys.path.append("../")
 from rllm.data import GraphData
 from rllm.datasets import PlanetoidDataset
 from rllm.transforms.graph_transforms import GCNTransform
+from rllm.nn.conv.graph_conv import LazyConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--dataset", type=str, default="cora", choices=["citeseer, cora, pubmed"]
+    "--dataset", type=str, default="citeseer", choices=["citeseer, cora, pubmed"]
 )
 parser.add_argument("--decline", type=float, default=0.9, help="decline rate"),
 parser.add_argument("--lr_sup", type=float, default=0.001, help="lr for loss")
@@ -53,7 +54,7 @@ S = torch.diag(data.train_mask).float().to_sparse(layout=torch.sparse_coo)
 I_N = torch.eye(data.num_nodes).to_sparse(layout=torch.sparse_coo).to(device)
 
 # Lazy random walk (also known as lazy graph convolution):
-lazy_adj = args.beta * data.adj + (1 - args.beta) * I_N
+# lazy_adj = args.beta * data.adj + (1 - args.beta) * I_N
 lr_sup = args.lr_sup
 
 
@@ -62,6 +63,7 @@ class LinearNeuralNetwork(torch.nn.Module):
     def __init__(self, num_feats: int, num_classes: int, bias: bool = True):
         super().__init__()
         self.W = torch.nn.Linear(num_feats, num_classes, bias=bias)
+        self.LazyConv = LazyConv(beta=args.beta)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.W(x)
@@ -93,7 +95,20 @@ class LinearNeuralNetwork(torch.nn.Module):
         )
         loss.backward()
         optimizer.step()
-        return self(U).data, self.W.weight.data
+        return self(U).data
+
+    def update_U(self, U: Tensor, y_one_hot: Tensor, pred: Tensor, adj: Tensor):
+        global lr_sup
+
+        # Update the smoothness loss via LGC:
+        U = self.LazyConv(U, adj)
+
+        # Update the supervised loss via SEB:
+        dU_sup = 2 * (S @ (-y_one_hot + pred)) @ self.W.weight.data
+        U = U - lr_sup * dU_sup
+
+        lr_sup = lr_sup * args.decline
+        return U
 
 
 # Set up model
@@ -104,20 +119,6 @@ model = LinearNeuralNetwork(
 ).to(device)
 
 
-def update_U(U: Tensor, y_one_hot: Tensor, pred: Tensor, W: Tensor):
-    global lr_sup
-
-    # Update the smoothness loss via LGC:
-    U = lazy_adj @ U
-
-    # Update the supervised loss via SEB:
-    dU_sup = 2 * (S @ (-y_one_hot + pred)) @ W
-    U = U - lr_sup * dU_sup
-
-    lr_sup = lr_sup * args.decline
-    return U
-
-
 def ogc() -> float:
     U = data.x
     _, _, last_acc, last_pred = model.test(U, y_one_hot, data)
@@ -125,10 +126,10 @@ def ogc() -> float:
     patience = 0
     for i in range(1, 65):
         # Updating W by training a simple linear neural network:
-        pred, W = model.update_W(U, y_one_hot, data)
+        pred = model.update_W(U, y_one_hot, data)
 
         # Updating U by LGC and SEB jointly:
-        U = update_U(U, y_one_hot, pred, W)
+        U = model.update_U(U, y_one_hot, pred, data.adj)
 
         loss, trainval_acc, test_acc, pred = model.test(U, y_one_hot, data)
         print(

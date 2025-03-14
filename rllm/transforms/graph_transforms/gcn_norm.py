@@ -1,4 +1,5 @@
 from typing import Union
+from functools import lru_cache
 
 from torch import Tensor
 
@@ -21,11 +22,10 @@ class GCNNorm(NETransform):
     """
 
     def __init__(self):
-        self.data = None
+        pass
 
+    @lru_cache()
     def forward(self, data: Union[Tensor, GraphData, HeteroGraphData]):
-        if self.data is not None:
-            return self.data
 
         if isinstance(data, GraphData):
             assert data.adj is not None
@@ -40,7 +40,6 @@ class GCNNorm(NETransform):
         elif isinstance(data, Tensor):
             assert data.size(0) == data.size(1)
             data = self.gcn_norm(data)
-        self.data = data
         return data
 
     def gcn_norm(self, adj: Tensor):

@@ -23,7 +23,7 @@ from rllm.nn.conv.graph_conv import GATConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--dataset", type=str, default="pubmed", choices=["citeseer", "cora", "pubmed"]
+    "--dataset", type=str, default="cora", choices=["citeseer", "cora", "pubmed"]
 )
 parser.add_argument("--hidden_dim", type=int, default=8)
 parser.add_argument("--num_heads", type=int, default=8, help="Attention num_heads")
