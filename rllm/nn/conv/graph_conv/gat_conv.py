@@ -1,64 +1,18 @@
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional
+
 from torch import Tensor
 import torch
 import torch.nn as nn
+import torch.nn.init as init
+import torch.nn.functional as F
+
+from rllm.nn.conv.graph_conv import MessagePassing
+from rllm.utils import set_values
 
 
-class GATConv(torch.nn.Module):
-    r"""The GAT (Graph Attention Network) model, based on the
-    `"Graph Attention Networks"
-    <https://arxiv.org/abs/1710.10903>`__ paper.
-
-    In particular, this implementation utilizes sparse attention mechanisms
-    to handle graph-structured data,
-    similiar to <https://github.com/Diego999/pyGAT>.
-
-    .. math::
-        \mathbf{x}^{\prime}_i = \sum_{j \in \mathcal{N}(i) \cup \{ i \}}
-        \alpha_{i,j}\mathbf{\Theta}_t\mathbf{x}_{j}
-
-    where the attention coefficients :math:`\alpha_{i,j}` are computed as:
-
-    .. math::
-        \alpha_{i,j} =\frac{\exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}^{\top}
-        \mathbf{\Theta} \mathbf{x}_i+ \mathbf{a}^{\top} \mathbf{
-        \Theta}\mathbf{x}_j\right)\right)}
-        {\sum_{k \in \mathcal{N}(i) \cup \{ i \}}
-        \exp\left(\mathrm{LeakyReLU}\left(
-        \mathbf{a}^{\top}  \mathbf{\Theta} \mathbf{x}_i
-        + \mathbf{a}^{\top}\mathbf{\Theta}\mathbf{x}_k
-        \right)\right)}.
-
-    Args:
-        in_dim (int): Size of each input sample.
-        out_dim (int): Size of each output sample.
-        num_heads (int): Number of multi-head-attentions, the default value is 1.
-        concat (bool): If set to `False`, the multi-head attentions
-            are averaged instead of concatenated.
-        negative_slope (float): LeakyReLU angle of the negative slope,
-            the default value is 0.2.
-        skip_connection (bool): If set to :obj:`True`, the layer will add
-            a learnable skip-connection. (default: :obj:`False`)
-        dropout (float): Dropout probability of the normalized
-            attention coefficients which exposes each node to a stochastically
-            sampled neighborhood during training. The default value is 0.
-        bias (bool):
-            If set to `False`, no bias terms are added into the final output.
-
-    Shapes:
-        - **input:**
-
-            node features : (N, F_IN),
-
-            sparse adjacency matrix : (N, N),
-
-        - **output:**
-
-            node features : (N, F_OUT)
-    """
-
-    nodes_dim = 0  # node dimension/axis
-    head_dim = 1  # attention head dimension/axis
+class GATConv(MessagePassing):
+    dim = 0
+    head_dim = 1
 
     def __init__(
         self,
@@ -67,179 +21,201 @@ class GATConv(torch.nn.Module):
         num_heads: int = 8,
         concat: bool = False,
         negative_slope: float = 0.2,
-        skip_connection: bool = False,
         dropout: float = 0.6,
+        edge_dim: Optional[int] = None,
         bias: bool = True,
+        residual: bool = False,
+        **kwargs
     ):
-        super().__init__()
+        super().__init__(aggr='add', **kwargs)
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.num_heads = num_heads
         self.concat = concat
-        self.skip_connection = skip_connection
+        self.negative_slope = negative_slope
+        self.dropout = dropout
+        self.edge_dim = edge_dim
+        self.residual = residual
 
+        # linear transformation
+        self.add_module('lin_src', None)
+        self.add_module('lin_dst', None)
+        self.add_module('lin', None)
         if isinstance(in_dim, int):
-            self.lin_src = self.lin_tgt = torch.nn.Linear(
-                in_dim, num_heads * out_dim, bias=False
+            self.lin = nn.Linear(in_dim, out_dim * num_heads, bias=False)
+        else:
+            self.lin_src = nn.Linear(in_dim[0], out_dim * num_heads, bias=False)
+            self.lin_dst = nn.Linear(in_dim[1], out_dim * num_heads, bias=False)
+
+        # attention
+        self.attn_src = nn.Parameter(torch.empty((1, num_heads, out_dim)))  # (1, H, C)
+        self.attn_dst = nn.Parameter(torch.empty((1, num_heads, out_dim)))  # (1, H, C)
+
+        # edge attention
+        if self.edge_dim is not None:
+            self.lin_edge = nn.Linear(edge_dim, out_dim * num_heads, bias=False)
+            self.attn_edge = nn.Parameter(torch.empty(1, num_heads, out_dim))
+        else:
+            self.add_module('lin_edge', None)
+            self.register_parameter('attn_edge', None)
+
+        # concat heads
+        concat_out_dim = out_dim * num_heads
+
+        # residual
+        if self.residual:
+            self.lin_res = nn.Linear(
+                in_dim if isinstance(in_dim, int) else in_dim[1],
+                concat_out_dim if self.concat else out_dim,
+                bias=False,
             )
         else:
-            self.lin_src = torch.nn.Linear(in_dim[0], num_heads * out_dim, bias=False)
-            self.lin_tgt = torch.nn.Linear(in_dim[1], num_heads * out_dim, bias=False)
+            self.add_module('lin_res', None)
 
-        if self.skip_connection:
-            self.skip = nn.Linear(in_dim[1], num_heads * out_dim, bias=False)
-
-        # Define the attention source/target weights as a learnable parameter.
-        # Shape: (1, num_heads, out_dim), where:
-        # - 1 represents a batch dimension
-        # - num_heads is the number of attention heads
-        # - out_dim is the size of each head's output feature
-        self.attention_target = nn.Parameter(torch.Tensor(1, num_heads, out_dim))
-        self.attention_source = nn.Parameter(torch.Tensor(1, num_heads, out_dim))
-        if bias and concat:
-            self.bias = nn.Parameter(torch.empty(num_heads * out_dim))
-        elif bias and not concat:
-            self.bias = nn.Parameter(torch.empty(out_dim))
+        # bias
+        if bias:
+            self.bias = nn.Parameter(torch.empty(concat_out_dim if self.concat else out_dim))
         else:
-            self.register_parameter("bias", None)
-
-        self.leakyReLU = nn.LeakyReLU(negative_slope)
-        self.softmax = nn.Softmax(dim=-1)
-        self.dropout = nn.Dropout(p=dropout)
+            self.register_parameter('bias', None)
 
         self.reset_parameters()
 
     def reset_parameters(self):
+        if self.lin is not None:
+            init.xavier_uniform_(self.lin.weight)
+        if self.lin_src is not None:
+            init.xavier_uniform_(self.lin_src.weight)
+        if self.lin_dst is not None:
+            init.xavier_uniform_(self.lin_dst.weight)
+        if self.lin_edge is not None:
+            init.xavier_uniform_(self.lin_edge.weight)
+        if self.lin_res is not None:
+            init.xavier_uniform_(self.lin_res.weight)
+        init.xavier_uniform_(self.attn_src)
+        init.xavier_uniform_(self.attn_dst)
+        if self.attn_edge is not None:
+            init.xavier_uniform_(self.attn_edge)
         if self.bias is not None:
-            torch.nn.init.zeros_(self.bias)
-        nn.init.xavier_uniform_(self.attention_target)
-        nn.init.xavier_uniform_(self.attention_source)
+            init.zeros_(self.bias)
 
-    def forward(self, inputs: Union[Tensor, Tuple[Tensor, Tensor]], adj: Tensor):
+    def forward(
+        self,
+        x: Union[Tensor, Tuple[Tensor, Tensor]],
+        edge_index: Tensor,
+        edge_attr: Optional[Tensor] = None,
+        dim_size: Optional[int] = None,
+        return_attention_weights: Optional[bool] = None,
+    ) -> Union[
+        Tensor,
+        Tuple[Tensor, Tensor, Tensor],
+    ]:
+        r"""Forward computation.
 
-        if isinstance(inputs, Tensor):
-            inputs = (inputs, inputs)
+        Args:
+            x (Tensor or Tuple[Tensor, Tensor]): Node feature matrix.
+            edge_index (Tensor): Graph edge index tensor with shape
+                :obj:`[2, num_edges]` or sparse adj tensor.
+            edge_attr (Tensor, optional): Edge feature matrix with shape
+                :obj:`[num_edges, edge_dim]`.
+            dim_size (int, optional): The size of aggregator output, i.e. num of destination nodes.
+                If None, infer from edge_index.
+            return_attention_weights (bool, optional): If set to :obj:`True`, will additionally
+                return the:obj: edge_index, alpha` containing the edge_index and the corresponding attention weights.
 
-        # The node features are linearly varied to obtain the features of
-        # the number of attention heads * the number of hidden units.
-        # shape = (N, F_IN) -> (N, H, F_OUT)
-        num_nodes = inputs[1].size(0)
-        nodes_features_src = self.lin_src(inputs[0]).view(
-            -1, self.num_heads, self.out_dim
-        )
-        nodes_features_tgt = self.lin_tgt(inputs[1]).view(
-            -1, self.num_heads, self.out_dim
-        )
+        Returns:
+            Tensor or Tuple[Tensor, Tensor, Tensor]: The output feature matrix.
+                - Tensor: The output feature matrix.
+                - Tuple[Tensor, Tensor, Tensor]: If :obj:`return_attention_weights=True`, will additionally
+                return the :obj:`edge_index, alpha` containing the edge_index and the corresponding attention weights.
+        """
+        # set `return_attention_weights`, tell message() to keep the attention weights
+        self.return_attention_weights = return_attention_weights
+        self.alpha = None
 
-        # shape = (N, H, F_OUT) * (1, H, F_OUT) -> (N, H, F_OUT) -> (N, H)
-        scores_source = (nodes_features_src * self.attention_source).sum(dim=-1)
-        scores_target = (nodes_features_tgt * self.attention_target).sum(dim=-1)
-
-        # Gets the source and target of each edge
-        idx_source = adj.coalesce().indices()[0]
-        idx_target = adj.coalesce().indices()[1]
-
-        # scores shape = (N, H) -> (E, H)
-        # nodes_features_selected shape = (E, H, F_OUT)
-        # E - number of edges in the graph
-        scores_source_selected = scores_source.index_select(self.nodes_dim, idx_source)
-        scores_target_selected = scores_target.index_select(self.nodes_dim, idx_target)
-        nodes_features_selected = nodes_features_src.index_select(
-            self.nodes_dim, idx_source
-        )
-
-        # leakyReLU + softmax
-        scores_edge = self.leakyReLU(scores_source_selected + scores_target_selected)
-        scores_edge_exp = self.softmax(scores_edge)
-
-        # The score for each side is calculated according to the neighbor.
-        scores_edge_neigborhood = self.score_edge_wiht_neighborhood(
-            scores_edge_exp, idx_target, num_nodes
-        )
-
-        # 1e-16 is theoretically not needed but is only there for numerical
-        # stability (avoid div by 0) - due to the possibility of
-        # the computer rounding a very small number all the way to 0.
-        attentions_edge = scores_edge_exp / (scores_edge_neigborhood + 1e-16)
-        attentions_edge = attentions_edge.unsqueeze(-1)
-        attentions_edge = nn.functional.dropout(
-            attentions_edge, p=0.6, training=self.training
-        )
-
-        # Element-wise product. Operator * does the same thing as torch.mul
-        # shape = (E, H, F_OUT) * (E, H, 1) -> (E, H, F_OUT)
-        # 1 gets broadcast into F_OUT
-        nodes_features_weighted = nodes_features_selected * attentions_edge
-
-        # aggregate neighborhood
-        nodes_features_aggregated = self.aggregate_neighborhoods(
-            nodes_features_weighted, idx_target, num_nodes
-        )
-
-        # Residual/skip connections, concat and bias
-        out_nodes_features = self.skip_concat(inputs, nodes_features_aggregated)
-        return out_nodes_features
-
-    def aggregate_neighborhoods(self, nodes_features, idx_target, num_nodes):
-        size = list(nodes_features.shape)
-        size[self.nodes_dim] = num_nodes  # shape = (N, H, FOUT)
-        nodes_features_aggregated = torch.zeros(
-            size, dtype=nodes_features.dtype, device=nodes_features.device
-        )
-        idx_target_bd = self.expand_dim(idx_target, nodes_features)
-        nodes_features_aggregated = nodes_features_aggregated.scatter_add(
-            self.nodes_dim, idx_target_bd, nodes_features
-        )
-        return nodes_features_aggregated
-
-    def skip_concat(self, in_dim, out_dim):
-        if not out_dim.is_contiguous():
-            out_dim = out_dim.contiguous()
-
-        if self.concat:
-            out_dim = out_dim.view(-1, self.num_heads * self.out_dim)
+        # residual
+        if isinstance(x, Tensor):
+            resi = self.lin_res(x) if self.residual else None
         else:
-            out_dim = out_dim.mean(dim=self.head_dim)
+            resi = self.lin_res(x[1]) if self.residual else None
 
-        if self.skip_connection:
-            if out_dim.shape[-1] == in_dim.shape[-1]:
-                out_dim += in_dim.unsqueeze(1)
-            else:
-                out_dim += self.skip(in_dim).view(-1, self.num_heads * self.out_dim)
+        # linear transformation
+        if isinstance(x, Tensor):
+            assert self.lin is not None, "Bipartite GATConv requires a tuple x = (x_src, x_dst) input."
+            x_src = x_dst = self.lin(x).view(-1, self.num_heads, self.out_dim)  # (N, H, C)
+        else:
+            x_src = self.lin_src(x[0]).view(-1, self.num_heads, self.out_dim)  # (N, H, C)
+            x_dst = self.lin_dst(x[1]).view(-1, self.num_heads, self.out_dim)  # (M, H, C)
 
+        x = (x_src, x_dst)
+
+        # attention
+        alpha_src = (x_src * self.attn_src).sum(dim=-1)  # (N, H)
+        alpha_dst = (x_dst * self.attn_dst).sum(dim=-1)  # (M, H)
+        alpha = (alpha_src, alpha_dst)
+
+        # propagate (edge attn if edge_attr is not None) (default aggregator: sum)
+        out = self.propagate(x, edge_index, alpha=alpha, edge_attr=edge_attr, dim_size=dim_size)  # (N, H, C)
+
+        # concat or average
+        if self.concat:
+            out = out.view(-1, self.num_heads * self.out_dim)  # (N, H * C)
+        else:
+            out = out.mean(dim=self.head_dim)  # (N, C)
+
+        # residual
+        if resi is not None:
+            out += resi
+
+        # bias
         if self.bias is not None:
-            out_dim += self.bias
+            out += self.bias
 
-        return out_dim
+        # return attention weights or not
+        if self.return_attention_weights:
+            if edge_index.is_sparse:
+                return out, set_values(edge_index, self.alpha), self.alpha
+            else:
+                return out, edge_index, self.alpha
+        else:
+            return out
 
-    def score_edge_wiht_neighborhood(self, scores_edge_exp, idx_target, num_nodes):
-        # The shape must be the same as in scores_edge_exp (required by scatter_add_)
-        # i.e. from E -> (E, H)
-        idx_target_broadcasted = self.expand_dim(idx_target, scores_edge_exp)
+    def message(
+        self,
+        x: Tuple[Tensor, Tensor],  # (N, H, C)
+        edge_index: Tensor,
+        alpha: Tuple[Tensor, Tensor],
+        edge_attr: Optional[Tensor]
+    ) -> Tensor:
+        edge_index, _ = self.__unify_edgeindex__(edge_index)
 
-        # shape = (N, H), where N is the number of nodes
-        # H the number of attention heads
-        size = list(
-            scores_edge_exp.shape
-        )  # convert to list otherwise assignment is not possible
-        size[self.nodes_dim] = num_nodes
-        neighborhood_sums = torch.zeros(
-            size, dtype=scores_edge_exp.dtype, device=scores_edge_exp.device
-        )
-        neighborhood_sums.scatter_add_(
-            self.nodes_dim, idx_target_broadcasted, scores_edge_exp
-        )
+        # calculate alpha
+        alpha_i, alpha_j = self.retrieve_feats(alpha, edge_index)
+        alpha = alpha_i + alpha_j  # (E, H)
 
-        # shape = (N, H) -> (E, H)
-        return neighborhood_sums.index_select(self.nodes_dim, idx_target)
+        index = edge_index[0]
+        if index.numel() == 0:
+            return alpha
 
-    def expand_dim(self, src, trg):
-        for _ in range(src.dim(), trg.dim()):
-            src = src.unsqueeze(-1)
-        return src.expand_as(trg)
+        if edge_attr is not None and self.lin_edge is not None:
+            if edge_attr.dim() == 1:
+                edge_attr = edge_attr.unsqueeze(-1)
+            edge_attr = self.lin_edge(edge_attr)
+            edge_attr = edge_attr.view(-1, self.num_heads, self.out_dim)  # (E, H, C)
+            alpha += (edge_attr * self.attn_edge).sum(dim=-1)  # (E, H)
 
-    def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}({self.in_dim}, "
-            f"{self.out_dim}, num_heads={self.num_heads})"
-        )
+        alpha = F.leaky_relu(alpha, self.negative_slope)
+        alpha = F.softmax(alpha, dim=-1)
+        # alpha = F.dropout(alpha, p=self.dropout, training=self.training)  # (E, H)
+
+        # return_attention_weights
+        if self.return_attention_weights:
+            self.alpha = alpha
+
+        # message
+        x_j = self.retrieve_feats(x, edge_index, dim=1)
+        return alpha.unsqueeze(-1) * x_j  # (E, H, C)
+
+    def __repr__(self):
+        return (f"{self.__class__.__name__}"
+                f"({self.in_dim}, {self.out_dim})"
+                f" num_heads={self.num_heads}, concat={self.concat}")
