@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, List
 
 import pandas as pd
+import numpy as np
 import torch
 from torch import Tensor
 
@@ -91,5 +92,47 @@ def build_homo_graph(
 
     # Construct graph
     graph = GraphData(x=x, y=y, adj=adj)
+
+    return graph
+
+
+def build_batch_homo_graph(blocks, target_table):
+    r"""Like as build_homo_graph(), only build a simple undirected,
+    and unweighted edge list here.
+
+    edge_table.fkey1 ----> node_table.pkey
+
+    edge_table.fkey2 ----> node_table.pkey
+    """
+    assert len(blocks) == 2
+    edge_list = [[], []]
+    oind: List[int] = target_table.oind
+    n_nodes = len(oind)  # 281
+
+    # nodes = torch.tensor([blocks[0].dst_nodes])
+    # print("src_nodes:", len(blocks[0].dst_nodes))
+    # print("dst_nodes:", len(blocks[1].dst_nodes))
+
+    for fkey_id, pkey_id_1 in zip(blocks[0].edge_list[0], blocks[0].edge_list[1]):
+        # print(src_id, dst_id)
+        fkey_id = np.where(blocks[1].edge_list[0] == fkey_id)[0]
+        pkey_id_2 = blocks[1].edge_list[1][fkey_id]
+
+        pkey_id_2 = pkey_id_2[0]
+
+        # transfer oind -> new id
+        pkey_id_1 = oind.index(pkey_id_1)
+        pkey_id_2 = oind.index(pkey_id_2)
+
+        # add undirected edge
+        edge_list[0].extend([pkey_id_1, pkey_id_2])
+        edge_list[1].extend([pkey_id_2, pkey_id_1])
+
+    edge_list = torch.tensor(edge_list, dtype=torch.long)
+    values = torch.ones((edge_list.shape[1],), dtype=torch.float32)
+    adj = torch.sparse_coo_tensor(edge_list, values, (n_nodes, n_nodes))
+
+    # Construct graph
+    graph = GraphData(adj=adj)
 
     return graph
