@@ -1,3 +1,5 @@
+import os.path as osp
+
 import torch
 import numpy as np
 
@@ -39,12 +41,13 @@ class LMTrainer():
         self.lr = cfg.lm.train.lr
 
         self.use_gpt_str = "2" if cfg.lm.train.use_gpt else ""
-        self.output_dir = f'output/{self.dataset_name}{self.use_gpt_str}/{self.model_name}-seed{self.seed}'
-        self.ckpt_dir = f'prt_lm/{self.dataset_name}{self.use_gpt_str}/{self.model_name}-seed{self.seed}'
+        self.output_dir = f'./examples/tape/output/{self.dataset_name}{self.use_gpt_str}/{self.model_name}-seed{self.seed}'
+        self.ckpt_dir = f'./examples/tape/prt_lm/{self.dataset_name}{self.use_gpt_str}/{self.model_name}-seed{self.seed}'
 
         # Preprocess data
         use_gpt = cfg.lm.train.use_gpt
-        dataset = TAPEDataset('./cached', self.dataset_name, use_text=True, use_gpt=cfg.lm.train.use_gpt, seed=self.seed)
+        path = osp.join(osp.dirname(osp.realpath(__file__)), "../../../..", "data")
+        dataset = TAPEDataset(path, self.dataset_name, use_text=True, use_gpt=cfg.lm.train.use_gpt)
         # data, num_classes, text = load_data(
             # dataset=self.dataset_name, use_text=True, use_gpt=cfg.lm.train.use_gpt, seed=self.seed)
         self.data = dataset[0]
@@ -70,7 +73,7 @@ class LMTrainer():
                                     n_labels=self.n_labels,
                                     feat_shrink=self.feat_shrink)
 
-        # prev_ckpt = f'prt_lm/{self.dataset_name}/{self.model_name}.ckpt'
+        # prev_ckpt = f'./examples/tape/prt_lm/{self.dataset_name}/{self.model_name}.ckpt'
         # if self.use_gpt_str and os.path.exists(prev_ckpt):
         #     print("Initialize using previous ckpt...")
         #     self.model.load_state_dict(torch.load(prev_ckpt))

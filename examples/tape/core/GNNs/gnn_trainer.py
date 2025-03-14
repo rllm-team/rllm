@@ -1,3 +1,5 @@
+import os.path as osp
+
 import torch
 from time import time
 import numpy as np
@@ -32,14 +34,14 @@ class GNNTrainer:
         # ! Load data
         # data, num_classes = load_data(
         #     self.dataset_name, use_dgl=False, use_text=False, seed=self.seed)
+        path = osp.join(osp.dirname(osp.realpath(__file__)), "../../../..", "data")
         dataset = TAPEDataset(
-            "./cached",
+            path,
             self.dataset_name,
             use_text=False,
             use_gpt=False,
             use_preds=True,
             topk=3 if self.dataset_name == "pubmed" else 5,
-            seed=self.seed,
         )
         data = dataset[0]
 
@@ -52,7 +54,7 @@ class GNNTrainer:
         if self.feature_type == "TA":
             print("Loading pretrained LM features (title and abstract) ...")
             LM_emb_path = (
-                f"prt_lm/{self.dataset_name}/{self.lm_model_name}-seed{self.seed}.emb"
+                f"./examples/tape/prt_lm/{self.dataset_name}/{self.lm_model_name}-seed{self.seed}.emb"
             )
             print(f"LM_emb_path: {LM_emb_path}")
             features = torch.from_numpy(
@@ -68,7 +70,7 @@ class GNNTrainer:
         elif self.feature_type == "E":
             print("Loading pretrained LM features (explanations) ...")
             LM_emb_path = (
-                f"prt_lm/{self.dataset_name}2/{self.lm_model_name}-seed{self.seed}.emb"
+                f"./examples/tape/prt_lm/{self.dataset_name}2/{self.lm_model_name}-seed{self.seed}.emb"
             )
             print(f"LM_emb_path: {LM_emb_path}")
             features = torch.from_numpy(
@@ -119,7 +121,7 @@ class GNNTrainer:
         )
 
         print(f"\nNumber of parameters: {trainable_params}")
-        self.ckpt = f"output/{self.dataset_name}/{self.gnn_model_name}.pt"
+        self.ckpt = f"./examples/tape/output/{self.dataset_name}/{self.gnn_model_name}.pt"
         self.stopper = (
             EarlyStopping(patience=cfg.gnn.train.early_stop, path=self.ckpt)
             if cfg.gnn.train.early_stop > 0
