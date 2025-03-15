@@ -97,7 +97,7 @@ def test_tacm12k():
     rel4 = Relation(fkey_table=writings_table, fkey="author_id", pkey_table=authors_table, pkey="author_id")
     rel_l = [rel1, rel2, rel3, rel4]
     rf = RelationFrame(tables, relations=rel_l)
-    f_p_path = [(citations_table, papers_table, rel1),
+    f_p_path = [(papers_table, citations_table, rel1),
                 (citations_table, papers_table, rel2),
                 (writings_table, papers_table, rel3),
                 (writings_table, authors_table, rel4)]

@@ -38,3 +38,25 @@ def get_indices(adj: Tensor):
     else:
         indices = adj.nonzero().t()
     return indices
+
+
+def set_values(adj: Tensor, values: Tensor) -> Tensor:
+    if values.dim() > 1:
+        size = adj.size() + values.size()[1:]
+    else:
+        size = adj.size()
+
+    if adj.layout == torch.sparse_coo:
+        return torch.sparse_coo_tensor(
+            adj.indices(), values, size, device=adj.device
+        )
+    elif adj.layout == torch.sparse_csr:
+        return torch.sparse_csr_tensor(
+            adj.indices(), adj.indptr(), values, size, device=adj.device
+        )
+    elif adj.layout == torch.sparse_csc:
+        return torch.sparse_csc_tensor(
+            adj.indices(), adj.indptr(), values, size, device=adj.device
+        )
+    else:
+        raise ValueError(f"Unsupported sparse tensor layout: {adj.layout}")
