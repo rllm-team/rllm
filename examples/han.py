@@ -4,6 +4,7 @@
 
 # Datasets  IMDB
 # Acc       0.571
+# Time      3.0s
 
 import argparse
 import sys
@@ -52,8 +53,7 @@ class HAN(torch.nn.Module):
             out_dim=hidden_dim,
             num_heads=num_heads,
             dropout=dropout,
-            metadata=metadata,
-            use_pre_encoder=True,
+            metadata=metadata
         )
         self.lin = torch.nn.Linear(hidden_dim, out_dim)
 

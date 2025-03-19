@@ -1,5 +1,5 @@
 import torch
-from rllm.nn.conv.graph_conv import LazyConv
+from rllm.nn.conv.graph_conv import LGCConv
 
 
 def normalize_adj(adj):
@@ -11,7 +11,7 @@ def normalize_adj(adj):
     return d_mat_inv_sqrt @ adj @ d_mat_inv_sqrt
 
 
-def test_gcn_conv():
+def test_lgc_conv():
     num_nodes = 4
     feats_size = 8
 
@@ -28,8 +28,8 @@ def test_gcn_conv():
     adj = normalize_adj(adj)
     adj = adj.to_sparse()
 
-    conv = LazyConv(0.1)
-    assert str(conv) == "LazyConv(beta: 0.1)"
+    conv = LGCConv(0.1)
+    assert str(conv) == "LGCConv(beta: 0.1, with_param: False)"
 
     x_out = conv(x, adj)
     assert x_out.shape == x.shape

@@ -4,6 +4,7 @@
 
 # Datasets  IMDB
 # Acc       0.583
+# TIme      2.0s
 
 import argparse
 import sys

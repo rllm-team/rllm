@@ -5,6 +5,8 @@ from torch import Tensor
 
 
 class Aggregator(torch.nn.Module):
+    r"""Base class for Aggregator.
+    """
 
     def __init__(self):
         super().__init__()
@@ -64,7 +66,6 @@ class Aggregator(torch.nn.Module):
         if reduce == 'add' or reduce == 'sum':
             return output.index_add_(dim, index, x)
         elif reduce == 'mean' or reduce == 'prod':
-            # return output.index_reduce_(dim=dim, index=index, source=x, reduce='mean', include_self=False)
             return torch.scatter_reduce(
                 output,
                 dim=dim,
@@ -74,7 +75,6 @@ class Aggregator(torch.nn.Module):
                 include_self=False
             )
         elif reduce == 'max' or reduce == 'min':
-            # return output.index_reduce_(dim=dim, index=index, source=x, reduce='amax')
             reduce = 'amin' if reduce == 'min' else 'amax'
             return torch.scatter_reduce(
                 output,
@@ -95,7 +95,7 @@ class Aggregator(torch.nn.Module):
         max_num_nodes: Optional[int] = None,
         fill_value: float = 0.0
     ):
-        r"""ref: https://github.com/pyg-team/pytorch_geometric/blob/master/torch_geometric/utils/_to_dense_batch.py
+        r"""Transform input tensor to a dense batch tensor via index.
 
         Args:
             x (Tensor): The input tensor.
@@ -154,8 +154,7 @@ class Aggregator(torch.nn.Module):
 
 
 class MeanAggregator(Aggregator):
-    r"""
-    Mean Aggregator for Graph Convolutional Networks.
+    r"""Mean Aggregator for Graph Convolutional Networks.
     """
     def forward(
         self,
@@ -168,8 +167,7 @@ class MeanAggregator(Aggregator):
 
 
 class MaxAggregator(Aggregator):
-    r"""
-    Max Aggregator for Graph Convolutional Networks.
+    r"""Max Aggregator for Graph Convolutional Networks.
     """
     def forward(
         self,
@@ -182,8 +180,7 @@ class MaxAggregator(Aggregator):
 
 
 class MinAggregator(Aggregator):
-    r"""
-    Min Aggregator for Graph Convolutional Networks.
+    r"""Min Aggregator for Graph Convolutional Networks.
     """
     def forward(
         self,
@@ -196,9 +193,9 @@ class MinAggregator(Aggregator):
 
 
 class SumAggregator(Aggregator):
-    r"""
-    Sum(GCN, Add) Aggregator for Graph Convolutional Networks.
+    r"""Sum(GCN, Add) Aggregator for Graph Convolutional Networks.
     """
+
     def forward(
         self,
         x: Tensor,
@@ -218,9 +215,9 @@ class GCNAggregator(SumAggregator):
 
 
 class ProdAggregator(Aggregator):
-    r"""
-    Prod Aggregator for Graph Convolutional Networks.
+    r"""Prod Aggregator for Graph Convolutional Networks.
     """
+
     def forward(
         self,
         x: Tensor,
@@ -232,11 +229,16 @@ class ProdAggregator(Aggregator):
 
 
 class MaxPoolAggregator(Aggregator):
-    r"""
-    Max Pool Aggregator for Graph Convolutional Networks.
+    r"""Max Pool Aggregator for Graph Convolutional Networks.
 
     x -> MLP -> Max Pooling
+
+    Args:
+        in_dim (int): The input feature dimension.
+        out_dim (int): The output feature dimension.
+        dropout (float, optional): The
     """
+
     def __init__(
         self,
         in_dim: int,
@@ -278,11 +280,16 @@ class MaxPoolAggregator(Aggregator):
 
 
 class MeanPoolAggregator(Aggregator):
-    r"""
-    Mean Pool Aggregator for Graph Convolutional Networks.
+    r"""Mean Pool Aggregator for Graph Convolutional Networks.
 
     x -> MLP -> Mean Pooling
+
+    Args:
+        in_dim (int): The input feature dimension.
+        out_dim (int): The output feature dimension.
+        dropout (float, optional): The dropout rate.
     """
+
     def __init__(
         self,
         in_dim: int,
@@ -324,6 +331,14 @@ class MeanPoolAggregator(Aggregator):
 
 
 class LSTMAggregator(Aggregator):
+    r"""LSTM Aggregator for Graph Convolutional Networks.
+
+    Args:
+        in_dim (int): The input feature dimension.
+        out_dim (int): The output feature dimension.
+        **kwargs: Other arguments for torch.nn.LSTM.
+    """
+
     def __init__(
         self,
         in_dim: int,
