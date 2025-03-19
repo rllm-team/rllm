@@ -22,13 +22,13 @@ from rllm.nn.conv.graph_conv import GATConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--dataset", type=str, default="pubmed", choices=["citeseer", "cora", "pubmed"]
+    "--dataset", type=str, default="cora", choices=["citeseer", "cora", "pubmed"]
 )
 parser.add_argument("--hidden_dim", type=int, default=8)
 parser.add_argument("--num_heads", type=int, default=8, help="Attention num_heads")
 parser.add_argument("--lr", type=float, default=5e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
-parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
+parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
 parser.add_argument("--dropout", type=float, default=0.3, help="Graph Dropout")
 args = parser.parse_args()
 

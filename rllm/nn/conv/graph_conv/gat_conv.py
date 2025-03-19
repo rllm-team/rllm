@@ -72,7 +72,6 @@ class GATConv(MessagePassing):
         concat: bool = False,
         negative_slope: float = 0.2,
         dropout: float = 0.6,
-        # edge_dim: Optional[int] = None,
         bias: bool = True,
         skip_connection: bool = False,
         **kwargs
@@ -82,7 +81,6 @@ class GATConv(MessagePassing):
         self.out_dim = out_dim
         self.num_heads = num_heads
         self.concat = concat
-        # self.edge_dim = edge_dim
         self.skip_connection = skip_connection
 
         if isinstance(in_dim, int):

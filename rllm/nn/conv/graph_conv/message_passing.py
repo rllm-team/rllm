@@ -13,6 +13,12 @@ from rllm.nn.conv.graph_conv.aggrs import Aggregator
 
 class MessagePassing(torch.nn.Module, ABC):
     r"""Base class for message passing.
+
+    Args:
+        aggr (Optional[Union[str, Aggregator]]): The aggregation method to use.
+            (default: :obj:`"sum"`)
+        aggr_kwargs (Optional[Dict[str, Any]]): Additional arguments for the aggregator.
+            (default: :obj:`None`)
     """
 
     def __init__(

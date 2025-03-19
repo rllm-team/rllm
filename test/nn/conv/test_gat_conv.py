@@ -8,7 +8,6 @@ def test_gat_conv1():
     in_dim = [16, 12]
     out_dim = 8
     num_heads = 2
-    # edge_dim = 4
 
     # Feature-based embeddings and adj
     src_nodes = torch.randn(size=(n_src, in_dim[0]))
@@ -23,8 +22,6 @@ def test_gat_conv1():
         dtype=torch.long
     )
 
-    # edge_attr = torch.randn(size=(edge_index.shape[1], edge_dim))
-
     conv = GATConv(
         in_dim=in_dim,
         out_dim=out_dim,
@@ -32,7 +29,6 @@ def test_gat_conv1():
         concat=True,
         negative_slope=0.2,
         dropout=0.5,
-        # edge_dim=edge_dim,
         bias=True,
         skip_connection=True
     )
@@ -53,7 +49,6 @@ def test_gat_conv2():
     in_dim = 16
     out_dim = 8
     num_heads = 2
-    # edge_dim = 4
 
     # Feature-based embeddings and adj
     nodes = torch.randn(size=(n, in_dim))
@@ -67,8 +62,6 @@ def test_gat_conv2():
         dtype=torch.long
     )
 
-    # edge_attr = torch.randn(size=(edge_index.shape[1], edge_dim))
-
     conv = GATConv(
         in_dim=in_dim,
         out_dim=out_dim,
@@ -76,7 +69,6 @@ def test_gat_conv2():
         concat=True,
         negative_slope=0.2,
         dropout=0.5,
-        # edge_dim=edge_dim,
         bias=True,
         skip_connection=True
     )

@@ -32,6 +32,7 @@ class LGCConv(MessagePassing):
         bias (bool): If set to `False`, no bias terms are added into the final output.
             Only available when `with_param` is `True`.
     """
+
     node_dim: int = 0
 
     def __init__(
