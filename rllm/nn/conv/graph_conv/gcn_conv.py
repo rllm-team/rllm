@@ -3,8 +3,8 @@ from typing import Optional, Union
 import torch
 from torch import Tensor
 from torch.nn import Linear, Parameter
-import torch.nn.init as init
 from torch.sparse import Tensor as SparseTensor
+import torch.nn.init as init
 
 from rllm.nn.conv.graph_conv import MessagePassing
 

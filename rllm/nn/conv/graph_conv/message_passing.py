@@ -49,10 +49,13 @@ class MessagePassing(torch.nn.Module, ABC):
 
         # Infer aggregator dim_size
         if 'dim_size' not in kwargs or kwargs['dim_size'] is None:
-            if isinstance(x, Tensor):
-                kwargs['dim_size'] = x.size(0)
+            if x is not None:
+                if isinstance(x, Tensor):
+                    kwargs['dim_size'] = x.size(0)
+                else:
+                    kwargs['dim_size'] = x[1].size(0)
             else:
-                kwargs['dim_size'] = x[1].size(0)
+                raise ValueError("dim_size must be provided while x is None.")
 
         # message and aggregate
         if self.__msg_aggr__:

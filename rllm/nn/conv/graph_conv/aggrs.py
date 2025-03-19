@@ -5,6 +5,8 @@ from torch import Tensor
 
 
 class Aggregator(torch.nn.Module):
+    r"""Base class for Aggregator.
+    """
 
     def __init__(self):
         super().__init__()
@@ -95,7 +97,7 @@ class Aggregator(torch.nn.Module):
         max_num_nodes: Optional[int] = None,
         fill_value: float = 0.0
     ):
-        r"""ref: https://github.com/pyg-team/pytorch_geometric/blob/master/torch_geometric/utils/_to_dense_batch.py
+        r"""Transform input tensor to a dense batch tensor via index.
 
         Args:
             x (Tensor): The input tensor.
