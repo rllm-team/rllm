@@ -14,7 +14,9 @@ class Adult(Dataset):
     r"""The Adult dataset is a dataset from a classic data mining project,
     which was extracted from the `1994 Census database
     <https://archive.ics.uci.edu/dataset/2/adult>`__.
-    The default partition is train-val-test [26048, 6513, 16281].
+
+    The division in the `"Revisiting Deep Learning Models for Tabular Data"
+    <https://arxiv.org/abs/2106.11959>`__ paper is train-val-test [26048, 6513, 16281].
 
     The dataset encompasses a variety of features pertaining to adults and
     their income. The primary objective is to predict whether an individual's
