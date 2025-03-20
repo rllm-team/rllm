@@ -19,6 +19,9 @@ class BankMarketing(Dataset):
     The classification goal is to predict if the client will subscribe to a
     term deposit.
 
+    The division in the `"TabTransformer: Tabular Data Modeling Using Contextual Embeddings"
+    <https://arxiv.org/abs/2012.06678>`_ paper is train-val-test [65%, 15%, 20%].
+
     The dataset encompasses a variety of features pertaining to clients and
     their banking information. The primary objective is to predict whether
     a client will subscribe to a term deposit.
