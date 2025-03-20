@@ -25,8 +25,9 @@ class ColType(Enum):
         NUMERICAL: Numerical columns.
         CATEGORICAL: Categorical columns.
     """
-    NUMERICAL = 'numerical'
-    CATEGORICAL = 'categorical'
+    NUMERICAL = "numerical"
+    CATEGORICAL = "categorical"
+    TEXT = "text"
 
     def __lt__(self, other):
         return self.value < other.value
