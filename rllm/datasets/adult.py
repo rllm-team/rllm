@@ -82,7 +82,6 @@ class Adult(Dataset):
         """
         os.makedirs(self.processed_dir, exist_ok=True)
         path = osp.join(self.raw_dir, self.raw_filenames[0])
-        df = pd.read_csv(path)
 
         # Note: the order of column in col_types must
         # correspond to the order of column in files,
@@ -104,6 +103,8 @@ class Adult(Dataset):
             "native-country": ColType.CATEGORICAL,
             "income": ColType.CATEGORICAL,
         }
+
+        df = pd.read_csv(path, header=None, names=list(col_types.keys()))
         data = TableData(
             df=df,
             col_types=col_types,
