@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections.abc import Iterable
+from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from typing import Any, Dict, List, Union, Tuple, Callable, Optional, overload
 from uuid import uuid4
@@ -8,6 +9,7 @@ import torch
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
+from tqdm import tqdm
 from sklearn.preprocessing import LabelEncoder
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
@@ -54,6 +56,12 @@ class BaseTable:
         return self.apply(lambda x: x.pin_memory(), *args)
 
 
+@ dataclass
+class TextEmbedderConfig:
+    text_embedder: Callable[[list[str]], Tensor]
+    batch_size: int | None = None
+
+
 class TableDataset(Dataset):
     r"""Table dataset inherited from :class:`torch.utils.data.Dataset`"""
 
@@ -98,6 +106,7 @@ class TableData(BaseTable):
         feat_dict: Dict[ColType, Tensor] = None,
         y: Tensor = None,
         metadata: Dict[ColType, List[dict[str, Any]]] | None = None,
+        text_embedder_config : Optional[TextEmbedderConfig] = None,
         **kwargs,
     ):
         self._mapping = BaseStorage()
@@ -115,7 +124,7 @@ class TableData(BaseTable):
             setattr(self, key, value)
 
         if feat_dict is None:
-            self._generate_feat_dict()
+            self._generate_feat_dict(text_embedder_config)
             self._inherit_feat_dict = False
         else:
             self._inherit_feat_dict = True
@@ -501,38 +510,47 @@ class TableData(BaseTable):
     # Get table tensor #########################################
     def _generate_feat_dict(
         self,
+        text_embedder_config : Optional[TextEmbedderConfig] = None,
     ):
         r"""Get feat dict from single tabular dataset."""
         # 1. Iterate each column
         feat_dict = {}
         for col, col_type in self.col_types.items():
-            # 2. Get column tensor
-            col_tensor = self._generate_column_tensor(col)
+            # 2. Get column tensor shape: (n, 1) for cat/num, (n, d) for text
+            col_tensor = self._generate_column_tensor(col, text_embedder_config)
 
             # 3. Update feat dict
             if col == self.target_col:
-                self.y = col_tensor
+                # Only need one-dimensional
+                self.y = col_tensor.squeeze()
                 continue
             if col_type not in feat_dict.keys():
                 feat_dict[col_type] = []
-            feat_dict[col_type].append(col_tensor.reshape(-1, 1))
+            feat_dict[col_type].append(col_tensor)
 
         # 4. Concat column tensors
         for col_type, xs in feat_dict.items():
-            feat_dict[col_type] = torch.cat(xs, dim=-1)
+            if col_type == ColType.TEXT:
+                feat_dict[col_type] = torch.stack(xs, dim=1)
+            else:
+                feat_dict[col_type] = torch.cat(xs, dim=-1)
 
         # TODO: Change hard-coding here
         if ColType.CATEGORICAL in feat_dict.keys():
             feat_dict[ColType.CATEGORICAL] = feat_dict[ColType.CATEGORICAL].int()
         self.feat_dict = feat_dict
 
-    def _generate_column_tensor(self, col: str = None):
+    def _generate_column_tensor(
+            self, col: str = None,
+            text_embedder_config : Optional[TextEmbedderConfig] = None
+    ):
         col_types = self.col_types[col]
         col_copy = self.df[col].copy()
 
         if col_types == ColType.NUMERICAL:
             if col_copy.isnull().any():
                 col_copy.fillna(np.nan, inplace=True)
+            return torch.tensor(col_copy.values.astype(float), dtype=torch.float32).reshape(-1, 1)
 
         elif col_types == ColType.CATEGORICAL:
             if col_copy.isnull().any():
@@ -541,8 +559,25 @@ class TableData(BaseTable):
             col_fit = col_copy[col_copy != -1]
             labels = LabelEncoder().fit_transform(col_fit)
             col_copy[col_copy != -1] = labels
+            return torch.tensor(col_copy.values.astype(float), dtype=torch.float32).reshape(-1, 1)
 
-        return torch.tensor(col_copy.values.astype(float), dtype=torch.float32)
+        elif col_types == ColType.TEXT:
+            embedder = text_embedder_config.text_embedder
+            batch_size = text_embedder_config.batch_size
+            assert embedder is not None, "Need an embedder for text column!"
+            col_copy = col_copy.astype(str)
+            col_list = col_copy.to_list()
+
+            if batch_size is None:
+                embeddings = embedder(col_list)
+            else:
+                emb_list = []
+                for i in tqdm(range(0, len(col_list), self.batch_size),
+                              desc="Embedding raw data in mini-batch"):
+                    emb = self.embedder(col_list[i:i + self.batch_size])
+                    emb_list.append(emb)
+                embeddings = torch.cat(emb_list, dim=0)
+            return embeddings.float()
 
     def _generate_metadata(
         self,
