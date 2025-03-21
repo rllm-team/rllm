@@ -572,9 +572,9 @@ class TableData(BaseTable):
                 embeddings = embedder(col_list)
             else:
                 emb_list = []
-                for i in tqdm(range(0, len(col_list), self.batch_size),
+                for i in tqdm(range(0, len(col_list), batch_size),
                               desc="Embedding raw data in mini-batch"):
-                    emb = self.embedder(col_list[i:i + self.batch_size])
+                    emb = embedder(col_list[i:i + batch_size])
                     emb_list.append(emb)
                 embeddings = torch.cat(emb_list, dim=0)
             return embeddings.float()
