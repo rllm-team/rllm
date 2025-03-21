@@ -15,7 +15,10 @@ class LGCConv(MessagePassing):
 
     This model use hyperparameter :math:`\beta` to control the message attribution of
     both neighbor nodes and the node itself:
-        - If :math:`\beta = 1`, the model is equivalent to the GCN model.
+
+        - If :math:`\beta = 1`, the model is equivalent to the graph convolution form of GCN model.
+            (if `with_param` is `True`, the model is equivalent to the GCN model)
+
         - If :math:`\beta = 0`, the model only focus on the node itself.
 
     .. math::
