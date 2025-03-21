@@ -8,7 +8,6 @@ def test_gat_conv1():
     in_dim = [16, 12]
     out_dim = 8
     num_heads = 2
-    edge_dim = 4
 
     # Feature-based embeddings and adj
     src_nodes = torch.randn(size=(n_src, in_dim[0]))
@@ -23,8 +22,6 @@ def test_gat_conv1():
         dtype=torch.long
     )
 
-    edge_attr = torch.randn(size=(edge_index.shape[1], edge_dim))
-
     conv = GATConv(
         in_dim=in_dim,
         out_dim=out_dim,
@@ -32,14 +29,15 @@ def test_gat_conv1():
         concat=True,
         negative_slope=0.2,
         dropout=0.5,
-        edge_dim=edge_dim,
         bias=True,
-        residual=True
+        skip_connection=True
     )
 
-    assert str(conv) == 'GATConv([16, 12], 8) num_heads=2, concat=True'
+    assert str(conv) == 'GATConv([16, 12], 8, num_heads=2)'
 
-    x_out, edge_index, alpha = conv(x, edge_index, edge_attr, return_attention_weights=True)
+    x_out, attention_weights = conv(x, edge_index, return_attention_weights=True)
+    edge_index = attention_weights[0]
+    alpha = attention_weights[1]
 
     assert x_out.shape == (n_dst, out_dim * num_heads)
     assert edge_index.shape == (2, edge_index.shape[1])
@@ -51,7 +49,6 @@ def test_gat_conv2():
     in_dim = 16
     out_dim = 8
     num_heads = 2
-    edge_dim = 4
 
     # Feature-based embeddings and adj
     nodes = torch.randn(size=(n, in_dim))
@@ -65,8 +62,6 @@ def test_gat_conv2():
         dtype=torch.long
     )
 
-    edge_attr = torch.randn(size=(edge_index.shape[1], edge_dim))
-
     conv = GATConv(
         in_dim=in_dim,
         out_dim=out_dim,
@@ -74,14 +69,15 @@ def test_gat_conv2():
         concat=True,
         negative_slope=0.2,
         dropout=0.5,
-        edge_dim=edge_dim,
         bias=True,
-        residual=True
+        skip_connection=True
     )
 
-    assert str(conv) == 'GATConv(16, 8) num_heads=2, concat=True'
+    x_out, attention_weights = conv(x, edge_index, return_attention_weights=True)
+    edge_index = attention_weights[0]
+    alpha = attention_weights[1]
 
-    x_out, edge_index, alpha = conv(x, edge_index, edge_attr, return_attention_weights=True)
+    assert str(conv) == 'GATConv(16, 8, num_heads=2)'
 
     assert x_out.shape == (n, out_dim * num_heads)
     assert edge_index.shape == (2, edge_index.shape[1])

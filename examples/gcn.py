@@ -19,7 +19,6 @@ sys.path.append("../")
 from rllm.datasets import PlanetoidDataset
 from rllm.transforms.graph_transforms import GCNTransform
 from rllm.nn.conv.graph_conv import GCNConv
-# from rllm.nn.conv.graph_conv import GCNConv_wo_msp as GCNConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument(

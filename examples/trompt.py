@@ -21,7 +21,7 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets import Adult
+from rllm.datasets import Titanic
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import TromptConv
 
@@ -42,16 +42,16 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = Adult(cached_dir=path)[0]
+data = Titanic(cached_dir=path)[0]
 
 # Transform data
 transform = DefaultTableTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)
 data.shuffle()
 
-# Split dataset, here the ratio of train-val-test is 26048-6513-16281
+# Split dataset, here the ratio of train-val-test is 80%-10%-10%
 train_loader, val_loader, test_loader = data.get_dataloader(
-    train_split=26048, val_split=6513, test_split=16281, batch_size=args.batch_size
+    train_split=0.8, val_split=0.1, test_split=0.1, batch_size=args.batch_size
 )
 
 

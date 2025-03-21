@@ -20,11 +20,11 @@ sys.path.append("../")
 from rllm.data import GraphData
 from rllm.datasets import PlanetoidDataset
 from rllm.transforms.graph_transforms import GCNTransform
-from rllm.nn.conv.graph_conv import LazyConv
+from rllm.nn.conv.graph_conv import LGCConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--dataset", type=str, default="citeseer", choices=["citeseer, cora, pubmed"]
+    "--dataset", type=str, default="cora", choices=["citeseer, cora, pubmed"]
 )
 parser.add_argument("--decline", type=float, default=0.9, help="decline rate"),
 parser.add_argument("--lr_sup", type=float, default=0.001, help="lr for loss")
@@ -63,7 +63,7 @@ class LinearNeuralNetwork(torch.nn.Module):
     def __init__(self, num_feats: int, num_classes: int, bias: bool = True):
         super().__init__()
         self.W = torch.nn.Linear(num_feats, num_classes, bias=bias)
-        self.LazyConv = LazyConv(beta=args.beta)
+        self.LazyConv = LGCConv(beta=args.beta)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.W(x)
