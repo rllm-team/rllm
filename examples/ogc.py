@@ -63,7 +63,7 @@ class LinearNeuralNetwork(torch.nn.Module):
     def __init__(self, num_feats: int, num_classes: int, bias: bool = True):
         super().__init__()
         self.W = torch.nn.Linear(num_feats, num_classes, bias=bias)
-        self.LazyConv = LGCConv(beta=args.beta)
+        self.conv = LGCConv(beta=args.beta)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.W(x)
@@ -101,7 +101,7 @@ class LinearNeuralNetwork(torch.nn.Module):
         global lr_sup
 
         # Update the smoothness loss via LGC:
-        U = self.LazyConv(U, adj)
+        U = self.conv(U, adj)
 
         # Update the supervised loss via SEB:
         dU_sup = 2 * (S @ (-y_one_hot + pred)) @ self.W.weight.data
