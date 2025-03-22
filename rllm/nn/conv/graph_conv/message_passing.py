@@ -13,6 +13,12 @@ from rllm.nn.conv.graph_conv.aggrs import Aggregator
 
 class MessagePassing(torch.nn.Module, ABC):
     r"""Base class for message passing.
+
+    Args:
+        aggr (Optional[Union[str, Aggregator]]): The aggregation method to use.
+            (default: :obj:`"sum"`)
+        aggr_kwargs (Optional[Dict[str, Any]]): Additional arguments for the aggregator.
+            (default: :obj:`None`)
     """
 
     def __init__(
@@ -49,10 +55,13 @@ class MessagePassing(torch.nn.Module, ABC):
 
         # Infer aggregator dim_size
         if 'dim_size' not in kwargs or kwargs['dim_size'] is None:
-            if isinstance(x, Tensor):
-                kwargs['dim_size'] = x.size(0)
+            if x is not None:
+                if isinstance(x, Tensor):
+                    kwargs['dim_size'] = x.size(0)
+                else:
+                    kwargs['dim_size'] = x[1].size(0)
             else:
-                kwargs['dim_size'] = x[1].size(0)
+                raise ValueError("dim_size must be provided while x is None.")
 
         # message and aggregate
         if self.__msg_aggr__:

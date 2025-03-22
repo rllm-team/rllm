@@ -4,7 +4,7 @@
 
 # Datasets  CiteSeer    Cora      PubMed
 # Acc       0.717       0.830     0.778
-# Time      16.6s       8.4s      15.6s
+# Time      3.1s        3.2s      5.6s
 
 import argparse
 import time
@@ -19,7 +19,6 @@ sys.path.append("../")
 from rllm.datasets import PlanetoidDataset
 from rllm.transforms.graph_transforms import GCNTransform
 from rllm.nn.conv.graph_conv import GATConv
-# from rllm.nn.conv.graph_conv import GATConv_wo_msp as GATConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument(

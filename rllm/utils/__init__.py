@@ -7,6 +7,11 @@ from .sparse import (
     set_values,
 )
 from .undirected import is_undirected, to_undirected
+from .seg_reduce import (
+    seg_sum,
+    seg_softmax,
+    seg_softmax_,
+)
 
 
 __all__ = [
@@ -19,4 +24,7 @@ __all__ = [
     'is_undirected',
     'to_undirected',
     'set_values',
+    "seg_sum",
+    'seg_softmax',
+    'seg_softmax_',
 ]

@@ -4,7 +4,7 @@ from .gcn_conv import GCNConv
 from .han_conv import HANConv
 from .hgt_conv import HGTConv
 from .sage_conv import SAGEConv
-from .lazy_conv import LazyConv
+from .lgc_conv import LGCConv
 
 
 from .aggrs import (
@@ -23,12 +23,14 @@ from .aggrs import (
 
 __all__ = [
     "MessagePassing",
+
+    # Graph Convs
     "GATConv",
     "GCNConv",
     "HANConv",
     "HGTConv",
     "SAGEConv",
-    "LazyConv",
+    "LGCConv",
 
     # Aggregators
     "Aggregator",

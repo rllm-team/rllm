@@ -316,7 +316,6 @@ class TableData(BaseTable):
             assert index in self.col_types.values()
             return self.feat_dict[index]
 
-        # ZK: I write slice mode for sampled table data; DO not inherit metadata and _mapping storage.
         else:
             return self.__get_item_do(index, keep_oind=False, keep_feat_dict=True, keep_metadata=True)
 

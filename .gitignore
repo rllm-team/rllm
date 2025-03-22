@@ -31,6 +31,9 @@ examples/**/*.png
 examples/**/*.pdf
 benchmark/results/
 .mypy_cache/
+.flake8
+draft.py
+_self_test_util.py
 
 !rllm/data/
 !test/data/
