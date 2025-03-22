@@ -24,9 +24,7 @@ from tqdm import tqdm
 
 sys.path.append("../")
 
-from rllm.transforms.graph_transforms.gcn_norm import GCNNorm
-from rllm.transforms.graph_transforms.compose import Compose
-from rllm.transforms.utils.normalize_features import NormalizeFeatures
+from rllm.transforms.graph_transforms import Compose, GCNNorm, NormalizeFeatures
 from annotation.annotation import annotate
 from node_selection.node_selection import active_generate_mask, post_filter
 from rllm.datasets.tagdataset import TAGDataset
@@ -157,7 +155,6 @@ class Trainer:
         self.optimizer.step()
         return loss.item()
 
-
     @torch.no_grad()
     def test(self):
         self.model.eval()
@@ -207,9 +204,7 @@ model = GCN(
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
 masks = {"train_mask": train_mask, "val_mask": val_mask, "test_mask": test_mask}
 
-trainer = Trainer(
-    data, model, optimizer, masks, args.val, args.weighted_loss
-)
+trainer = Trainer(data, model, optimizer, masks, args.val, args.weighted_loss)
 
 metric = "Acc"
 best_val_acc = best_test_acc = 0

@@ -3,11 +3,11 @@ from typing import Union
 from torch import Tensor
 
 from rllm.data import GraphData, HeteroGraphData
-from rllm.transforms.utils import BaseTransform
-from rllm.transforms.utils.functional import normalize_features
+from rllm.transforms.graph_transforms import NodeTransform
+from rllm.transforms.graph_transforms.functional import normalize_features
 
 
-class NormalizeFeatures(BaseTransform):
+class NormalizeFeatures(NodeTransform):
     r"""Row-normalizes the node features.
 
     .. math::

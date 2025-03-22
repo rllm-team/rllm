@@ -26,8 +26,7 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import PlanetoidDataset
 from rllm.nn.models import RECT_L
-from rllm.transforms.graph_transforms import RECTTransform
-from rllm.transforms.utils import RemoveTrainingClasses
+from rllm.transforms.graph_transforms import RECTTransform, RemoveTrainingClasses
 
 
 parser = argparse.ArgumentParser()
