@@ -2,7 +2,6 @@ from typing import Callable, List, Union
 
 from rllm.data.graph_data import GraphData, HeteroGraphData
 from rllm.transforms.graph_transforms import EdgeTransform, NodeTransform
-from rllm.transforms.graph_transforms.node_edge_transform import NodeTransform
 
 
 class Compose(EdgeTransform, NodeTransform):
