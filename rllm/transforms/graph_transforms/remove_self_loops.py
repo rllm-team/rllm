@@ -3,11 +3,11 @@ from typing import Union
 from torch import Tensor
 
 from rllm.data.graph_data import GraphData, HeteroGraphData
-from rllm.transforms.graph_transforms import NETransform
+from rllm.transforms.graph_transforms import EdgeTransform
 from rllm.transforms.graph_transforms.functional import remove_self_loops
 
 
-class RemoveSelfLoops(NETransform):
+class RemoveSelfLoops(EdgeTransform):
     r"""Remove self-loops from the adjacency matrix."""
 
     def __init__(self):

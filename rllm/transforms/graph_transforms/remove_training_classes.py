@@ -1,11 +1,11 @@
 from typing import List
 
 from rllm.data.graph_data import GraphData
-from rllm.transforms.utils import BaseTransform
-from rllm.transforms.utils.functional import remove_training_classes
+from rllm.transforms.graph_transforms import NodeTransform
+from rllm.transforms.graph_transforms.functional import remove_training_classes
 
 
-class RemoveTrainingClasses(BaseTransform):
+class RemoveTrainingClasses(NodeTransform):
     r"""Removes classes from the node-level training set as given by
     `data.train_mask`, *e.g.*, in order to get a zero-shot label scenario.
 

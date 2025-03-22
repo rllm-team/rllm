@@ -1,11 +1,11 @@
 from typing import Union
 
 from rllm.data.graph_data import GraphData, HeteroGraphData
-from rllm.transforms.utils import BaseTransform
-from rllm.transforms.utils.functional import svd_feature_reduction
+from rllm.transforms.graph_transforms import NodeTransform
+from rllm.transforms.graph_transforms.functional import svd_feature_reduction
 
 
-class SVDFeatureReduction(BaseTransform):
+class SVDFeatureReduction(NodeTransform):
     r"""Dimensionality reduction of node features via Singular Value
     Decomposition (SVD).
 
