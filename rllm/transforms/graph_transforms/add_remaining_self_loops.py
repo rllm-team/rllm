@@ -3,11 +3,11 @@ from typing import Union
 from torch import Tensor
 
 from rllm.data.graph_data import GraphData, HeteroGraphData
-from rllm.transforms.graph_transforms import NETransform
+from rllm.transforms.graph_transforms import EdgeTransform
 from rllm.transforms.graph_transforms.functional import add_remaining_self_loops
 
 
-class AddRemainingSelfLoops(NETransform):
+class AddRemainingSelfLoops(EdgeTransform):
     r"""Add self-loops into the adjacency matrix.
 
     .. math::

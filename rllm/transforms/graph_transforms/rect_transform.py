@@ -1,4 +1,3 @@
-import rllm.transforms.utils as UT
 import rllm.transforms.graph_transforms as GT
 
 
@@ -27,8 +26,8 @@ class RECTTransform(GT.GraphTransform):
     ):
         super().__init__(
             transforms=[
-                UT.NormalizeFeatures(normalize_features),
-                UT.SVDFeatureReduction(svd_out_dim),
+                GT.NormalizeFeatures(normalize_features),
+                GT.SVDFeatureReduction(svd_out_dim),
                 GT.GDC() if use_gdc else GT.GCNNorm(),
             ]
         )
