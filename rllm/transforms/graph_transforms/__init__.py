@@ -1,5 +1,4 @@
 from .node_edge_transform import EdgeTransform, NodeTransform  # noqa
-from .compose import Compose  # noqa
 from .add_remaining_self_loops import AddRemainingSelfLoops  # noqa
 from .remove_self_loops import RemoveSelfLoops  # noqa
 from .knn_graph import KNNGraph  # noqa
@@ -14,8 +13,6 @@ from .svd_feature_reduction import SVDFeatureReduction  # noqa
 
 
 __all__ = [
-    # general transforms
-    "Compose",
     # node transforms
     "NodeTransform",
     "NormalizeFeatures",
