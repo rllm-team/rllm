@@ -19,8 +19,6 @@ import time
 import torch
 import torch.nn.functional as F
 from langchain_community.llms import LlamaCpp
-from numpy import mean
-from tqdm import tqdm
 
 sys.path.append("../")
 
