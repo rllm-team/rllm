@@ -316,7 +316,7 @@ class TableData(BaseTable):
             assert index in self.col_types.values()
             return self.feat_dict[index]
 
-        # Slice mode for sampled table data; DO not inherit metadata and _mapping storage.
+        # Slice mode for sampled table data; Do not inherit metadata and _mapping storage.
         else:
             return self.__get_item_do(
                 index,
