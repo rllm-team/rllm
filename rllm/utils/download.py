@@ -30,7 +30,10 @@ def download_url(
 
     path = osp.join(folder, filename)
     os.makedirs(folder, exist_ok=True)
-    context = ssl._create_unverified_context()
+    # context = ssl._create_unverified_context()
+    context = ssl.create_default_context()
+    # safe check:
+    assert url[:4].lower() == "http", 'Only HTTP or HTTPS is supported.'
     data = urllib.request.urlopen(url, context=context)
 
     with open(path, 'wb') as f, tqdm(

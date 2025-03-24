@@ -316,8 +316,14 @@ class TableData(BaseTable):
             assert index in self.col_types.values()
             return self.feat_dict[index]
 
+        # Slice mode for sampled table data; DO not inherit metadata and _mapping storage.
         else:
-            return self.__get_item_do(index, keep_oind=False, keep_feat_dict=True, keep_metadata=True)
+            return self.__get_item_do(
+                index,
+                keep_oind=False,
+                keep_feat_dict=True,
+                keep_metadata=True
+            )
 
     @cached_property
     def index_col(self) -> Optional[str]:
@@ -626,12 +632,14 @@ class SubTableData(TableData):
             return super().__len__()
 
     def __getattr__(self, key):
-        r"""Get attributes from TableData. If sampled, df_attrs are only accessible via _inherit_df_attrs."""
+        r"""Get attributes from TableData.
+        If sampled, df_attrs are only accessible via _inherit_df_attrs.
+        """
         if key in self.df_attrs and self._sampled:
             if key in self._inherit_df_attrs:
                 return self._inherit_df_attrs[key]
             else:
-                raise AttributeError(f"{key} is not available in sampled TableData for dataframe is dropped.")
+                raise AttributeError(f"{key} is not available in sampled TableData.")
         else:
             return super().__getattr__(key)
 
