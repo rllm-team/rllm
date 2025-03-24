@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 
 class Dataset(Dataset, ABC):
-    r"""An abstract class for creating graph datasets.
+    r"""An abstract class for creating graph and table datasets.
 
     Args:
         root (str): Root directory where the dataset should be saved.
