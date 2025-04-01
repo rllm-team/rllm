@@ -1,12 +1,10 @@
-from typing import Any, Dict, Union
+from typing import Any, Dict
 
 import numpy as np
-from regex import T
 import scipy.sparse as sp
 import torch
 from torch import Tensor
 
-from rllm.data.graph_data import GraphData, HeteroGraphData
 from rllm.transforms.graph_transforms import EdgeTransform
 from rllm.utils.sparse import sparse_mx_to_torch_sparse_tensor
 

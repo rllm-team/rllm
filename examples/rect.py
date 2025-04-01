@@ -14,7 +14,6 @@
 # RECT-L          57.50      60.80  | 65.20      65.70     | 64.50
 
 import argparse
-import copy
 import time
 import sys
 import os.path as osp
