@@ -1,5 +1,7 @@
 from functools import lru_cache
 
+from torch import Tensor
+
 from rllm.transforms.graph_transforms import EdgeTransform
 from rllm.transforms.graph_transforms.functional import add_remaining_self_loops
 
@@ -20,5 +22,5 @@ class AddRemainingSelfLoops(EdgeTransform):
         self.data = None
 
     @lru_cache()
-    def forward(self, adj):
+    def forward(self, adj: Tensor) -> Tensor:
         return add_remaining_self_loops(adj, self.fill_value)

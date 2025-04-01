@@ -37,7 +37,7 @@ First, we implement the row normalization function :obj:`normalize_features`. Th
         else:
             return X
 
-Next, we extend this function into a class :obj:`NormalizeFeatures`. The class needs to inherit from a base class: a general-purpose Transform inherits from :obj:`NodeTransform`, while :obj:`GraphTransform` inherits from :obj:`EdgeTransform`, and :obj:`TabularTransform` inherits from :obj:`ColTransform`.
+Next, we extend this function into a class :obj:`NormalizeFeatures`. The class needs to inherit from a base class:  the transform that operates on the nodes inherits from :obj:`NodeTransform`, while the one that operates on edges inherits from :obj:`EdgeTransform`.
 
 .. code-block:: python
 

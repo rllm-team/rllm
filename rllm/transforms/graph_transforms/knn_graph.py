@@ -3,7 +3,6 @@ from typing import Optional
 
 from torch import Tensor
 
-from rllm.data.graph_data import GraphData
 from rllm.transforms.graph_transforms import EdgeTransform
 from rllm.transforms.graph_transforms.functional import knn_graph
 
@@ -53,7 +52,7 @@ class KNNGraph(EdgeTransform):  # TODO: add force_undirected option.
         self.n_jobs = n_jobs
 
     @lru_cache()
-    def forward(self, x: Tensor) -> GraphData:
+    def forward(self, x: Tensor) -> Tensor:
         knn_adj = knn_graph(
             x,
             self.num_neighbors,
