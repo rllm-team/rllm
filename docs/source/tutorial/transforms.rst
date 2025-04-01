@@ -37,52 +37,27 @@ First, we implement the row normalization function :obj:`normalize_features`. Th
         else:
             return X
 
-Next, we extend this function into a class :obj:`NormalizeFeatures`. The class needs to inherit from a base class: a general-purpose Transform inherits from :obj:`BaseTransform`, while :obj:`GraphTransform` inherits from :obj:`NETransform`, and :obj:`TabularTransform` inherits from :obj:`ColTransform`.
+Next, we extend this function into a class :obj:`NormalizeFeatures`. The class needs to inherit from a base class: a general-purpose Transform inherits from :obj:`NodeTransform`, while :obj:`GraphTransform` inherits from :obj:`EdgeTransform`, and :obj:`TabularTransform` inherits from :obj:`ColTransform`.
 
 .. code-block:: python
 
-    class NormalizeFeatures(BaseTransform):
+    class NormalizeFeatures(NodeTransform):
         def __init__(self, norm: str = "l2"):
             self.norm = norm
 
-        def forward(self, data: Union[Tensor, GraphData, HeteroGraphData]):
-            if isinstance(data, Tensor):
-                return normalize_features(data)
-
-            for store in data.stores:
-                if "x" in store:
-                    store.x = normalize_features(store.x, self.norm)
-            return data
+        def forward(self, x: Tensor) -> Tensor:
+            return normalize_features(x, self.norm)
 
 Similarly, we can implement additional operations, such as :obj:`adding self-loops` and :obj:`symmetric normalization`, and organize them into a unified :obj:`GCNNorm` module for convenience.
 
 .. code-block:: python
 
-    class GCNNorm(NETransform):
+    class GCNNorm(EdgeTransform):
         def __init__(self):
             self.data = None
 
-        def forward(self, data: Union[Tensor, GraphData, HeteroGraphData]):
-            if self.data is not None:
-                return self.data
-
-            if isinstance(data, GraphData):
-                assert data.adj is not None
-                data.adj = self.gcn_norm(data.adj)
-            elif isinstance(data, HeteroGraphData):
-                if "adj" in data:
-                    data.adj = self.gcn_norm(data.adj)
-                for store in data.edge_stores:
-                    if "adj" not in store or store.is_bipartite():
-                        continue
-                    data.adj = self.gcn_norm(data.adj)
-            elif isinstance(data, Tensor):
-                assert data.size(0) == data.size(1)
-                data = self.gcn_norm(data)
-            self.data = data
-            return data
-
-        def gcn_norm(self, adj: Tensor):
+        @lru_cache()
+        def forward(self, adj: Tensor) -> Tensor:
             adj = add_remaining_self_loops(adj)
             return symmetric_norm(adj)
 
@@ -92,13 +67,13 @@ Finally, :obj:`GCNTransform` is a subclass of the :obj:`GraphTransform` class. T
 
     class GCNTransform(GT.GraphTransform):
 
-        def __init__(self, normalize_features: str = "l1"):
-            super().__init__(
-                transforms=[
-                    UT.NormalizeFeatures(normalize_features),
-                    GT.GCNNorm(),
-                ]
-            )
+    def __init__(self, normalize_features: str = "l1"):
+        super().__init__(
+            transforms=[
+                GT.NormalizeFeatures(normalize_features),
+                GT.GCNNorm(),
+            ]
+        )
 
 Construct a TabTransformerTransform
 ----------------
