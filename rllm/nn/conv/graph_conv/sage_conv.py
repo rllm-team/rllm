@@ -53,7 +53,7 @@ class SAGEConv(MessagePassing):
         if aggr == 'lstm':
             kwargs.setdefault('aggr_kwargs', {})
             kwargs['aggr_kwargs'].setdefault('in_dim', in_dim)
-            kwargs['aggr_kwargs'].setdefault('out_dim', out_dim)
+            kwargs['aggr_kwargs'].setdefault('out_dim', in_dim)
         elif aggr[-4:] == 'pool':
             kwargs.setdefault('aggr_kwargs', {})
             kwargs['aggr_kwargs'].setdefault('in_dim', in_dim)
@@ -61,12 +61,14 @@ class SAGEConv(MessagePassing):
 
         super().__init__(aggr=self.aggr, **kwargs)
 
-        self.lin_neigh = torch.nn.Linear(in_dim, out_dim, bias=False)
+        self.lin_neigh = torch.nn.Linear(in_dim, in_dim, bias=False)
 
         if aggr == 'gcn':
             self.register_module('self_lin', None)
         else:
             self.self_lin = torch.nn.Linear(in_dim, out_dim, bias=False)
+
+        self.lin = torch.nn.Linear(in_dim, out_dim, bias=False)
 
         if bias:
             self.bias = Parameter(torch.empty(out_dim), requires_grad=True)
@@ -77,6 +79,7 @@ class SAGEConv(MessagePassing):
 
     def reset_parameters(self):
         torch.nn.init.xavier_normal_(self.lin_neigh.weight)
+        torch.nn.init.xavier_normal_(self.lin.weight)
         if self.self_lin is not None:
             torch.nn.init.xavier_normal_(self.self_lin.weight)
         if self.bias is not None:
@@ -97,21 +100,28 @@ class SAGEConv(MessagePassing):
         x[1] = F.dropout(x[1], p=self.dropout, training=self.training)
 
         if self.aggr[-4:] != 'pool':
-            x[0] = self.lin_neigh(x[0])
+            x[0] = self.lin_neigh(x[0])  # (N, in_dim)
 
         if self.aggr == 'gcn' and self.self_lin is None:
             """GCN aggregator.
             Assuming the edge_index has been GCN normalized while preprocessing.
             """
-            out = self.propagate(x[0], edge_index, edge_weight=edge_weight)
+            out = self.propagate(
+                x[0],
+                edge_index,
+                edge_weight=edge_weight,
+                dim_size=x[1].size(0)
+            )
         elif self.aggr[-4:] == 'pool':
             out = self.propagate(x[0], edge_index, dim_size=x[1].size(0))
             out = self.lin_neigh(out)
         else:
             out = self.propagate(x[0], edge_index, dim_size=x[1].size(0))
 
+        out = self.lin(out)  # (N, out_dim)
+
         if self.self_lin is not None:
-            out += self.self_lin(x[1])
+            out += self.self_lin(x[1])  # (N, out_dim)
 
         if self.bias is not None:
             out += self.bias
