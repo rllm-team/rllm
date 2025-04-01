@@ -50,7 +50,7 @@ data = PlanetoidDataset(path, args.dataset, force_reload=True)[0]
 # Transform data
 transform = RECTTransform()
 data = transform(data)
-zs_data = RemoveTrainingClasses(args.unseen_classes)(copy.deepcopy(data)).to(device)
+zs_data = RemoveTrainingClasses(args.unseen_classes)(data).to(device)
 
 
 # Set up model, optimizer and loss function

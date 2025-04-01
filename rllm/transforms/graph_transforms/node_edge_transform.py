@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
 import copy
 
+from torch import Tensor
+
+from rllm.data.graph_data import GraphData, HeteroGraphData
+
 
 class NodeTransform(ABC):
     r"""An abstract base class for transforming nodes in graph data.
@@ -11,10 +15,23 @@ class NodeTransform(ABC):
 
     def __call__(self, data):
         # Shallow-copy the data so that we prevent in-place data modification.
-        return self.forward(copy.copy(data))
+        data = copy.copy(data)
+        if isinstance(data, GraphData):
+            if getattr(data, "x", None) is not None:
+                data.x = self.forward(data.x)
+        elif isinstance(data, HeteroGraphData):
+            for store in data.edge_stores:
+                if "x" not in store or not store.is_bipartite():
+                    continue
+                store.x = self.forward(store.x)
+        elif isinstance(data, Tensor):
+            assert data.size(0) == data.size(1)
+            data = self.forward(data)
+
+        return data
 
     @abstractmethod
-    def forward(self, data):
+    def forward(self, x):
         pass
 
     def __repr__(self) -> str:
@@ -30,10 +47,24 @@ class EdgeTransform(ABC):
 
     def __call__(self, data):
         # Shallow-copy the data so that we prevent in-place data modification.
-        return self.forward(copy.copy(data))
+        data = copy.copy(data)
+
+        if isinstance(data, GraphData):
+            if getattr(data, "adj", None) is not None:
+                data.adj = self.forward(data.adj)
+        elif isinstance(data, HeteroGraphData):
+            for store in data.edge_stores:
+                if "adj" not in store or not store.is_bipartite():
+                    continue
+                store.adj = self.forward(store.adj)
+        elif isinstance(data, Tensor):
+            assert data.size(0) == data.size(1)
+            data = self.forward(data)
+
+        return data
 
     @abstractmethod
-    def forward(self, data):
+    def forward(self, adj):
         pass
 
     def __repr__(self) -> str:

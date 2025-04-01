@@ -7,6 +7,8 @@
 # 2. gat.py: Tests the GAT model.
 # 3. rect.py: Tests the ReCT model.
 # 4. ogc.py: Tests the OGC model.
+# 5. han.py: Tests the HAN model.
+# 6. hgt.py: Tests the HGT model.
 
 # Each test function runs the corresponding example script and verifies the
 # output to ensure it meets the expected criteria.

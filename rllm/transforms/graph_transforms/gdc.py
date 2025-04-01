@@ -1,6 +1,7 @@
 from typing import Any, Dict, Union
 
 import numpy as np
+from regex import T
 import scipy.sparse as sp
 import torch
 from torch import Tensor
@@ -63,14 +64,7 @@ class GDC(EdgeTransform):
         self.sparsification = sparsification
 
     @torch.no_grad()
-    def forward(self, data: Union[GraphData, HeteroGraphData]):
-        adj = None
-        if isinstance(data, GraphData):
-            assert data.adj is not None
-            adj = data.adj
-        elif isinstance(data, HeteroGraphData):
-            if "adj" in data:
-                adj = data.adj
+    def forward(self, adj: Tensor) -> Tensor:
         if self.self_loop_weight:
             adj = self.add_weighted_self_loop(adj, self.self_loop_weight)
 
@@ -86,11 +80,11 @@ class GDC(EdgeTransform):
         )
 
         # 4.get transition matrix on ~s
-        data.adj = self.get_transition_matrix(
+        adj = self.get_transition_matrix(
             diff_matrix_sparsified.to_sparse_coo(), self.normalize_out
         )
 
-        return data
+        return adj
 
     def add_weighted_self_loop(
         self,

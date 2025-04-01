@@ -1,8 +1,9 @@
-from typing import Optional, Union
+from functools import lru_cache
+from typing import Optional
 
-from rllm.types import ColType
+from torch import Tensor
+
 from rllm.data.graph_data import GraphData
-from rllm.data.table_data import TableData
 from rllm.transforms.graph_transforms import EdgeTransform
 from rllm.transforms.graph_transforms.functional import knn_graph
 
@@ -51,13 +52,8 @@ class KNNGraph(EdgeTransform):  # TODO: add force_undirected option.
         self.include_self = include_self
         self.n_jobs = n_jobs
 
-    def forward(self, data: Union[GraphData, TableData]) -> GraphData:
-        if isinstance(data, GraphData):
-            assert data.x is not None
-            x = data.x
-        elif isinstance(data, TableData):
-            x = data[ColType.CATEGORICAL]
-
+    @lru_cache()
+    def forward(self, x: Tensor) -> GraphData:
         knn_adj = knn_graph(
             x,
             self.num_neighbors,
@@ -68,9 +64,4 @@ class KNNGraph(EdgeTransform):  # TODO: add force_undirected option.
             self.include_self,
             self.n_jobs,
         )
-
-        if isinstance(data, GraphData):
-            data.adj = knn_adj
-        else:
-            data = GraphData(x=x, adj=knn_adj)
-        return data
+        return knn_adj
