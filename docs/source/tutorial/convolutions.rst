@@ -29,14 +29,14 @@ As above, the formula of :obj:`GCNConv` with message passing is as follows:
 Where the :math:`\sum` operation is the aggregation step,
 and the :math:`\frac{1}{\sqrt{\deg(i) \deg(j)}}` term is the normalization factor.
 The :math:`\deg(i)` and :math:`\deg(j)` terms represent the degrees of nodes :math:`i` and :math:`j`, respectively.
-The message computation is simply retrive the current layer neighbor node of :math:`\mathbf{x}_i^{(k)}` and return the node feature of node :math:`\mathbf{x}_j^{(k)}`.
-And the update step is assigning the aggregated message to the next layer node represent :math:`\mathbf{x}_i^{(k+1)}`.
+The message computation function simply retrieves the current layer neighbor node of :math:`\mathbf{x}_i^{(k)}` and returns the node feature of node :math:`\mathbf{x}_j^{(k)}`.
+And the update step assigns the aggregated message to the next layer node representation :math:`\mathbf{x}_i^{(k+1)}`.
 
 Now let's take a look at the implementation of the :obj:`GCNConv` class, which inherits from the :obj:`MessagePassing` class and consists of two main methods: :obj:`__init__()` and :obj:`forward()`.
 
 The :obj:`__init__()` method is responsible for initializing the parameters of the :obj:`GCNConv` layer. This method takes two main parameters: :obj:`in_dim` (the input dimension) and :obj:`out_dim` (the output dimension).
 These parameters are used to initialize the weight matrix :math:`W`. Additionally, a bias parameter :obj:`bias` can be included, which determines whether or not to use bias in the convolution operation.
-And it is notable that the :obj:`GCNConv` layer uses the 'gcn' aggregation method to initialize :obj:`MessagePassing` (which can be changed to other aggregators, like 'mean' etc.).
+Notably, the :obj:`GCNConv` layer uses the 'gcn' aggregation method to initialize :obj:`MessagePassing` (which can be changed to other aggregators, such as 'mean' etc.).
 
 .. code-block:: python
 
@@ -56,9 +56,9 @@ And it is notable that the :obj:`GCNConv` layer uses the 'gcn' aggregation metho
             self.register_parameter("bias", None)
         self.reset_parameters()
 
-The :obj:`forward()` method defines the forward pass of the :obj:`GCNConv` layer. Its parameters include the node :obj:`inputs` (:math:`X` in formula) and the adjacency matrix or edge list :obj:`edge_index` (:math:`\tilde A` in formula) .
-First, the input node features are passed through a linear layer :obj:`self.linear` to obtain the output features :obj:`x`.
-Then, the :obj:`propagate()` method is called to perform the three message passing steps: message computation, aggregation, and update steps.
+The :obj:`forward()` method defines the forward pass of the :obj:`GCNConv` layer. Its parameters include the node feature :obj:`inputs` (:math:`X` in the formula) and the adjacency matrix or edge list :obj:`edge_index` (:math:`\tilde{A}` in the formula) .
+First, the input node features are passed through a linear layer, :obj:`self.linear`, to obtain the output features :obj:`x`.
+Then, the :obj:`propagate()` method is called to perform the three message passing steps: message computation, aggregation, and update.
 Finally, the bias term is added to the output features if the :obj:`bias` parameter is not None.
 
 .. code-block:: python
