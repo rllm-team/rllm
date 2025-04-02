@@ -1,9 +1,7 @@
-from typing import Union
 from functools import lru_cache
 
 from torch import Tensor
 
-from rllm.data.graph_data import GraphData, HeteroGraphData
 from rllm.transforms.graph_transforms import EdgeTransform
 from rllm.transforms.graph_transforms.functional import (
     add_remaining_self_loops,
@@ -25,23 +23,6 @@ class GCNNorm(EdgeTransform):
         pass
 
     @lru_cache()
-    def forward(self, data: Union[Tensor, GraphData, HeteroGraphData]):
-
-        if isinstance(data, GraphData):
-            assert data.adj is not None
-            data.adj = self.gcn_norm(data.adj)
-        elif isinstance(data, HeteroGraphData):
-            if "adj" in data:
-                data.adj = self.gcn_norm(data.adj)
-            for store in data.edge_stores:
-                if "adj" not in store or store.is_bipartite():
-                    continue
-                data.adj = self.gcn_norm(data.adj)
-        elif isinstance(data, Tensor):
-            assert data.size(0) == data.size(1)
-            data = self.gcn_norm(data)
-        return data
-
-    def gcn_norm(self, adj: Tensor):
+    def forward(self, adj: Tensor) -> Tensor:
         adj = add_remaining_self_loops(adj)
         return symmetric_norm(adj)

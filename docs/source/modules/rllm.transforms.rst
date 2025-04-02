@@ -14,11 +14,14 @@ Basic Level
    :nosignatures:
    :template: autosummary/class.rst
 
-    NETransform
-    Compose
+    NodeTransform
+    EdgeTransform
+    NormalizeFeatures
+    RemoveTrainingClasses
+    SVDFeatureReduction
+    KNNGraph
     AddRemainingSelfLoops
     RemoveSelfLoops
-    KNNGraph
     GCNNorm
     GDC
 
@@ -64,23 +67,3 @@ Model Level
     TableTransform
     DefaultTableTransform
     TabTransformerTransform
-
-Utils
------------------------
-
-.. currentmodule:: rllm.transforms.utils
-
-.. autosummary::
-   :nosignatures:
-   :template: autosummary/class.rst
-
-    BaseTransform
-    NormalizeFeatures
-    SVDFeatureReduction
-    RemoveTrainingClasses
-
-
-
-
-
-

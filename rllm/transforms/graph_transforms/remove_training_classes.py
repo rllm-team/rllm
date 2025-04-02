@@ -1,4 +1,5 @@
 from typing import List
+from copy import deepcopy
 
 from rllm.data.graph_data import GraphData
 from rllm.transforms.graph_transforms import NodeTransform
@@ -15,6 +16,9 @@ class RemoveTrainingClasses(NodeTransform):
 
     def __init__(self, classes: List[int]):
         self.classes = classes
+
+    def __call__(self, data):
+        return self.forward(deepcopy(data))
 
     def forward(self, data: GraphData):
         assert hasattr(data, "train_mask")
