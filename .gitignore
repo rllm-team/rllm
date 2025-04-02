@@ -34,6 +34,8 @@ benchmark/results/
 .flake8
 draft.py
 _self_test_util.py
+exps/
+trash/
 
 !rllm/data/
 !test/data/

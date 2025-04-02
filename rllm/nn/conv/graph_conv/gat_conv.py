@@ -51,15 +51,17 @@ class GATConv(MessagePassing):
             a learnable skip-connection. (default: :obj:`False`)
 
     Shapes:
+
         - **input:**
 
-            node features : (N, F_IN),
+            node features :math:`(|\mathcal{V}|, F_{in})`
 
-            edge_index : sparse adj (N, N) or edge list (2, E),
+            edge_index is sparse adjacency matrix :math:`(|\mathcal{V}|, |\mathcal{V}|)`
+            or edge list :math:`(2, |\mathcal{E}|)`
 
         - **output:**
 
-            node features : (N, F_OUT)
+            node features :math:`(|\mathcal{V}|, F_{out})`
     """
     node_dim = 0
     head_dim = 1

@@ -34,6 +34,19 @@ class LGCConv(MessagePassing):
         out_dim (int): Size of each output sample.
         bias (bool): If set to `False`, no bias terms are added into the final output.
             Only available when `with_param` is `True`.
+
+    Shapes:
+
+        - **input:**
+
+            node features :math:`(|\mathcal{V}|, F_{in})`
+
+            edge_index is sparse adjacency matrix :math:`(|\mathcal{V}|, |\mathcal{V}|)`
+            or edge list :math:`(2, |\mathcal{E}|)`
+
+        - **output:**
+
+            node features :math:`(|\mathcal{V}|, F_{out})`
     """
 
     node_dim: int = 0

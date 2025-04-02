@@ -32,7 +32,8 @@ class GCNConv(MessagePassing):
 
             node features :math:`(|\mathcal{V}|, F_{in})`
 
-            sparse adjacency matrix :math:`(|\mathcal{V}|, |\mathcal{V}|)`
+            edge_index is sparse adjacency matrix :math:`(|\mathcal{V}|, |\mathcal{V}|)`
+            or edge list :math:`(2, |\mathcal{E}|)`
 
         - **output:**
 
