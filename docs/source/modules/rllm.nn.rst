@@ -13,8 +13,10 @@ Graph Conv
    :nosignatures:
    :template: autosummary/class.rst
 
-   GATConv
+   MessagePassing
    GCNConv
+   LGCConv
+   GATConv
    HANConv
    HGTConv
    SAGEConv

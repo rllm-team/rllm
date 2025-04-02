@@ -8,41 +8,98 @@ In machine learning, convolution generally involves combining an input signal wi
 
 Construct a GCN Convolution Layer
 ----------------
-Graph Convolutional Networks (GCNs) are a classic type of Graph Neural Network, where the convolution operation is applied to node features based on the input adjacency matrix. The convolution formula is defined as :math:`\tilde A X W`, where :math:`\tilde A` is the normalized adjacency matrix, :math:`X` represents the node features, and :math:`W` is the parameter matrix. In this context, we will construct the graph convolution layer, :obj:`GCNConv`. :obj:`GCNConv` is a class that inherits from torch.nn.Module and consists of two primary methods: :obj:`__init__()` and :obj:`forward()`.
+Graph Convolutional Networks (GCNs) are a classic type of Graph Neural Network, where the convolution operation is applied to node features based on the input adjacency matrix. The convolution formula is defined as :math:`\tilde A X W`, where :math:`\tilde A` is the normalized adjacency matrix, :math:`X` represents the node features, and :math:`W` is the parameter matrix.
 
-The :obj:`__init__()` method is responsible for initializing the parameters of the :obj:`GCNConv` layer. This method takes two main parameters: :obj:`in_dim` (the input dimension) and :obj:`out_dim` (the output dimension). These parameters are used to initialize the weight matrix :math:`W`. Additionally, a bias parameter :obj:`bias` can be included, which determines whether or not to use bias in the convolution operation.
+Before we dive into the details of the :obj:`GCNConv` class, let's first understand the structure of the :obj:`MessagePassing` class.
+:obj:`MessagePassing`` is the base class for all graph convolution layers implemented in `rllm.nn.conv.graph_conv` including :obj:`GCNConv`.
+It consists of three main steps: message computation ( :math:`\text{Message}` ), aggregation ( :math:`\text{Aggregate}` ), and update ( :math:`\text{Update}` ) as shown below:
+
+.. math::
+    \mathbf{x}_i^{(k+1)} = \text{Update}^{(k)}
+    \left( \mathbf{x}_i^{(k)},
+    \text{Aggregate}^{(k)} \left( \left\{ \text{Message}^{(k)} \left(
+    \mathbf{x}_i^{(k)}, \mathbf{x}_j^{(k)}, \mathbf{e}_{j,i}^{(k)}
+    \right) \right\}_{j \in \mathcal{N}(i)} \right) \right)
+
+As above, the formula of :obj:`GCNConv` with message passing is as follows:
+
+.. math::
+    \mathbf{x}_i^{(k+1)} = \sum_{j \in \mathcal{N}(i)} \frac{1}{\sqrt{\deg(i) \deg(j)}} \mathbf{x}_j^{(k)}
+
+Where the :math:`\sum` operation is the aggregation step,
+and the :math:`\frac{1}{\sqrt{\deg(i) \deg(j)}}` term is the normalization factor.
+The :math:`\deg(i)` and :math:`\deg(j)` terms represent the degrees of nodes :math:`i` and :math:`j`, respectively.
+The message computation is simply retrive the current layer neighbor node of :math:`\mathbf{x}_i^{(k)}` and return the node feature of node :math:`\mathbf{x}_j^{(k)}`.
+And the update step is assigning the aggregated message to the next layer node represent :math:`\mathbf{x}_i^{(k+1)}`.
+
+Now let's take a look at the implementation of the :obj:`GCNConv` class, which inherits from the :obj:`MessagePassing` class and consists of two main methods: :obj:`__init__()` and :obj:`forward()`.
+
+The :obj:`__init__()` method is responsible for initializing the parameters of the :obj:`GCNConv` layer. This method takes two main parameters: :obj:`in_dim` (the input dimension) and :obj:`out_dim` (the output dimension).
+These parameters are used to initialize the weight matrix :math:`W`. Additionally, a bias parameter :obj:`bias` can be included, which determines whether or not to use bias in the convolution operation.
+And it is notable that the :obj:`GCNConv` layer uses the 'gcn' aggregation method to initialize :obj:`MessagePassing` (which can be changed to other aggregators, like 'mean' etc.).
 
 .. code-block:: python
 
     def __init__(
-        self,
-        in_dim: int,
-        out_dim: int,
-        bias: bool = True,
+            self,
+            in_dim: int,
+            out_dim: int,
+            bias: bool = True,
     ):
-        super().__init__()
+        super().__init__(aggr='gcn')
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.weight = Parameter(torch.empty(in_dim, out_dim))
-
+        self.linear = Linear(in_dim, out_dim, bias=False)
         if bias:
             self.bias = Parameter(torch.empty(out_dim))
         else:
             self.register_parameter("bias", None)
         self.reset_parameters()
 
-The :obj:`forward()` method defines the forward pass of the :obj:`GCNConv` layer. Its parameters include the node :obj:`inputs` (:math:`X` in formula) and the adjacency matrix :obj:`adj` (:math:`\tilde A` in formula) . This method applies the graph convolution to the nodes based on the formula outlined earlier.
+The :obj:`forward()` method defines the forward pass of the :obj:`GCNConv` layer. Its parameters include the node :obj:`inputs` (:math:`X` in formula) and the adjacency matrix or edge list :obj:`edge_index` (:math:`\tilde A` in formula) .
+First, the input node features are passed through a linear layer :obj:`self.linear` to obtain the output features :obj:`x`.
+Then, the :obj:`propagate()` method is called to perform the three message passing steps: message computation, aggregation, and update steps.
+Finally, the bias term is added to the output features if the :obj:`bias` parameter is not None.
 
 .. code-block:: python
 
-    def forward(self, inputs: Tensor, adj: Tensor):
-        support = torch.mm(inputs, self.weight)
-        output = torch.spmm(adj, support)
+    def forward(
+            self,
+            x: Tensor,
+            edge_index: Union[Tensor, SparseTensor],
+            edge_weight: Optional[Tensor] = None,
+            dim_size: Optional[int] = None,
+    ) -> Tensor:
+        x = self.linear(x)
+        out = self.propagate(x, edge_index, edge_weight=edge_weight, dim_size=dim_size)
         if self.bias is not None:
-            return output + self.bias
-        else:
-            return output
+            out += self.bias
+        return out
 
+If we go deeper into the :obj:`propagate()` method, we can see that it calls the :obj:`message()`, :obj:`aggregate()`, and :obj:`update()` methods in sequence.
+
+.. code-block:: python
+
+    def propagate(self, x, edge_index, **kwargs) -> Tensor:
+        ... # omitted for brevity
+        out = self.message(**msg_kwargs)  # 1. Compute messages
+        ...
+        out = self.aggregate(out, **aggr_kwargs)  # 2. Aggregate
+        ...
+        out = self.update(out, **update_kwargs)  # 3. Update
+        return out
+
+    def message(self, x, edge_index, edge_weight) -> Tensor:
+        # In default, retrieve and return the node feature of the neighbor node
+
+    def aggregate(self, msgs, edge_index, ...) -> Tensor:
+        # Call `self.aggr_module` to aggregate the messages, for GCNConv, it is the 'gcn' aggregator (i.e., sum)
+
+    def update(self, aggr_out: Tensor) -> Tensor:
+        # In default, just return the aggregated message
+
+To construct another type of convolution layer, you can follow a similar process, inheriting from the :obj:`MessagePassing` class, defining the :obj:`__init__()` and :obj:`forward()` methods,
+and override implementing the :obj:`message()`, :obj:`aggregate()`, and :obj:`update()` methods as needed.
 
 In addition to the :obj:`__init__()` and :obj:`forward()` methods, you can define custom methods as needed. For example, the :obj:`GCNConv` class can include a :obj:`reset_parameters()` method, which reinitializes the parameters (i.e., the weight matrix :math:`W`) to their original values.
 
