@@ -91,15 +91,20 @@ If we go deeper into the :obj:`propagate()` method, we can see that it calls the
 
     def message(self, x, edge_index, edge_weight) -> Tensor:
         # In default, retrieve and return the node feature of the neighbor node
+        ...
 
     def aggregate(self, msgs, edge_index, ...) -> Tensor:
         # Call `self.aggr_module` to aggregate the messages, for GCNConv, it is the 'gcn' aggregator (i.e., sum)
+        ...
 
     def update(self, aggr_out: Tensor) -> Tensor:
         # In default, just return the aggregated message
+        ...
 
-To construct another type of convolution layer, you can follow a similar process, inheriting from the :obj:`MessagePassing` class, defining the :obj:`__init__()` and :obj:`forward()` methods,
-and override implementing the :obj:`message()`, :obj:`aggregate()`, and :obj:`update()` methods as needed.
+To construct another type of convolution layer, you can follow a similar process: 
+1. Inherit from the :obj:`MessagePassing` class.
+2. Define the :obj:`__init__` and :obj:`forward` methods.
+3. Override the implementation of the :obj:`message`, :obj:`aggregate`, and :obj:`update` methods as needed.
 
 In addition to the :obj:`__init__()` and :obj:`forward()` methods, you can define custom methods as needed. For example, the :obj:`GCNConv` class can include a :obj:`reset_parameters()` method, which reinitializes the parameters (i.e., the weight matrix :math:`W`) to their original values.
 
