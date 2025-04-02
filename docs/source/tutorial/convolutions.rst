@@ -41,10 +41,10 @@ And it is notable that the :obj:`GCNConv` layer uses the 'gcn' aggregation metho
 .. code-block:: python
 
     def __init__(
-            self,
-            in_dim: int,
-            out_dim: int,
-            bias: bool = True,
+        self,
+        in_dim: int,
+        out_dim: int,
+        bias: bool = True,
     ):
         super().__init__(aggr='gcn')
         self.in_dim = in_dim
@@ -64,11 +64,11 @@ Finally, the bias term is added to the output features if the :obj:`bias` parame
 .. code-block:: python
 
     def forward(
-            self,
-            x: Tensor,
-            edge_index: Union[Tensor, SparseTensor],
-            edge_weight: Optional[Tensor] = None,
-            dim_size: Optional[int] = None,
+        self,
+        x: Tensor,
+        edge_index: Union[Tensor, SparseTensor],
+        edge_weight: Optional[Tensor] = None,
+        dim_size: Optional[int] = None,
     ) -> Tensor:
         x = self.linear(x)
         out = self.propagate(x, edge_index, edge_weight=edge_weight, dim_size=dim_size)
