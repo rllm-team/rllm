@@ -67,13 +67,13 @@ Finally, :obj:`GCNTransform` is a subclass of the :obj:`GraphTransform` class. T
 
     class GCNTransform(GT.GraphTransform):
 
-    def __init__(self, normalize_features: str = "l1"):
-        super().__init__(
-            transforms=[
-                GT.NormalizeFeatures(normalize_features),
-                GT.GCNNorm(),
-            ]
-        )
+        def __init__(self, normalize_features: str = "l1"):
+            super().__init__(
+                transforms=[
+                    GT.NormalizeFeatures(normalize_features),
+                    GT.GCNNorm(),
+                ]
+            )
 
 Construct a TabTransformerTransform
 ----------------

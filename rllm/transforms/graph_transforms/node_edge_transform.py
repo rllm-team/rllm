@@ -20,7 +20,7 @@ class NodeTransform(ABC):
             if getattr(data, "x", None) is not None:
                 data.x = self.forward(data.x)
         elif isinstance(data, HeteroGraphData):
-            for store in data.edge_stores:
+            for store in data.node_stores:
                 if "x" not in store or not store.is_bipartite():
                     continue
                 store.x = self.forward(store.x)
