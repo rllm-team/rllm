@@ -6,6 +6,25 @@ from enum import Enum
 from torch import Tensor
 
 
+class TableType(Enum):
+    r"""The semantic type of a table.
+
+    .. code-block:: python
+
+        from rllm.types import TableType
+
+        table_type = TableType.DATATABLE  # data table
+        table_type = TableType.RELATIONSHIPTABLE  # relationship table
+        ...
+
+    Attributes:
+        DATATABLE: Data table.
+        RELATIONSHIPTABLE: Relationship table.
+    """
+    DATATABLE = 'dataTable'
+    RELATIONSHIPTABLE = 'relationshipTable'
+
+
 class ColType(Enum):
     r"""The semantic type of a column.
 
