@@ -1,9 +1,11 @@
-import numpy as np
-import scipy.sparse as sp
+from typing import Union, Tuple, Optional
 
 import torch
 from torch import Tensor
+import numpy as np
+import scipy.sparse as sp
 
+from rllm.utils._sort import lexsort
 from rllm.utils.sparse import is_torch_sparse_tensor, sparse_mx_to_torch_sparse_tensor
 
 
@@ -140,3 +142,77 @@ def gcn_norm(adj: Tensor):
         # filters
         filters = sp.coo_matrix(deg_sqrt_inv * adj_sp * deg_sqrt_inv)
         return sparse_mx_to_torch_sparse_tensor(filters).to(device)
+
+
+def sort_edge_index(
+    edge_index: Tensor,
+    edge_attr: Tensor = None,
+    num_nodes: int = None,
+    sort_by_row: bool = True,
+) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    r"""Sort the edge index.
+
+    Args:
+        edge_index (Tensor): The edge index tensor.
+        edge_attr (Tensor, optional): Edge weights, should be a tensor with
+            `size(0) == edge_index.size(1)`. If not None, return
+            `(edge_index, edge_attr)`, else return `edge_index` only.
+            (default: `None`)
+        num_nodes (int, optional): The number of nodes.
+            If None, infer from edge_index.
+            (default: `None`)
+        sort_by_row (bool): If set to `False`, will sort `edge_index`
+            column-wise/by destination node.
+            (default: `True`)
+
+    Example:
+        >>> edge_index = torch.tensor([[2, 1, 1, 0],
+                                       [1, 2, 0, 1]])
+        >>> edge_attr = torch.tensor([[1], [2], [3], [4]])
+        >>> sort_edge_index(edge_index)
+        tensor([[0, 1, 1, 2],
+                [1, 0, 2, 1]])
+
+        >>> sort_edge_index(edge_index, edge_attr)
+        (tensor([[0, 1, 1, 2],
+                 [1, 0, 2, 1]]),
+        tensor([[4],
+                [3],
+                [2],
+                [1]]))
+    """
+    if num_nodes is None:
+        num_nodes = (int(edge_index.max().item()) + 1
+                     if edge_index.numel() > 0 else 0)
+    index = lexsort(
+        keys=[
+            edge_index[int(sort_by_row)],
+            edge_index[1 - int(sort_by_row)],
+        ]
+    )
+
+    edge_index = edge_index[:, index]
+
+    if edge_attr is not None:
+        return edge_index, edge_attr[index]
+    return edge_index
+
+
+def index2ptr(index: Tensor, num_nodes: Optional[int] = None) -> Tensor:
+    r"""Convert the sorted index tensor to the pointer tensor.
+
+    Args:
+        index (Tensor): The index tensor.
+        num_nodes (int, optional): The number of nodes.
+            (default: `None`)
+
+    Example:
+        >>> index = torch.tensor([0, 1, 1, 2, 2, 3])
+        >>> index2ptr(index, 4)
+        tensor([0, 1, 3, 5, 6])
+    """
+    if num_nodes is None:
+        num_nodes = int(index.max().item()) + 1 if index.numel() > 0 else 0
+    ptr = torch.zeros(num_nodes + 1, dtype=torch.long, device=index.device)
+    ptr[1:] = torch.bincount(index, minlength=num_nodes)
+    return ptr.cumsum(0)

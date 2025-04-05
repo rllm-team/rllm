@@ -8,7 +8,7 @@ from rllm.data.graph_data import GraphData
 def test_process():
     dataset_names = ["cora", "citeseer", "pubmed"]
     for name in dataset_names:
-        dataset = PlanetoidDataset("./data", name=name, force_reload=True)
+        dataset = PlanetoidDataset("./data", file_name=name, force_reload=True)
         data = dataset[0]
         assert isinstance(data, GraphData)
 

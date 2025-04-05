@@ -13,6 +13,13 @@ from .seg_reduce import (
     seg_softmax_,
 )
 
+from .graph_utils import (
+    sort_edge_index,
+    index2ptr,)
+
+from ._sort import lexsort
+from ._remap import remap_keys
+from ._mixin import CastMixin
 
 __all__ = [
     'download_url',
@@ -27,4 +34,9 @@ __all__ = [
     "seg_sum",
     'seg_softmax',
     'seg_softmax_',
+    "sort_edge_index",
+    "index2ptr",
+    "lexsort",
+    "remap_keys",
+    "CastMixin",
 ]

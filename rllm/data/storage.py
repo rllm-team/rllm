@@ -1,12 +1,15 @@
+from __future__ import annotations
 import copy
 import weakref
 from itertools import chain
-from typing import Any, Dict, Optional, Callable, Mapping, Sequence, Union
+from typing import Any, Dict, Optional, Callable, Mapping, Sequence, Union, Tuple
 from collections.abc import MutableMapping
 
 import torch
 from torch import Tensor
+import numpy as np
 
+from rllm.utils import is_torch_sparse_tensor, lexsort, index2ptr
 from rllm.data.view import KeysView, ValuesView, ItemsView
 
 
@@ -122,6 +125,13 @@ class BaseStorage(MutableMapping):
     def __contains__(self, key: str):
         return key in self._mapping
 
+    def __copy__(self) -> 'BaseStorage':
+        out = self.__class__.__new__(self.__class__)
+        for k, v in self.__dict__.items():
+            out.__dict__[k] = v
+        out._mapping = copy.copy(self._mapping)
+        return out
+
     def __repr__(self):
         return repr(self._mapping)
 
@@ -137,6 +147,7 @@ class NodeStorage(BaseStorage):
     Attributes:
         num_nodes (int): The number of nodes in the storage.
     """
+    NODE_KEYS = {"x", "pos", "batch", "n_id"}
 
     def __init__(self, initialdata: Optional[Dict[str, Any]] = None, **kwargs):
         super().__init__(initialdata, **kwargs)
@@ -147,10 +158,39 @@ class NodeStorage(BaseStorage):
             return self["num_nodes"]
 
         for key, value in self.items():
-            if key in {"x", "pos", "batch"} or "node" in key:
+            if key in self.NODE_KEYS or "node" in key:
                 return len(value)
 
         return -1
+
+    # Utility functions #######################################
+    def is_node_attr(self, key: str) -> bool:
+        r"""Node attributes should be:
+        1. List, tuple, or TableData with length equal to the number of nodes.
+        2. Tensor with the first dimension equal to the number of nodes.
+        3. Numpy array with the first dimension equal to the number of nodes.
+        """
+        if '_node_attr_cache' not in self.__dict__:
+            self._node_attr_cache = set()
+
+        if key in self._node_attr_cache:
+            return True
+
+        v = self[key]
+        if (isinstance(v, (list, tuple, 'TableData')) and  # avoid circular import
+                len(v) == self.num_nodes):
+            self._node_attr_cache.add(key)
+            return True
+
+        elif isinstance(v, Tensor) and v.size(0) == self.num_nodes:
+            self._node_attr_cache.add(key)
+            return True
+
+        elif isinstance(v, np.ndarray) and v.shape[0] == self.num_nodes:
+            self._node_attr_cache.add(key)
+            return True
+
+        return False
 
 
 class EdgeStorage(BaseStorage):
@@ -170,7 +210,6 @@ class EdgeStorage(BaseStorage):
 
     @property
     def num_edges(self):
-        from rllm.utils.sparse import is_torch_sparse_tensor
 
         if "num_edges" in self:
             return self["num_edges"]
@@ -180,10 +219,135 @@ class EdgeStorage(BaseStorage):
             if is_torch_sparse_tensor(adj):
                 return adj._nnz()
 
+        if "edge_index" in self:
+            assert isinstance(self.edge_index, Tensor)
+            return self.edge_index.size(1)
+
         return -1
 
-    def is_bipartite(self):
+    # Utility functions #######################################
+    def is_bipartite(self) -> bool:
         return self._key is not None and self._key[0] != self._key[-1]
+
+    def is_edge_attr(self, key: str) -> bool:
+        r"""Edge attributes should be:
+        1. List, tuple, or TableData with length equal to the number of edges.
+        2. Tensor with the first dimension equal to the number of edges.
+        3. Numpy array with the first dimension equal to the number of edges.
+        """
+        if '_edge_attr_cache' not in self.__dict__:
+            self._edge_attr_cache = {'edge_index', 'adj', 'num_edges'}
+
+        if key in self._edge_attr_cache:
+            return True
+
+        v = self[key]
+        if (isinstance(v, (list, tuple, 'TableData')) and  # avoid circular import
+                len(v) == self.num_edges):
+            self._edge_attr_cache.add(key)
+            return True
+
+        elif isinstance(v, Tensor) and v.size(0) == self.num_edges:
+            self._edge_attr_cache.add(key)
+            return True
+
+        elif isinstance(v, np.ndarray) and v.shape[0] == self.num_edges:
+            self._edge_attr_cache.add(key)
+            return True
+
+        return False
+
+    def to_csc(
+        self,
+        device: Optional[torch.device] = None,
+        num_nodes: Optional[int] = None,
+        share_memory: bool = False,
+        is_sorted: bool = False,
+        src_node_time: Optional[Tensor] = None,
+        edge_time: Optional[Union[str, Tensor]] = None,
+    ) -> Tuple[Tensor, Tensor, Optional[Tensor]]:
+        r"""Convert the edge storage to a CSC format.
+
+        Args:
+            device (torch.device, optional): The desired device of the
+                returned tensors. If None, use the current device.
+                (default: `None`)
+            num_nodes (int, optional): The number of nodes.
+                If None, infer from edge_index.
+                (default: `None`)
+            share_memory (bool, optional): If set to `True`, will share memory
+                among returned tensors. This can accelerate process when using
+                multiple processes.
+                (default: `False`)
+            is_sorted (bool, optional): If set to `True`, will not sort the
+                edge index.
+                (default: `False`)
+            src_node_time (Tensor, optional): The source node time.
+                If not None, will sort the edge index by `src_node_time`.
+                (default: `None`)
+            edge_time (Union[str, Tensor], optional): The edge time attribute.
+                If not None, will sort the edge index by `edge_time_attr`.
+                (default: `None`)
+
+        Returns:
+            Tuple[Tensor, Tensor, Optional[Tensor]]: The column indices,
+                row indices, and the permutation index.
+        """
+        if "adj" in self:
+            adj = self["adj"]
+            if is_torch_sparse_tensor(adj):
+                if src_node_time is not None or edge_time is not None:
+                    raise NotImplementedError(
+                        "Do not support temporal convert for torch sparse tensor."
+                    )
+                csc_t: torch.sparse.Tensor = adj.to_sparse_csc()
+                col_ptr = csc_t.ccol_indices()
+                row = csc_t.row_indices()
+                perm = None
+
+        elif "edge_index" in self and isinstance(self.edge_index, Tensor):
+            row, col = self.edge_index[0], self.edge_index[1]
+
+            if num_nodes is None:
+                num_nodes = max(row.max(), col.max()) + 1
+
+            if not is_sorted:
+                if src_node_time is None and edge_time is None:
+                    perm = torch.argsort(col)
+                    col = col[perm]
+                    row = row[perm]
+                elif edge_time is not None and src_node_time is None:
+                    if isinstance(edge_time, str):
+                        assert edge_time in self
+                        edge_time = self[edge_time]
+                    perm = lexsort(keys=[edge_time, col])
+                    col = col[perm]
+                    row = row[perm]
+                elif src_node_time is not None and edge_time is None:
+                    perm = lexsort(keys=[src_node_time, col])
+                    col = col[perm]
+                    row = row[perm]
+                else:
+                    raise NotImplementedError(
+                        "Only support one temporal sort for now."
+                        "But both `src_node_time` and `edge_time` are not `None`."
+                    )
+            col_ptr = index2ptr(col, num_nodes)
+
+        else:
+            raise ValueError("No edge found. Edge type should be either `adj` or `edge_index`.")
+
+        col_ptr = col_ptr.to(device=device)
+        row = row.to(device=device)
+        perm = perm.to(device=device) if perm is not None else None
+
+        if not col_ptr.is_cuda and share_memory:
+            col_ptr.share_memory_()
+            row.share_memory_()
+            if perm is not None:
+                perm.share_memory_()
+
+        return col_ptr, row, perm
 
 
 def recursive_apply(data: Any, func: Callable) -> Any:

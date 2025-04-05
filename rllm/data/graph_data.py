@@ -1,6 +1,7 @@
 import copy
-from typing import Any, List, Optional, Union, Callable, Mapping, Tuple
+from typing import Any, List, Optional, Union, Callable, Mapping, Tuple, Dict
 from itertools import chain
+from warnings import warn
 
 import torch
 from torch import Tensor
@@ -281,22 +282,38 @@ class GraphData(BaseGraph):
         return hetero_data
 
 
+EdgeType = Union[Tuple[str, str, str], str]
+UEdgeType = Tuple[str, str, str]
+NodeType = str
+
+
 class HeteroGraphData(BaseGraph):
     r"""A class for heterogenerous graph data storage which easily fit
     into CPU memory.
 
+    Acceptable edge key words are `adj` and `edge_index`. Other edge
+    key words are considered as edge attributes.
+
     Methods of initialization:
         1) Assign attributes,
+
         data = HeteroGraphData()
         data['paper']['x'] = x_paper
         data['paper'].x = x_paper
 
-        2) pass them as keyword arguments,
-        data = HeteroGraphData('paper' = {'x': x_paper, 'y': labels},
-                            'writer' = {'x': x_writer},
-                            'writer__of__paper' = {'adj' = adj})
+        Tips:
+            Though name of node attribute can be arbitrary, `x` is prefered.
 
-        3) pass them as dictionaries.
+        2) pass them as keyword arguments,
+
+        data = HeteroGraphData(
+            'paper' = {'x': x_paper, 'y': labels},
+            'writer' = {'x': x_writer},
+            'writer__of__paper' = {'adj' = adj}
+        )
+
+        3) pass them as dictionaries,
+
         data = HeteroGraphData(
             {
                 'paper' = {'x': x_paper, 'y': labels},
@@ -306,20 +323,21 @@ class HeteroGraphData(BaseGraph):
         )
 
     Save some attributes like train_mask:
-    data.train_mask = train_mask
 
-    Save more edges and nodes:
-    data[edge_type|node_type] = {
-        ...
-    }
+        data.train_mask = train_mask
 
-    Key of edge type:
-    data['src__tgt'] =  {'adj': adj}
-    data[src, tgt] = {'adj': adj}
-    data[src, rel, tgt] = {'adj': adj}
+        Save more edges and nodes:
+        data[edge_type|node_type] = {
+            ...
+        }
 
-    Key of node type:
-    data['node type'] = {'x': x}
+        Key of edge type:
+        data['src__tgt'] =  {'adj': adj}
+        data[src, tgt] = {'adj': adj}
+        data[src, rel, tgt] = {'adj': adj}
+
+        Key of node type:
+        data['node type'] = {'x': x}
     """
 
     def __init__(self, mapping: Optional[Mapping[str, Any]] = None, **kwargs):
@@ -493,3 +511,184 @@ class HeteroGraphData(BaseGraph):
             >>> (['paper', 'author'], [('author', 'writes', 'paper')])
         """
         return self.node_types, self.edge_types
+
+    # utils ###################################################
+    def validate(self) -> bool:
+        status = True
+
+        # check dangling nodes
+        node_types = set(self.node_types)
+        src_n_types = {src for src, _, _ in self.edge_types}
+        dst_n_types = {dst for _, _, dst in self.edge_types}
+        dangling_n_types = (src_n_types | dst_n_types) - node_types
+        if len(dangling_n_types) > 0:
+            status = False
+            warn(f"The node types {dangling_n_types} are referenced in edge "
+                 f"types, but do not exist as node types.")
+        dangling_n_types = node_types - (src_n_types | dst_n_types)
+        if len(dangling_n_types) > 0:
+            warn(f"The node types {dangling_n_types} are isolated, "
+                 f"i.e. are not referenced by any edge type.")
+
+        # check edges
+        for edge_type, edge_store in self._edges.items():
+            src, _, dst = edge_type
+            n_src_nodes = self[src].num_nodes
+            n_dst_nodes = self[dst].num_nodes
+
+            if n_src_nodes is None:
+                status = False
+                warn(f"`num_nodes` is undefined in node type `{src}`.")
+
+            if n_dst_nodes is None:
+                status = False
+                warn(f"`num_nodes` is undefined in node type `{src}`.")
+
+            if 'edge_index' in edge_store:
+                edge_index = edge_store.edge_index
+                if edge_index.dim() != 2 or edge_index.size(0) != 2:
+                    status = False
+                    warn(f"`edge_index` of edge type {edge_type} needs "
+                         f"to be shape [2, ...], "
+                         f"but found {edge_index.size()}.")
+
+                if edge_index.numel() > 0:
+                    if edge_index.min() < 0:
+                        status = False
+                        warn(f"`edge_index` of edge type {edge_type} needs "
+                             f"to be positive, "
+                             f"but found {int(edge_index.min())}.")
+                    if edge_index[0].max() >= n_src_nodes:
+                        status = False
+                        warn(f"src `edge_index` of edge type {edge_type} "
+                             f"needs to be in range of number of src "
+                             f"nodes {n_src_nodes}, "
+                             f"but found {int(edge_index[0].max())}.")
+                    if edge_index[1].max() >= n_dst_nodes:
+                        status = False
+                        warn(f"dst `edge_index` of edge type {edge_type} "
+                             f"needs to be in range of number of dst "
+                             f"nodes {n_dst_nodes}, "
+                             f"but found {int(edge_index[1].max())}.")
+        return status
+
+    def collect_attr(
+        self,
+        key: Union[str, NodeType, EdgeType],
+        exlude_None: bool = False,
+    ) -> Dict[Union[NodeType, EdgeType], Any]:
+        r"""Collects the attribute `key` from all node and edge types.
+
+        Args:
+            key (str): The attribute key to collect.
+            exlude_None (bool, optional): If set to `True`, will exclude
+                the `None` attribute values.
+                (default: `False`)
+
+        Example:
+            >>> data = HeteroGraphData()
+            >>> data['paper'].x = ...
+            >>> data['author'].x = ...
+            >>> data['author', 'writes', 'paper'].edge_index = ...
+            >>> data.collect_attr('x')
+            {'paper': ..., 'author': ...}
+        """
+        out = {}
+        for _type, store in chain(self._nodes.items(), self._edges.items()):
+            if hasattr(store, key):
+                if exlude_None and getattr(store, key) is None:
+                    continue
+                out[_type] = getattr(store, key)
+        return out
+
+    def to_csc_dict(
+        self,
+        device: Optional[torch.device] = None,
+        share_memory: bool = False,
+        is_sorted: bool = False,
+        node_time_d: Optional[Dict[NodeType, Tensor]] = None,
+        edge_time_d: Optional[Dict[EdgeType, Tensor]] = None,
+    ) -> Tuple[Dict[str, Tensor], Dict[str, Tensor], Dict[str, Optional[Tensor]]]:
+        r"""Convert the heterogeneous graph edge into a CSC format for sampling.
+        Returns dictionaries holding `colptr` and `row` indices as well as edge
+        permutations for each edge type, respectively.
+
+        Args:
+            device (torch.device, optional): The device to move the tensors to.
+            share_memory (bool, optional): If set to `True`, will share memory
+                with the original tensor.This can accelerate process when using
+                multiple processes.
+            is_sorted (bool, optional): If set to `True`, will not sort the edge
+                index by column.
+            node_time_d (Dict[str, Tensor], optional): The node time attribute
+                dictionary.
+            edge_time_d (Dict[str, Tensor], optional): The edge time attribute
+                dictionary.
+
+        Returns:
+            - `colptr_d` holds the column pointers for each edge type.
+            - `row_d` holds the row indices for each edge type.
+            - `perm_d` holds the permutation indices for each edge type.
+        """
+        col_ptr_d, row_d, perm_d = {}, {}, {}
+
+        for edge_type, store in self._edges.items():
+            store: EdgeStorage
+            src_node_time = (node_time_d or {}).get(edge_type[0], None)
+            edge_time = (edge_time_d or {}).get(edge_type, None)
+            out = store.to_csc(
+                device=device,
+                num_nodes=self[edge_type[0]].num_nodes,
+                share_memory=share_memory,
+                is_sorted=is_sorted,
+                src_node_time=src_node_time,
+                edge_time=edge_time,
+            )
+            col_ptr_d[edge_type] = out[0]
+            row_d[edge_type] = out[1]
+            perm_d[edge_type] = out[2]
+
+        return col_ptr_d, row_d, perm_d
+
+    def set_value_dict(self, key: str, value_d: Dict[Union[NodeType, EdgeType], Any]) -> None:
+        r"""Set the attribute `key` for each node and edge type in value dict.
+
+        Args:
+            key (str): The attribute key to set.
+            value (Dict[Union[NodeType, EdgeType], Any]): The attribute values.
+        """
+        for type_, value in value_d.items():
+            self[type_][key] = value
+
+    # dunder functions ########################################
+    def __copy__(self):
+        r"""Performs a shallow copy of the graph.
+
+        1. Copy the properties and private attributes.
+        2. Copy the `_mapping` storage (normal class attribute).
+        3. Copy the `_nodes` and `_edges` dict.
+            Copy the node and edge keys and storages.
+
+        Storage copy is done by `copy.copy` which is a shallow copy,
+        i.e. keeps the reference of the original tensor or other objects.
+        """
+        out = self.__class__.__new__(self.__class__)
+        for k, v in self.__dict__.items():
+            out.__dict__[k] = v
+        out.__dict__["_mapping"] = copy.copy(self._mapping)
+        out._mapping._parent = out
+        out.__dict__["_nodes"] = {}
+        out.__dict__["_edges"] = {}
+        for k, v in self._nodes.items():
+            out._nodes[k] = copy.copy(v)
+            out._nodes[k]._parent = out
+        for k, v in self._edges.items():
+            out._edges[k] = copy.copy(v)
+            out._edges[k]._parent = out
+        return out
+
+    def __repr__(self):
+        return (f"{self.__class__.__name__}(\n"
+                f"num_nodes={self.num_nodes}, \n"
+                f"node_types={self.node_types}, \n"
+                f"edge_types={self.edge_types})\n")
