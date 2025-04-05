@@ -3,7 +3,7 @@ Design of RTLs
 
 What is RTL?
 ----------------
-In machine learning, **Relational Table Learnings (RTLs)** typically refers to the learning of relational table data, which consists of multiple interconnected tables with significant heterogeneity. In an RTL, the input comprises multiple table signals that are interrelated.  A typical RTL architecture consists of one or more Transforms followed by multiple Convolution layers, as detailed in :doc:`Understanding Transforms <transforms>` and :doc:`Understanding Convolutions <convolutions>`.
+In machine learning, **Relational Table Learning (RTL)** refers to the process of learning from data organized in multiple interconnected tables, as seen in a relational database. These tables are linked through primary and foreign key relationships, enabling the extraction of meaningful patterns and insights. A typical RTL architecture consists of one or more Transforms followed by multiple Convolution layers, as detailed in :doc:`Understanding Transforms <transforms>` and :doc:`Understanding Convolutions <convolutions>`.
 
 
 Construct a BRIDGE
