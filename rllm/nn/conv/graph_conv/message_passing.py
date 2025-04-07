@@ -14,6 +14,16 @@ from rllm.nn.conv.graph_conv.aggrs import Aggregator
 class MessagePassing(torch.nn.Module, ABC):
     r"""Base class for message passing.
 
+    Message passing is the general framework for graph neural networks.
+    Its forward formula is defined as:
+
+    .. math::
+        \mathbf{x}_i^{(k+1)} = \text{Update}^{(k)}
+        \left( \mathbf{x}_i^{(k)},
+        \text{Aggregate}^{(k)} \left( \left\{ \text{Message}^{(k)} \left(
+        \mathbf{x}_i^{(k)}, \mathbf{x}_j^{(k)}, \mathbf{e}_{j,i}^{(k)}
+        \right) \right\}_{j \in \mathcal{N}(i)} \right) \right)
+
     Args:
         aggr (Optional[Union[str, Aggregator]]): The aggregation method to use.
             (default: :obj:`"sum"`)
@@ -132,46 +142,6 @@ class MessagePassing(torch.nn.Module, ABC):
         """
         edge_index, _ = self.__unify_edgeindex__(edge_index)
         return self.aggr_module(msgs, edge_index[1, :], dim=dim, dim_size=dim_size)
-
-    def aggregate_(
-            self,
-            msgs: Tensor,
-            edge_index: Union[Tensor, SparseTensor],
-            num_nodes: Optional[int],
-            aggr: str = 'sum'
-    ) -> Tensor:
-        r"""
-        Deprecated. Use :meth:`aggregate` instead.
-        Aggrate messages from src nodes :math:`v_j` to dst nodes :math:`v_i`, i.e.
-        compute the new features for each node by aggregating its neighbors' messages.
-
-        Default supported aggregation methods:
-        - sum (add)
-        - mean
-        - max
-
-        Args:
-            msgs (Tensor): The messages to aggregate.
-            edge_index (Union[Tensor, SparseTensor]): The edge indices.
-            num_nodes (Optional[int]): The number of nodes.
-            aggr (str): The aggregation method to use (default: 'sum').
-                Default supported options: 'sum', 'mean', 'max'.
-        """
-        edge_index, _ = self.__unify_edgeindex__(edge_index)
-        dst_index = edge_index[1, :]
-        output: Tensor = torch.zeros((num_nodes, msgs.size(1)), dtype=msgs.dtype, device=msgs.device)
-        if aggr == 'add' or aggr == 'sum':
-            return output.index_add_(0, dst_index, msgs)
-        elif aggr == 'mean':
-            count = torch.zeros(num_nodes, dtype=msgs.dtype, device=msgs.device)
-            count.index_add_(0, dst_index, torch.ones_like(dst_index, dtype=msgs.dtype))
-            count = torch.where(count == 0, torch.tensor(1e-10, dtype=count.dtype, device=count.device), count)
-            output.index_add_(0, dst_index, msgs)
-            return output / count.unsqueeze(-1)
-        elif aggr == 'max':
-            return output.scatter_(0, dst_index.unsqueeze(-1).expand_as(msgs), msgs)
-        else:
-            raise ValueError(f"Aggregation method {aggr} not supported.")
 
     def message_and_aggregate(self, edge_index: Union[Tensor, SparseTensor]) -> Tensor:
         r"""The message and aggregation interface to be overridden by subclasses."""

@@ -85,7 +85,7 @@ Next, we construct a simple :obj:`TabTransformer` model using the :obj:`TabTrans
         num_heads=8,
         metadata=data.metadata,
     ).to(device)
-    optimizer = torch.optim.Adam(model.parameters(),)
+    optimizer = torch.optim.Adam(model.parameters())
 
 
 Finally, we train our model and get the classification results on the test set.
@@ -96,7 +96,7 @@ Finally, we train our model and get the classification results on the test set.
         for batch in train_loader:
             x, y = batch
             pred = model(x)
-            loss = F.cross_entropy(pred, y)
+            loss = F.cross_entropy(pred, y.long())
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -104,12 +104,14 @@ Finally, we train our model and get the classification results on the test set.
     with torch.no_grad():
         model.eval()
         correct = 0
+        total = 0
         for tf in test_loader:
             x, y = batch
             pred = model(x)
             pred_class = pred.argmax(dim=-1)
             correct += (y == pred_class).sum()
-        acc = int(correct) / len(test_dataset)
+            total += len(y)
+        acc = int(correct) / total
         
     print(f'Accuracy: {acc:.4f}')
     >>> 0.8082

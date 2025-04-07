@@ -16,16 +16,16 @@ First, we need to load the Cora dataset, add self-loops to the adjacency matrix,
 
     import os.path as osp
 
+    import torch
+
     from rllm.datasets import PlanetoidDataset
     from rllm.transforms.graph_transforms import GCNTransform
 
-    # Set random seed and device
-    torch.manual_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load dataset
-    path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-    data = PlanetoidDataset(path, args.dataset)[0]
+    path = osp.join(osp.dirname(osp.realpath(__file__)), "data")
+    data = PlanetoidDataset(path, "cora")[0]
 
     # Transform data
     transform = GCNTransform()
@@ -35,20 +35,20 @@ Next, we can construct a two-layer GCN and use ReLU as the activation function:
 
 .. code-block:: python
 
-    import torch
     import torch.nn.functional as F
     from rllm.nn.conv.graph_conv import GCNConv
 
     class GCN(torch.nn.Module):
-        def __init__(self, in_channels, hidden_channels, out_channels):
+        def __init__(self, in_dim, hidden_dim, out_dim, dropout):
             super().__init__()
-            self.conv1 = GCNConv(in_channels, hidden_channels)
-            self.conv2 = GCNConv(hidden_channels, out_channels)
+            self.dropout = dropout
+            self.conv1 = GCNConv(in_dim, hidden_dim)
+            self.conv2 = GCNConv(hidden_dim, out_dim)
 
         def forward(self, x, adj):
-            x = F.dropout(x, p=0.5, training=self.training)
+            x = F.dropout(x, p=self.dropout, training=self.training)
             x = F.relu(self.conv1(x, adj))
-            x = F.dropout(x, p=0.5, training=self.training)
+            x = F.dropout(x, p=self.dropout, training=self.training)
             x = self.conv2(x, adj)
             return x
 
@@ -59,14 +59,14 @@ We can initialize the optimizer and loss function.
     # Set up model, optimizer and loss function
     model = GCN(
         in_dim=data.x.shape[1],
-        hidden_dim=args.hidden_dim,
+        hidden_dim=16,
         out_dim=data.num_classes,
-        dropout=args.dropout,
+        dropout=0.5,
     ).to(device)
     optimizer = torch.optim.Adam(
         model.parameters(),
-        lr=args.lr,
-        weight_decay=args.wd,
+        lr=0.01,
+        weight_decay=5e-4,
     )
     loss_fn = torch.nn.CrossEntropyLoss()
 
