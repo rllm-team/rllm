@@ -1,6 +1,6 @@
-﻿rllm.transforms.utils.SVDFeatureReduction
+﻿rllm.transforms.graph\_transforms.SVDFeatureReduction
 =========================================
-.. currentmodule:: rllm.transforms.utils
+.. currentmodule:: rllm.transforms.graph_transforms
 
 .. autoclass:: SVDFeatureReduction
    :show-inheritance:

@@ -1,11 +1,10 @@
 Design of LLM Methods
 ===============
 
+Large language models (LLMs) excel at zero-shot tasks involving text.
+In this tutorial, we demonstrate how to use LLMs as predictors to label a subset of nodes, followed by applying Graph Neural Networks (GNNs) for node classification.
 
-Large language models excel in zero-shot tasks on text.
-This tutorial will show how to adopt LLMs as predictors to label some nodes, and then adopt GNNs for node classification.
-
-First, we load the original data and select nodes for annotation.
+We begin by loading the original dataset and selecting nodes for annotation.
 
 .. code-block:: python
 
@@ -14,41 +13,46 @@ First, we load the original data and select nodes for annotation.
     from rllm.datasets.tagdataset import TAGDataset
     from node_selection.node_selection import active_generate_mask
 
-    transform = T.Compose([
-        T.NormalizeFeatures('l2'),
-        T.GCNNorm()
-    ])
+    path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 
-    path = osp.join(osp.dirname(osp.realpath(__file__)), '../..', 'cached')
-    dataset = TAGDataset(path, 'citeseer', use_cache=False, transform=transform, force_reload=True)
+    transform = GCNTransform(normalize_features="l2")
+    dataset = TAGDataset(
+        path,
+        args.dataset,
+        use_cache=args.use_cache,
+        transform=transform,
+        force_reload=True,
+    )
     data = dataset[0]
     train_mask, val_mask, test_mask = active_generate_mask(data, method='Random')
-Next, we  query LLM for node label predictions and confidence scores.
+
+Next, we query LLM for node label predictions and confidence scores.
 
 .. code-block:: python
 
     import os
     import torch
-    from langchain_community.llms import LlamaCpp
     from annotation.annotation import annotate
+    from langchain_community.llms import LlamaCpp
     from rllm.llm.llm_module.langchain_llm import LangChainLLM
 
     model_path = "/path/to/llm"
     llm = LangChainLLM(LlamaCpp(model_path=model_path, n_gpu_layers=33))
     pl_indices = torch.nonzero(train_mask | val_mask, as_tuple=False).squeeze()
     data = annotate(data, pl_indices, llm)
+
 Here we define a simple GCN.
 
 .. code-block:: python
 
     import torch.nn.functional as F
-    from rllm.nn.conv.gcn_conv import GCNConv
+    from rllm.nn.conv import GCNConv
 
     class GCN(torch.nn.Module):
-        def __init__(self, in_channels, hidden_channels, out_channels):
+        def __init__(self, in_dim, hidden_dim, out_dim):
             super().__init__()
-            self.conv1 = GCNConv(in_channels, hidden_channels)
-            self.conv2 = GCNConv(hidden_channels, out_channels)
+            self.conv1 = GCNConv(in_dim, hidden_dim)
+            self.conv2 = GCNConv(hidden_dim, out_dim)
 
         def forward(self, x, adj):
             x = F.dropout(x, p=0.5, training=self.training)
@@ -56,6 +60,7 @@ Here we define a simple GCN.
             x = F.dropout(x, p=0.5, training=self.training)
             x = self.conv2(x, adj)
             return x
+
 Finally, we use the obtained pseudo-labels for GCN training.
 
 .. code-block:: python
@@ -104,9 +109,9 @@ Finally, we use the obtained pseudo-labels for GCN training.
             return accs
 
     model = GCN(
-        in_channels=data.x.shape[1],
-        hidden_channels=64,
-        out_channels=data.num_classes,
+        in_dim=data.x.shape[1],
+        hidden_dim=64,
+        out_dim=data.num_classes,
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
     masks = {'train_mask': train_mask, 'val_mask':val_mask, 'test_mask': test_mask}

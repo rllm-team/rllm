@@ -21,7 +21,7 @@ class NodeTransform(ABC):
                 data.x = self.forward(data.x)
         elif isinstance(data, HeteroGraphData):
             for store in data.node_stores:
-                if "x" not in store:
+                if "x" not in store or not store.is_bipartite():
                     continue
                 store.x = self.forward(store.x)
         elif isinstance(data, Tensor):

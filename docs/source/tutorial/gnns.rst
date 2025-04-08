@@ -8,9 +8,9 @@ In machine learning, **Graph Neural Networks (GNNs)** are a class of neural netw
 
 Construct a GCN 
 ----------------
-In this tutorial, we will discuss how to train a simple Graph Convolutional Network (GCN). Since their introduction, Graph Neural Networks (GNNs) have significantly impacted various fields such as social network analysis, recommendation systems, and link prediction. The GCN model, proposed in the paper `[Semi-supervised Classification with Graph Convolutional Networks] <https://arxiv.org/abs/1609.02907>`__, is one of the most classic models in GNN research. Next, we will build a simple GCN and use it to perform node classification on the Cora citation network dataset.
+In this tutorial, we will describe how to train a simple Graph Convolutional Network (GCN). Since their introduction, Graph Neural Networks (GNNs) have significantly impacted various fields such as social network analysis, recommendation systems, and link prediction. The GCN model, proposed in the paper `[Semi-supervised Classification with Graph Convolutional Networks] <https://arxiv.org/abs/1609.02907>`__, is one of the most classic models in GNN research. Next, we will build a simple GCN and use it to perform node classification on the Cora citation network dataset.
 
-First, we need to load the Cora dataset, add self-loops to the adjacency matrix, and normalize it:
+First, we load the Cora dataset and transform it using :obj:`GCNTransform`. :obj:`GCNTransform` refers to the data transformation process described in the original GCN paper, which includes adding self-loops to the adjacency matrix, applying symmetric normalization, and normalizing node features.
 
 .. code-block:: python
 
@@ -36,6 +36,7 @@ Next, we can construct a two-layer GCN and use ReLU as the activation function:
 .. code-block:: python
 
     import torch.nn.functional as F
+
     from rllm.nn.conv.graph_conv import GCNConv
 
     class GCN(torch.nn.Module):
@@ -52,7 +53,7 @@ Next, we can construct a two-layer GCN and use ReLU as the activation function:
             x = self.conv2(x, adj)
             return x
 
-We can initialize the optimizer and loss function.
+We can initialize the model, optimizer and loss function.
 
 .. code-block:: python
 
@@ -70,7 +71,7 @@ We can initialize the optimizer and loss function.
     )
     loss_fn = torch.nn.CrossEntropyLoss()
 
-Finally, we need to implement a :obj:`train()` function and a :obj:`test()` function, the latter of which does not require gradient tracking. The model can then be trained on the training and validation sets, and the classification results can be obtained from the test set.
+Finally, we train our model and get the classification results on the test set.
 
 .. code-block:: python
 

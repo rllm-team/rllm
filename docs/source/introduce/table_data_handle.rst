@@ -16,7 +16,7 @@ A table in rLLM is described by an instance of :class:`~rllm.data.table_data.Tab
 - :obj:`target_col` (optional): A string indicating target column for certain task.
 - :obj:`feat_dict`: A dictionary stores the `Tensor <https://pytorch.org/docs/stable/tensors.html#torch.Tensor>`__ of different :class:`~rllm.types.ColType`. Each column in tensor represents a column in the DataFrame :obj:`df`, corresponding to the column order in :obj:`col_types`.
 - :obj:`y` (optional): A tensor containing the target values for certain task.
-- :obj:`stats_dict`: Once a :class:`~rllm.data.table_data.TableData` is instantiated, each column will compute a set of statistics based on its :class:`~rllm.types.ColType`.
+- :obj:`metadata`: Once a :class:`~rllm.data.table_data.TableData` is instantiated, each column will compute a set of statistics based on its :class:`~rllm.types.ColType`.
 
 - For categorical features:
 
@@ -41,18 +41,18 @@ A table in rLLM is described by an instance of :class:`~rllm.data.table_data.Tab
 
 .. code-block:: python
 
-    from rllm.datasets.titanic import Titanic
     from rllm.types import ColType
+    from rllm.datasets.titanic import Titanic
 
     dataset = Titanic('data', forced_reload=True)[0]
 
-    dataset.col_types
+    print(dataset.col_types)
     >>> {'Survived': <ColType.CATEGORICAL: 'categorical'>, 'Pclass': <ColType.CATEGORICAL: 'categorical'>, ..., 'Embarked': <ColType.CATEGORICAL: 'categorical'>}
 
-    dataset.feat_dict.keys()
+    print(dataset.feat_dict.keys())
     >>> dict_keys([<ColType.CATEGORICAL: 'categorical'>, <ColType.NUMERICAL: 'numerical'>])
 
-    dataset.feat_dict[ColType.NUMERICAL]
+    print(dataset.feat_dict[ColType.NUMERICAL])
     >>> tensor([[22.0000,  1.0000,  0.0000,  7.2500],
                 [38.0000,  1.0000,  0.0000, 71.2833],
                 [26.0000,  0.0000,  0.0000,  7.9250],
@@ -61,7 +61,7 @@ A table in rLLM is described by an instance of :class:`~rllm.data.table_data.Tab
                 [26.0000,  0.0000,  0.0000, 30.0000],
                 [32.0000,  0.0000,  0.0000,  7.7500]])
 
-    dataset.feat_dict[ColType.CATEGORICAL]
+    print(dataset.feat_dict[ColType.CATEGORICAL])
     >>> tensor([[0, 0, 0],
                 [1, 1, 1],
                 [0, 1, 0],
@@ -70,30 +70,29 @@ A table in rLLM is described by an instance of :class:`~rllm.data.table_data.Tab
                 [1, 0, 1],
                 [0, 0, 2]])
 
-    dataset.y
+    print(dataset.y)
     >>> tensor([0, 1, 1,  ..., 0, 1, 0])
 
-    dataset.stats_dict[ColType.CATEGORICAL][0]
+    print(dataset.metadata[ColType.CATEGORICAL][0])
     >>> {<StatType.COUNT: 'COUNT'>: 3, <StatType.MOST_FREQUENT: 'MOST_FREQUENT'>: 2, <StatType.COLNAME: 'COLNAME'>: 'Pclass'}
 
-    dataset.stats_dict[ColType.NUMERICAL][0]
+    print(dataset.metadata[ColType.NUMERICAL][0])
     >>> {<StatType.MEAN: 'MEAN'>: 29.69911766052246, <StatType.MAX: 'MAX'>: 80.0, <StatType.MIN: 'MIN'>: 0.41999998688697815, <StatType.STD: 'STD'>: 14.526496887207031, <StatType.QUANTILES: 'QUANTILES'>: [0.41999998688697815, 20.125, 28.0, 38.0, 80.0], <StatType.COLNAME: 'COLNAME'>: 'Age'}
 
-Also, an instance of :class:`~rllm.data.table_data.TableData` contains many basic properties:
+An instance of :class:`~rllm.data.table_data.TableData` also includes several basic properties:
 
 .. code-block:: python
 
     print(dataset.num_cols)
+    >>> 7
 
     print(dataset.num_rows)
-
-    891
+    >>> 891
 
     print(dataset.num_classes)
+    >>> 2
 
-    2
-
-We support transferring the data in a :class:`~rllm.data.table_data.TableData` to devices supported by PyTorch.
+We support transferring the data in a :class:`~rllm.data.table_data.TableData` instance to devices supported by PyTorch.
 
 .. code-block:: python
 
@@ -105,31 +104,29 @@ We support transferring the data in a :class:`~rllm.data.table_data.TableData` t
 Common Benchmark Datasets (Table Part)
 ---------------------------------------
 
-rLLM contains a large number of common benchmark datasets. The list of all datasets are available in :mod:`~rllm.datasets`. Our dataset includes graph datasets and tabular datasets. We use tabular data for the demonstration.
+rLLM contains a large number of common benchmark datasets.
+A complete list of available datasets can be found in :mod:`~rllm.datasets`.
+The collection consists of both graph and tabular datasets, with tabular data being used for demonstration purposes here.
 
-Initializing tabular datasets is straightforward in rLLM. An initialization of a dataset will automatically download its raw files and process its columns.
+Initializing tabular datasets is straightforward in rLLM.
+Upon initialization, the dataset automatically downloads its raw files and processes the columns.
 
-In the below example, we will use one of the pre-loaded datasets, containing the Titanic passengers.
+In the following example, we will use one of the pre-loaded datasets, which contains data on Titanic passengers.
 
 .. code-block:: python
 
-    from rllm.datasets.titanic import Titanic
+    from rllm.datasets import Titanic
 
     dataset = Titanic('data', forced_reload=True)[0]
 
     print(len(dataset))
-
-    891
+    >>> 891
 
     print(dataset.feat_cols)
-
-    ['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Embarked']
+    >>> ['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Embarked']
 
     print(dataset.df.head(5))
-
-    .. code-block:: none
-
-        PassengerId   Survived   Pclass    ...      Cabin     Embarked
+    >>> PassengerId   Survived   Pclass    ...      Cabin     Embarked
         1                    0        3    ...        NaN            S
         2                    1        1    ...        C85            C
         3                    1        3    ...        NaN            S
@@ -138,7 +135,9 @@ In the below example, we will use one of the pre-loaded datasets, containing the
 
         [5 rows x 11 columns]
 
-rLLM also supports a custom dataset, so that you can use rLLM for your own problem. Assume you prepare your `pandas.DataFrame`_ as :obj:`df` with five columns: :obj:`cat1`, :obj:`cat2`, :obj:`num1`, :obj:`num2`, and :obj:`y`. Creating :class:`~rllm.data.table_data.TableData` object is very easy.
+rLLM also supports custom datasets, enabling the use of rLLM for specific problems. 
+Suppose a `pandas.DataFrame`_ named :obj:`df` is prepared with five columns: :obj:`cat1`, :obj:`cat2`, :obj:`num1`, :obj:`num2`, and :obj:`y`.
+Creating a :class:`~rllm.data.table_data.TableData` object is very easy.
 
 .. _pandas.DataFrame: http://pandas.pydata.org/pandas-docs/dev/reference/api/pandas.DataFrame.html#pandas.DataFrame
 
@@ -148,13 +147,13 @@ rLLM also supports a custom dataset, so that you can use rLLM for your own probl
     from rllm.data.TableData import TableData
 
     # Specify the coltype of each column with a dictionary.
-
     col_types = {
-        "cat1": ColType.CATEGORICAL, "cat2": ColType.CATEGORICAL,
-        "num1": ColType.NUMERICAL, "num2": ColType.NUMERICAL,
-        "y": ColType.CATEGORICAL
+        "cat1": ColType.CATEGORICAL,
+        "cat2": ColType.CATEGORICAL,
+        "num1": ColType.NUMERICAL,
+        "num2": ColType.NUMERICAL,
+        "y": ColType.CATEGORICAL,
     }
 
     # Set "y" as the target column.
-
     dataset = TableData(df, col_types=col_types, target_col="y")

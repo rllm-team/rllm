@@ -37,7 +37,7 @@ First, we implement the row normalization function :obj:`normalize_features`. Th
         else:
             return X
 
-Next, we extend this function into a class :obj:`NormalizeFeatures`. The class needs to inherit from a base class:  the transform that operates on the nodes inherits from :obj:`NodeTransform`, while the one that operates on edges inherits from :obj:`EdgeTransform`.
+Next, we extend this function into a class :obj:`NormalizeFeatures`. The class needs to inherit from a base class: the transform that operates on the nodes inherits from :obj:`NodeTransform`, while the one that operates on edges inherits from :obj:`EdgeTransform`.
 
 .. code-block:: python
 
@@ -61,7 +61,7 @@ Similarly, we can implement additional operations, such as :obj:`adding self-loo
             adj = add_remaining_self_loops(adj)
             return symmetric_norm(adj)
 
-Finally, :obj:`GCNTransform` is a subclass of the :obj:`GraphTransform` class. To use it, you simply pass a list of transformations to the parent class.
+Finally, :obj:`GCNTransform` inherits from the :obj:`GraphTransform` class. Therefore, we simply pass a list of transformations to the parent class.
 
 .. code-block:: python
 
@@ -79,8 +79,7 @@ Construct a TabTransformerTransform
 ----------------
 :obj:`TabTransformer` is a typical Transformer-based deep learning method for tabular data. In addition to the default handling of missing values, :obj:`TabTransformerTransform` also performs dimensionality expansion (also called pre-encoding in our project) on numerical features. Currently, the submodules of :obj:`TableTransform` are relatively simple, so they are not abstracted into separate functions.
 
-First, we implement the :obj:`StackNumerical` submodule. This submodule first applies standard normalization to the columns and then performs dimensionality expansion.
-
+First, we implement the :obj:`StackNumerical` transform, which inherits from the :obj:`ColTransform` base class. This transform initially applies standard normalization to the input columns, followed by dimensionality expansion.
 .. code-block:: python
 
     class StackNumerical(ColTransform):
@@ -108,8 +107,7 @@ First, we implement the :obj:`StackNumerical` submodule. This submodule first ap
                 )
             return data
 
-Next, :obj:`TabTransformerTransform` inherits from the :obj:`TableTransform` class. The :obj:`TableTransform` class serves as a base class for table transformations, and its default operation is filling missing values. :obj:`TableTransform` also requires an additional member variable, metadata, which must be explicitly defined in :obj:`TabTransformerTransform`.
-
+Next, the :obj:`TabTransformerTransform` class inherits from the :obj:`TableTransform` base class. The :obj:`TableTransform` class provides a foundation for table transformations, with its default behavior being the imputation of missing values. Additionally, :obj:`TableTransform` requires a member variable, metadata, which must be explicitly defined within :obj:`TabTransformerTransform`.
 .. code-block:: python
 
     class TabTransformerTransform(TableTransform):
@@ -124,7 +122,7 @@ Next, :obj:`TabTransformerTransform` inherits from the :obj:`TableTransform` cla
             )
             self.metadata = metadata
 
-:obj:`TableTransform` can also have custom methods, for example, :obj:`TabTransformerTransform` also defines its own reset_parameters method.
+The :obj:`TableTransform` class can also support custom methods; for instance, :obj:`TabTransformerTransform` defines its own reset_parameters method.
 
 .. code-block:: python
 

@@ -7,9 +7,9 @@ In machine learning, **Table/Tabular Neural Networks (TNNs)** are recently emerg
 
 Construct a TabTransformer
 ----------------
-In this tutorial, we will learn the basic workflow of using `[TabTransformer] <https://arxiv.org/abs/2012.06678>`__ for tabular classification, i.e., predicting the category of a row in a table.
+In this tutorial, we will learn the basic workflow of using `[TabTransformer] <https://arxiv.org/abs/2012.06678>`__ for tabular classification, i.e., predicting the category of a row in a table. Next, we will build a TabTransformer and use it to perform node classification on the :obj:`Titanic` dataset.
 
-First, we use the :obj:`Titanic` dataset as an example, which can be loaded using the built-in dataloaders. Also, we instantiate a :obj:`TabTransformerTransform`, corresponding to the :obj:`TabTransformer` method. After applying the transformation and shuffling the data, we proceed to split the dataset into training, testing, and validation sets, following standard practices in deep learning.
+First, we load the :obj:`Titanic` dataset. Also, we instantiate a :obj:`TabTransformerTransform`, corresponding to the :obj:`TabTransformer` method. After applying the transformation and shuffling the data, we proceed to split the dataset into training, testing, and validation sets, following standard practices in deep learning.
 
 .. code-block:: python
 
@@ -42,6 +42,7 @@ Next, we construct a simple :obj:`TabTransformer` model using the :obj:`TabTrans
 .. code-block:: python
     
     from rllm.nn.conv.table_conv import TabTransformerConv
+    
     # Define model
     class TabTransformer(torch.nn.Module):
         def __init__(
@@ -76,7 +77,11 @@ Next, we construct a simple :obj:`TabTransformer` model using the :obj:`TabTrans
             x = torch.cat(list(x.values()), dim=1)
             out = self.fc(x.mean(dim=1))
             return out
-            
+
+We can initialize the model and optimizer.
+
+.. code-block:: python
+          
     # Set up model and optimizer
     model = TabTransformer(
         hidden_dim=emb_dim,
