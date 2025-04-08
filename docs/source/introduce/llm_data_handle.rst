@@ -3,7 +3,9 @@ LLM Data Handle
 
 LLM Handler
 ----------------------
-We have implemented a simple LLM mechanism composed of three parts: Prompt, LLM, and Output Parser. We recommend using Langchain `[Introduction | 🦜️🔗 LangChain] <https://python.langchain.com/v0.1/docs/get_started/introduction/>`__  to initialize the LLM to provide a unified interface. Here is a simple example:
+We have implemented a simple LLM mechanism composed of three parts: Prompt, LLM, and Output Parser.
+We recommend using Langchain `[Introduction | 🦜️🔗 LangChain] <https://python.langchain.com/v0.1/docs/get_started/introduction/>`__  to initialize the LLM, which provides a unified interface.
+Here is a simple example:
 
 .. code-block:: python
 
@@ -20,11 +22,12 @@ We have implemented a simple LLM mechanism composed of three parts: Prompt, LLM,
 
     llm = LangChainLLM(OpenAI(openai_api_key="YOUR_API_KEY"), output_parser=output_parser)
 
-
     output = llm.predict(prompt, topic='dogs')
     print(output)
 
-We have also implemented two utility classes: :class:`~rllm.llm.Predictor` and :class:`~rllm.llm.Enhancer`. The former can annotate data with pseudo-labels, while the latter can generate explanations for the data to obtain information, or embed the additional information. The data needs to be organized in the form of a `pandas.DataFrame`_.
+We have also implemented two utility classes: :class:`~rllm.llm.Predictor` and :class:`~rllm.llm.Enhancer`.
+The former can annotate data with pseudo-labels, while the latter can generate explanations for the data to obtain information or embed the additional information.
+The data needs to be organized in the form of a `pandas.DataFrame`_.
 
 .. _pandas.DataFrame: http://pandas.pydata.org/pandas-docs/dev/reference/api/pandas.DataFrame.html#pandas.DataFrame
 
@@ -86,9 +89,9 @@ We have also implemented two utility classes: :class:`~rllm.llm.Predictor` and :
 
 Enhancer
 -------------
-In this section, we will show how to use the enhancer to augment table information with textual enhancements and encode it into vectors.
+In this section, we will demonstrate how to use the enhancer to augment table information with textual enhancements and encode it into vectors.
 
-First, we need to initialize the large language models for interpreting the tables and performing encoding:
+First, it is necessary to initialize the large language models for interpreting the tables and performing the encoding:
 
 .. code-block:: python
 
@@ -109,7 +112,7 @@ Next, initialize the enhancer instance:
     scenario = 'Your_task_description'
     enhancer = Enhancer(llm=llm, llm_embed=llm_embed, type='explanation|embedding')
 
-Finally, simply pass the data to the enhancer to quickly obtain interpreted and encoded semantic vectors of the tabular data!
+Finally, the data can be passed to the enhancer to quickly obtain interpreted and encoded semantic vectors of the tabular data.
 
 .. code-block:: python
 

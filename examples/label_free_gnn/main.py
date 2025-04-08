@@ -18,14 +18,14 @@ import time
 
 import torch
 import torch.nn.functional as F
+from annotation.annotation import annotate
 from langchain_community.llms import LlamaCpp
 
 sys.path.append("../")
 
-from rllm.transforms.graph_transforms import GraphTransform, GCNNorm, NormalizeFeatures
-from annotation.annotation import annotate
 from node_selection.node_selection import active_generate_mask, post_filter
 from rllm.datasets.tagdataset import TAGDataset
+from rllm.transforms.graph_transforms import GCNTransform
 from rllm.llm.llm_module.langchain_llm import LangChainLLM
 from rllm.nn.conv.graph_conv import GCNConv
 
@@ -38,10 +38,10 @@ parser.add_argument(
     help="dataset",
 )
 parser.add_argument(
-    "--hidden_channels",
+    "--hidden_dim",
     type=int,
     default=64,
-    help="number of hidden channels in GCN",
+    help="number of hidden dim in GCN",
 )
 parser.add_argument(
     "--active_method",
@@ -97,7 +97,7 @@ args = parser.parse_args()
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 
-transform = GraphTransform([NormalizeFeatures("l2"), GCNNorm()])
+transform = GCNTransform(normalize_features="l2")
 dataset = TAGDataset(
     path,
     args.dataset,
@@ -107,16 +107,33 @@ dataset = TAGDataset(
 )
 data = dataset[0]
 
+method = args.active_method
+if args.post_filter:
+    method = "PS-" + method
+if args.weighted_loss:
+    method += "-W"
+
+train_mask, val_mask, test_mask = active_generate_mask(
+    data, method=args.active_method, val=args.val, budget=args.budget
+)
+
 if not args.use_cache:
     model_path = "/path/to/llm"
     llm = LangChainLLM(LlamaCpp(model_path=model_path, n_gpu_layers=33))
+    pl_indices = torch.nonzero(train_mask | val_mask, as_tuple=False).squeeze()
+    data = annotate(data, pl_indices, llm, args.n_tries)
+
+if args.post_filter:
+    filtered_mask = post_filter(data, train_mask | val_mask, args.filter_strategy)
+    train_mask = train_mask & filtered_mask
+    val_mask = val_mask & filtered_mask
 
 
 class GCN(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels):
+    def __init__(self, in_dim, hidden_dim, out_dim):
         super().__init__()
-        self.conv1 = GCNConv(in_channels, hidden_channels)
-        self.conv2 = GCNConv(hidden_channels, out_channels)
+        self.conv1 = GCNConv(in_dim, hidden_dim)
+        self.conv2 = GCNConv(hidden_dim, out_dim)
 
     def forward(self, x, adj):
         x = F.dropout(x, p=0.5, training=self.training)
@@ -175,29 +192,11 @@ class Trainer:
 
 acc_list = []
 
-method = args.active_method
-if args.post_filter:
-    method = "PS-" + method
-if args.weighted_loss:
-    method += "-W"
-
-print(f"using dataset: {args.dataset}, method: {method}")
-
-train_mask, val_mask, test_mask = active_generate_mask(
-    data, method=args.active_method, val=args.val, budget=args.budget
-)
-if not args.use_cache:
-    pl_indices = torch.nonzero(train_mask | val_mask, as_tuple=False).squeeze()
-    data = annotate(data, pl_indices, llm, args.n_tries)
-if args.post_filter:
-    filtered_mask = post_filter(data, train_mask | val_mask, args.filter_strategy)
-    train_mask = train_mask & filtered_mask
-    val_mask = val_mask & filtered_mask
 
 model = GCN(
-    in_channels=data.x.shape[1],
-    hidden_channels=args.hidden_channels,
-    out_channels=data.num_classes,
+    in_dim=data.x.shape[1],
+    hidden_dim=args.hidden_dim,
+    out_dim=data.num_classes,
 )
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
 masks = {"train_mask": train_mask, "val_mask": val_mask, "test_mask": test_mask}

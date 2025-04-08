@@ -8,9 +8,9 @@ In machine learning, **Relational Table Learning (RTL)** refers to the process o
 
 Construct a BRIDGE
 ----------------
-We can jointly construct a `[BRIDGE] <https://arxiv.org/abs/2407.20157>`__ using TNNs and GNNs to address multi-table relational learning problems.
+In this tutorial, we will describe how to train a BRIDGE on multiple interconnected tables. The BRIDGE, proposed in the paper `[rLLM: Relational Table Learning with LLMs] <https://arxiv.org/abs/2407.20157>`__, integrates TNNs and GNNs to learn from both tabular features and non-tabular features in relational table data. Next, we will construct a BRIDGE and evaluate its node classification performance on the :obj:`Table-MovieLens1M` dataset(hereafter referred to as :obj:`TML1M`).
 
-First, let's create datasets with Table-MovieLens1M dataset as an example.
+First, we load the :obj:`TML1M` dataset and extract the necessary tables.
 
 .. code-block:: python
 
@@ -35,9 +35,9 @@ First, let's create datasets with Table-MovieLens1M dataset as an example.
     emb_size = movie_embeddings.size(1)
     user_size = len(user_table)
 
-Then, since user and movie are entities, and rating is an interaction relationship, we need to construct a graph to represent the interaction relationships.
+Then, since users and movies are entities, and ratings capture their interactions, we need to construct a graph to represent these relationships.
 
-For convenience, we will construct a basic homogeneous graph here, even though movie and user are heterogeneous at the node level.
+For convenience, we will construct a basic homogeneous graph here, although a heterogeneous graph would be more appropriate given the inherent heterogeneity of user and movie nodes.
 
 .. code-block:: python
 
@@ -59,7 +59,7 @@ For convenience, we will construct a basic homogeneous graph here, even though m
         n_all=user_size + movie_embeddings.size(0),
     ).to(device)
 
-Additionally, the :obj:`BRIDGE` method requires separate transformations for the table data and the graph data. Similarly, after data processing, the dataset is split into training, validation, and test sets.
+Additionally, the :obj:`BRIDGE` method necessitates distinct transformations for the table and graph data. After data processing, the dataset is split into training, validation, and test sets.
 
 .. code-block:: python
 
@@ -81,8 +81,7 @@ Additionally, the :obj:`BRIDGE` method requires separate transformations for the
         user_table.test_mask,
     )
 
-
-After initializing the data, we instantiate the model. Since the task of the TML1M dataset is user age classification, we perform :obj:`TableEncoder` only on the user table and extract embeddings for all users through :obj:`GraphEncoder`.
+After processing the data, we instantiate the BRIDGE model. Since the task of the TML1M dataset is user age classification, we perform :obj:`TableEncoder` only on the user table, while using the precomputed embeddings for movies. We then employ the :obj:`GraphEncoder` to learn representations for both users and movies.
 
 .. code-block:: python
     
@@ -108,7 +107,7 @@ After initializing the data, we instantiate the model. Since the task of the TML
     ).to(device)
     optimizer = torch.optim.Adam(model.parameters())
 
-Finally, we jointly train the model and evaluate the results on the test set.
+Finally, we train the model on the training and validation sets and evaluate the results on the test set.
 
 .. code-block:: python
 

@@ -7,9 +7,10 @@ Graph data typically includes node connectivity and features. In rLLM, a simple 
 It generally contains the following information:
 
 - :obj:`data.x`: Node feature matrix, shape: :obj:`[num_nodes, feature_dims]`
-- :obj:`data.adj`: Adjacency matrix representing graph structure
+- :obj:`data.adj`: Adjacency matrix representing graph structure, shape: :obj:`[num_nodes, num_nodes]`
 - :obj:`data.y`: Node labels used for supervised training
-We can create an instance to store graph data as follows:
+
+An instance for storing graph data can be created as follows:
 
 .. code-block:: python
 
@@ -23,7 +24,7 @@ We can create an instance to store graph data as follows:
                         [0, 0, 1]])
     data = GraphData(x=x, y=y, adj=adj)
 
-:class:`~rllm.data.GraphData` also provides various convenient functions to infer information from the graph data and perform operations on it, such as:
+The :class:`~rllm.data.GraphData` also provides various convenient functions fro inferring information from graph data and performing operations on it, such as:
 
 .. code-block:: python
 
@@ -47,17 +48,19 @@ We can create an instance to store graph data as follows:
 
 Graph Transforms
 -----------------------
-The :obj:`Transform` module offers various methods to modify and preprocess graph data features stored in subclasses of  :class:`~rllm.data.BaseGraph` , such as :class:`~rllm.data.GraphData` and :class:`~rllm.data.HeteroGraphData` . These methods can be explicitly called after initialization or implicitly invoked by passing them as :obj:`transform` parameters to dataset loaders. Additionally, the module supports using the :class:`~rllm.transforms.Compose` class to chain multiple methods for simplified usage:
+The :obj:`Transform` module provides a range of methods for modifying and preprocessing graph data features contained in subclasses of :class:`~rllm.data.BaseGraph`, such as :class:`~rllm.data.GraphData` and :class:`~rllm.data.HeteroGraphData`.
+These methods can be applied explicitly after initialization or implicitly by specifying them as the :obj:transform parameter when loading datasets. 
+Furthermore, the module supports the :class:`~rllm.transforms.GraphTransform` class, which allows users to chain multiple transformation methods for streamlined usage.
 
 .. code-block:: python
 
     import os.path as osp
-    import rllm.transforms as T
+    import rllm.transforms.graph_transform as GT
     from rllm.datasets.planetoid import PlanetoidDataset
         
-    transform = T.Compose([
-    T.NormalizeFeatures('l2'), # Normalize node features
-    T.GCNNorm() # add self-loops and row-normalize adjacency
+    transform = GT.GraphTransform([
+        GT.NormalizeFeatures('l2'), # Normalize node features
+        GT.GCNNorm() # add self-loops and row-normalize adjacency
     ])
 
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data')
