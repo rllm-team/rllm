@@ -9,7 +9,7 @@ import torch
 from torch import Tensor
 import numpy as np
 
-from rllm.utils import is_torch_sparse_tensor, lexsort, index2ptr
+from rllm.utils import is_torch_sparse_tensor, _to_csc
 from rllm.data.view import KeysView, ValuesView, ItemsView
 
 
@@ -293,61 +293,26 @@ class EdgeStorage(BaseStorage):
             Tuple[Tensor, Tensor, Optional[Tensor]]: The column indices,
                 row indices, and the permutation index.
         """
-        if "adj" in self:
-            adj = self["adj"]
-            if is_torch_sparse_tensor(adj):
-                if src_node_time is not None or edge_time is not None:
-                    raise NotImplementedError(
-                        "Do not support temporal convert for torch sparse tensor."
-                    )
-                csc_t: torch.sparse.Tensor = adj.to_sparse_csc()
-                col_ptr = csc_t.ccol_indices()
-                row = csc_t.row_indices()
-                perm = None
-
-        elif "edge_index" in self and isinstance(self.edge_index, Tensor):
-            row, col = self.edge_index[0], self.edge_index[1]
-
-            if num_nodes is None:
-                num_nodes = max(row.max(), col.max()) + 1
-
-            if not is_sorted:
-                if src_node_time is None and edge_time is None:
-                    perm = torch.argsort(col)
-                    col = col[perm]
-                    row = row[perm]
-                elif edge_time is not None and src_node_time is None:
-                    if isinstance(edge_time, str):
-                        assert edge_time in self
-                        edge_time = self[edge_time]
-                    perm = lexsort(keys=[edge_time, col])
-                    col = col[perm]
-                    row = row[perm]
-                elif src_node_time is not None and edge_time is None:
-                    perm = lexsort(keys=[src_node_time, col])
-                    col = col[perm]
-                    row = row[perm]
-                else:
-                    raise NotImplementedError(
-                        "Only support one temporal sort for now."
-                        "But both `src_node_time` and `edge_time` are not `None`."
-                    )
-            col_ptr = index2ptr(col, num_nodes)
-
+        if hasattr(self, "edge_index"):
+            input = self["edge_index"]
+        elif hasattr(self, "adj"):
+            input = self["adj"]
         else:
             raise ValueError("No edge found. Edge type should be either `adj` or `edge_index`.")
 
-        col_ptr = col_ptr.to(device=device)
-        row = row.to(device=device)
-        perm = perm.to(device=device) if perm is not None else None
+        if isinstance(edge_time, str):
+            assert edge_time in self
+            edge_time = self[edge_time]
 
-        if not col_ptr.is_cuda and share_memory:
-            col_ptr.share_memory_()
-            row.share_memory_()
-            if perm is not None:
-                perm.share_memory_()
-
-        return col_ptr, row, perm
+        return _to_csc(
+            input=input,
+            device=device,
+            num_nodes=num_nodes,
+            share_memory=share_memory,
+            is_sorted=is_sorted,
+            src_node_time=src_node_time,
+            edge_time=edge_time,
+        )
 
 
 def recursive_apply(data: Any, func: Callable) -> Any:

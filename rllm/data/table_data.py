@@ -642,7 +642,7 @@ class TableData(BaseTable):
         return out
 
     def _tensor_slice(self, index: Tensor) -> TableData:
-        r"""Tensor slice only apply to feat_dict,
+        r"""Tensor slice only apply to feat_dict, and y
         i.e. slice materialized Tensor data.
         Other attributes like `df`, `metadata` are shallow copied
         to save memory.
@@ -660,7 +660,8 @@ class TableData(BaseTable):
         for ctype in self.feat_dict.keys():
             out.feat_dict[ctype] = self.feat_dict[ctype][index]
 
-        if hasattr(self, '_len'):
-            out.__dict__['_len'] = index.numel()
+        out.y = self.y[index]
+
+        out.__dict__['_len'] = index.numel()
 
         return out

@@ -14,8 +14,11 @@ from .seg_reduce import (
 )
 
 from .graph_utils import (
+    adj2edge_index,
     sort_edge_index,
-    index2ptr,)
+    index2ptr,
+    _to_csc
+)
 
 from ._sort import lexsort
 from ._remap import remap_keys
@@ -31,6 +34,8 @@ __all__ = [
     'is_undirected',
     'to_undirected',
     'set_values',
+    "adj2edge_index",
+    "_to_csc",
     "seg_sum",
     'seg_softmax',
     'seg_softmax_',

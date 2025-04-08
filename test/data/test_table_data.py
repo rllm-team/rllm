@@ -17,7 +17,7 @@ def test_table_data():
     col_types = {"cat_1": ColType.CATEGORICAL,
                  "cat_2": ColType.NUMERICAL,
                  "cat_3": ColType.NUMERICAL}
-    table = TableData(df, col_types)
+    table = TableData(df, col_types, target_col="cat_2")
 
     # test lazy materialize
     table.lazy_materialize(keep_df=True)
@@ -36,6 +36,9 @@ def test_table_data():
     assert len(table) == 4 and len(n_table) == 2
     assert id(n_table.df) == id(table.df)
     assert id(n_table.metadata) == id(table.metadata)
+
+    assert hasattr(n_table, "y")
+    assert n_table.y.numel() == 2
 
 
 def test_shuffle():

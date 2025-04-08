@@ -46,6 +46,7 @@ class BaseGraph:
 
     def to(self, device: Union[int, str], *args: str, non_blocking: bool = False):
         r"""Performs device conversion of the whole dataset."""
+        self.device = f"cuda:{device}" if isinstance(device, int) else device
         return self.apply(
             lambda x: x.to(device=device, non_blocking=non_blocking), *args
         )

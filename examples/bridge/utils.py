@@ -92,6 +92,7 @@ def build_homo_graph(
 
     # Construct graph
     graph = GraphData(x=x, y=y, adj=adj)
+    graph.num_nodes = n_all
 
     return graph
 

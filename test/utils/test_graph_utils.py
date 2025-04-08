@@ -1,6 +1,6 @@
 import torch
 
-from rllm.utils import sort_edge_index, index2ptr
+from rllm.utils import sort_edge_index, index2ptr, _to_csc
 
 
 def test_sort_edge_index():
@@ -24,3 +24,14 @@ def test_index2ptr():
     index = torch.tensor([0, 1, 1, 2, 2, 3])
     r = index2ptr(index)
     assert torch.equal(r, torch.tensor([0, 1, 3, 5, 6]))
+
+
+def test_to_csc():
+    edge_index = torch.tensor([
+        [0, 0, 0, 1, 1, 1, 2, 2, 2],
+        [0, 1, 2, 0, 1, 2, 0, 1, 2]
+    ], dtype=torch.long)
+
+    col_ptr, row, _ = _to_csc(edge_index)
+    assert torch.equal(col_ptr, torch.tensor([0, 3, 6, 9]))
+    assert torch.equal(row, torch.tensor([0, 1, 2, 0, 1, 2, 0, 1, 2]))
