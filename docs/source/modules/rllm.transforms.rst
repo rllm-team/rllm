@@ -67,3 +67,14 @@ Model Level
     TableTransform
     DefaultTableTransform
     TabTransformerTransform
+
+Utils
+-----------------------
+
+.. currentmodule:: rllm.transforms.Utils
+
+.. autosummary::
+   :nosignatures:
+   :template: autosummary/class.rst
+
+    RemoveTrainingClasses

@@ -17,6 +17,7 @@ import argparse
 import time
 import sys
 import os.path as osp
+from copy import deepcopy
 
 import torch
 from sklearn.linear_model import LogisticRegression
@@ -25,7 +26,8 @@ sys.path.append("./")
 sys.path.append("../")
 from rllm.datasets import PlanetoidDataset
 from rllm.nn.models import RECT_L
-from rllm.transforms.graph_transforms import RECTTransform, RemoveTrainingClasses
+from rllm.transforms.graph_transforms import RECTTransform
+from rllm.transforms.utils import RemoveTrainingClasses
 
 
 parser = argparse.ArgumentParser()
@@ -49,7 +51,7 @@ data = PlanetoidDataset(path, args.dataset, force_reload=True)[0]
 # Transform data
 transform = RECTTransform()
 data = transform(data)
-zs_data = RemoveTrainingClasses(args.unseen_classes)(data).to(device)
+zs_data = RemoveTrainingClasses(args.unseen_classes)(deepcopy(data)).to(device)
 
 
 # Set up model, optimizer and loss function

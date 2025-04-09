@@ -1,12 +1,11 @@
 from typing import List
-from copy import deepcopy
 
 from rllm.data.graph_data import GraphData
-from rllm.transforms.graph_transforms import NodeTransform
-from rllm.transforms.graph_transforms.functional import remove_training_classes
+from rllm.transforms.utils import BaseTransform
+from rllm.transforms.utils.functional import remove_training_classes
 
 
-class RemoveTrainingClasses(NodeTransform):
+class RemoveTrainingClasses(BaseTransform):
     r"""Removes classes from the node-level training set as given by
     `data.train_mask`, *e.g.*, in order to get a zero-shot label scenario.
 
@@ -16,9 +15,6 @@ class RemoveTrainingClasses(NodeTransform):
 
     def __init__(self, classes: List[int]):
         self.classes = classes
-
-    def __call__(self, data):
-        return self.forward(deepcopy(data))
 
     def forward(self, data: GraphData):
         assert hasattr(data, "train_mask")
