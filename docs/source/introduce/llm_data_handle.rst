@@ -31,6 +31,8 @@ The data needs to be organized in the form of a `pandas.DataFrame`_.
 
 .. _pandas.DataFrame: http://pandas.pydata.org/pandas-docs/dev/reference/api/pandas.DataFrame.html#pandas.DataFrame
 
+Here's an example of using :class:`~rllm.llm.Predictor`:
+
 .. code-block:: python
 
     import pandas as pd
@@ -62,6 +64,8 @@ The data needs to be organized in the form of a `pandas.DataFrame`_.
     # Two parameters should be provided: `scenario` and `labels`
     output = predictor(df, scenario='career classification', labels='doctor, engineer')
     print(output)
+
+Below is an example demonstrating the usage of :class:`~rllm.llm.Enhancer`:
 
 .. code-block:: python
 

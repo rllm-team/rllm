@@ -1,4 +1,4 @@
-Understanding Convolution
+ Understanding Convolution
 ===============
 
 What is a Convolution?
@@ -40,6 +40,7 @@ The aggregation step combines the retrieved neighbor information according to a 
 And the update step then assigns the aggregated message to the next-layer representation of node :math:`i`, denoted as :math:`\mathbf{x}_i^{(k+1)}`.
 
 Next, We examine the implementation of the :obj:`GCNConv` class, which inherits from the :obj:`MessagePassing` base class and consists of two methods:  :obj:`__init__()` and :obj:`forward()`.
+
 .. code-block:: python
 
     class GCNConv(MessagePassing):
