@@ -8,7 +8,6 @@ from .graph_transform import GraphTransform  # noqa
 from .gcn_transform import GCNTransform  # noqa
 from .rect_transform import RECTTransform  # noqa
 from .normalize_features import NormalizeFeatures  # noqa
-from .remove_training_classes import RemoveTrainingClasses  # noqa
 from .svd_feature_reduction import SVDFeatureReduction  # noqa
 
 
@@ -16,7 +15,6 @@ __all__ = [
     # node transforms
     "NodeTransform",
     "NormalizeFeatures",
-    "RemoveTrainingClasses",
     "SVDFeatureReduction",
     # edge transforms
     "EdgeTransform",

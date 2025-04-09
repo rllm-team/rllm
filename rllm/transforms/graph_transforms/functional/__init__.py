@@ -4,7 +4,6 @@ from .knn_graph import knn_graph  # noqa
 from .symmetric_norm import symmetric_norm  # noqa
 from .normalize_features import normalize_features  # noqa
 from .svd_feature_reduction import svd_feature_reduction  # noqa
-from .remove_training_classes import remove_training_classes  # noqa
 
 
 __all__ = [
@@ -14,5 +13,4 @@ __all__ = [
     "symmetric_norm",
     "normalize_features",
     "svd_feature_reduction",
-    "remove_training_classes",
 ]
