@@ -2,10 +2,10 @@ from typing import Optional
 from abc import ABC, abstractmethod
 import os.path as osp
 
-from torch.utils.data import Dataset
+import torch
 
 
-class Dataset(Dataset, ABC):
+class Dataset(torch.utils.data.Dataset, ABC):
     r"""An abstract class for creating graph and table datasets.
 
     Args:

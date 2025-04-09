@@ -282,7 +282,12 @@ class GraphData(BaseGraph):
 
         return hetero_data
 
+"""
+`EdgeType` and `NodeType` are used as the types of
+edges and nodes in the `HeteroGraphData` class.
 
+`UEdgeType` is unified edge type used in `HeteroGraphData` class.
+"""
 EdgeType = Union[Tuple[str, str, str], str]
 UEdgeType = Tuple[str, str, str]
 NodeType = str
@@ -516,6 +521,11 @@ class HeteroGraphData(BaseGraph):
     # Utility function ###################################################
 
     def validate(self) -> bool:
+        r"""Validates the graph data by checking the following:
+        1. Node and edge types are matched.
+        2. Edge types are valid.
+        3. Edge indices are valid.
+        """
         status = True
 
         # check dangling nodes

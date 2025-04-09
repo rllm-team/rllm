@@ -2,12 +2,37 @@ from typing import Optional, List, Tuple, Callable
 
 import torch
 from torch import Tensor
-from torch.utils.data import DataLoader
 
 from rllm.data import GraphData
 
 
-class NeighborLoader(DataLoader):
+class NeighborLoader(torch.utils.data.DataLoader):
+    r"""The neighbor sampler from the `"Inductive Representation Learning on
+    Large Graphs" <https://arxiv.org/abs/1706.02216>`_ paper, which allows
+    for mini-batch training of GNNs on large-scale graphs where full-batch
+    training is not feasible.
+
+    Args:
+        data (GraphData): The graph data to be sampled.
+        num_neighbors (List[int]): The number of neighbors to sample
+            for each node in each layer.
+        seeds (Optional[Tensor]): The nodes to sample from. If None,
+            all nodes will be used.
+        transform (Optional[Callable]): A function/transform that takes
+            in a graph and returns a transformed version. The data
+            loader will use this function to transform the graph before
+            returning it.
+        replace (bool, optional): Whether to sample with replacement.
+            Default is False.
+        shuffle (bool, optional): Whether to shuffle the data at every
+            epoch. Default is False.
+        batch_size (int, optional): How many samples per batch to load.
+            Default is 1.
+        num_workers (int, optional): How many subprocesses to use for
+            data loading. Default is 0.
+        **kwargs: Additional keyword arguments to be passed to the
+            `torch.utils.data.DataLoader` class.
+    """
     def __init__(
         self,
         data: GraphData,
@@ -50,6 +75,9 @@ class NeighborLoader(DataLoader):
         )
 
     def _build_csc(self, data: GraphData):
+        r"""Build a compressed sparse column (CSC) representation of the graph
+        for efficient neighbor sampling.
+        """
         if hasattr(data, "edge_index"):
             edge_index = data.edge_index
         elif hasattr(data, "adj"):
@@ -65,6 +93,10 @@ class NeighborLoader(DataLoader):
         self.col_ptr[1:] = torch.cumsum(cnts, dim=0)
 
     def get_in_neighbors(self, node: int) -> torch.Tensor:
+        r"""Get the in-neighbors of a given node in the graph.
+        Args:
+            node (int): The node for which to get the in-neighbors.
+        """
         start = self.col_ptr[node].item()
         end = self.col_ptr[node + 1].item()
         return self.src_sorted[start:end]
@@ -72,6 +104,15 @@ class NeighborLoader(DataLoader):
     def sample_neighbors_one_layer(
         self, seed_nodes: List[int], num_neighbor: int
     ) -> Tuple[Tensor, Tensor]:
+        r"""Sample neighbors for a given set of seed nodes.
+        Args:
+            seed_nodes (List[int]): The nodes to sample neighbors from.
+            num_neighbor (int): The number of neighbors to sample for
+                each node.
+        Returns:
+            Tuple[Tensor, Tensor]: A tuple containing the sampled source
+                nodes and destination nodes.
+        """
         sampled_src_list = []
         dst_list = []
         for i, node in enumerate(seed_nodes):
@@ -103,6 +144,11 @@ class NeighborLoader(DataLoader):
         self,
         batch: List[Tensor],
     ) -> Tuple[int, Tensor, List[Tensor]]:
+        r"""Collate function for the NeighborLoader. This function
+        is responsible for sampling neighbors for each node in the
+        batch and returning the sampled nodes and their corresponding
+        adjacency lists.
+        """
         batch = torch.tensor(batch, dtype=torch.long).tolist()
         raw_adjs = []
         seed_nodes = batch
