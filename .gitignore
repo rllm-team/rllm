@@ -3,6 +3,7 @@ __pycache__/
 .vscode/
 .DS_Store
 data/
+exps/
 build/
 dist/
 alpha/
@@ -34,7 +35,7 @@ benchmark/results/
 .flake8
 draft.py
 _self_test_util.py
-exps/
+huggingface/
 trash/
 
 !rllm/data/

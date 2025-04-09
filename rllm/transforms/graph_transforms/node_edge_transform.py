@@ -58,7 +58,8 @@ class EdgeTransform(ABC):
                     continue
                 store.adj = self.forward(store.adj)
         elif isinstance(data, Tensor):
-            assert data.size(0) == data.size(1)
+            if not data.is_sparse:
+                assert data.size(0) == data.size(1)
             data = self.forward(data)
 
         return data

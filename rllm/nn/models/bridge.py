@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Type
+from typing import Any, Dict, List, Type, Union
 
 import torch
 from torch import Tensor
@@ -83,22 +83,37 @@ class GraphEncoder(torch.nn.Module):
         dropout: float = 0.5,
         num_layers: int = 2,
         graph_conv: Type[torch.nn.Module] = GCNConv,
+        norm: bool = False,
     ) -> None:
         super().__init__()
         self.dropout = dropout
         self.convs = torch.nn.ModuleList()
 
         for _ in range(num_layers - 1):
-            self.convs.append(graph_conv(in_dim=in_dim, out_dim=in_dim))
-        self.convs.append(graph_conv(in_dim=in_dim, out_dim=out_dim))
+            self.convs.append(graph_conv(in_dim=in_dim, out_dim=in_dim, normalize=norm))
+        self.convs.append(graph_conv(in_dim=in_dim, out_dim=out_dim, normalize=norm))
 
-    def forward(self, x: Tensor, adj: Tensor) -> Tensor:
-        for conv in self.convs[:-1]:
+    def forward(
+        self,
+        x: Tensor,
+        adj: Union[Tensor, List[Tensor]],
+    ) -> Tensor:
+        # Full batch training or full test
+        if isinstance(adj, Tensor):
+            for conv in self.convs[:-1]:
+                x = F.dropout(x, p=self.dropout, training=self.training)
+                x = F.relu(conv(x, adj))
             x = F.dropout(x, p=self.dropout, training=self.training)
-            x = F.relu(conv(x, adj))
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.convs[-1](x, adj)
-        return x
+            x = self.convs[-1](x, adj)
+            return x
+        # Batch training
+        elif isinstance(adj, list):
+            for i, conv in enumerate(self.convs[:-1]):
+                x = F.dropout(x, p=self.dropout, training=self.training)
+                x = F.relu(conv(x, adj[-i - 1]))
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x = self.convs[-1](x, adj[0])
+            return x
 
 
 class BRIDGE(torch.nn.Module):
@@ -126,9 +141,9 @@ class BRIDGE(torch.nn.Module):
 
     def forward(
         self,
-        table: Tensor,
+        table: TableData,
         non_table: Tensor,
-        adj: Tensor,
+        adj: Union[Tensor, List[Tensor]],
     ) -> Tensor:
         """
         First, the Table Neural Network (TNN) learns the tabular data.
@@ -145,6 +160,9 @@ class BRIDGE(torch.nn.Module):
             Tensor: Output table embedding features.
         """
         t_embedds = self.table_encoder(table)
-        node_feats = torch.cat([t_embedds, non_table], dim=0)
+        if non_table is not None:
+            node_feats = torch.cat([t_embedds, non_table], dim=0)
+        else:
+            node_feats = t_embedds
         node_feats = self.graph_encoder(node_feats, adj)
         return node_feats[: len(table), :]

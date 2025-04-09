@@ -6,6 +6,7 @@ from torch.nn import Linear, Parameter
 from torch.sparse import Tensor as SparseTensor
 import torch.nn.init as init
 
+from rllm.transforms.graph_transforms import GCNNorm
 from rllm.nn.conv.graph_conv import MessagePassing
 
 
@@ -18,13 +19,18 @@ class GCNConv(MessagePassing):
     allowing for the aggregation of feature information from neighboring nodes.
 
     .. math::
-        \mathbf{X}^{\prime} = \mathbf{\hat{A}} \mathbf{X} \mathbf{W}
+        \mathbf{X}^{\prime} = \mathbf{\tilde{A}} \mathbf{X} \mathbf{W}
 
     Args:
         in_dim (int): Size of each input sample.
         out_dim (int): Size of each output sample.
         bias (bool): If set to `False`,
             no bias terms are added into the final output.
+        normalize (bool): If set to `True`, the adjacency matrix is normalized
+            using the symmetric normalization method.
+            The normalization is performed as follows:
+            :math:`\mathbf{\tilde{A}} = \mathbf{D}^{-1/2} \mathbf{A} \mathbf{D}^{-1/2}`.
+            where :math:`\mathbf{D}` is the degree matrix of the graph.
 
     Shapes:
 
@@ -41,12 +47,13 @@ class GCNConv(MessagePassing):
     """
 
     def __init__(
-            self,
-            in_dim: int,
-            out_dim: int,
-            bias: bool = True,
+        self,
+        in_dim: int,
+        out_dim: int,
+        bias: bool = True,
+        normalize: bool = False,
     ):
-        super().__init__(aggr='gcn')
+        super().__init__(aggr="gcn")
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.linear = Linear(in_dim, out_dim, bias=False)
@@ -54,6 +61,9 @@ class GCNConv(MessagePassing):
             self.bias = Parameter(torch.empty(out_dim))
         else:
             self.register_parameter("bias", None)
+        self.normalize = normalize
+        if normalize:
+            self.norm = GCNNorm()
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
@@ -62,12 +72,19 @@ class GCNConv(MessagePassing):
             init.zeros_(self.bias)
 
     def forward(
-            self,
-            x: Tensor,
-            edge_index: Union[Tensor, SparseTensor],
-            edge_weight: Optional[Tensor] = None,
-            dim_size: Optional[int] = None,
+        self,
+        x: Tensor,
+        edge_index: Union[Tensor, SparseTensor],
+        edge_weight: Optional[Tensor] = None,
+        dim_size: Optional[int] = None,
     ) -> Tensor:
+        if self.normalize:
+            assert edge_index.is_sparse, (
+                "GCNorm only support sparse adj matrix as input. "
+                "Please set `normalize=False` to use dense adj matrix."
+            )
+            edge_index = self.norm(edge_index)
+
         x = self.linear(x)
         out = self.propagate(x, edge_index, edge_weight=edge_weight, dim_size=dim_size)
         if self.bias is not None:
