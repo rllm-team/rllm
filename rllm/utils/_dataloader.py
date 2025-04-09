@@ -1,8 +1,8 @@
 from typing import Union
 
+import numpy as np
 import torch
 from torch import Tensor
-import numpy as np
 import torch.utils
 import torch.utils.data
 

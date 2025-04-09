@@ -19,7 +19,7 @@ class GCNConv(MessagePassing):
     allowing for the aggregation of feature information from neighboring nodes.
 
     .. math::
-        \mathbf{X}^{\prime} = \mathbf{\hat{A}} \mathbf{X} \mathbf{W}
+        \mathbf{X}^{\prime} = \mathbf{\tilde{A}} \mathbf{X} \mathbf{W}
 
     Args:
         in_dim (int): Size of each input sample.
@@ -29,7 +29,7 @@ class GCNConv(MessagePassing):
         normalize (bool): If set to `True`, the adjacency matrix is normalized
             using the symmetric normalization method.
             The normalization is performed as follows:
-            :math:`\mathbf{\hat{A}} = \mathbf{D}^{-1/2} \mathbf{A} \mathbf{D}^{-1/2}`.
+            :math:`\mathbf{\tilde{A}} = \mathbf{D}^{-1/2} \mathbf{A} \mathbf{D}^{-1/2}`.
             where :math:`\mathbf{D}` is the degree matrix of the graph.
 
     Shapes:
@@ -47,13 +47,13 @@ class GCNConv(MessagePassing):
     """
 
     def __init__(
-            self,
-            in_dim: int,
-            out_dim: int,
-            bias: bool = True,
-            normalize: bool = False,
+        self,
+        in_dim: int,
+        out_dim: int,
+        bias: bool = True,
+        normalize: bool = False,
     ):
-        super().__init__(aggr='gcn')
+        super().__init__(aggr="gcn")
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.linear = Linear(in_dim, out_dim, bias=False)
@@ -72,11 +72,11 @@ class GCNConv(MessagePassing):
             init.zeros_(self.bias)
 
     def forward(
-            self,
-            x: Tensor,
-            edge_index: Union[Tensor, SparseTensor],
-            edge_weight: Optional[Tensor] = None,
-            dim_size: Optional[int] = None,
+        self,
+        x: Tensor,
+        edge_index: Union[Tensor, SparseTensor],
+        edge_weight: Optional[Tensor] = None,
+        dim_size: Optional[int] = None,
     ) -> Tensor:
         if self.normalize:
             assert edge_index.is_sparse, (

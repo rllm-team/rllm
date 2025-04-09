@@ -59,7 +59,7 @@ class BaseGraph:
         self,
         device: Optional[Union[int, str]] = None,
         *args: str,
-        non_blocking: bool = False
+        non_blocking: bool = False,
     ):
         r"""Moves the dataset toto CUDA memory."""
         device = "cuda" if device is None else device
@@ -106,7 +106,7 @@ class GraphData(BaseGraph):
         x: Optional[Tensor] = None,
         y: Optional[Tensor] = None,
         adj: Optional[torch.sparse.FloatTensor] = None,
-        **kwargs
+        **kwargs,
     ):
         self._mapping = BaseStorage()
 
@@ -513,7 +513,8 @@ class HeteroGraphData(BaseGraph):
         """
         return self.node_types, self.edge_types
 
-    # utils ###################################################
+    # Utility function ###################################################
+
     def validate(self) -> bool:
         status = True
 
@@ -524,12 +525,16 @@ class HeteroGraphData(BaseGraph):
         dangling_n_types = (src_n_types | dst_n_types) - node_types
         if len(dangling_n_types) > 0:
             status = False
-            warn(f"The node types {dangling_n_types} are referenced in edge "
-                 f"types, but do not exist as node types.")
+            warn(
+                f"The node types {dangling_n_types} are referenced in edge "
+                f"types, but do not exist as node types."
+            )
         dangling_n_types = node_types - (src_n_types | dst_n_types)
         if len(dangling_n_types) > 0:
-            warn(f"The node types {dangling_n_types} are isolated, "
-                 f"i.e. are not referenced by any edge type.")
+            warn(
+                f"The node types {dangling_n_types} are isolated, "
+                f"i.e. are not referenced by any edge type."
+            )
 
         # check edges
         for edge_type, edge_store in self._edges.items():
@@ -545,32 +550,40 @@ class HeteroGraphData(BaseGraph):
                 status = False
                 warn(f"`num_nodes` is undefined in node type `{src}`.")
 
-            if 'edge_index' in edge_store:
+            if "edge_index" in edge_store:
                 edge_index = edge_store.edge_index
                 if edge_index.dim() != 2 or edge_index.size(0) != 2:
                     status = False
-                    warn(f"`edge_index` of edge type {edge_type} needs "
-                         f"to be shape [2, ...], "
-                         f"but found {edge_index.size()}.")
+                    warn(
+                        f"`edge_index` of edge type {edge_type} needs "
+                        f"to be shape [2, ...], "
+                        f"but found {edge_index.size()}."
+                    )
 
                 if edge_index.numel() > 0:
                     if edge_index.min() < 0:
                         status = False
-                        warn(f"`edge_index` of edge type {edge_type} needs "
-                             f"to be positive, "
-                             f"but found {int(edge_index.min())}.")
+                        warn(
+                            f"`edge_index` of edge type {edge_type} needs "
+                            f"to be positive, "
+                            f"but found {int(edge_index.min())}."
+                        )
                     if edge_index[0].max() >= n_src_nodes:
                         status = False
-                        warn(f"src `edge_index` of edge type {edge_type} "
-                             f"needs to be in range of number of src "
-                             f"nodes {n_src_nodes}, "
-                             f"but found {int(edge_index[0].max())}.")
+                        warn(
+                            f"src `edge_index` of edge type {edge_type} "
+                            f"needs to be in range of number of src "
+                            f"nodes {n_src_nodes}, "
+                            f"but found {int(edge_index[0].max())}."
+                        )
                     if edge_index[1].max() >= n_dst_nodes:
                         status = False
-                        warn(f"dst `edge_index` of edge type {edge_type} "
-                             f"needs to be in range of number of dst "
-                             f"nodes {n_dst_nodes}, "
-                             f"but found {int(edge_index[1].max())}.")
+                        warn(
+                            f"dst `edge_index` of edge type {edge_type} "
+                            f"needs to be in range of number of dst "
+                            f"nodes {n_dst_nodes}, "
+                            f"but found {int(edge_index[1].max())}."
+                        )
         return status
 
     def collect_attr(
@@ -651,7 +664,9 @@ class HeteroGraphData(BaseGraph):
 
         return col_ptr_d, row_d, perm_d
 
-    def set_value_dict(self, key: str, value_d: Dict[Union[NodeType, EdgeType], Any]) -> None:
+    def set_value_dict(
+        self, key: str, value_d: Dict[Union[NodeType, EdgeType], Any]
+    ) -> None:
         r"""Set the attribute `key` for each node and edge type in value dict.
 
         Args:
@@ -661,7 +676,8 @@ class HeteroGraphData(BaseGraph):
         for type_, value in value_d.items():
             self[type_][key] = value
 
-    # dunder functions ########################################
+    # Dunder functions ########################################
+
     def __copy__(self):
         r"""Performs a shallow copy of the graph.
 
@@ -689,7 +705,9 @@ class HeteroGraphData(BaseGraph):
         return out
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(\n"
-                f"num_nodes={self.num_nodes}, \n"
-                f"node_types={self.node_types}, \n"
-                f"edge_types={self.edge_types})\n")
+        return (
+            f"{self.__class__.__name__}(\n"
+            f"num_nodes={self.num_nodes}, \n"
+            f"node_types={self.node_types}, \n"
+            f"edge_types={self.edge_types})\n"
+        )

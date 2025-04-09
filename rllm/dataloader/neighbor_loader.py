@@ -2,11 +2,12 @@ from typing import Optional, List, Tuple, Callable
 
 import torch
 from torch import Tensor
+from torch.utils.data import DataLoader
 
 from rllm.data import GraphData
 
 
-class NeighborLoader(torch.utils.data.DataLoader):
+class NeighborLoader(DataLoader):
     def __init__(
         self,
         data: GraphData,
@@ -57,7 +58,9 @@ class NeighborLoader(torch.utils.data.DataLoader):
         self.dst_sorted = edge_index[1][order]
         self.src_sorted = edge_index[0][order]
         cnts = torch.bincount(self.dst_sorted, minlength=self.num_nodes)
-        self.col_ptr = torch.empty(self.num_nodes + 1, dtype=torch.long, device=self.device)
+        self.col_ptr = torch.empty(
+            self.num_nodes + 1, dtype=torch.long, device=self.device
+        )
         self.col_ptr[0] = 0
         self.col_ptr[1:] = torch.cumsum(cnts, dim=0)
 
@@ -67,9 +70,7 @@ class NeighborLoader(torch.utils.data.DataLoader):
         return self.src_sorted[start:end]
 
     def sample_neighbors_one_layer(
-        self,
-        seed_nodes: List[int],
-        num_neighbor: int
+        self, seed_nodes: List[int], num_neighbor: int
     ) -> Tuple[Tensor, Tensor]:
         sampled_src_list = []
         dst_list = []
@@ -85,12 +86,18 @@ class NeighborLoader(torch.utils.data.DataLoader):
                 sampled = neighbors[perm]
 
             sampled_src_list.append(sampled)
-            dst_list.append(torch.full((sampled.numel(),), node, dtype=torch.long, device=self.device))
+            dst_list.append(
+                torch.full(
+                    (sampled.numel(),), node, dtype=torch.long, device=self.device
+                )
+            )
         if sampled_src_list:
             return torch.cat(sampled_src_list), torch.cat(dst_list)
         else:
-            return (torch.empty((0,), dtype=torch.long, device=self.device),
-                    torch.empty((0,), dtype=torch.long, device=self.device))
+            return (
+                torch.empty((0,), dtype=torch.long, device=self.device),
+                torch.empty((0,), dtype=torch.long, device=self.device),
+            )
 
     def collate_fn(
         self,
@@ -102,10 +109,7 @@ class NeighborLoader(torch.utils.data.DataLoader):
         n_id = batch.copy()
         seen = set(n_id)
         for num_neighbor in self.num_neighbors:
-            sampled_src, dst = self.sample_neighbors_one_layer(
-                seed_nodes,
-                num_neighbor
-            )
+            sampled_src, dst = self.sample_neighbors_one_layer(seed_nodes, num_neighbor)
             raw_adjs.append((sampled_src, dst))
 
             for node in sampled_src.tolist():
@@ -130,7 +134,7 @@ class NeighborLoader(torch.utils.data.DataLoader):
                 indices=edge_index,
                 values=torch.ones(edge_index.shape[1], device=self.device),
                 size=(size, size),
-                device=self.device
+                device=self.device,
             )
             if self.transform is not None:
                 adj = self.transform(adj)

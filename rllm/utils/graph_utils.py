@@ -10,11 +10,12 @@ from rllm.utils.sparse import is_torch_sparse_tensor, sparse_mx_to_torch_sparse_
 
 # Filter the csr warning
 import warnings
+
 warnings.filterwarnings(
-    'ignore',
-    message='Sparse CSR tensor support is in beta state.',
+    "ignore",
+    message="Sparse CSR tensor support is in beta state.",
     category=UserWarning,
-    module=r'.*graph_utils'  # 只屏蔽特定模块的警告
+    module=r".*graph_utils",  # 只屏蔽特定模块的警告
 )
 
 
@@ -202,8 +203,7 @@ def sort_edge_index(
                 [1]]))
     """
     if num_nodes is None:
-        num_nodes = (int(edge_index.max().item()) + 1
-                     if edge_index.numel() > 0 else 0)
+        num_nodes = int(edge_index.max().item()) + 1 if edge_index.numel() > 0 else 0
     index = lexsort(
         keys=[
             edge_index[int(sort_by_row)],
@@ -314,7 +314,9 @@ def _to_csc(
         col_ptr = index2ptr(col, num_nodes)
 
     else:
-        raise ValueError("No edge found. Edge type should be either `adj` or `edge_index`.")
+        raise ValueError(
+            "No edge found. Edge type should be either `adj` or `edge_index`."
+        )
 
     col_ptr = col_ptr.to(device=device)
     row = row.to(device=device)

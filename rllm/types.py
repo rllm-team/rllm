@@ -21,8 +21,9 @@ class TableType(Enum):
         DATATABLE: Data table.
         RELATIONSHIPTABLE: Relationship table.
     """
-    DATATABLE = 'dataTable'
-    RELATIONSHIPTABLE = 'relationshipTable'
+
+    DATATABLE = "dataTable"
+    RELATIONSHIPTABLE = "relationshipTable"
 
 
 class ColType(Enum):
@@ -44,8 +45,9 @@ class ColType(Enum):
         NUMERICAL: Numerical columns.
         CATEGORICAL: Categorical columns.
     """
-    NUMERICAL = 'numerical'
-    CATEGORICAL = 'categorical'
+
+    NUMERICAL = "numerical"
+    CATEGORICAL = "categorical"
 
     def __lt__(self, other):
         return self.value < other.value
@@ -60,11 +62,12 @@ class TaskType(Enum):
         BINARY_CLASSIFICATION: Binary classification task.
         MULTILABEL_CLASSIFICATION: Multi-label classification task.
     """
-    REGRESSION = 'regression'
-    MULTI_CLASSIFICATION = 'multiclass_classification'
-    BINARY_CLASSIFICATION = 'binary_classification'
+
+    REGRESSION = "regression"
+    MULTI_CLASSIFICATION = "multiclass_classification"
+    BINARY_CLASSIFICATION = "binary_classification"
     # TODO: support multi-label
-    MULTILABEL_CLASSIFICATION = 'multilabel_classification'
+    MULTILABEL_CLASSIFICATION = "multilabel_classification"
 
 
 class NAMode(Enum):
@@ -76,21 +79,17 @@ class NAMode(Enum):
         MIN: Use min number in column to replace nan.
         MEAN: Use mean of column to replace nan.
     """
-    MOST_FREQUENT = 'most_frequent'
-    MAX = 'max'
-    MIN = 'min'
-    MEAN = 'mean'
-    ZERO = 'zero'
+
+    MOST_FREQUENT = "most_frequent"
+    MAX = "max"
+    MIN = "min"
+    MEAN = "mean"
+    ZERO = "zero"
 
     @staticmethod
     def namode_for_col_type(col_type: ColType) -> list[ColType]:
         namode_type = {
-            ColType.NUMERICAL: [
-                NAMode.MAX,
-                NAMode.MIN,
-                NAMode.MEAN,
-                NAMode.ZERO
-            ],
+            ColType.NUMERICAL: [NAMode.MAX, NAMode.MIN, NAMode.MEAN, NAMode.ZERO],
             ColType.CATEGORICAL: [NAMode.MOST_FREQUENT, NAMode.ZERO],
         }
         return namode_type.get(col_type, [])
@@ -110,19 +109,20 @@ class StatType(Enum):
             categorical column.
         MOST_FREQUENT: The most frequent catrgory in a categorical column.
     """
+
     # Column name
-    COLNAME = 'COLNAME'
+    COLNAME = "COLNAME"
 
     # Numerical:
     MEAN = "MEAN"
-    MAX = 'MAX'
-    MIN = 'MIN'
+    MAX = "MAX"
+    MIN = "MIN"
     STD = "STD"
     QUANTILES = "QUANTILES"
 
     # categorical:
     COUNT = "COUNT"
-    MOST_FREQUENT = 'MOST_FREQUENT'
+    MOST_FREQUENT = "MOST_FREQUENT"
 
     @staticmethod
     def stats_for_col_type(col_type: ColType) -> list[ColType]:

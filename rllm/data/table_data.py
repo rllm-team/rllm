@@ -6,10 +6,11 @@ from uuid import uuid4
 from warnings import warn
 import copy
 
-import torch
 import numpy as np
 from pandas import DataFrame
 from sklearn.preprocessing import LabelEncoder
+
+import torch
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 
@@ -115,8 +116,8 @@ class TableData(BaseTable):
         **kwargs: Additional key-value attributes to set as instance variables.
     """
 
-    NONEPKEY = '_NonePkey'
-    PRIVATE_PROPERTIES = ['_mapping', '_fkeys', '_inherit_feat_dict']
+    NONEPKEY = "_NonePkey"
+    PRIVATE_PROPERTIES = ["_mapping", "_fkeys", "_inherit_feat_dict"]
 
     def __init__(
         self,
@@ -187,8 +188,7 @@ class TableData(BaseTable):
         This func may not be accruate, please check the result.
         """
         if self.pkey is None:
-            if (self.fkeys_ is not None and
-                    len(self.fkeys_) > 1):
+            if self.fkeys_ is not None and len(self.fkeys_) > 1:
                 return TableType.RELATIONSHIPTABLE
         return TableType.DATATABLE
 
@@ -199,13 +199,12 @@ class TableData(BaseTable):
         """
         # pkey column is not index -> set_index(self.pkey)
         if self.pkey != self.df.index.name:
-            assert self.pkey in self.df.columns, (
-                f"Pkey {self.pkey} is not in `df`.")
+            assert self.pkey in self.df.columns, f"Pkey {self.pkey} is not in `df`."
 
             p_col = self.df[self.pkey]
-            assert p_col.nunique == len(p_col), (
-                f"Pkey {self.pkey} column is not unique."
-            )
+            assert p_col.nunique == len(
+                p_col
+            ), f"Pkey {self.pkey} column is not unique."
 
             self.df.set_index(self.pkey, inplace=True, drop=True)
         # pkey column is index and `None`
@@ -243,18 +242,24 @@ class TableData(BaseTable):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             if self.feat_dict is None:
-                raise ValueError(f"Function `{func.__name__}()` requires feat_dict,",
-                                 "but it is not generated yet.")
+                raise ValueError(
+                    f"Function `{func.__name__}()` requires feat_dict,",
+                    "but it is not generated yet.",
+                )
             return func(self, *args, **kwargs)
+
         return wrapper
 
     def df_requisite(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             if self.df is None:
-                raise ValueError(f"Function `{func.__name__}()` requires dataframe,",
-                                 "but it is removed after materialized.")
+                raise ValueError(
+                    f"Function `{func.__name__}()` requires dataframe,",
+                    "but it is removed after materialized.",
+                )
             return func(self, *args, **kwargs)
+
         return wrapper
 
     # base functions #####################################
@@ -662,6 +667,6 @@ class TableData(BaseTable):
 
         out.y = self.y[index]
 
-        out.__dict__['_len'] = index.numel()
+        out.__dict__["_len"] = index.numel()
 
         return out
