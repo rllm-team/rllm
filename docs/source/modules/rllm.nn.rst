@@ -11,6 +11,7 @@ Graph Conv
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    MessagePassing
@@ -28,6 +29,7 @@ Table Conv
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    ExcelFormerConv
@@ -43,6 +45,7 @@ Pre-Encoder
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    FTTransformerPreEncoder
@@ -56,6 +59,7 @@ Models
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    BRIDGE

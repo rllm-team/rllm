@@ -8,6 +8,7 @@ Dataset
 .. currentmodule:: rllm.data
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    Dataset
@@ -21,6 +22,7 @@ Graph Data
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    BaseGraph
@@ -36,6 +38,7 @@ Table Data
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    BaseTable
@@ -51,6 +54,7 @@ Storage
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    BaseStorage
@@ -65,6 +69,7 @@ View
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    MappingView

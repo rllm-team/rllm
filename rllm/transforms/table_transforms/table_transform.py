@@ -118,7 +118,7 @@ class TableTransform(torch.nn.Module, ABC):
 
         Returns:
             Tensor: Output :obj:`Tensor` with NaNs replaced given
-                :obj:`na_mode`.
+            :obj:`na_mode`.
         """
         if self.na_mode is None:
             return data

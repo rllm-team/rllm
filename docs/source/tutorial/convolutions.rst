@@ -1,4 +1,4 @@
- Understanding Convolution
+Understanding Convolution
 ===============
 
 What is a Convolution?
