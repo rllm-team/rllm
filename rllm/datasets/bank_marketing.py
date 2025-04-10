@@ -8,6 +8,7 @@ from rllm.types import ColType
 from rllm.data.table_data import TableData
 from rllm.datasets.dataset import Dataset
 from rllm.utils.download import download_url
+from rllm.utils.extract import extract_zip
 
 
 class BankMarketing(Dataset):
@@ -62,7 +63,7 @@ class BankMarketing(Dataset):
 
     """
 
-    url = "https://raw.githubusercontent.com/leungBH/BankMarketing/master/original_data/bank-full.csv"
+    url = "https://archive.ics.uci.edu/static/public/222/bank+marketing.zip"
 
     def __init__(self, cached_dir: str, forced_reload: Optional[bool] = False) -> None:
         self.name = "bank_marketing"
@@ -72,7 +73,7 @@ class BankMarketing(Dataset):
 
     @property
     def raw_filenames(self):
-        return ["bank.csv"]
+        return ["bank-full.csv"]
 
     @property
     def processed_filenames(self):
@@ -118,7 +119,9 @@ class BankMarketing(Dataset):
 
     def download(self):
         os.makedirs(self.raw_dir, exist_ok=True)
-        download_url(self.url, self.raw_dir, self.raw_filenames[0])
+        download_url(self.url, self.raw_dir, "bank+marketing.zip")
+        extract_zip(osp.join(self.raw_dir, "bank+marketing.zip"), self.raw_dir)
+        extract_zip(osp.join(self.raw_dir, "bank.zip"), self.raw_dir)
 
     def __len__(self):
         return 1
