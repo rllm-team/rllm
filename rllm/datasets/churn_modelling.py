@@ -27,9 +27,6 @@ class ChurnModelling(Dataset):
     employee turnover, we are going to predict customer churn using this
     dataset.
 
-    The division in the `"On Embeddings for Numerical Features in Tabular Deep Learning"
-    <https://arxiv.org/abs/2203.05556>`_ paper is train-val-test [6400, 1600, 2000].
-
     The dataset encompasses a variety of features pertaining to customers and
     their interactions with the company. The primary objective is to predict
     whether a customer will churn.

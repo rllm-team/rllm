@@ -8,6 +8,7 @@ from rllm.types import ColType
 from rllm.data.table_data import TableData
 from rllm.datasets.dataset import Dataset
 from rllm.utils.download import download_url
+from rllm.utils.extract import extract_zip
 
 
 class BankMarketing(Dataset):
@@ -18,9 +19,6 @@ class BankMarketing(Dataset):
     in order to assess if the product (bank term deposit) would be subscribed.
     The classification goal is to predict if the client will subscribe to a
     term deposit.
-
-    The division in the `"TabTransformer: Tabular Data Modeling Using Contextual Embeddings"
-    <https://arxiv.org/abs/2012.06678>`_ paper is train-val-test [65%, 15%, 20%].
 
     The dataset encompasses a variety of features pertaining to clients and
     their banking information. The primary objective is to predict whether
@@ -65,7 +63,7 @@ class BankMarketing(Dataset):
 
     """
 
-    url = "https://raw.githubusercontent.com/leungBH/BankMarketing/master/original_data/bank-full.csv"
+    url = "https://archive.ics.uci.edu/static/public/222/bank+marketing.zip"
 
     def __init__(self, cached_dir: str, forced_reload: Optional[bool] = False) -> None:
         self.name = "bank_marketing"
@@ -75,7 +73,7 @@ class BankMarketing(Dataset):
 
     @property
     def raw_filenames(self):
-        return ["bank.csv"]
+        return ["bank-full.csv"]
 
     @property
     def processed_filenames(self):
@@ -121,7 +119,9 @@ class BankMarketing(Dataset):
 
     def download(self):
         os.makedirs(self.raw_dir, exist_ok=True)
-        download_url(self.url, self.raw_dir, self.raw_filenames[0])
+        download_url(self.url, self.raw_dir, "bank+marketing.zip")
+        extract_zip(osp.join(self.raw_dir, "bank+marketing.zip"), self.raw_dir)
+        extract_zip(osp.join(self.raw_dir, "bank.zip"), self.raw_dir)
 
     def __len__(self):
         return 1
