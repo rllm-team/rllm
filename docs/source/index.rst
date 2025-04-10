@@ -47,7 +47,7 @@ Highlight Features:
    modules/rllm.datasets
    modules/rllm.llm
    modules/rllm.nn
-   modules/rllm.sampler
+   modules/rllm.dataloader
    modules/rllm.transforms
    modules/rllm.utils
    

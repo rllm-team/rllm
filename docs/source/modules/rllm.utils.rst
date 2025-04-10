@@ -7,6 +7,7 @@ Utils
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
     download_url

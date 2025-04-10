@@ -11,6 +11,7 @@ Heterogeneous Graph Datasets
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    DBLP
@@ -24,6 +25,7 @@ Homogeneous Graph Datasets
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    PlanetoidDataset
@@ -40,6 +42,7 @@ Single Table Datasets
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    Titanic
@@ -54,6 +57,7 @@ Multi-Table Datasets
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    TACM12KDataset

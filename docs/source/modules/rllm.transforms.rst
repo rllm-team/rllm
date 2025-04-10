@@ -12,12 +12,12 @@ Basic Level
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
     NodeTransform
     EdgeTransform
     NormalizeFeatures
-    RemoveTrainingClasses
     SVDFeatureReduction
     KNNGraph
     AddRemainingSelfLoops
@@ -32,6 +32,7 @@ Model Level
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
     GraphTransform
@@ -48,6 +49,7 @@ Basic Level
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
     ColTransform
@@ -62,6 +64,7 @@ Model Level
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
     TableTransform
@@ -71,10 +74,11 @@ Model Level
 Utils
 -----------------------
 
-.. currentmodule:: rllm.transforms.Utils
+.. currentmodule:: rllm.transforms.utils
 
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
     RemoveTrainingClasses

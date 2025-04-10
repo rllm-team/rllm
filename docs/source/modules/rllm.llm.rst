@@ -6,6 +6,7 @@ Application Class
 .. currentmodule:: rllm.llm
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    Predictor
@@ -20,6 +21,7 @@ Utility Class
 .. currentmodule:: rllm.llm
 .. autosummary::
    :nosignatures:
+   :toctree: ../generated
    :template: autosummary/class.rst
 
    PromptTemplate

@@ -94,6 +94,7 @@ class NeighborLoader(torch.utils.data.DataLoader):
 
     def get_in_neighbors(self, node: int) -> torch.Tensor:
         r"""Get the in-neighbors of a given node in the graph.
+
         Args:
             node (int): The node for which to get the in-neighbors.
         """
@@ -105,13 +106,15 @@ class NeighborLoader(torch.utils.data.DataLoader):
         self, seed_nodes: List[int], num_neighbor: int
     ) -> Tuple[Tensor, Tensor]:
         r"""Sample neighbors for a given set of seed nodes.
+
         Args:
             seed_nodes (List[int]): The nodes to sample neighbors from.
             num_neighbor (int): The number of neighbors to sample for
                 each node.
+
         Returns:
             Tuple[Tensor, Tensor]: A tuple containing the sampled source
-                nodes and destination nodes.
+            nodes and destination nodes.
         """
         sampled_src_list = []
         dst_list = []

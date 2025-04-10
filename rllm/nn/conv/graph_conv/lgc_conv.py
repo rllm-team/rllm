@@ -10,7 +10,7 @@ from rllm.nn.conv.graph_conv import MessagePassing
 class LGCConv(MessagePassing):
     r"""The LGC (Lazy Graph Convolution) re-implementation with message passing,
     based on the `"From Cluster Assumption to Graph Convolution:
-     Graph-based Semi-Supervised Learning Revisited"
+    Graph-based Semi-Supervised Learning Revisited"
     <https://arxiv.org/abs/2309.13599>`__ paper.
 
     This model use hyperparameter :math:`\beta` to control the message attribution of
