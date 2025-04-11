@@ -119,10 +119,11 @@ If we go deeper into the :obj:`propagate()` method, we can see that it calls the
         # In default, just return the aggregated message
         ...
 
-To construct another type of convolution layer, a similar procedure can be followed:
-1. Inherit from the :obj:`MessagePassing` class.
-2. Define the :obj:`__init__` and :obj:`forward` methods.
-3. Override the implementation of the :obj:`message`, :obj:`aggregate`, and :obj:`update` methods as needed.
+To construct a different type of convolutional layer,
+you can subclass the :obj:`MessagePassing` class,
+define the :obj:`__init__` and :obj:`forward` methods,
+and override the :obj:`message`, :obj:`aggregate`, and :obj:`update` functions as needed.
+This approach provides flexibility in customizing the message passing mechanism to suit specific graph neural network architectures.
 
 In addition to the :obj:`__init__()` and :obj:`forward()` methods, we can define custom methods as needed.
 For example, the :obj:`GCNConv` class can include a :obj:`reset_parameters()` method, which reinitializes the layer's parameters (i.e., the weight matrix :math:`W`) to their original values.

@@ -26,9 +26,9 @@ First, load the :obj:`GraphData` and Define the :obj:`NeighborLoader`. The :obj:
 
 - :obj:`num_neighbors`: Specifies the number of neighbors to sample per layer. For example, :obj:`[10, 5]` means:
 
-    - **Layer 1**: Sample 10 neighbors per target node.
+  + **Layer 1**: Sample 10 neighbors per target node.
 
-    - **Layer 2**: Sample 5 neighbors per sampled node in layer 1.
+  + **Layer 2**: Sample 5 neighbors per sampled node in layer 1.
 
 - :obj:`seeds`: The nodes to sample (here, :obj:`train_mask`).
 
