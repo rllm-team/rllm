@@ -10,8 +10,9 @@ from rllm.nn.conv.graph_conv import MessagePassing
 
 
 class GATConv(MessagePassing):
-    r"""The GAT (Graph Attention Network) model, based on the
-    `"Graph Attention Networks"
+    r"""The GAT (Graph Attention Network) model
+    implementation with message passing,
+    based on the `"Graph Attention Networks"
     <https://arxiv.org/abs/1710.10903>`__ paper.
 
     In particular, this implementation utilizes sparse attention mechanisms
