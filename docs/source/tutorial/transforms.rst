@@ -80,6 +80,7 @@ Construct a TabTransformerTransform
 :obj:`TabTransformer` is a typical Transformer-based deep learning method for tabular data. In addition to the default handling of missing values, :obj:`TabTransformerTransform` also performs dimensionality expansion (also called pre-encoding in our project) on numerical features. Currently, the submodules of :obj:`TableTransform` are relatively simple, so they are not abstracted into separate functions.
 
 First, we implement the :obj:`StackNumerical` transform, which inherits from the :obj:`ColTransform` base class. This transform initially applies standard normalization to the input columns, followed by dimensionality expansion.
+
 .. code-block:: python
 
     class StackNumerical(ColTransform):
@@ -108,6 +109,7 @@ First, we implement the :obj:`StackNumerical` transform, which inherits from the
             return data
 
 Next, the :obj:`TabTransformerTransform` class inherits from the :obj:`TableTransform` base class. The :obj:`TableTransform` class provides a foundation for table transformations, with its default behavior being the imputation of missing values. Additionally, :obj:`TableTransform` requires a member variable, metadata, which must be explicitly defined within :obj:`TabTransformerTransform`.
+
 .. code-block:: python
 
     class TabTransformerTransform(TableTransform):

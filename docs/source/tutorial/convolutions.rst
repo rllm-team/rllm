@@ -34,7 +34,7 @@ As described above, the formulation of :obj:`GCNConv` based on the :obj:`Message
     \mathbf{x}_i^{(k+1)} = \sum_{j \in \mathcal{N}(i)} \frac{1}{\sqrt{\deg(i) \deg(j)}} \mathbf{x}_j^{(k)}
 
 Where the :math:`\sum`` operation corresponds to the aggregation step, and the term :math:`\frac{1}{\sqrt{\deg(i) \deg(j)}}` serves as the normalization factor.
-Here, :math:`\deg(i)` and :math:`\deg(j)` denote the degrees of nodes :math:`i` and :math:`j`, respectively. 
+Here, :math:`\deg(i)` and :math:`\deg(j)` denote the degrees of nodes :math:`i` and :math:`j`, respectively.
 The message computation function simply retrieves the neighboring nodes of :math:`\mathbf{x}_i^{(k)}` at the current layer and returns the message vectors from nodes :math:`\mathbf{x}_j^{(k)}` to :math:`\mathbf{x}_i^{(k)}`.
 The aggregation step combines the retrieved neighbor information according to a specified rule, producing the aggregated message received by node :math:`\mathbf{x}_i^{(k)}` at the current layer.
 And the update step then assigns the aggregated message to the next-layer representation of node :math:`i`, denoted as :math:`\mathbf{x}_i^{(k+1)}`.
@@ -140,16 +140,17 @@ Construct a TabTransformer Convolution Layer
 TabTransformer is a classic Tabular/Table Neural Network that relies on the attention mechanism from Transformers to perform column-wise convolution.
 It focuses exclusively on convolving categorical columns in tabular data. In this section, we will construct the convolution layer of TabTransformer — :obj:`TabTransformerConv`.
 Different to GraphConv, :obj:`TabTransformerConv` is a class that inherits from torch.nn.Module, and its two core methods are :obj:`__init__()` and :obj:`forward()`.
+
 .. code-block:: python
 
     class TabTransformerConv(torch.nn.Module):
         def __init__(
-            self, 
-            conv_dim, 
-            num_heads, 
-            dropout, 
-            activation, 
-            use_pre_encoder, 
+            self,
+            conv_dim,
+            num_heads,
+            dropout,
+            activation,
+            use_pre_encoder,
             metadata,
         ):
             super().__init__()
@@ -164,7 +165,7 @@ Different to GraphConv, :obj:`TabTransformerConv` is a class that inherits from 
 
 The :obj:`__init__()` method is responsible for initializing the parameters of the :obj:`TabTransformerConv` layer.
 It requires a :obj:`dim` parameter to specify the input and output dimensions, as well as other relevant Transformer parameters, such as the number of attention heads (:obj:`num_heads`), dropout rate (:obj:`dropout`), and activation function type (:obj:`activation`).
-Unlike Graph Neural Networks, the :obj:`TabTransformerConv` also requires a :obj:`metadata` parameter due to the strong heterogeneity of tabular data. 
+Unlike Graph Neural Networks, the :obj:`TabTransformerConv` also requires a :obj:`metadata` parameter due to the strong heterogeneity of tabular data.
 The :obj:`metadata` contains information about the table structure and is used to initialize the pre-encoder.
 
 .. code-block:: python
