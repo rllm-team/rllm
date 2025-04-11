@@ -1,7 +1,7 @@
 Training model with batch
 ===============
 
-Trainging GNNs with batch
+Training GNNs with batch
 ----------------
 The GNN model of rLLM is built upon a message-passing architecture, with the formulation as follows:
 
@@ -13,7 +13,7 @@ The GNN model of rLLM is built upon a message-passing architecture, with the for
     \right) \right\}_{j \in \mathcal{N}(i)} \right) \right)
 
 It can be observed that, in each layer, the update of the target node depends only on the nodes from the previous layer.
-Based on this, we can enable batch training for large graphs with node features which can be loaded into memory but cannot fit entirely into GPU memory at once.
+Based on this, we can enable batch training for large graphs with node features that can be loaded into memory but cannot fit entirely into GPU memory at once.
 
 rLLM provides such dataloaders for batch training in :obj:`rllm.dataloader`. Below, we demonstrate its usage with an example.
 
@@ -99,10 +99,10 @@ The :obj:`NeighborLoader` always places the target nodes at the beginning of the
         return all_loss / len(trainloader)
 
 
-For complete example, please refer to `[Example code of gcn_batch] <https://github.com/rllm-team/rllm/blob/main/examples/gcn_batch.py>`__。
+For a complete example, please refer to `[Example code of gcn_batch] <https://github.com/rllm-team/rllm/blob/main/examples/gcn_batch.py>`__。
 
 
-Trainging BRIDGE with batch
+Training BRIDGE with batch
 ----------------
 Next, we will demonstrate batch RTL model training using :obj:`BRIDGELoader` and the :obj:`BRIDGE` model.
 For detailed specifications of the :obj:`BRIDGE` model, please refer to :doc:`Design of RTLs <rtls>`.
@@ -171,4 +171,4 @@ Thus, target node IDs for the current batch can be retrieved via :obj:`n_id[:bat
         return loss_all / len(train_loader)
 
 
-For complete example, please refer to `[Example code of bridge_tacm12k_batch] <https://github.com/rllm-team/rllm/blob/main/examples/bridge/bridge_tacm12k_batch.py>`__。
+For a complete example, please refer to `[Example code of bridge_tacm12k_batch] <https://github.com/rllm-team/rllm/blob/main/examples/bridge/bridge_tacm12k_batch.py>`__。
