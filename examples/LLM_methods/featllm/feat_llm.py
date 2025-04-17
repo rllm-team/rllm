@@ -18,7 +18,20 @@ from feat_engineer import FeatLLMEngineer
 
 
 class simple_model(nn.Module):
+
+    """
+    A simple neural network model that learns weights for each feature set.
+
+    Attributes:
+        weights (nn.ParameterList): A list of trainable parameters, where each parameter corresponds to the weights of a feature set.
+    """
     def __init__(self, X):
+        """
+        Initializes the simple_model with trainable weights for each feature set.
+
+        Args:
+            X (List[Tensor]): A list of feature tensors, where each tensor represents a feature set.
+        """
         super(simple_model, self).__init__()
         self.weights = nn.ParameterList(
             [
@@ -28,6 +41,15 @@ class simple_model(nn.Module):
         )
 
     def forward(self, x):
+        """
+        Forward pass of the model.
+
+        Args:
+            x (List[Tensor]): A list of input feature tensors.
+
+        Returns:
+            Tensor: Concatenated scores for all feature sets.
+        """
         x_total_score = []
         for idx, x_each in enumerate(x):
             x_score = x_each @ torch.clamp(self.weights[idx], min=0)
@@ -37,6 +59,13 @@ class simple_model(nn.Module):
 
 
 class FeatLLM:
+    """
+    A class that integrates feature engineering and LLM-based tasks.
+
+    Attributes:
+        feat_engineer (FeatLLMEngineer): An instance of the feature engineering class.
+        kwargs (dict): Additional arguments for customization.
+    """
     def __init__(
         self,
         file_path: str,
@@ -45,6 +74,16 @@ class FeatLLM:
         llm: Union[LC.BaseChatModel, LC.BaseLLM] = None,
         **kwargs,
     ) -> None:
+        """
+        Initializes the FeatLLM class with paths and an optional LLM.
+
+        Args:
+            file_path (str): Path to the input data file.
+            metadata_path (str): Path to the metadata file.
+            task_info_path (str): Path to the task information file.
+            llm (Union[LC.BaseChatModel, LC.BaseLLM], optional): An optional LLM instance.
+            **kwargs: Additional arguments for customization.
+        """
         self.kwargs = kwargs
         self.feat_engineer = FeatLLMEngineer(
             file_path=file_path,
@@ -55,6 +94,15 @@ class FeatLLM:
         )
 
     def invoke(self):
+        """
+        Executes the feature engineering and model training pipeline.
+
+        This method performs the following steps:
+        1. Generates features using the feature engineer.
+        2. Trains a model for each executable feature set.
+        3. Evaluates the model and computes AUC scores.
+        4. Ensembles the results and computes the final AUC score.
+        """
         (
             executable_list,
             label_list,
@@ -98,6 +146,18 @@ class FeatLLM:
         shot: int,
         y_train: Tensor,
     ):
+        """
+        Trains the model using the provided training data.
+
+        Args:
+            X_train_now (List[Tensor]): A list of training feature tensors.
+            label_list (List): A list of class labels.
+            shot (int): The number of training examples per class.
+            y_train (Tensor): The ground truth labels for the training data.
+
+        Returns:
+            simple_model: The trained model.
+        """
         criterion = nn.CrossEntropyLoss()
         if shot // len(label_list) == 1:
             model = simple_model(X_train_now)
@@ -164,6 +224,17 @@ class FeatLLM:
         return model
 
     def _evaluate(self, pred_probs, answers, multiclass=False):
+        """
+        Evaluates the model using AUC score.
+
+        Args:
+            pred_probs (ndarray): Predicted probabilities for each class.
+            answers (ndarray): Ground truth labels.
+            multiclass (bool, optional): Whether the task is multiclass. Defaults to False.
+
+        Returns:
+            float: The computed AUC score.
+        """
         if multiclass == False:
             result_auc = roc_auc_score(answers, pred_probs[:, 1])
         else:
@@ -173,10 +244,20 @@ class FeatLLM:
         return result_auc
     
     def __call__(self, *args: Any, **kwargs: Any):
+        """
+        Allows the FeatLLM instance to be called like a function.
+
+        Args:
+            *args (Any): Positional arguments.
+            **kwargs (Any): Keyword arguments.
+        """
         self.invoke()
 
 
 if __name__ == "__main__":
+    """
+    Example usage of the FeatLLM class with a specified LLM and file paths.
+    """
     API_KEY = "<Your API KEY>"
     API_URL = "<Your API URL>"
     # Example usage

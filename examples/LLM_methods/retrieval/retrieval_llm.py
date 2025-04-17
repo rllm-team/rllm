@@ -42,6 +42,25 @@ user_prompt = (
 
 
 class LLMWithRetriever:
+    """
+    A class that integrates a language model with a retriever for classification tasks.
+
+    Attributes:
+        df (pd.DataFrame): The dataframe loaded from the CSV file.
+        dir (str): The directory of the input file.
+        data_name (str): The name of the dataset (without extension).
+        metadata (dict): Metadata loaded from the JSON file.
+        task_info (str): Task description loaded from the TXT file.
+        label_info (str): Label information loaded from the TXT file.
+        llm (Union[LC.BaseChatModel, LC.BaseLLM]): The language model instance.
+        shots (int): Number of examples to retrieve for few-shot learning.
+        seed (int): Random seed for reproducibility.
+        train_file_path (str): Path to the training data CSV file.
+        test_file_path (str): Path to the testing data CSV file.
+        label_file_path (str): Path to the label data CSV file.
+        retriever (SingleTableRetriever): Instance of the retriever for fetching similar examples.
+    """
+
     def __init__(
         self,
         file_path: str,
@@ -55,6 +74,20 @@ class LLMWithRetriever:
         target_column: str = None,
         seed: int = 0,
     ) -> None:
+        """
+        Initializes the LLMWithRetriever class.
+
+        Args:
+            file_path (str): Path to the CSV file containing the dataset.
+            metadata_path (str): Path to the JSON file containing metadata.
+            task_info_path (str): Path to the TXT file containing task description.
+            label_info_path (str): Path to the TXT file containing label information.
+            llm (Union[LC.BaseChatModel, LC.BaseLLM], optional): Language model instance. Defaults to None.
+            shots (int, optional): Number of examples for few-shot learning. Defaults to 4.
+            test_size (Union[float, int], optional): Proportion or count of test data. Defaults to 0.2.
+            target_column (str, optional): Name of the target column. Defaults to None.
+            seed (int, optional): Random seed for reproducibility. Defaults to 0.
+        """
         assert file_path.endswith(".csv"), "file_path must be a CSV file."
         assert metadata_path.endswith(".json"), "metadata_path must be a JSON file."
         assert task_info_path.endswith(".txt"), "task_info_path must be a TXT file."
@@ -100,9 +133,13 @@ class LLMWithRetriever:
         )
         self.retriever = SingleTableRetriever(self.train_file_path)
 
-    def invoke(
-        self,
-    ):
+    def invoke(self):
+        """
+        Executes the inference process by retrieving neighbors for test instances
+        and querying the language model for predictions.
+
+        Saves the results to a JSON file in the same directory as the input file.
+        """
         test_df = pd.read_csv(self.test_file_path)
         results = []
         for _, row in tqdm(test_df.iterrows(), total=len(test_df)):
@@ -127,9 +164,18 @@ class LLMWithRetriever:
             json.dump(results, f, indent=4)
 
     def __call__(self, *args: Any, **kwargs: Any):
+        """
+        Allows the class instance to be called like a function, invoking the `invoke` method.
+        """
         self.invoke()
 
     def _set_seed(self, seed: int):
+        """
+        Sets the random seed for reproducibility.
+
+        Args:
+            seed (int): The random seed value.
+        """
         random.seed(seed)
         np.random.seed(seed)
 
@@ -137,6 +183,15 @@ class LLMWithRetriever:
         self,
         test_size: Union[int, float],
     ):
+        """
+        Splits the dataset into training and testing sets and saves them to CSV files.
+
+        Args:
+            test_size (Union[int, float]): Proportion or count of test data.
+
+        Returns:
+            tuple: Paths to the training, testing, and label CSV files.
+        """
         train_file_path = os.path.join(self.dir, f"{self.data_name}_train.csv")
         test_file_path = os.path.join(self.dir, f"{self.data_name}_test.csv")
         label_file_path = os.path.join(self.dir, f"{self.data_name}_y.csv")
@@ -157,6 +212,15 @@ class LLMWithRetriever:
         return train_file_path, test_file_path, label_file_path
 
     def _to_json(self, input_str: str):
+        """
+        Converts a string with key-value pairs into a JSON-formatted string.
+
+        Args:
+            input_str (str): Input string containing key-value pairs.
+
+        Returns:
+            str: JSON-formatted string.
+        """
         result = {}
 
         lines = input_str.split("\n")
@@ -169,6 +233,12 @@ class LLMWithRetriever:
         return json.dumps(result)
 
     def _is_chat_model(self) -> bool:
+        """
+        Checks if the language model is a chat-based model.
+
+        Returns:
+            bool: True if the model is a chat-based model, False otherwise.
+        """
         return isinstance(self.llm, LC.BaseChatModel)
 
     def _query_llm(
@@ -178,6 +248,18 @@ class LLMWithRetriever:
         temperature: float = 0.0,
         max_try: int = 10,
     ) -> List[str]:
+        """
+        Queries the language model with the given text and parameters.
+
+        Args:
+            text (str): Input text for the language model.
+            max_tokens (int, optional): Maximum number of tokens in the response. Defaults to 30.
+            temperature (float, optional): Sampling temperature for randomness. Defaults to 0.0.
+            max_try (int, optional): Maximum number of retry attempts in case of failure. Defaults to 10.
+
+        Returns:
+            List[str]: The response from the language model.
+        """
         for _ in range(max_try):
             try:
                 response = (
@@ -204,6 +286,9 @@ class LLMWithRetriever:
 
 
 if __name__ == "__main__":
+    """
+    Example usage of the LLMWithRetriever class. Replace placeholders with actual values.
+    """
     API_KEY = "<Your API KEY>"
     API_URL = "<Your API URL>"
     # Example usage

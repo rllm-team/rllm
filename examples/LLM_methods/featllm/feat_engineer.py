@@ -48,6 +48,11 @@ from sklearn.model_selection import train_test_split
 
 
 class LC:
+    """
+    A container class for importing and organizing various language model-related classes 
+    from the LangChain library. This class serves as a namespace for easier access to 
+    LangChain components.
+    """
     from langchain.base_language import BaseLanguageModel
     from langchain_core.language_models import BaseLLM
     from langchain.chat_models.base import BaseChatModel
@@ -64,6 +69,22 @@ class LC:
 
 
 class FeatLLMEngineer:
+    """
+    A feature engineering class that leverages a language model to generate feature extraction 
+    rules and functions based on input data, metadata, and task descriptions.
+
+    Attributes:
+        df (pd.DataFrame): The input dataset loaded from a CSV file.
+        data_name (str): The name of the dataset (derived from the file name).
+        metadata (dict): Metadata information loaded from a JSON file.
+        task_info (str): Task description loaded from a TXT file.
+        llm (Union[LC.BaseChatModel, LC.BaseLLM]): The language model used for querying.
+        query_num (int): Number of queries to generate for the language model.
+        shots (int): Number of examples to use for few-shot learning.
+        test_size (Union[float, int]): Proportion or number of test samples.
+        target_column (str): The target column in the dataset.
+        seed (int): Random seed for reproducibility.
+    """
     def __init__(
         self,
         file_path: str,
@@ -77,6 +98,21 @@ class FeatLLMEngineer:
         target_column: str = None,
         seed: int = 0,
     ) -> None:
+        """
+        Initializes the FeatLLMEngineer class by loading the dataset, metadata, and task 
+        description, and setting up the language model and other configurations.
+
+        Args:
+            file_path (str): Path to the CSV file containing the dataset.
+            metadata_path (str): Path to the JSON file containing metadata.
+            task_info_path (str): Path to the TXT file containing task description.
+            llm (Union[LC.BaseChatModel, LC.BaseLLM], optional): Language model instance.
+            query_num (int, optional): Number of queries to generate. Defaults to 5.
+            shots (int, optional): Number of examples for few-shot learning. Defaults to 4.
+            test_size (Union[float, int], optional): Test set size. Defaults to 0.2.
+            target_column (str, optional): Target column name. Defaults to None.
+            seed (int, optional): Random seed for reproducibility. Defaults to 0.
+        """
         assert file_path.endswith(".csv"), "file_path must be a CSV file."
         assert metadata_path.endswith(".json"), "metadata_path must be a JSON file."
         assert task_info_path.endswith(".txt"), "task_info_path must be a TXT file."
@@ -130,6 +166,19 @@ class FeatLLMEngineer:
         seed: int,
         test_size: Union[int, float],
     ):
+        """
+        Splits the dataset into training and testing sets, balances the training set, 
+        and identifies categorical features.
+
+        Args:
+            df (pd.DataFrame): The input dataset.
+            shots (int): Number of examples for few-shot learning.
+            seed (int): Random seed for reproducibility.
+            test_size (Union[int, float]): Test set size.
+
+        Returns:
+            Tuple: Training and testing sets, target column, label list, and categorical indicators.
+        """
         default_target_column = df.columns[-1]
         categorical_indicator = [
             True if (dt == np.dtype("O") or pd.api.types.is_string_dtype(dt)) else False
@@ -180,6 +229,18 @@ class FeatLLMEngineer:
         temperature: float = 0.0,
         max_try: int = 10,
     ) -> List[str]:
+        """
+        Queries the language model with a list of prompts and returns the responses.
+
+        Args:
+            text_list (List[str]): List of prompts to query.
+            max_tokens (int, optional): Maximum tokens for the response. Defaults to 30.
+            temperature (float, optional): Sampling temperature. Defaults to 0.0.
+            max_try (int, optional): Maximum retry attempts for each query. Defaults to 10.
+
+        Returns:
+            List[str]: List of responses from the language model.
+        """
         result_list = []
         for prompt in tqdm(text_list):
             for _ in range(max_try):
@@ -216,6 +277,21 @@ class FeatLLMEngineer:
         is_cat: List[bool],
         query_num: int = 5,
     ) -> Tuple[List[str], str]:
+        """
+        Generates prompts for querying the language model to extract feature conditions.
+
+        Args:
+            df_all (pd.DataFrame): The entire dataset excluding the target column.
+            df_x (pd.DataFrame): Training features.
+            df_y (pd.DataFrame): Training labels.
+            label_list (List[Any]): List of unique labels.
+            default_target_column (str): Name of the target column.
+            is_cat (List[bool]): List indicating whether each feature is categorical.
+            query_num (int, optional): Number of queries to generate. Defaults to 5.
+
+        Returns:
+            Tuple[List[str], str]: List of prompts and feature descriptions.
+        """
         task_desc = f"{self.task_info}\n"
         df_incontext = df_x.copy()
         df_incontext[default_target_column] = df_y
@@ -320,6 +396,16 @@ class FeatLLMEngineer:
         parsed_rule: Dict[str, List[str]],
         feature_desc: str,
     ) -> List[str]:
+        """
+        Generates prompts for querying the language model to create feature extraction functions.
+
+        Args:
+            parsed_rule (Dict[str, List[str]]): Parsed rules for each class.
+            feature_desc (str): Description of the features.
+
+        Returns:
+            List[str]: List of prompts for function generation.
+        """
         template_list = []
         for class_id, each_rule in parsed_rule.items():
             function_name = f"extracting_features_{class_id}"
@@ -343,6 +429,19 @@ class FeatLLMEngineer:
         X_train: pd.DataFrame,
         X_test: pd.DataFrame,
     ):
+        """
+        Converts feature extraction functions into binary vectors for training and testing sets.
+
+        Args:
+            fct_strs_all (List[List[str]]): List of function strings.
+            fct_names (List[List[str]]): List of function names.
+            label_list (List[str]): List of unique labels.
+            X_train (pd.DataFrame): Training features.
+            X_test (pd.DataFrame): Testing features.
+
+        Returns:
+            Tuple: Executable function indices, training and testing binary vectors.
+        """
         X_train_all_dict = {}
         X_test_all_dict = {}
         executable_list = (
@@ -395,6 +494,12 @@ class FeatLLMEngineer:
         return executable_list, X_train_all_dict, X_test_all_dict
 
     def _is_chat_model(self) -> bool:
+        """
+        Checks if the language model is a chat-based model.
+
+        Returns:
+            bool: True if the model is chat-based, False otherwise.
+        """
         return isinstance(self.llm, LC.BaseChatModel)
 
     def _extract_rules(
@@ -402,6 +507,16 @@ class FeatLLMEngineer:
         result_texts: List[str],
         label_list: List[str] = [],
     ) -> List[Dict[str, List[str]]]:
+        """
+        Extracts rules from the language model's responses.
+
+        Args:
+            result_texts (List[str]): List of responses from the language model.
+            label_list (List[str], optional): List of unique labels. Defaults to [].
+
+        Returns:
+            List[Dict[str, List[str]]]: List of parsed rules for each class.
+        """
         total_rules = []
         splitter = "onditions for class"
         for text in result_texts:
@@ -425,6 +540,15 @@ class FeatLLMEngineer:
         return total_rules
 
     def _serialize(self, row):
+        """
+        Serializes a row of data into a descriptive string.
+
+        Args:
+            row (pd.Series): A row of data.
+
+        Returns:
+            str: Serialized string representation of the row.
+        """
         target_str = f""
         for attr_idx, attr_name in enumerate(list(row.index)):
             if attr_idx < len(list(row.index)) - 1:
@@ -442,13 +566,37 @@ class FeatLLMEngineer:
         return target_str
 
     def _fill_in_templates(self, fill_in_dict, template_str):
+        """
+        Fills in a template string with values from a dictionary.
+
+        Args:
+            fill_in_dict (dict): Dictionary of values to fill in.
+            template_str (str): Template string.
+
+        Returns:
+            str: Filled-in template string.
+        """
         return template_str.format(**fill_in_dict)
 
     def _set_seed(self, seed: int):
+        """
+        Sets the random seed for reproducibility.
+
+        Args:
+            seed (int): Random seed value.
+        """
         random.seed(seed)
         np.random.seed(seed)
 
     def __call__(self, *args: Any, **kwargs: Any):
+        """
+        Executes the feature engineering process, including querying the language model, 
+        parsing rules, generating functions, and converting to binary vectors.
+
+        Returns:
+            Tuple: Executable function indices, label list, training and testing binary vectors, 
+                   and training and testing labels.
+        """
         _DIVIDER = "\n\n---DIVIDER---\n\n"
         _VERSION = "\n\n---VERSION---\n\n"
         templates, feature_desc = self._generate_asking_prompt(
@@ -555,10 +703,14 @@ class FeatLLMEngineer:
 
 # example
 if __name__ == "__main__":
+    """
+    Example usage of the FeatLLMEngineer class. Initializes the class with sample inputs 
+    and executes the feature engineering process.
+    """
     llm = ChatOpenAI(
         model_name="deepseek-chat",
         openai_api_base="http://111.186.56.172:3000/v1",
-        openai_api_key="sk-iQn5lQPRtgZRKu56D787847152A34d8aB14dEa157e79FeBf",
+        openai_api_key="sk-iQn5lQPRtgZRKu56D787847152A34d8aBf",
     )
     feat_engineer = FeatLLMEngineer(
         "./adult.csv",
