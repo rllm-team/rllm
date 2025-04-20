@@ -12,7 +12,7 @@ Training GNNs with mini-batch
 ----------------
 The GNNs in rLLM are built upon a message-passing architecture, with process in the figure below:
 
-.. image:: _static/message_passing.svg
+.. image:: ../_static/message_passing.svg
    :width: 600px
    :align: center
 
@@ -24,7 +24,7 @@ As shown in the figure below, to train a 2-layer GNN in mini-batch mode,
 we sample a subset of the 1-hop neighbors of the target node 0 (e.g., nodes 1 and 3),
 along with a subset of its 2-hop neighbors (e.g., nodes 2, 0, and 5).
 
-.. image:: _static/neighbor.svg
+.. image:: ../_static/neighbor.svg
    :width: 600px
    :align: center
 
@@ -32,7 +32,7 @@ Then, the message passing process for mini-batch training is illustrated in the 
 Messages are propagated from the 2-hop neighbors to the 1-hop neighbors,
 and finally to the target node 0, completing the forward pass.
 
-.. image:: _static/mp_minibatch.svg
+.. image:: ../_static/mp_minibatch.svg
    :width: 600px
    :align: center
 

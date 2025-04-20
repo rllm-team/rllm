@@ -23,7 +23,7 @@ Before delving into the details of the :obj:`GCNConv` class, it is important to 
 The following section will use a simple example to help you understand the concept of message passing.
 The diagram below illustrates a simple undirected graph consisting of the target node 0 and its 5 neighboring nodes.
 
-.. image:: _static/example_graph.svg
+.. image:: ../_static/example_graph.svg
    :width: 400px
    :align: center
 
@@ -34,7 +34,7 @@ As shown in the figure below, the message passing process involves 3 main steps:
 2. Aggregation, which, in GCN, corresponds to summing up the messages from all neighbors.
 3. Update, where in GCN, the aggregated message is directly assigned as the new representation of the target node 0.
 
-.. image:: _static/message_passing.svg
+.. image:: ../_static/message_passing.svg
    :width: 600px
    :align: center
 
