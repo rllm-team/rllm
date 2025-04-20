@@ -12,7 +12,7 @@ Training GNNs with mini-batch
 ----------------
 The GNNs in rLLM are built upon a message-passing architecture, with process in the figure below:
 
-.. image:: _static/message_passing.svg
+.. image:: ../_static/message_passing.svg
    :width: 600px
    :align: center
 
@@ -21,10 +21,10 @@ Based on this, we can enable mini-batch training for large graphs with node feat
 
 We take neighbor sampling as an example of mini-batch training.
 As shown in the figure below, to train a 2-layer GNN in mini-batch mode,
-we sample a subset of the 1-hop neighbors of the target node 0 (e.g., nodes 1 and 3),
-along with a subset of its 2-hop neighbors (e.g., nodes 2, 0, and 5).
+we sample a subset of the 1-hop neighbors of the target node 0 (i.e., nodes 1 and 3),
+along with a subset of its 2-hop neighbors (i.e., nodes 2, 0, and 5).
 
-.. image:: _static/neighbor.svg
+.. image:: ../_static/neighbor.svg
    :width: 600px
    :align: center
 
@@ -32,20 +32,20 @@ Then, the message passing process for mini-batch training is illustrated in the 
 Messages are propagated from the 2-hop neighbors to the 1-hop neighbors,
 and finally to the target node 0, completing the forward pass.
 
-.. image:: _static/mp_minibatch.svg
+.. image:: ../_static/mp_minibatch.svg
    :width: 600px
    :align: center
 
 In rLLM, we provide the :obj:`NeighborLoader` class for neighbor-sampling-based training.
-First, load the :obj:`GraphData` and Define the :obj:`NeighborLoader`. The :obj:`NeighborLoader` is initialized with:
+First, load the :obj:`GraphData` and define the :obj:`NeighborLoader`. The :obj:`NeighborLoader` is initialized with:
 
 - A :obj:`GraphData` object to be sampled and batched.
 
 - :obj:`num_neighbors`: Specifies the number of neighbors to sample per layer. For example, :obj:`[10, 5]` means:
 
-  + Layer 1: Sample 10 neighbors per target node.
+  + Layer 1: Sample 10 1-hop neighbors per target node.
 
-  + Layer 2: Sample 5 neighbors per sampled node in layer 1.
+  + Layer 2: Sample 5 neighbors per sampled node in layer 1 (i.e. 2-hop neighbors for target nodes).
 
 - :obj:`seeds`: The nodes to sample (here, :obj:`train_mask`).
 
