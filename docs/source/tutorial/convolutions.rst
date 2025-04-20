@@ -17,7 +17,7 @@ where the convolution operation is applied to node features based on the input a
 The formula of :obj:`GCNConv` layer is defined as :math:`\tilde A X W`,
 where :math:`\tilde A` is the normalized adjacency matrix with added self-loops, :math:`X` represents the node features, and :math:`W` is the parameter matrix..
 
-Before delving into the details of the :obj:`GCNConv` class, it is important to first understand the structure of the :obj:`MessagePassing` class.
+Before diving into the details of the :obj:`GCNConv` class, it is important to first understand the structure of the :obj:`MessagePassing` class.
 :obj:`MessagePassing` is the base class for all graph convolution layers implemented in `rllm.nn.conv.graph_conv`, including :obj:`GCNConv`.
 
 The following section will use a simple example to help you understand the concept of message passing.
