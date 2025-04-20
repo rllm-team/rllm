@@ -19,25 +19,26 @@ where :math:`\tilde A` is the normalized adjacency matrix with added self-loops,
 
 Before delving into the details of the :obj:`GCNConv` class, it is important to first understand the structure of the :obj:`MessagePassing` class.
 :obj:`MessagePassing` is the base class for all graph convolution layers implemented in `rllm.nn.conv.graph_conv`, including :obj:`GCNConv`.
-It consists of three main steps: message computation ( :math:`\text{Message}` ), aggregation ( :math:`\text{Aggregate}` ), and update ( :math:`\text{Update}` ) as shown below:
 
-.. math::
-    \mathbf{x}_i^{(k+1)} = \text{Update}^{(k)}
-    \left( \mathbf{x}_i^{(k)},
-    \text{Aggregate}^{(k)} \left( \left\{ \text{Message}^{(k)} \left(
-    \mathbf{x}_i^{(k)}, \mathbf{x}_j^{(k)}, \mathbf{e}_{j,i}^{(k)}
-    \right) \right\}_{j \in \mathcal{N}(i)} \right) \right)
+The following section will use a simple example to help you understand the concept of message passing.
+The diagram below illustrates a simple undirected graph consisting of the target node 0 and its 5 neighboring nodes.
 
-As described above, the formulation of :obj:`GCNConv` based on the :obj:`MessagePassing` is given by the following equation:
+.. image:: _static/example_graph.svg
+   :width: 400px
+   :align: center
 
-.. math::
-    \mathbf{x}_i^{(k+1)} = \sum_{j \in \mathcal{N}(i)} \frac{1}{\sqrt{\deg(i) \deg(j)}} \mathbf{x}_j^{(k)}
+To get the node representation of the target node 0 at n-th layer, we need to aggregate information from its 5 neighbors.
+As shown in the figure below, the message passing process involves 3 main steps:
 
-Where the :math:`\sum`` operation corresponds to the aggregation step, and the term :math:`\frac{1}{\sqrt{\deg(i) \deg(j)}}` serves as the normalization factor.
-Here, :math:`\deg(i)` and :math:`\deg(j)` denote the degrees of nodes :math:`i` and :math:`j`, respectively.
-The message computation function simply retrieves the neighboring nodes of :math:`\mathbf{x}_i^{(k)}` at the current layer and returns the message vectors from nodes :math:`\mathbf{x}_j^{(k)}` to :math:`\mathbf{x}_i^{(k)}`.
-The aggregation step combines the retrieved neighbor information according to a specified rule, producing the aggregated message received by node :math:`\mathbf{x}_i^{(k)}` at the current layer.
-And the update step then assigns the aggregated message to the next-layer representation of node :math:`i`, denoted as :math:`\mathbf{x}_i^{(k+1)}`.
+1. Message computation for each neighbor. In the case of GCN, this simply involves taking the neighbor's node representation from n-1 layer as the message.
+2. Aggregation, which, in GCN, corresponds to summing up the messages from all neighbors.
+3. Update, where in GCN, the aggregated message is directly assigned as the new representation of the target node 0.
+
+.. image:: _static/message_passing.svg
+   :width: 600px
+   :align: center
+
+Of course, in practice, there is more than one target node, and the computation is performed in parallel.
 
 Next, We examine the implementation of the :obj:`GCNConv` class, which inherits from the :obj:`MessagePassing` base class and consists of two methods:  :obj:`__init__()` and :obj:`forward()`.
 
