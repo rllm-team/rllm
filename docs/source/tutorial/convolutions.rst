@@ -24,7 +24,7 @@ The following section will use a simple example to help you understand the conce
 The diagram below illustrates a simple undirected graph consisting of the target node 0 and its 5 neighboring nodes.
 
 .. image:: ../_static/example_graph.svg
-   :width: 400px
+   :width: 350px
    :align: center
 
 To get the node representation of the target node 0 at n-th layer, we need to aggregate information from its 5 neighbors.
