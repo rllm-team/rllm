@@ -32,7 +32,7 @@ Then, the message passing process for mini-batch training is illustrated in the 
 Messages are propagated from the 2-hop neighbors to the 1-hop neighbors,
 and finally to the target node 0, completing the forward pass.
 
-.. image:: _static/mini_batch_message_passing.svg
+.. image:: _static/mp_minibatch.svg
    :width: 600px
    :align: center
 
