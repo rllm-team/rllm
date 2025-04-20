@@ -1,34 +1,51 @@
-Training model with batch
+Mini-Batch Training
 ===============
+In machine learning, due to limited computational resources, it is often impractical to train a model using the entire dataset at once.
+To address this, a common solution is mini-batch training,
+where only a portion of the training data is used in each iteration to update the model parameters, thereby reducing memory usage.
 
-Training GNNs with batch
+rLLM provides such dataloaders for mini-batch training in :obj:`rllm.dataloader`.
+In the following, we will present two examples to illustrate how mini-batch training
+is applied in GNNs (Graph Neural Networks) and RTL (Relationl Table Learning), respectively.
+
+Training GNNs with mini-batch
 ----------------
-The GNN model of rLLM is built upon a message-passing architecture, with the formulation as follows:
+The GNNs in rLLM are built upon a message-passing architecture, with process in the figure below:
 
-.. math::
-    \mathbf{x}_i^{(k+1)} = \text{Update}^{(k)}
-    \left( \mathbf{x}_i^{(k)},
-    \text{Aggregate}^{(k)} \left( \left\{ \text{Message}^{(k)} \left(
-    \mathbf{x}_i^{(k)}, \mathbf{x}_j^{(k)}, \mathbf{e}_{j,i}^{(k)}
-    \right) \right\}_{j \in \mathcal{N}(i)} \right) \right)
+.. image:: _static/message_passing.svg
+   :width: 600px
+   :align: center
 
 It can be observed that, in each layer, the update of the target node depends only on the nodes from the previous layer.
-Based on this, we can enable batch training for large graphs with node features that can be loaded into memory but cannot fit entirely into GPU memory at once.
+Based on this, we can enable mini-batch training for large graphs with node features that can be loaded into memory but cannot fit entirely into GPU memory at once.
 
-rLLM provides such dataloaders for batch training in :obj:`rllm.dataloader`. Below, we demonstrate its usage with an example.
+We take neighbor sampling as an example of mini-batch training.
+As shown in the figure below, to train a 2-layer GNN in mini-batch mode,
+we sample a subset of the 1-hop neighbors of the target node 0 (e.g., nodes 1 and 3),
+along with a subset of its 2-hop neighbors (e.g., nodes 2, 0, and 5).
 
-We will implement neighbor-sampling-based batch training using :obj:`NeighborLoader` and :obj:`GCN`.
-Notably, the dataloader and the model are decoupled, i.e. the model can be replaced with others, as the message-passing architecture ensures compatibility.
+.. image:: _static/neighbor.svg
+   :width: 600px
+   :align: center
 
+Then, the message passing process for mini-batch training is illustrated in the figure below.
+Messages are propagated from the 2-hop neighbors to the 1-hop neighbors,
+and finally to the target node 0, completing the forward pass.
+
+.. image:: _static/mp_minibatch.svg
+   :width: 600px
+   :align: center
+
+In rLLM, we provide the :obj:`NeighborLoader` class for neighbor-sampling-based training.
 First, load the :obj:`GraphData` and Define the :obj:`NeighborLoader`. The :obj:`NeighborLoader` is initialized with:
 
 - A :obj:`GraphData` object to be sampled and batched.
 
 - :obj:`num_neighbors`: Specifies the number of neighbors to sample per layer. For example, :obj:`[10, 5]` means:
 
-  + **Layer 1**: Sample 10 neighbors per target node.
+  + Layer 1: Sample 10 neighbors per target node.
 
-  + **Layer 2**: Sample 5 neighbors per sampled node in layer 1.
+  + Layer 2: Sample 5 neighbors per sampled node in layer 1.
 
 - :obj:`seeds`: The nodes to sample (here, :obj:`train_mask`).
 
@@ -52,7 +69,7 @@ First, load the :obj:`GraphData` and Define the :obj:`NeighborLoader`. The :obj:
 
 After defining the dataloader, we can proceed with training.
 We use the :obj:`GCN` model for training, and the model definition and training process are as follows.
-Note that each iteration of :obj:`trainloader` returns three values:
+Each iteration of :obj:`trainloader` returns three values:
 
 - :obj:`batch`: The size of the current batch.
 
@@ -60,7 +77,8 @@ Note that each iteration of :obj:`trainloader` returns three values:
 
 - :obj:`adjs`: A list of sparse matrices representing the edge connections in the neighbor-sampled subgraph for the current batch. These determine the message-passing direction during computation.
 
-The :obj:`NeighborLoader` always places the target nodes at the beginning of the sampled nodes. Thus, we can obtain the IDs of the current batch's target nodes using :obj:`n_id[:batch]`.
+The :obj:`NeighborLoader` always places the target nodes at the beginning of the sampled nodes.
+Thus, we can obtain the IDs of the current mini-batch's target nodes using :obj:`n_id[:batch]`.
 
 .. code:: python
 
@@ -99,12 +117,12 @@ The :obj:`NeighborLoader` always places the target nodes at the beginning of the
         return all_loss / len(trainloader)
 
 
-For a complete example, please refer to `[Example code of gcn_batch] <https://github.com/rllm-team/rllm/blob/main/examples/gcn_batch.py>`__。
+For a complete example, please refer to `[Example code of gcn_batch] <https://github.com/rllm-team/rllm/blob/main/examples/gcn_batch.py>`__.
 
 
-Training BRIDGE with batch
+Training BRIDGE with mini-batch
 ----------------
-Next, we will demonstrate batch RTL model training using :obj:`BRIDGELoader` and the :obj:`BRIDGE` model.
+Next, we will demonstrate mini-batch RTL model training using :obj:`BRIDGELoader` and the :obj:`BRIDGE` model.
 For detailed specifications of the :obj:`BRIDGE` model, please refer to :doc:`Design of RTLs <rtls>`.
 
 :obj:`BRIDGELoader` (a subclass of :obj:`NeighborLoader`) requires three input data for initialization:
@@ -133,8 +151,6 @@ Other parameters maintain identical definitions to :obj:`NeighborLoader`, where 
 
 
 Similarly, we now utilize this :obj:`train_loader` to facilitate training with the `BRIDGE` model.
-For the :obj:`BRIDGE` model architecture specifications, refer to :doc:`Design of RTLs <rtls>`.
-
 The batch training process yields five outputs per iteration from :obj:`BRIDGELoader`:
 
 - :obj:`batch`: Size of the current batch.
@@ -148,7 +164,7 @@ The batch training process yields five outputs per iteration from :obj:`BRIDGELo
 - :obj:`non_table_data`: Non-table data for the current batch.
 
 :obj:`BRIDGELoader` always positions target nodes at the beginning of sampled nodes.
-Thus, target node IDs for the current batch can be retrieved via :obj:`n_id[:batch]`.
+Thus, target node IDs for the current mini-batch can be retrieved via :obj:`n_id[:batch]`.
 
 .. code:: python
 
@@ -171,4 +187,4 @@ Thus, target node IDs for the current batch can be retrieved via :obj:`n_id[:bat
         return loss_all / len(train_loader)
 
 
-For a complete example, please refer to `[Example code of bridge_tacm12k_batch] <https://github.com/rllm-team/rllm/blob/main/examples/bridge/bridge_tacm12k_batch.py>`__。
+For a complete example, please refer to `[Example code of bridge_tacm12k_batch] <https://github.com/rllm-team/rllm/blob/main/examples/bridge/bridge_tacm12k_batch.py>`__.
