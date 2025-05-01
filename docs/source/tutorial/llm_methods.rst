@@ -112,19 +112,14 @@ Finally, we use the obtained pseudo-labels for GCN training.
     masks = {'train_mask': train_mask, 'val_mask':val_mask, 'test_mask': test_mask}
 
     trainer = Trainer(data, model, optimizer, masks, weighted_loss=True)
-    best_val_acc = 0
-    best_test_acc = 0
-    train_accs = []
-    val_accs = []
-    test_accs = []
+    best_val_acc = test_acc = 0
+
     for epoch in tqdm(range(30)):
         train_loss = trainer.train()
 
-        train_acc, val_acc, test_acc = trainer.test()
-        train_accs.append(train_acc)
-        test_accs.append(test_acc)
-        val_accs.append(val_acc)
+        train_acc, val_acc, tmp_test_acc = trainer.test()
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             test_acc = tmp_test_acc
-    print(f'best test acc: {best_test_acc:.4f}')
+
+    print(f'test acc: {test_acc:.4f}')
