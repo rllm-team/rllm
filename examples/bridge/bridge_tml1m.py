@@ -132,23 +132,25 @@ def test():
     return accs
 
 
-start_time = time.time()
-best_val_acc = best_test_acc = 0
+metric = "Acc"
+best_val_acc = test_acc = 0
+times = []
 for epoch in range(1, args.epochs + 1):
+    start = time.time()
+
     train_loss = train()
-    train_acc, val_acc, test_acc = test()
-    print(
-        f"Epoch: [{epoch}/{args.epochs}]"
-        f"Loss: {train_loss:.4f} train_acc: {train_acc:.4f} "
-        f"val_acc: {val_acc:.4f} test_acc: {test_acc:.4f} "
-    )
+    train_acc, val_acc, tmp_test_acc = test()
     if val_acc > best_val_acc:
         best_val_acc = val_acc
-        best_test_acc = test_acc
+        test_acc = tmp_test_acc
 
-print(f"Total Time: {time.time() - start_time:.4f}s")
-print(
-    "BRIDGE result: "
-    f"Best Val acc: {best_val_acc:.4f}, "
-    f"Best Test acc: {best_test_acc:.4f}"
-)
+    times.append(time.time() - start)
+    print(
+        f"Epoch: [{epoch}/{args.epochs}]"
+        f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
+        f"Val {metric}: {val_acc:.4f}, Test {metric}: {tmp_test_acc:.4f} "
+    )
+
+print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
+print(f"Total time: {sum(times):.4f}s")
+print(f"Test {metric} at best Val: {test_acc:.4f}")
