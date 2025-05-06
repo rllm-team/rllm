@@ -1,11 +1,11 @@
 # The GCN method from the
 # "Semi-Supervised Classification with Graph Convolutional Networks" paper.
 # ArXiv: https://arxiv.org/abs/1609.02907
+# This is the random neighbor sampling version of GCN.
 
 # Datasets      CiteSeer    Cora      PubMed
-# Acc           0.655       0.801     0.782
-# Fullbatch     0.712       0.833     0.793
-# Time          46.41s      63.18s    42.87s
+# Acc           0.655       0.760     0.771
+# Fullbatch     0.712       0.816     0.787
 
 import argparse
 import os.path as osp
@@ -34,7 +34,7 @@ parser.add_argument("--epochs", type=int, default=200, help="Training epochs")
 parser.add_argument("--dropout", type=float, default=0.6, help="Graph Dropout")
 parser.add_argument("--seed", type=int, default=42)
 parser.add_argument(
-    "--batch_size", type=int, default=32, help="Batch size for NeighborLoader"
+    "--batch_size", type=int, default=64, help="Batch size for NeighborLoader"
 )
 args = parser.parse_args()
 
@@ -126,25 +126,25 @@ def test():
 
 
 metric = "Acc"
-best_val_acc = best_test_acc = 0
+best_val_acc = test_acc = 0
 times = []
 for epoch in range(1, args.epochs + 1):
     start = time.time()
 
     train_loss = train()
-    train_acc, val_acc, test_acc = test()
+    train_acc, val_acc, tmp_test_acc = test()
 
     if val_acc > best_val_acc:
         best_val_acc = val_acc
-        best_test_acc = test_acc
+        test_acc = tmp_test_acc
 
     times.append(time.time() - start)
     print(
         f"Epoch: [{epoch}/{args.epochs}] "
         f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
-        f"Val {metric}: {val_acc:.4f}, Test {metric}: {test_acc:.4f} "
+        f"Val {metric}: {val_acc:.4f}, Test {metric}: {tmp_test_acc:.4f} "
     )
 
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
 print(f"Total time: {sum(times):.4f}s")
-print(f"Best test acc: {best_test_acc:.4f}")
+print(f"Test {metric} at best Val: {test_acc:.4f}")

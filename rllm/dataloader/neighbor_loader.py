@@ -7,8 +7,7 @@ from rllm.data import GraphData
 
 
 class NeighborLoader(torch.utils.data.DataLoader):
-    r"""The neighbor sampler from the `"Inductive Representation Learning on
-    Large Graphs" <https://arxiv.org/abs/1706.02216>`_ paper, which allows
+    r"""The random neighbor sampler, which allows
     for mini-batch training of GNNs on large-scale graphs where full-batch
     training is not feasible.
 
