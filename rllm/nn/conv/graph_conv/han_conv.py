@@ -11,7 +11,8 @@ from rllm.nn.conv.graph_conv import MessagePassing
 
 
 class HANConv(MessagePassing):
-    r"""The Heterogeneous Graph Attention Network (HAN) model,
+    r"""The Heterogeneous Graph Attention Network (HAN) model
+    implementation with message passing,
     as introduced in the `"Heterogeneous Graph Attention
     Network" <https://arxiv.org/abs/1903.07293>`__ paper.
 

@@ -11,7 +11,8 @@ from rllm.nn.conv.graph_conv.aggrs import Aggregator
 
 
 class SAGEConv(MessagePassing):
-    r"""Simple SAGEConv layer, as introduced in the
+    r"""Simple SAGEConv layer implementation with message passing,
+    as introduced in the
     `"Inductive Representation Learning on Large Graphs"
     <https://arxiv.org/abs/1706.02216>`__ paper.
 

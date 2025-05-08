@@ -131,5 +131,5 @@ Finally, we use the obtained pseudo-labels for GCN training.
         val_accs.append(val_acc)
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            best_test_acc = test_acc
+            test_acc = tmp_test_acc
     print(f'best test acc: {best_test_acc:.4f}')

@@ -135,7 +135,7 @@ def test(loader: DataLoader) -> float:
 
 
 metric = "Acc"
-best_val_metric = best_test_metric = 0
+best_val_metric = test_metric = 0
 times = []
 for epoch in range(1, args.epochs + 1):
     start = time.time()
@@ -143,21 +143,19 @@ for epoch in range(1, args.epochs + 1):
     train_loss = train(epoch)
     train_metric = test(train_loader)
     val_metric = test(val_loader)
-    test_metric = test(test_loader)
+    tmp_test_metric = test(test_loader)
 
     if val_metric > best_val_metric:
         best_val_metric = val_metric
-        best_test_metric = test_metric
+        test_metric = tmp_test_metric
 
     times.append(time.time() - start)
     print(
+        f"Epoch: [{epoch}/{args.epochs}]"
         f"Train Loss: {train_loss:.4f}, Train {metric}: {train_metric:.4f}, "
-        f"Val {metric}: {val_metric:.4f}, Test {metric}: {test_metric:.4f}"
+        f"Val {metric}: {val_metric:.4f}, Test {metric}: {tmp_test_metric:.4f}"
     )
 
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
 print(f"Total time: {sum(times):.4f}s")
-print(
-    f"Best Val {metric}: {best_val_metric:.4f}, "
-    f"Best Test {metric}: {best_test_metric:.4f}"
-)
+print(f"Test {metric} at best Val: {test_metric:.4f}")

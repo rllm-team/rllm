@@ -11,7 +11,7 @@ from rllm.nn.conv.graph_conv import MessagePassing
 
 
 class GCNConv(MessagePassing):
-    r"""The GCN (Graph Convolutional Network) model re-implementation with message passing,
+    r"""The GCN (Graph Convolutional Network) model implementation with message passing,
     based on the `"Semi-supervised Classification with Graph Convolutional Networks"
     <https://arxiv.org/abs/1609.02907>`__ paper.
 

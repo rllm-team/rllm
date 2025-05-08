@@ -10,7 +10,8 @@ from rllm.nn.conv.graph_conv import MessagePassing
 
 
 class HGTConv(MessagePassing):
-    r"""The Heterogeneous Graph Transformer (HGT)  layer,
+    r"""The Heterogeneous Graph Transformer (HGT) layer
+    implementation with message passing,
     as introduced in the `"Heterogeneous Graph Transformer"
     <https://arxiv.org/abs/2003.01332>`__ paper.
 

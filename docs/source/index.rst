@@ -37,6 +37,7 @@ Highlight Features:
    tutorial/tnns
    tutorial/rtls
    tutorial/llm_methods
+   tutorial/batch_training
 
 
 .. toctree::
@@ -50,7 +51,7 @@ Highlight Features:
    modules/rllm.dataloader
    modules/rllm.transforms
    modules/rllm.utils
-   
+
 
 .. toctree::
    :maxdepth: 1

@@ -17,27 +17,28 @@ where the convolution operation is applied to node features based on the input a
 The formula of :obj:`GCNConv` layer is defined as :math:`\tilde A X W`,
 where :math:`\tilde A` is the normalized adjacency matrix with added self-loops, :math:`X` represents the node features, and :math:`W` is the parameter matrix..
 
-Before delving into the details of the :obj:`GCNConv` class, it is important to first understand the structure of the :obj:`MessagePassing` class.
+Before diving into the details of the :obj:`GCNConv` class, it is important to first understand the structure of the :obj:`MessagePassing` class.
 :obj:`MessagePassing` is the base class for all graph convolution layers implemented in `rllm.nn.conv.graph_conv`, including :obj:`GCNConv`.
-It consists of three main steps: message computation ( :math:`\text{Message}` ), aggregation ( :math:`\text{Aggregate}` ), and update ( :math:`\text{Update}` ) as shown below:
 
-.. math::
-    \mathbf{x}_i^{(k+1)} = \text{Update}^{(k)}
-    \left( \mathbf{x}_i^{(k)},
-    \text{Aggregate}^{(k)} \left( \left\{ \text{Message}^{(k)} \left(
-    \mathbf{x}_i^{(k)}, \mathbf{x}_j^{(k)}, \mathbf{e}_{j,i}^{(k)}
-    \right) \right\}_{j \in \mathcal{N}(i)} \right) \right)
+The following section will use a simple example to help you understand the concept of message passing.
+The diagram below illustrates a simple undirected graph consisting of the target node 0 and its 5 neighboring nodes.
 
-As described above, the formulation of :obj:`GCNConv` based on the :obj:`MessagePassing` is given by the following equation:
+.. image:: ../_static/example_graph.svg
+   :width: 350px
+   :align: center
 
-.. math::
-    \mathbf{x}_i^{(k+1)} = \sum_{j \in \mathcal{N}(i)} \frac{1}{\sqrt{\deg(i) \deg(j)}} \mathbf{x}_j^{(k)}
+To get the node representation of the target node 0 at n-th layer, we need to aggregate information from its 5 neighbors.
+As shown in the figure below, the message passing process involves 3 main steps:
 
-Where the :math:`\sum`` operation corresponds to the aggregation step, and the term :math:`\frac{1}{\sqrt{\deg(i) \deg(j)}}` serves as the normalization factor.
-Here, :math:`\deg(i)` and :math:`\deg(j)` denote the degrees of nodes :math:`i` and :math:`j`, respectively. 
-The message computation function simply retrieves the neighboring nodes of :math:`\mathbf{x}_i^{(k)}` at the current layer and returns the message vectors from nodes :math:`\mathbf{x}_j^{(k)}` to :math:`\mathbf{x}_i^{(k)}`.
-The aggregation step combines the retrieved neighbor information according to a specified rule, producing the aggregated message received by node :math:`\mathbf{x}_i^{(k)}` at the current layer.
-And the update step then assigns the aggregated message to the next-layer representation of node :math:`i`, denoted as :math:`\mathbf{x}_i^{(k+1)}`.
+1. Message computation for each neighbor. In the case of GCN, this simply involves taking the neighbor's node representation from n-1 layer as the message.
+2. Aggregation, which, in GCN, corresponds to summing up the messages from all neighbors.
+3. Update, where in GCN, the aggregated message is directly assigned as the new representation of the target node 0.
+
+.. image:: ../_static/message_passing.svg
+   :width: 600px
+   :align: center
+
+Of course, in practice, there is more than one target node, and the computation is performed in parallel.
 
 Next, We examine the implementation of the :obj:`GCNConv` class, which inherits from the :obj:`MessagePassing` base class and consists of two methods:  :obj:`__init__()` and :obj:`forward()`.
 
@@ -119,10 +120,11 @@ If we go deeper into the :obj:`propagate()` method, we can see that it calls the
         # In default, just return the aggregated message
         ...
 
-To construct another type of convolution layer, a similar procedure can be followed:
-1. Inherit from the :obj:`MessagePassing` class.
-2. Define the :obj:`__init__` and :obj:`forward` methods.
-3. Override the implementation of the :obj:`message`, :obj:`aggregate`, and :obj:`update` methods as needed.
+To construct a different type of convolutional layer,
+you can subclass the :obj:`MessagePassing` class,
+define the :obj:`__init__` and :obj:`forward` methods,
+and override the :obj:`message`, :obj:`aggregate`, and :obj:`update` functions as needed.
+This approach provides flexibility in customizing the message passing mechanism to suit specific graph neural network architectures.
 
 In addition to the :obj:`__init__()` and :obj:`forward()` methods, we can define custom methods as needed.
 For example, the :obj:`GCNConv` class can include a :obj:`reset_parameters()` method, which reinitializes the layer's parameters (i.e., the weight matrix :math:`W`) to their original values.
@@ -140,16 +142,17 @@ Construct a TabTransformer Convolution Layer
 TabTransformer is a classic Tabular/Table Neural Network that relies on the attention mechanism from Transformers to perform column-wise convolution.
 It focuses exclusively on convolving categorical columns in tabular data. In this section, we will construct the convolution layer of TabTransformer — :obj:`TabTransformerConv`.
 Different to GraphConv, :obj:`TabTransformerConv` is a class that inherits from torch.nn.Module, and its two core methods are :obj:`__init__()` and :obj:`forward()`.
+
 .. code-block:: python
 
     class TabTransformerConv(torch.nn.Module):
         def __init__(
-            self, 
-            conv_dim, 
-            num_heads, 
-            dropout, 
-            activation, 
-            use_pre_encoder, 
+            self,
+            conv_dim,
+            num_heads,
+            dropout,
+            activation,
+            use_pre_encoder,
             metadata,
         ):
             super().__init__()
@@ -164,7 +167,7 @@ Different to GraphConv, :obj:`TabTransformerConv` is a class that inherits from 
 
 The :obj:`__init__()` method is responsible for initializing the parameters of the :obj:`TabTransformerConv` layer.
 It requires a :obj:`dim` parameter to specify the input and output dimensions, as well as other relevant Transformer parameters, such as the number of attention heads (:obj:`num_heads`), dropout rate (:obj:`dropout`), and activation function type (:obj:`activation`).
-Unlike Graph Neural Networks, the :obj:`TabTransformerConv` also requires a :obj:`metadata` parameter due to the strong heterogeneity of tabular data. 
+Unlike Graph Neural Networks, the :obj:`TabTransformerConv` also requires a :obj:`metadata` parameter due to the strong heterogeneity of tabular data.
 The :obj:`metadata` contains information about the table structure and is used to initialize the pre-encoder.
 
 .. code-block:: python
