@@ -49,10 +49,11 @@ from sklearn.model_selection import train_test_split
 
 class LC:
     """
-    A container class for importing and organizing various language model-related classes 
-    from the LangChain library. This class serves as a namespace for easier access to 
+    A container class for importing and organizing various language model-related classes
+    from the LangChain library. This class serves as a namespace for easier access to
     LangChain components.
     """
+
     from langchain.base_language import BaseLanguageModel
     from langchain_core.language_models import BaseLLM
     from langchain.chat_models.base import BaseChatModel
@@ -70,7 +71,7 @@ class LC:
 
 class FeatLLMEngineer:
     """
-    A feature engineering class that leverages a language model to generate feature extraction 
+    A feature engineering class that leverages a language model to generate feature extraction
     rules and functions based on input data, metadata, and task descriptions.
 
     Attributes:
@@ -85,6 +86,7 @@ class FeatLLMEngineer:
         target_column (str): The target column in the dataset.
         seed (int): Random seed for reproducibility.
     """
+
     def __init__(
         self,
         file_path: str,
@@ -99,7 +101,7 @@ class FeatLLMEngineer:
         seed: int = 0,
     ) -> None:
         """
-        Initializes the FeatLLMEngineer class by loading the dataset, metadata, and task 
+        Initializes the FeatLLMEngineer class by loading the dataset, metadata, and task
         description, and setting up the language model and other configurations.
 
         Args:
@@ -167,7 +169,7 @@ class FeatLLMEngineer:
         test_size: Union[int, float],
     ):
         """
-        Splits the dataset into training and testing sets, balances the training set, 
+        Splits the dataset into training and testing sets, balances the training set,
         and identifies categorical features.
 
         Args:
@@ -590,11 +592,11 @@ class FeatLLMEngineer:
 
     def __call__(self, *args: Any, **kwargs: Any):
         """
-        Executes the feature engineering process, including querying the language model, 
+        Executes the feature engineering process, including querying the language model,
         parsing rules, generating functions, and converting to binary vectors.
 
         Returns:
-            Tuple: Executable function indices, label list, training and testing binary vectors, 
+            Tuple: Executable function indices, label list, training and testing binary vectors,
                    and training and testing labels.
         """
         _DIVIDER = "\n\n---DIVIDER---\n\n"
@@ -704,19 +706,19 @@ class FeatLLMEngineer:
 # example
 if __name__ == "__main__":
     """
-    Example usage of the FeatLLMEngineer class. Initializes the class with sample inputs 
+    Example usage of the FeatLLMEngineer class. Initializes the class with sample inputs
     and executes the feature engineering process.
     """
+    API_KEY = "<Your API KEY>"
+    API_URL = "<Your API URL>"
     llm = ChatOpenAI(
-        model_name="deepseek-chat",
-        openai_api_base="http://111.186.56.172:3000/v1",
-        openai_api_key="sk-iQn5lQPRtgZRKu56D787847152A34d8aBf",
+        model_name="Your Model Name", openai_api_base=API_URL, openai_api_key=API_KEY
     )
     feat_engineer = FeatLLMEngineer(
-        "./adult.csv",
-        "./adult-metadata.json",
-        "./adult-task.txt",
-        llm,
+        file_path="Your File Path",
+        metadata_path="Your Metadata Path",
+        task_info_path="Your Task Info Path",
+        llm=llm,
         query_num=1,
     )
     el, _, a, b, c, d = feat_engineer()
