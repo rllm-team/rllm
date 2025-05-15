@@ -1,6 +1,6 @@
 from ..datasets.dataset import Dataset  # noqa
 from .graph_data import BaseGraph, GraphData, HeteroGraphData  # noqa
-from .table_data import BaseTable, TableData, TableDataset  # noqa
+from .table_data import BaseTable, TableData, TableDataset, TextEmbedderConfig  # noqa
 from .storage import BaseStorage, NodeStorage, EdgeStorage, recursive_apply  # noqa
 from .view import MappingView, KeysView, ValuesView, ItemsView  # noqa
 
@@ -16,6 +16,7 @@ __all__ = [
     "BaseTable",
     "TableData",
     "TableDataset",
+    "TextEmbedderConfig"
     # storage_classes
     "BaseStorage",
     "NodeStorage",
