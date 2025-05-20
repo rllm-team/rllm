@@ -1,6 +1,5 @@
-
 import torch
-from torch.utils.data import Dataset as TorchDataset
+
 
 # Create torch dataset
 class Dataset(torch.utils.data.Dataset):
@@ -9,9 +8,8 @@ class Dataset(torch.utils.data.Dataset):
         self.labels = labels
 
     def __getitem__(self, idx):
-        item = {key: torch.tensor(val[idx])
-                for key, val in self.encodings.items()}
-        item['node_id'] = idx
+        item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
+        item["node_id"] = idx
         if self.labels:
             item["labels"] = torch.tensor(self.labels[idx])
 
