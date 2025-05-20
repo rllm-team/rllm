@@ -4,7 +4,6 @@ from typing import Union, List, Any
 import json
 import random
 
-import torch
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -282,4 +281,3 @@ class LLMWithRetriever:
         else:
             result = -1
         return result
-
