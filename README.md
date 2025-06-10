@@ -1,6 +1,6 @@
 <!-- # rLLM (**[Documentation](https://relationllm.readthedocs.io/en/latest/)**|**[Paper](https://arxiv.org/abs/2407.20157)**) -->
 
-<p align="center"><img src="docs/source/_static/logo.png" alt="rLLM logo" width="300px" /></p>
+<p align="center"><img src="docs/source/_static/logo.png" alt="rLLM logo" width="400px" /></p>
 <p align="center">
 |  <a href="https://relationllm.readthedocs.io/en/latest/"><b>Documentation</b></a>  
 |  <a href="https://rllm-project.github.io/"><b>Blog</b></a>  
