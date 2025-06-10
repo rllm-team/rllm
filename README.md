@@ -1,6 +1,6 @@
 <!-- # rLLM (**[Documentation](https://relationllm.readthedocs.io/en/latest/)**|**[Paper](https://arxiv.org/abs/2407.20157)**) -->
 
-<p align="center"><img src="docs/source/_static/rllm.png" alt="rLLM logo" width="300px" /></p>
+<p align="center"><img src="docs/source/_static/logo.png" alt="rLLM logo" width="300px" /></p>
 <p align="center">
 |  <a href="https://relationllm.readthedocs.io/en/latest/"><b>Documentation</b></a>  
 |  <a href="https://rllm-project.github.io/"><b>Blog</b></a>  
@@ -72,6 +72,34 @@ Contribution is always welcomed. All contributions must be made through pull req
 - [x] Support for more TNNs
 - [ ] Large-scale RTL training
 - [ ] LLM prompt optimization
+
+## Sponsor
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://www.nsfc.gov.cn/english/site_1/">
+        <img src="https://www.nsfc.gov.cn/english/site_1/images/logo.jpg" width="160" /><br/>
+        National Natural Science Foundation of China
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://stcsm.sh.gov.cn/">
+        <img src="https://stcsm.sh.gov.cn/images/logo_zz.png" width="130" /><br/>
+        Natural Science Foundation of Shanghai
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://tc.ccf.org.cn/">
+        <img src="https://tc.ccf.org.cn/upload/resources/image/2021/06/09/159361.png" width="90" /><br/>
+        CCF-Huawei Populus Grove Fund
+      </a>
+    </td>
+  </tr>
+</table>
+
+*For more cooperation, feel free to contact [Zheng Wang](https://zhengwang100.github.io/).*
+
 
 
 ## Citation
