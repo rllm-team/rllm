@@ -597,6 +597,14 @@ class TableData(BaseTable):
             col_fit = col_copy[col_copy != -1]
             labels = LabelEncoder().fit_transform(col_fit)
             col_copy[col_copy != -1] = labels
+        
+        elif col_types == ColType.BINARY:
+            if col_copy.isnull().any():
+                col_copy.fillna(col_copy.mode()[0], inplace=True)
+            indicators = getattr(self, "binary_indicator", ["1", "yes", "true", "t", "y"])
+            col_copy = col_copy.astype(str).map(
+                lambda x: 1 if x.lower() in indicators else 0
+            )
 
         return torch.tensor(col_copy.values.astype(float), dtype=torch.float32)
 
