@@ -64,7 +64,7 @@ rLLM includes over 15 state-of-the-art GNN and TNN models, ideal for both standa
 
 ## Contributing
 
-Contribution is always welcomed. All contributions must be made through pull requests and are subject to review by the committers. For more details, please refer to our [[contribution guide](https://drive.google.com/file/d/1Euha0-XrLZpazMHP8C4KnUAAEPxgU16A/view?usp=drive_link])].
+Contribution is always welcomed. All contributions must be made through pull requests and are subject to review by the committers. For more details, please refer to our [[contribution guide](https://drive.google.com/file/d/1EFchbdcu54ZSuV-DR7y4fJh51yKM6Vo5/view?usp=drive_link])].
 
 ### Todo List
 
