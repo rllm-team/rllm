@@ -14,4 +14,5 @@ nbsphinx
 nbsphinx_link
 furo
 torch==2.1.2
-
+langchain_huggingface
+peft
