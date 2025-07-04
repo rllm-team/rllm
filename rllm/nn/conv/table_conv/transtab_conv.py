@@ -23,6 +23,7 @@ import torch.nn.init as nn_init
 import torch.nn.functional as F
 import numpy as np
 import pandas as pd
+from . import constants
 
 
 class TransTabDataExtractor:
@@ -53,9 +54,22 @@ class TransTabDataExtractor:
             os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
         # Column grouping
-        self.categorical_columns = categorical_columns
-        self.numerical_columns   = numerical_columns
-        self.binary_columns      = binary_columns
+        self.categorical_columns = list(set(categorical_columns)) if categorical_columns else []
+        self.numerical_columns   = list(set(numerical_columns))   if numerical_columns   else []
+        self.binary_columns      = list(set(binary_columns))      if binary_columns      else []
+        self.ignore_duplicate_cols = ignore_duplicate_cols
+
+        # 检查并处理重名列
+        col_ok, dup = self._check_column_overlap(self.categorical_columns,
+                                                 self.numerical_columns,
+                                                 self.binary_columns)
+        if not col_ok:
+            if not self.ignore_duplicate_cols:
+                for c in dup:
+                    logger.error(f'Find duplicate cols named `{c}`; set ignore_duplicate_cols=True to auto-resolve.')
+                raise ValueError("Column overlap detected; aborting.")
+            else:
+                self._solve_duplicate_cols(dup)
 
     def __call__(
         self,
@@ -90,7 +104,7 @@ class TransTabDataExtractor:
 
         # Numerical columns
         if num_cols:
-            x_num_df = df[num_cols].fillna(0)
+            x_num_df = df[num_cols].fillna(0).infer_objects(copy=False) #Futurewarning
             out["x_num"] = torch.tensor(x_num_df.values, dtype=torch.float32)
             tokens = self.tokenizer(
                 num_cols,
@@ -143,6 +157,100 @@ class TransTabDataExtractor:
                 out["bin_att_mask"]    = tokens["attention_mask"]
 
         return out
+
+    def save(self, path: str) -> None:
+        """Save tokenizer & column grouping to disk."""
+        save_path = os.path.join(path, constants.EXTRACTOR_STATE_DIR)
+        os.makedirs(save_path, exist_ok=True)
+
+        # save tokenizer
+        tokenizer_path = os.path.join(save_path, constants.TOKENIZER_DIR)
+        self.tokenizer.save_pretrained(tokenizer_path)
+
+        # save column lists
+        coltype_path = os.path.join(save_path, constants.EXTRACTOR_STATE_NAME)
+        col_type_dict = {
+            'categorical': self.categorical_columns,
+            'numerical':   self.numerical_columns,
+            'binary':      self.binary_columns,
+        }
+        with open(coltype_path, 'w', encoding='utf-8') as f:
+            json.dump(col_type_dict, f, ensure_ascii=False)
+
+    def load(self, path: str) -> None:
+        """Load tokenizer & column grouping from disk."""
+        tokenizer_path = os.path.join(path, constants.EXTRACTOR_STATE_DIR, constants.TOKENIZER_DIR)
+        coltype_path   = os.path.join(path, constants.EXTRACTOR_STATE_DIR, constants.EXTRACTOR_STATE_NAME)
+
+        self.tokenizer = BertTokenizerFast.from_pretrained(tokenizer_path)
+        with open(coltype_path, 'r', encoding='utf-8') as f:
+            col_type_dict = json.load(f)
+        self.categorical_columns = col_type_dict.get('categorical', [])
+        self.numerical_columns   = col_type_dict.get('numerical', [])
+        self.binary_columns      = col_type_dict.get('binary', [])
+        logger.info(f'Loaded extractor state from {coltype_path}')
+
+    def update(
+        self,
+        cat: list[str] | None = None,
+        num: list[str] | None = None,
+        bin: list[str] | None = None,
+    ) -> None:
+        """Dynamically extend column lists,并重新检查重名."""
+        if cat:
+            self.categorical_columns.extend(cat)
+            self.categorical_columns = list(set(self.categorical_columns))
+        if num:
+            self.numerical_columns.extend(num)
+            self.numerical_columns = list(set(self.numerical_columns))
+        if bin:
+            self.binary_columns.extend(bin)
+            self.binary_columns = list(set(self.binary_columns))
+
+        col_ok, dup = self._check_column_overlap(self.categorical_columns,
+                                                 self.numerical_columns,
+                                                 self.binary_columns)
+        if not col_ok:
+            if not self.ignore_duplicate_cols:
+                for c in dup:
+                    logger.error(f'Find duplicate cols named `{c}`; set ignore_duplicate_cols=True to auto-resolve.')
+                raise ValueError("Column overlap detected after update; aborting.")
+            else:
+                self._solve_duplicate_cols(dup)
+
+    def _check_column_overlap(
+        self,
+        cat_cols: list[str] | None = None,
+        num_cols: list[str] | None = None,
+        bin_cols: list[str] | None = None,
+    ) -> tuple[bool, list[str]]:
+        """检测同一列是否被多次归类。"""
+        all_cols = []
+        if cat_cols: all_cols += cat_cols
+        if num_cols: all_cols += num_cols
+        if bin_cols: all_cols += bin_cols
+
+        if not all_cols:
+            logger.warning("No columns specified; default to categorical.")
+            return True, []
+
+        counter = collections.Counter(all_cols)
+        dup = [col for col, cnt in counter.items() if cnt > 1]
+        return len(dup) == 0, dup
+
+    def _solve_duplicate_cols(self, duplicate_cols: list[str]) -> None:
+        """对重名列自动重命名以示区分。"""
+        for col in duplicate_cols:
+            logger.warning(f'Auto-resolving duplicate column `{col}`')
+            if col in self.categorical_columns:
+                self.categorical_columns.remove(col)
+                self.categorical_columns.append(f'[cat]{col}')
+            if col in self.numerical_columns:
+                self.numerical_columns.remove(col)
+                self.numerical_columns.append(f'[num]{col}')
+            if col in self.binary_columns:
+                self.binary_columns.remove(col)
+                self.binary_columns.append(f'[bin]{col}')
 
 class TransTabDataProcessor(nn.Module):
     """
@@ -227,6 +335,38 @@ class TransTabDataProcessor(nn.Module):
         all_emb  = torch.cat(emb_list, dim=1)
         all_mask = torch.cat(mask_list, dim=1)
         return {"embedding": all_emb, "attention_mask": all_mask}
+    
+    def save(self, path: str) -> None:
+        """
+        保存 extractor 的列配置和 tokenizer，以及 pre_encoder 的权重。
+        最终会在 path 下生成：
+          extractor/           (由 extractor.save 生成，包含 tokenizer/ 和 extractor.json)
+          input_encoder.bin    （保存 pre_encoder.state_dict()）
+        """
+        # 1) 保存 extractor 状态
+        self.extractor.save(path)
+
+        # 2) 保存 pre_encoder 的权重
+        os.makedirs(path, exist_ok=True)
+        encoder_path = os.path.join(path, constants.INPUT_ENCODER_NAME)
+        torch.save(self.pre_encoder.state_dict(), encoder_path)
+        logger.info(f"Saved pre_encoder weights to {encoder_path}")
+
+    def load(self, ckpt_dir: str) -> None:
+        """
+        加载 extractor 的列配置和 tokenizer，以及 pre_encoder 的权重。
+        假定目录结构同 save() 所写。
+        """
+        # 1) 恢复 extractor 状态
+        self.extractor.load(ckpt_dir)
+
+        # 2) 恢复 pre_encoder 的权重
+        encoder_path = os.path.join(ckpt_dir, constants.INPUT_ENCODER_NAME)
+        state_dict = torch.load(encoder_path, map_location=self.device, weights_only=True)
+        missing, unexpected = self.pre_encoder.load_state_dict(state_dict, strict=False)
+        logger.info(f"Loaded pre_encoder weights from {encoder_path}")
+        logger.info(f" Missing keys: {missing}")
+        logger.info(f" Unexpected keys: {unexpected}")
 
 def _get_activation_fn(activation):
     if activation == "relu":
@@ -544,6 +684,85 @@ class TransTabModel(nn.Module):
         final_cls = enc_out[:, 0, :]       # (batch, hidden_dim)
         return final_cls
 
+    def save(self, ckpt_dir: str) -> None:
+        """
+        保存整个模型：
+          1) data_processor.save → extractor/tokenizer + pre_encoder
+          2) 保存本模型（encoder + cls_token）的 state_dict
+        """
+        # 1) 保存 extractor + pre_encoder
+        self.data_processor.save(ckpt_dir)
+
+        # 2) 保存模型权重
+        os.makedirs(ckpt_dir, exist_ok=True)
+        model_path = os.path.join(ckpt_dir, constants.WEIGHTS_NAME)
+        torch.save(self.state_dict(), model_path)
+        logger.info(f"Saved TransTabModel weights to {model_path}")
+
+    def load(self, ckpt_dir: str) -> None:
+        """
+        加载整个模型：
+        1) 恢复 extractor/tokenizer + pre_encoder
+        2) 同步列映射到模型属性
+        3) 加载 encoder + cls_token 的 state_dict（先到 CPU）
+        4) 把模型搬到 self.device
+        """
+        # 1) 恢复 extractor + pre_encoder
+        self.data_processor.load(ckpt_dir)
+
+        # 2) 同步列映射
+        self.categorical_columns = self.data_processor.extractor.categorical_columns
+        self.numerical_columns   = self.data_processor.extractor.numerical_columns
+        self.binary_columns      = self.data_processor.extractor.binary_columns
+
+        # 3) 加载模型权重到 CPU
+        model_path = os.path.join(ckpt_dir, constants.WEIGHTS_NAME)
+        state_dict = torch.load(model_path, map_location='cpu', weights_only=True)
+        missing, unexpected = self.load_state_dict(state_dict, strict=False)
+        logger.info(f"Loaded TransTabModel weights from {model_path}")
+        logger.info(f" Missing keys: {missing}")
+        logger.info(f" Unexpected keys: {unexpected}")
+
+        # 4) 搬到目标设备
+        self.to(self.device)
+
+    def update(self, config: Dict[str, Any]) -> None:
+        """
+        动态更新列映射，和（可选）分类头类别数：
+          - 'cat' / 'num' / 'bin' : 新的列列表
+          - 'num_class'           : 新的分类数（只有在子类定义 clf 时生效）
+        """
+        # 更新列映射
+        col_map = {k: v for k, v in config.items() if k in ('cat', 'num', 'bin')}
+        if col_map:
+            self.data_processor.extractor.update(**col_map)
+            self.categorical_columns = self.data_processor.extractor.categorical_columns
+            self.numerical_columns   = self.data_processor.extractor.numerical_columns
+            self.binary_columns      = self.data_processor.extractor.binary_columns
+            logger.info("Updated column mappings in TransTabModel.")
+
+        # 可选：更新分类头
+        if 'num_class' in config:
+            self._adapt_to_new_num_class(config['num_class'])
+
+    def _adapt_to_new_num_class(self, num_class: int) -> None:
+        """
+        如果本模型（或子类）定义了 self.clf，则在类别数变化时重建分类头和 loss_fn。
+        """
+        if not hasattr(self, 'clf') or num_class == getattr(self, 'num_class', None):
+            return
+        self.num_class = num_class
+        # 重建分类头
+        self.clf = TransTabLinearClassifier(num_class=num_class,
+                                            hidden_dim=self.cls_token.hidden_dim)
+        self.clf.to(self.device)
+        # 重建 loss
+        if num_class > 2:
+            self.loss_fn = nn.CrossEntropyLoss(reduction='none')
+        else:
+            self.loss_fn = nn.BCEWithLogitsLoss(reduction='none')
+        logger.info(f"Rebuilt classifier for num_class={num_class}.")
+
 
     '''
     def forward(
@@ -730,8 +949,9 @@ class TransTabClassifier(TransTabModel):
                 y_ts = y_ts.float()
                 loss = self.loss_fn(logits.view(-1), y_ts)
             loss = loss.mean()
-            return logits, loss
+        else:
+            loss = None
 
-        return logits
+        return logits, loss
 
 
