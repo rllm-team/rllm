@@ -1,6 +1,6 @@
 <!-- # rLLM (**[Documentation](https://relationllm.readthedocs.io/en/latest/)**|**[Paper](https://arxiv.org/abs/2407.20157)**) -->
 
-<p align="center"><img src="docs/source/_static/rllm.png" alt="rLLM logo" width="300px" /></p>
+<p align="center"><img src="docs/source/_static/logo.png" alt="rLLM logo" width="400px" /></p>
 <p align="center">
 |  <a href="https://relationllm.readthedocs.io/en/latest/"><b>Documentation</b></a>  
 |  <a href="https://rllm-project.github.io/"><b>Blog</b></a>  
@@ -31,7 +31,8 @@
   <img width="400" height="310" src="https://zhengwang100.github.io/img/rllm/rllm_overview.png">
 </p>
 
-### How to Try:
+### How to Try
+
 Let's run an RTL-type method [BRIDGE](./examples/bridge) as an example:
 
 ```bash
@@ -43,14 +44,15 @@ python bridge/bridge_tlf2k.py
 python bridge/bridge_tacm12k.py
 ```
 
+### Highlight Features
 
-### Highlight Features: 
 - **LLM-friendly:** Modular interface designed for LLM-oriented applications, integrating smoothly with LangChain and Hugging Face transformers.
-- **One-Fit-All Potential:**  Processes various graphs (like Social/Citation/E-commerce Networks) by treating them as multiple tables linked by foreigner keys. 
+- **One-Fit-All Potential:**  Processes various graphs (like Social/Citation/E-commerce Networks) by treating them as multiple tables linked by foreigner keys.
 - **Novel Datasets:**  Introduces three new relational table datasets useful for RTL model design. Includes the standard classification task, with examples.
 - **Community Support:**  Maintained by students and teachers from Shanghai Jiao Tong University and Tsinghua University. Supports the SJTU undergraduate course "Content Understanding (NIS4301)" and the graduate course "Social Network Analysis (NIS8023)".
 
 ## Implemented Methods
+
 rLLM includes over 15 state-of-the-art GNN and TNN models, ideal for both standalone use and building RTL-type methods. Highlighted models include:  
 
 - **OGC**: *From Cluster Assumption to Graph Convolution: Graph-based Semi-Supervised Learning Revisited* [[TNNLS 2024](https://arxiv.org/abs/2309.13599)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/ogc.py)]  
@@ -60,13 +62,46 @@ rLLM includes over 15 state-of-the-art GNN and TNN models, ideal for both standa
 - **Trompt**: *Towards a Better Deep Neural Network for Tabular Data*  [[ICML 2023](https://arxiv.org/abs/2305.18446)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/trompt.py)]  
 - ...  
 
+## Contributing
 
+Contribution is always welcomed. All contributions must be made through pull requests and are subject to review by the committers. For more details, please refer to our [[contribution guide](https://drive.google.com/file/d/1EFchbdcu54ZSuV-DR7y4fJh51yKM6Vo5/view?usp=drive_link])].
 
-### Todo List: 
+### Todo List
+
 - [x] Code structure optimization
 - [x] Support for more TNNs
 - [ ] Large-scale RTL training
 - [ ] LLM prompt optimization
+
+## Sponsor
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://www.nsfc.gov.cn/english/site_1/">
+        <img src="https://www.nsfc.gov.cn/english/site_1/images/logo.jpg" width="160" /><br/>
+        National Natural Science Foundation of China
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://stcsm.sh.gov.cn/">
+        <img src="https://stcsm.sh.gov.cn/images/logo_zz.png" width="130" /><br/>
+        Natural Science Foundation of Shanghai
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://tc.ccf.org.cn/">
+        <img src="https://tc.ccf.org.cn/upload/resources/image/2021/06/09/159361.png" width="90" /><br/>
+        CCF-Huawei Populus Grove Fund
+      </a>
+    </td>
+  </tr>
+</table>
+
+*For more cooperation, feel free to contact [Zheng Wang](https://zhengwang100.github.io/).*
+
+
+
 ## Citation
 ```
 @article{rllm2024,

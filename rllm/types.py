@@ -46,11 +46,13 @@ class ColType(Enum):
         NUMERICAL: Numerical columns.
         CATEGORICAL: Categorical columns.
         BINARY: Binary columns.
+        TEXT: Text columns.
     """
 
     NUMERICAL = "numerical"
     CATEGORICAL = "categorical"
     BINARY = "binary"
+    TEXT = "text"
 
     def __lt__(self, other):
         return self.value < other.value
