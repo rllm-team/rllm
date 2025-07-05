@@ -620,7 +620,7 @@ class TableData(BaseTable):
             col_fit = col_copy[col_copy != -1]
             labels = LabelEncoder().fit_transform(col_fit)
             col_copy[col_copy != -1] = labels
-        
+
         elif col_types == ColType.BINARY:
             if col_copy.isnull().any():
                 col_copy.fillna(col_copy.mode()[0], inplace=True)
@@ -638,7 +638,7 @@ class TableData(BaseTable):
             assert embedder is not None, "Need an embedder for text column!"
             col_copy = col_copy.astype(str)
             col_list = col_copy.to_list()
-    
+
             if batch_size is None:
                 embeddings = embedder(col_list)
             else:

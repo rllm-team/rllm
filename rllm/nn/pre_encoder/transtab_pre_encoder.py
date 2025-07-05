@@ -78,7 +78,7 @@ class TransTabPreEncoder(PreEncoder):
                 # 2) Masked average pooling over token dimension
                 mask = col_mask.unsqueeze(-1)            # [n_cols, seq_len, 1]
                 token_emb = token_emb * mask             # apply mask
-                col_emb = token_emb.sum(1) / mask.sum(1) # [n_cols, out_dim]
+                col_emb = token_emb.sum(1) / mask.sum(1)  # [n_cols, out_dim]
 
                 # 3) Scale embeddings by numeric values and add bias
                 num_emb = self.pre_encoder_dict[ColType.NUMERICAL.value](
@@ -88,12 +88,10 @@ class TransTabPreEncoder(PreEncoder):
 
             else:
                 # Categorical / Binary: use original encoder
-                feat_encoded[col_type] = self.pre_encoder_dict[col_type.value](feat)  
+                feat_encoded[col_type] = self.pre_encoder_dict[col_type.value](feat)
 
         if return_dict:
             return feat_encoded
 
         # Concatenate all feature embeddings along column dimension
         return torch.cat(list(feat_encoded.values()), dim=1)
-
-

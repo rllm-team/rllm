@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import math
 import os
@@ -7,7 +7,6 @@ import os
 import torch
 from torch import Tensor
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.nn.init as nn_init
 import numpy as np
 import pandas as pd
@@ -23,37 +22,39 @@ from rllm.nn.conv.table_conv import (
 from rllm.nn.pre_encoder import TransTabPreEncoder
 from rllm.types import ColType
 
+
 class TransTabCLSToken(nn.Module):
     '''add a learnable cls token embedding at the end of each sequence.
     '''
     def __init__(self, hidden_dim) -> None:
         super().__init__()
         self.weight = nn.Parameter(Tensor(hidden_dim))
-        nn_init.uniform_(self.weight, a=-1/math.sqrt(hidden_dim),b=1/math.sqrt(hidden_dim))
+        nn_init.uniform_(self.weight, a=-1 / math.sqrt(hidden_dim), b=1 / math.sqrt(hidden_dim))
         self.hidden_dim = hidden_dim
 
     def expand(self, *leading_dimensions):
-        new_dims = (1,) * (len(leading_dimensions)-1)
+        new_dims = (1,) * (len(leading_dimensions) - 1)
         return self.weight.view(*new_dims, -1).expand(*leading_dimensions, -1)
 
     def forward(self, embedding, attention_mask=None, **kwargs) -> Tensor:
         embedding = torch.cat([self.expand(len(embedding), 1), embedding], dim=1)
         outputs = {'embedding': embedding}
         if attention_mask is not None:
-            attention_mask = torch.cat([torch.ones(attention_mask.shape[0],1).to(attention_mask.device), attention_mask], 1)
+            attention_mask = torch.cat(
+                [torch.ones(attention_mask.shape[0], 1).to(attention_mask.device), attention_mask], 1)
         outputs['attention_mask'] = attention_mask
         return outputs
 
+
 class TransTabProjectionHead(nn.Module):
-    def __init__(self,
-        hidden_dim=128,
-        projection_dim=128):
+    def __init__(self, hidden_dim=128, projection_dim=128):
         super().__init__()
         self.dense = nn.Linear(hidden_dim, projection_dim, bias=False)
 
     def forward(self, x) -> Tensor:
         h = self.dense(x)
         return h
+
 
 class TransTabModel(nn.Module):
     """
@@ -68,33 +69,33 @@ class TransTabModel(nn.Module):
     """
     def __init__(
         self,
-        categorical_columns: List[str]   = None,
-        numerical_columns:   List[str]   = None,
-        binary_columns:      List[str]   = None,
-        hidden_dim:          int         = 128,
-        num_layer:           int         = 2,
-        num_attention_head:  int         = 8,
-        hidden_dropout_prob: float       = 0.1,
-        layer_norm_eps:      float       = 1e-5,
-        ffn_dim:             int         = 256,
-        activation:          str         = 'relu',
-        device:              Union[str, torch.device] = 'cuda:0',
+        categorical_columns: List[str] = None,
+        numerical_columns: List[str] = None,
+        binary_columns: List[str] = None,
+        hidden_dim: int = 128,
+        num_layer: int = 2,
+        num_attention_head: int = 8,
+        hidden_dropout_prob: float = 0.1,
+        layer_norm_eps: float = 1e-5,
+        ffn_dim: int = 256,
+        activation: str = 'relu',
+        device: Union[str, torch.device] = 'cuda:0',
         projection_dim: int = 128,
         overlap_ratio: float = 0.1,
         num_partition: int = 2,
         supervised: bool = True,
         temperature: float = 10.0,
         base_temperature: float = 10.0,
-        **kwargs,  
+        **kwargs,
     ) -> None:
         super().__init__()
 
         self.hidden_dropout_prob = hidden_dropout_prob
-        self.layer_norm_eps      = layer_norm_eps
+        self.layer_norm_eps = layer_norm_eps
         # 1) Record and deduplicate various column names
         self.categorical_columns = list(set(categorical_columns)) if categorical_columns else None
-        self.numerical_columns   = list(set(numerical_columns))   if numerical_columns   else None
-        self.binary_columns      = list(set(binary_columns))      if binary_columns      else None
+        self.numerical_columns = list(set(numerical_columns)) if numerical_columns else None
+        self.binary_columns = list(set(binary_columns)) if binary_columns else None
 
         # 2) Initialize DataExtractor (keep all **kwargs configuration)
         self.extractor = TransTabDataExtractor(
@@ -107,8 +108,8 @@ class TransTabModel(nn.Module):
         # 3) Initialize PreEncoder (for DataProcessor), metadata provides an empty list mapping
         metadata = {
             ColType.CATEGORICAL: [],
-            ColType.BINARY:      [],
-            ColType.NUMERICAL:   [],
+            ColType.BINARY: [],
+            ColType.NUMERICAL: [],
         }
         self.pre_encoder = TransTabPreEncoder(
             out_dim=hidden_dim,
@@ -147,16 +148,16 @@ class TransTabModel(nn.Module):
         self.device = device
         self.to(device)
 
-        # Contrastive Learning 
+        # Contrastive Learning
         # Add a small projection head on top of the CLS embedding
         self.projection_head = TransTabProjectionHead(hidden_dim, projection_dim)
         # CL hyperparameters
-        self.supervised      = supervised
-        self.temperature     = temperature
-        self.base_temperature= base_temperature
-        self.num_partition   = num_partition
-        self.overlap_ratio   = overlap_ratio
-        self.ce_loss         = nn.CrossEntropyLoss()
+        self.supervised = supervised
+        self.temperature = temperature
+        self.base_temperature = base_temperature
+        self.num_partition = num_partition
+        self.overlap_ratio = overlap_ratio
+        self.ce_loss = nn.CrossEntropyLoss()
         # device already set
 
     def forward(
@@ -177,12 +178,12 @@ class TransTabModel(nn.Module):
 
         # 1) DataProcessor gets embedding + mask
         proc_out = self.data_processor(df)
-        emb  = proc_out['embedding']       # (batch, seq_len, hidden_dim)
+        emb = proc_out['embedding']       # (batch, seq_len, hidden_dim)
         mask = proc_out['attention_mask']  # (batch, seq_len)
 
         # 2) Add CLS token at the beginning
         cls_out = self.cls_token(emb, attention_mask=mask)
-        emb2  = cls_out['embedding']       # (batch, seq_len+1, hidden_dim)
+        emb2 = cls_out['embedding']       # (batch, seq_len+1, hidden_dim)
         mask2 = cls_out['attention_mask']  # (batch, seq_len+1)
 
         # 3) Transformer Encoding
@@ -220,8 +221,8 @@ class TransTabModel(nn.Module):
 
         # 2) Synchronous column mapping
         self.categorical_columns = self.data_processor.extractor.categorical_columns
-        self.numerical_columns   = self.data_processor.extractor.numerical_columns
-        self.binary_columns      = self.data_processor.extractor.binary_columns
+        self.numerical_columns = self.data_processor.extractor.numerical_columns
+        self.binary_columns = self.data_processor.extractor.binary_columns
 
         # 3) Load model weights to CPU
         model_path = os.path.join(ckpt_dir, constants.WEIGHTS_NAME)
@@ -240,7 +241,7 @@ class TransTabModel(nn.Module):
         )
 
         self.to(self.device)
-        
+
     def update(self, config: Dict[str, Any]) -> None:
         # Completely replace the extractor column
         col_map = {k: v for k, v in config.items() if k in ('cat', 'num', 'bin')}
@@ -264,15 +265,15 @@ class TransTabModel(nn.Module):
 
             # Synchronize top-level properties
             self.categorical_columns = ext.categorical_columns
-            self.numerical_columns   = ext.numerical_columns
-            self.binary_columns      = ext.binary_columns
+            self.numerical_columns = ext.numerical_columns
+            self.binary_columns = ext.binary_columns
             logger.info("Updated column mappings in TransTabModel.")
 
             # 2) Rebuild pre_encoder + reload embedding
             new_meta = {
                 ColType.CATEGORICAL: self.categorical_columns,
-                ColType.BINARY:      self.binary_columns,
-                ColType.NUMERICAL:   self.numerical_columns,
+                ColType.BINARY: self.binary_columns,
+                ColType.NUMERICAL: self.numerical_columns,
             }
             self.pre_encoder = TransTabPreEncoder(
                 out_dim=self.cls_token.hidden_dim,
@@ -296,10 +297,10 @@ class TransTabModel(nn.Module):
         if 'num_class' in config:
             self._adapt_to_new_num_class(config['num_class'])
 
-
     def _adapt_to_new_num_class(self, num_class: int) -> None:
         """
-        If this model (or a subclass) defines self.clf, rebuild the classification head and loss_fn when the number of classes changes.
+        If this model (or a subclass) defines self.clf,
+        rebuild the classification head and loss_fn when the number of classes changes.
         """
         if not hasattr(self, 'clf') or num_class == getattr(self, 'num_class', None):
             return
@@ -314,6 +315,7 @@ class TransTabModel(nn.Module):
         else:
             self.loss_fn = nn.BCEWithLogitsLoss(reduction='none')
         logger.info(f"Rebuilt classifier for num_class={num_class}.")
+
 
 class TransTabLinearClassifier(nn.Module):
     """
@@ -334,23 +336,24 @@ class TransTabLinearClassifier(nn.Module):
         logits = self.fc(x)
         return logits
 
+
 class TransTabClassifier(TransTabModel):
     """
     Inherits from TransTabModel, adds a linear classification head on top of its CLS vector, and calculates the loss.
     """
     def __init__(
         self,
-        categorical_columns: List[str]   = None,
-        numerical_columns:   List[str]   = None,
-        binary_columns:      List[str]   = None,
-        num_class:           int         = 2,
-        hidden_dim:          int         = 128,
-        num_layer:           int         = 2,
-        num_attention_head:  int         = 8,
-        hidden_dropout_prob: float       = 0.1,
-        ffn_dim:             int         = 256,
-        activation:          str         = 'relu',
-        device:              Union[str, torch.device] = 'cuda:0',
+        categorical_columns: List[str] = None,
+        numerical_columns: List[str] = None,
+        binary_columns: List[str] = None,
+        num_class: int = 2,
+        hidden_dim: int = 128,
+        num_layer: int = 2,
+        num_attention_head: int = 8,
+        hidden_dropout_prob: float = 0.1,
+        ffn_dim: int = 256,
+        activation: str = 'relu',
+        device: Union[str, torch.device] = 'cuda:0',
         **kwargs,
     ) -> None:
         super().__init__(
@@ -415,6 +418,7 @@ class TransTabClassifier(TransTabModel):
 
         return logits, loss
 
+
 class TransTabForCL(TransTabModel):
     '''The contrasstive learning model subclass from :class:`transtab.modeling_transtab.TransTabModel`.
 
@@ -476,7 +480,8 @@ class TransTabForCL(TransTabModel):
     A TransTabForCL model.
 
     '''
-    def __init__(self,
+    def __init__(
+        self,
         categorical_columns=None,
         numerical_columns=None,
         binary_columns=None,
@@ -494,7 +499,7 @@ class TransTabForCL(TransTabModel):
         activation='relu',
         device='cuda:0',
         **kwargs,
-        ) -> None:
+    ) -> None:
         super().__init__(
             categorical_columns=categorical_columns,
             numerical_columns=numerical_columns,
@@ -507,9 +512,9 @@ class TransTabForCL(TransTabModel):
             activation=activation,
             device=device,
             **kwargs,
-            )
+        )
         assert num_partition > 0, f'number of contrastive subsets must be greater than 0, got {num_partition}'
-        assert isinstance(num_partition,int), f'number of constrative subsets must be int, got {type(num_partition)}'
+        assert isinstance(num_partition, int), f'number of constrative subsets must be int, got {type(num_partition)}'
         assert overlap_ratio >= 0 and overlap_ratio < 1, f'overlap_ratio must be in [0, 1), got {overlap_ratio}'
         self.projection_head = TransTabProjectionHead(hidden_dim, projection_dim)
         self.cross_entropy_loss = nn.CrossEntropyLoss()
@@ -548,7 +553,7 @@ class TransTabForCL(TransTabModel):
             sub_x_list = self._build_positive_pairs(x, self.num_partition)
             for sub_x in sub_x_list:
                 proc = self.data_processor(sub_x)
-                emb  = proc["embedding"]
+                emb = proc["embedding"]
                 mask = proc["attention_mask"]
 
                 cls_out = self.cls_token(emb, attention_mask=mask)
@@ -557,7 +562,7 @@ class TransTabForCL(TransTabModel):
                     attention_mask=cls_out["attention_mask"],
                 )
 
-                feat      = enc_out[:, 0, :]      # [bs, hidden_dim]
+                feat = enc_out[:, 0, :]      # [bs, hidden_dim]
                 feat_proj = self.projection_head(feat)  # [bs, proj_dim]
                 feat_x_list.append(feat_proj)
         else:
@@ -568,10 +573,10 @@ class TransTabForCL(TransTabModel):
 
         if y is not None and self.supervised:
             labels = y.to(self.device).long()
-            loss   = self.supervised_contrastive_loss(feat_x_multiview, labels)
+            loss = self.supervised_contrastive_loss(feat_x_multiview, labels)
         else:
-            #print("#0628##########No labels provided, using self-supervised contrastive loss.##############")
-            loss   = self.self_supervised_contrastive_loss(feat_x_multiview)
+            # print("#0628##########No labels provided, using self-supervised contrastive loss.##############")
+            loss = self.self_supervised_contrastive_loss(feat_x_multiview)
 
         return None, loss
 
@@ -582,10 +587,10 @@ class TransTabForCL(TransTabModel):
         overlap = int(np.ceil(len_cols * (self.overlap_ratio)))
         sub_x_list = []
         for i, sub_col in enumerate(sub_col_list):
-            if overlap > 0 and i < n-1:
-                sub_col = np.concatenate([sub_col, sub_col_list[i+1][:overlap]])
-            elif overlap >0 and i == n-1:
-                sub_col = np.concatenate([sub_col, sub_col_list[i-1][-overlap:]])
+            if overlap > 0 and i < n - 1:
+                sub_col = np.concatenate([sub_col, sub_col_list[i + 1][:overlap]])
+            elif overlap > 0 and i == n - 1:
+                sub_col = np.concatenate([sub_col, sub_col_list[i - 1][-overlap:]])
             sub_x = x.copy()[sub_col]
             sub_x_list.append(sub_x)
         return sub_x_list
@@ -621,19 +626,24 @@ class TransTabForCL(TransTabModel):
             the computed self-supervised VPCL loss.
         '''
         batch_size = features.shape[0]
-        labels = torch.arange(batch_size, dtype=torch.long, device=self.device).view(-1,1)
+        labels = torch.arange(batch_size, dtype=torch.long, device=self.device).view(-1, 1)
         mask = torch.eq(labels, labels.T).float().to(labels.device)
 
         contrast_count = features.shape[1]
         # [[0,1],[2,3]] -> [0,2,1,3]
-        contrast_feature = torch.cat(torch.unbind(features,dim=1),dim=0)
+        contrast_feature = torch.cat(torch.unbind(features, dim=1), dim=0)
         anchor_feature = contrast_feature
         anchor_count = contrast_count
         anchor_dot_contrast = torch.div(torch.matmul(anchor_feature, contrast_feature.T), self.temperature)
         logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
         logits = anchor_dot_contrast - logits_max.detach()
         mask = mask.repeat(anchor_count, contrast_count)
-        logits_mask = torch.scatter(torch.ones_like(mask), 1, torch.arange(batch_size * anchor_count).view(-1, 1).to(features.device), 0)
+        indices_for_scatter = (
+            torch.arange(batch_size * anchor_count)
+            .view(-1, 1)
+            .to(features.device)
+        )
+        logits_mask = torch.scatter(torch.ones_like(mask), 1, indices_for_scatter, 0)
         mask = mask * logits_mask
         # compute log_prob
         exp_logits = torch.exp(logits) * logits_mask
@@ -661,12 +671,12 @@ class TransTabForCL(TransTabModel):
             the computed VPCL loss.
 
         '''
-        labels = labels.contiguous().view(-1,1)
+        labels = labels.contiguous().view(-1, 1)
         batch_size = features.shape[0]
         mask = torch.eq(labels, labels.T).float().to(labels.device)
 
         contrast_count = features.shape[1]
-        contrast_feature = torch.cat(torch.unbind(features,dim=1),dim=0)
+        contrast_feature = torch.cat(torch.unbind(features, dim=1), dim=0)
 
         # contrast_mode == 'all'
         anchor_feature = contrast_feature
@@ -697,4 +707,3 @@ class TransTabForCL(TransTabModel):
         loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos
         loss = loss.view(anchor_count, batch_size).mean()
         return loss
-
