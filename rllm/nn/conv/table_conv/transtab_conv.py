@@ -5,19 +5,17 @@ import collections
 import json
 import os
 
-import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-
+import numpy as np
+import pandas as pd
 from loguru import logger
 from transformers import BertTokenizer, BertTokenizerFast
 
 from rllm.types import ColType
 from rllm.nn.pre_encoder import TransTabPreEncoder
-
 from . import constants
 
 
