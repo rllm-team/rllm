@@ -21,14 +21,14 @@ sys.path.append("../")
 from rllm.types import ColType
 # CHANGED: Import your custom dataset
 from rllm.datasets import MSTrafficMarylandDataset
-from rllm.nn.conv.table_conv import TransTabClassifier
+from rllm.nn.models import TransTabClassifier
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--hidden_dim",   help="hidden dim",      type=int,   default=128)
 parser.add_argument("--num_layers",                           type=int,   default=2)
 parser.add_argument("--num_heads",                            type=int,   default=8)
 parser.add_argument("--batch_size",                           type=int,   default=64)
-parser.add_argument("--epochs",                               type=int,   default=15)
+parser.add_argument("--epochs",                               type=int,   default=20)
 parser.add_argument("--lr",                                   type=float, default=1e-3)
 parser.add_argument("--wd",                                   type=float, default=1e-4)
 parser.add_argument("--seed",                                 type=int,   default=42)

@@ -106,7 +106,7 @@ class MSTrafficSeattleDataset(Dataset):
         data = TableData(
             df=df,
             col_types=col_types,
-            target_col="COLLISIONTYPE",
+            target_col=None, #"COLLISIONTYPE",
             train_mask=masks["train_mask"],
             val_mask=masks["val_mask"],
             test_mask=masks["test_mask"],
