@@ -620,6 +620,9 @@ class TableData(BaseTable):
             col_fit = col_copy[col_copy != -1]
             labels = LabelEncoder().fit_transform(col_fit)
             col_copy[col_copy != -1] = labels
+            return torch.tensor(
+                col_copy.values.astype(float), dtype=torch.float32
+            ).reshape(-1, 1)
 
         elif col_types == ColType.BINARY:
             if col_copy.isnull().any():

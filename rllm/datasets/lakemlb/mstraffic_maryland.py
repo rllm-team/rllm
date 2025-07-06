@@ -20,15 +20,12 @@ class MSTrafficMarylandDataset(Dataset):
     This class processes 'Maryland.csv' and uses masks from 'T1_mask.pt'.
     """
     
-    # 1. (已修复) 确保 URL 是可用的
     #url = "https://github.com/FeiyuPan/LakeMLB_datasets/raw/refs/heads/main/datasets/Crash20K.zip"
     
-    # 2. (建议) 将压缩包文件名定义为类属性，提高代码可读性
     archive_filename = "Crash20K.zip"
 
     def __init__(self, cached_dir: str, force_reload: Optional[bool] = False, transform=None, device=None) -> None:
         self.name = "mstraffic-maryland"
-        # 路径构造完全正确，无需修改
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
@@ -37,7 +34,6 @@ class MSTrafficMarylandDataset(Dataset):
         ]
         
         self.transform = transform
-        # device 的处理是一个很好的扩展，予以保留
         if self.transform is not None:
             data = self.data_list[0]
             data = self.transform(data)
@@ -56,14 +52,12 @@ class MSTrafficMarylandDataset(Dataset):
     def process(self):
         """Processes the raw csv and mask files into a single TableData object."""
         os.makedirs(self.processed_dir, exist_ok=True)
-        
-        # 路径拼接方式完全正确，无需修改
+
         csv_path = osp.join(self.raw_dir, self.raw_filenames[0])
         masks_path = osp.join(self.raw_dir, self.raw_filenames[1])
 
         df = pd.read_csv(csv_path)
         
-        # 这里的 col_types 定义很详尽，没有问题
         col_types = {
             "Report Number": ColType.CATEGORICAL,
             "Local Case Number": ColType.CATEGORICAL,
@@ -103,7 +97,7 @@ class MSTrafficMarylandDataset(Dataset):
             "Location": ColType.CATEGORICAL,
         }
         
-        masks = torch.load(masks_path) # weights_only=False 是默认值，可以省略
+        masks = torch.load(masks_path)
         
         data = TableData(
             df=df,
@@ -113,23 +107,19 @@ class MSTrafficMarylandDataset(Dataset):
             val_mask=masks["val_mask"],
             test_mask=masks["test_mask"],
         )
-        
-        # 保存路径 self.processed_paths[0] 的用法完全正确
         data.save(self.processed_paths[0])
 
     def download(self):
         """Downloads the zip archive, extracts it, and removes the archive."""
         os.makedirs(self.raw_dir, exist_ok=True)
-        # 3. (已修复) 使用类属性来引用文件名
         path = download_url(self.url, self.raw_dir, self.archive_filename)
         extract_zip(path, self.raw_dir)
         os.remove(path)
 
     def __len__(self) -> int:
-        return len(self.data_list) # 返回 1 或 len(self.data_list) 都可以
+        return len(self.data_list)
 
     def __getitem__(self, index: int) -> TableData:
-        # 这里的实现没有问题
         if index >= len(self.data_list):
             raise IndexError
         return self.data_list[index]

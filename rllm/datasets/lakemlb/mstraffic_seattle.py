@@ -76,7 +76,7 @@ class MSTrafficSeattleDataset(Dataset):
             "REPORTLINK": ColType.CATEGORICAL,
             #"PEDROWNOTGRNT": ColType.CATEGORICAL,
             "SPEEDING": ColType.CATEGORICAL,
-            "HITPARKEDCAR": ColType.CATEGORICAL,
+            "HITPARKEDCAR": ColType.BINARY,
             "SPDCASENO": ColType.CATEGORICAL,
             "Source of the collision report": ColType.CATEGORICAL,
             "Source description": ColType.CATEGORICAL,
@@ -101,30 +101,29 @@ class MSTrafficSeattleDataset(Dataset):
             "y": ColType.NUMERICAL,
         }
         
-        masks = torch.load(masks_path) # weights_only=False 是默认值，可以省略
+        masks = torch.load(masks_path)
         
         data = TableData(
             df=df,
             col_types=col_types,
-            target_col=None, #"COLLISIONTYPE",
+            #target_col=None, #"COLLISIONTYPE",
+            target_col="COLLISIONTYPE",
             train_mask=masks["train_mask"],
             val_mask=masks["val_mask"],
             test_mask=masks["test_mask"],
         )
         
-        # 保存路径 self.processed_paths[0] 的用法完全正确
         data.save(self.processed_paths[0])
 
     def download(self):
         """Downloads the zip archive, extracts it, and removes the archive."""
         os.makedirs(self.raw_dir, exist_ok=True)
-        # 3. (已修复) 使用类属性来引用文件名
         path = download_url(self.url, self.raw_dir, self.archive_filename)
         extract_zip(path, self.raw_dir)
         os.remove(path)
 
     def __len__(self) -> int:
-        return len(self.data_list) # 返回 1 或 len(self.data_list) 都可以
+        return len(self.data_list)
 
     def __getitem__(self, index: int) -> TableData:
         if index >= len(self.data_list):
