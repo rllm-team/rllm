@@ -1,6 +1,6 @@
 # The Trompt method from the
 # "Trompt: Towards a Better Deep Neural Network for Tabular Data" paper.
-# ArXiv: https://arxiv.org/abs/1609.02907
+# ArXiv: https://arxiv.org/abs/2305.18446
 
 # Datasets  Titanic    Adult
 # Acc       0.853      0.861

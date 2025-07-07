@@ -1,6 +1,6 @@
-# The Trompt method from the
-# "Trompt: Towards a Better Deep Neural Network for Tabular Data" paper.
-# ArXiv: https://arxiv.org/abs/1609.02907
+# The FT-Transformer method from the
+# "Revisiting Deep Learning Models for Tabular Data" paper.
+# ArXiv: https://arxiv.org/abs/2106.11959
 
 # Datasets  Titanic    Adult
 # Acc       0.820      0.854
