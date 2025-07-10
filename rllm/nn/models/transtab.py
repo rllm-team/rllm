@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Tuple
 
 import math
 import os
@@ -162,16 +162,40 @@ class TransTabModel(nn.Module):
 
     def forward(
         self,
-        x: Union[pd.DataFrame, TableData],
+        x: Union[pd.DataFrame, TableData, Dict[ColType, torch.Tensor]],
         y: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
-        x: a batch of samples (pd.DataFrame or TableData)
+        x: a batch of samples
         y: optional label (placeholder only, ignored by the base class)
         Return: final [CLS] vector, shape = (batch, hidden_dim)
         """
-        #  0) Support TableData type input
-        if isinstance(x, TableData):
+        if isinstance(x, dict):
+            import pandas as pd
+            parts = []
+            if x.get(ColType.CATEGORICAL) is not None:
+                parts.append(
+                    pd.DataFrame(
+                        x[ColType.CATEGORICAL].cpu().numpy(),
+                        columns=self.categorical_columns,
+                    )
+                )
+            if x.get(ColType.NUMERICAL) is not None:
+                parts.append(
+                    pd.DataFrame(
+                        x[ColType.NUMERICAL].cpu().numpy(),
+                        columns=self.numerical_columns,
+                    )
+                )
+            if x.get(ColType.BINARY) is not None:
+                parts.append(
+                    pd.DataFrame(
+                        x[ColType.BINARY].cpu().numpy(),
+                        columns=self.binary_columns,
+                    )
+                )
+            df = pd.concat(parts, axis=1)
+        elif isinstance(x, TableData):
             df = x.df
         else:
             df = x
@@ -383,9 +407,9 @@ class TransTabClassifier(TransTabModel):
 
     def forward(
         self,
-        x: pd.DataFrame,
-        y: Optional[pd.Series] = None,
-    ) -> Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+        x: Union[pd.DataFrame, TableData, Dict[ColType, torch.Tensor]],
+        y: Optional[Union[pd.Series, torch.Tensor]] = None,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         """
         Parameters:
         x: pd.DataFrame, original table batch data

@@ -10,8 +10,6 @@ from .sjtutables.tacm12k import TACM12KDataset
 from .tape import TAPEDataset
 from .titanic import Titanic
 from .tagdataset import TAGDataset
-from .lakemlb.mstraffic_maryland import MSTrafficMarylandDataset
-from .lakemlb.mstraffic_seattle import MSTrafficSeattleDataset
 
 __all__ = [
     "Adult",
@@ -26,6 +24,4 @@ __all__ = [
     "TAGDataset",
     "TLF2KDataset",
     "TACM12KDataset",
-    "MSTrafficMarylandDataset",
-    "MSTrafficSeattleDataset",
 ]
