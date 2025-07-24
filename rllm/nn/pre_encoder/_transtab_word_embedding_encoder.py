@@ -9,9 +9,29 @@ from rllm.types import ColType, StatType
 
 
 class TransTabWordEmbeddingEncoder(ColEncoder):
-    """Word embedding encoder matching original TransTabWordEmbedding exactly.
-    Encodes token indices into embeddings with LayerNorm and Dropout.
+    r"""Word embedding encoder for categorical and binary features, matching
+    the original TransTabWordEmbedding implementation.
+
+    This encoder maps input token indices to dense embeddings, applies
+    LayerNorm and Dropout, and optionally a post-processing module.
+
+    Args:
+        vocab_size (int): Size of the vocabulary (including padding token).
+        out_dim (int): Dimensionality of the output embeddings.
+        padding_idx (int): Index in the vocabulary to use as padding.
+            (default: 0)
+        hidden_dropout_prob (float): Dropout probability after embedding.
+            (default: 0.0)
+        layer_norm_eps (float): Epsilon value for numerical stability in
+            LayerNorm. (default: 1e-5)
+        stats_list (Optional[List[Dict[StatType, Any]]]): Precomputed column
+            statistics for normalizing or scaling (unused by this encoder).
+            (default: None)
+        post_module (Optional[torch.nn.Module]): Optional module to apply
+            after the core encoding (e.g., additional normalization or
+            activation). (default: None)
     """
+
     supported_types = {ColType.CATEGORICAL, ColType.BINARY}
 
     def __init__(

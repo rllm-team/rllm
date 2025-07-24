@@ -6,13 +6,13 @@ import json
 import os
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch import Tensor
 import numpy as np
 import pandas as pd
-from loguru import logger
 from transformers import BertTokenizerFast
+import logging
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 from rllm.types import ColType
 from rllm.nn.pre_encoder import TransTabPreEncoder
@@ -20,13 +20,35 @@ from . import constants
 
 
 class TransTabDataExtractor:
-    """
-    Extract raw DataFrame columns into token IDs and value tensors,
-    matching original TransTabFeatureExtractor behavior.
+    r"""TransTabDataExtractor: Extract raw DataFrame columns into token IDs and value tensors,
+    matching original TransTabFeatureExtractor behavior as proposed in
+    `"TransTab: Learning Transferable Tabular Transformers Across Tables"`
+    <https://arxiv.org/abs/2205.09328>`_ paper.
 
-    Converts the original columns of the input pandas.DataFrame divided by column type (numeric/categorical/binary)
-    into PyTorch tensors that can be directly consumed by subsequent models
+    This class converts columns of a pandas.DataFrame—divided by type
+    (categorical, numerical, binary)—into PyTorch tensors and tokenized
+    inputs suitable for downstream Transformer models.
+
+    Args:
+        categorical_columns (Optional[List[str]]): Names of categorical columns.
+            If None, defaults to empty list. (default: None)
+        numerical_columns (Optional[List[str]]): Names of numerical columns.
+            If None, defaults to empty list. (default: None)
+        binary_columns (Optional[List[str]]): Names of binary (0/1) columns.
+            If None, defaults to empty list. (default: None)
+        tokenizer_dir (str): Path to pretrained tokenizer directory. If it
+            does not exist, “bert-base-uncased” is downloaded and saved here.
+            (default: "./transtab/tokenizer")
+        disable_tokenizer_parallel (bool): If True, sets
+            TOKENIZERS_PARALLELISM="false" to disable parallelism. (default: True)
+        ignore_duplicate_cols (bool): If True, automatically renames duplicate
+            column names; otherwise raises ValueError on duplicates. (default: False)
+
+    Raises:
+        ValueError: If duplicate columns are detected and `ignore_duplicate_cols`
+            is False.
     """
+
     def __init__(
         self,
         categorical_columns: list[str] | None = None,
@@ -69,17 +91,31 @@ class TransTabDataExtractor:
         df: pd.DataFrame,
         shuffle: bool = False,
     ) -> dict[str, Tensor | None]:
+        r"""Convert DataFrame columns into tensors and token sequences.
+
+        Args:
+            df (pd.DataFrame): Input data frame containing configured columns.
+            shuffle (bool): If True, shuffles the order of columns within each type.
+                (default: False)
+
+        Returns:
+            Dict[str, Optional[Tensor]] with keys:
+              - "x_num": Float tensor of numerical values or None.
+              - "num_col_input_ids": Long tensor of input IDs for numerical column names or None.
+              - "num_att_mask": Long tensor attention mask for numerical tokens or None.
+              - "x_cat_input_ids": Long tensor of input IDs for categorical tokens or None.
+              - "cat_att_mask": Long tensor attention mask for categorical tokens or None.
+              - "x_bin_input_ids": Long tensor of input IDs for binary tokens or None.
+              - "bin_att_mask": Long tensor attention mask for binary tokens or None.
+        """
         cols = df.columns.tolist()
-        # Select columns by configured lists
         cat_cols = [c for c in cols if self.categorical_columns and c in self.categorical_columns]
         num_cols = [c for c in cols if self.numerical_columns and c in self.numerical_columns]
         bin_cols = [c for c in cols if self.binary_columns and c in self.binary_columns]
 
-        # Default: treat all as categorical if none specified
         if not any((cat_cols, num_cols, bin_cols)):
             cat_cols = cols
 
-        # Shuffle column order as original
         if shuffle:
             np.random.shuffle(cat_cols)
             np.random.shuffle(num_cols)
@@ -152,15 +188,21 @@ class TransTabDataExtractor:
         return out
 
     def save(self, path: str) -> None:
-        """Save tokenizer & column grouping to disk."""
+        r"""Save tokenizer and column grouping configuration to disk.
+
+        The extractor state is saved under:
+          {path}/{constants.EXTRACTOR_STATE_DIR}/tokenizer/  # tokenizer files
+          {path}/{constants.EXTRACTOR_STATE_DIR}/{constants.EXTRACTOR_STATE_NAME}  # JSON of column lists
+
+        Args:
+            path (str): Base directory in which to save extractor state.
+        """
         save_path = os.path.join(path, constants.EXTRACTOR_STATE_DIR)
         os.makedirs(save_path, exist_ok=True)
 
-        # save tokenizer
         tokenizer_path = os.path.join(save_path, constants.TOKENIZER_DIR)
         self.tokenizer.save_pretrained(tokenizer_path)
 
-        # save column lists
         coltype_path = os.path.join(save_path, constants.EXTRACTOR_STATE_NAME)
         col_type_dict = {
             'categorical': self.categorical_columns,
@@ -171,7 +213,11 @@ class TransTabDataExtractor:
             json.dump(col_type_dict, f, ensure_ascii=False)
 
     def load(self, path: str) -> None:
-        """Load tokenizer & column grouping from disk."""
+        r"""Load tokenizer and column grouping from disk.
+
+        Args:
+            path (str): Base directory containing extractor state.
+        """
         tokenizer_path = os.path.join(path, constants.EXTRACTOR_STATE_DIR, constants.TOKENIZER_DIR)
         coltype_path = os.path.join(path, constants.EXTRACTOR_STATE_DIR, constants.EXTRACTOR_STATE_NAME)
 
@@ -189,7 +235,17 @@ class TransTabDataExtractor:
         num: list[str] | None = None,
         bin: list[str] | None = None,
     ) -> None:
-        """Dynamically extend column lists and recheck for duplicate names."""
+        r"""Dynamically extend column lists and recheck for duplicates.
+
+        Args:
+            cat (Optional[List[str]]): New categorical columns to add.
+            num (Optional[List[str]]): New numerical columns to add.
+            bin (Optional[List[str]]): New binary columns to add.
+
+        Raises:
+            ValueError: If duplicate columns are detected after the update and
+                `ignore_duplicate_cols` is False.
+        """
         if cat:
             self.categorical_columns.extend(cat)
             self.categorical_columns = list(set(self.categorical_columns))
@@ -249,16 +305,23 @@ class TransTabDataExtractor:
                 self.binary_columns.append(f'[bin]{col}')
 
 
-class TransTabDataProcessor(nn.Module):
-    """
-    Combine TransTabDataExtractor with TransTabPreEncoder,
-    then apply avg-mask, alignment and concatenate embeddings/masks.
+class TransTabDataProcessor(torch.nn.Module):
+    r"""TransTabDataProcessor: Combine TransTabDataExtractor with TransTabPreEncoder,
+    then apply feature alignment and concatenation as described in
+    `"TransTab: Learning Transferable Tabular Transformers Across Tables"`
+    <https://arxiv.org/abs/2205.09328>`_ paper.
 
-    The original tensors extracted by TransTabDataExtractor
-    from the upstream DataFrame are gradually sent to TransTabPreEncoder,
-    and then various feature embeddings are "linearly aligned"
-    and concatenated to finally obtain a unified feature embedding and attention mask.
+    This module extracts raw tensors via TransTabDataExtractor, encodes them
+    through the provided TransTabPreEncoder, applies a linear alignment layer,
+    and concatenates all feature embeddings and masks into a single output.
+
+    Args:
+        pre_encoder (TransTabPreEncoder): Pre-encoder module for token embedding.
+        out_dim (int): Output embedding dimension used by the alignment layer.
+        device (Union[str, torch.device]): Device for model parameters and data.
+            (default: "cpu")
     """
+
     def __init__(
         self,
         pre_encoder: TransTabPreEncoder,
@@ -273,7 +336,7 @@ class TransTabDataProcessor(nn.Module):
             binary_columns=None,
         )
         # align_layer mirrors original FeatureProcessor
-        self.align_layer = nn.Linear(out_dim, out_dim, bias=False).to(device)
+        self.align_layer = torch.nn.Linear(out_dim, out_dim, bias=False).to(device)
         self.device = device
 
     def forward(
@@ -281,17 +344,31 @@ class TransTabDataProcessor(nn.Module):
         df: pd.DataFrame,
         shuffle: bool = False,
     ) -> dict[str, Tensor]:
-        # 1) Extract raw tensors and masks
+        r"""Process a DataFrame into unified embeddings and attention mask.
+
+        Steps:
+          1. Extract raw tensors and masks via TransTabDataExtractor.
+          2. Encode features with TransTabPreEncoder.
+          3. Align each feature embedding type via a linear layer.
+          4. Concatenate embeddings and corresponding masks.
+
+        Args:
+            df (pd.DataFrame): Input data frame.
+            shuffle (bool): If True, randomly shuffle column order in extraction.
+                (default: False)
+
+        Returns:
+            Dict[str, Tensor] with keys:
+              - "embedding": Float tensor of shape (batch_size, total_seq_len, out_dim)
+              - "attention_mask": Float tensor of shape (batch_size, total_seq_len)
+        """
         data = self.extractor(df, shuffle=shuffle)
 
-        # 2) Prepare feature dict for PreEncoder
         feat_dict: dict[ColType, Tensor] = {}
-        # categorical and binary features go through Token embedding
         if data["x_cat_input_ids"] is not None:
             feat_dict[ColType.CATEGORICAL] = data["x_cat_input_ids"].to(self.device)
         if data["x_bin_input_ids"] is not None:
             feat_dict[ColType.BINARY] = data["x_bin_input_ids"].to(self.device)
-        # numerical features: raw values only
         if data["x_num"] is not None:
             feat_dict[ColType.NUMERICAL] = (
                 data["num_col_input_ids"].to(self.device),
@@ -299,10 +376,8 @@ class TransTabDataProcessor(nn.Module):
                 data["x_num"].to(self.device),
             )
 
-        # 3) Run through PreEncoder to get embeddings dict
         emb_dict = self.pre_encoder(feat_dict, return_dict=True)
 
-        # 4) Align each feature embedding type
         num_emb = emb_dict.get(ColType.NUMERICAL)
         if num_emb is not None:
             num_emb = self.align_layer(num_emb)
@@ -313,20 +388,16 @@ class TransTabDataProcessor(nn.Module):
         if bin_emb is not None:
             bin_emb = self.align_layer(bin_emb)
 
-        # 5) Concatenate embeddings and build attention mask
         emb_list: list[Tensor] = []
         mask_list: list[Tensor] = []
-        # numerical: full attention
         if num_emb is not None:
             emb_list.append(num_emb)
             mask_list.append(
                 torch.ones(num_emb.shape[0], num_emb.shape[1], device=self.device)
             )
-        # categorical: use token masks
         if cat_emb is not None:
             emb_list.append(cat_emb)
             mask_list.append(data["cat_att_mask"].to(self.device).float())
-        # binary: use token masks
         if bin_emb is not None:
             emb_list.append(bin_emb)
             mask_list.append(data["bin_att_mask"].to(self.device).float())
@@ -336,11 +407,14 @@ class TransTabDataProcessor(nn.Module):
         return {"embedding": all_emb, "attention_mask": all_mask}
 
     def save(self, path: str) -> None:
-        """
-        Save the extractor column configuration and tokenizer, as well as the pre_encoder weight.
-        It will eventually be generated under the path:
-        extractor/ (generated by extractor.save, including tokenizer/ and extractor.json)
-        input_encoder.bin (save pre_encoder.state_dict())
+        r"""Save extractor configuration and pre_encoder weights to disk.
+
+        The following files/directories are created under `path`:
+          - extractor/: saved by TransTabDataExtractor.save()
+          - input_encoder.bin: serialized state_dict of `pre_encoder`
+
+        Args:
+            path (str): Base directory in which to save processor state.
         """
         # 1) Saving extractor state
         self.extractor.save(path)
@@ -352,9 +426,14 @@ class TransTabDataProcessor(nn.Module):
         logger.info(f"Saved pre_encoder weights to {encoder_path}")
 
     def load(self, ckpt_dir: str) -> None:
-        """
-        Loads the extractor column configuration and tokenizer, as well as the pre_encoder weights.
-        Assume the directory structure is the same as written by save().
+        r"""Load extractor configuration and pre_encoder weights from disk.
+
+        Expects the structure created by `save()`:
+          - extractor/ (tokenizer + column JSON)
+          - input_encoder.bin
+
+        Args:
+            ckpt_dir (str): Directory containing saved state.
         """
         # 1) Restore extractor state
         self.extractor.load(ckpt_dir)
@@ -370,42 +449,78 @@ class TransTabDataProcessor(nn.Module):
 
 def _get_activation_fn(activation):
     if activation == "relu":
-        return F.relu
+        return torch.nn.functional.relu
     elif activation == "gelu":
-        return F.gelu
+        return torch.nn.functional.gelu
     elif activation == 'selu':
-        return F.selu
+        return torch.nn.functional.selu
     elif activation == 'leakyrelu':
-        return F.leaky_relu
+        return torch.nn.functional.leaky_relu
     raise RuntimeError("activation should be relu/gelu/selu/leakyrelu, not {}".format(activation))
 
 
-class TransTabTransformerLayer(nn.Module):
+class TransTabTransformerEncoderLayer(torch.nn.Module):
+    r"""The TransTabTransformerEncoderLayer module introduced in
+    `"TransTab: Learning Transferable Tabular Transformers Across Tables"`
+    <https://arxiv.org/abs/2205.09328>`_ paper.
+
+    This layer implements a single Transformer encoder block customized for
+    tabular transfer learning. It combines multi-head self-attention, a gated
+    feedforward network, optional pre-/post-layer normalization, residual
+    connections, and dropout to capture complex feature interactions in table
+    data.
+
+    Args:
+        d_model (int): Dimensionality of input and output feature vectors. (default: required)
+        nhead (int): Number of attention heads. (default: required)
+        dim_feedforward (int): Hidden dimensionality of the feedforward network.
+            If None, defaults to `d_model`. (default: 2048)
+        dropout (float): Dropout probability applied in attention and
+            feedforward sublayers. (default: 0.1)
+        activation (Union[str, Callable]): Activation function for the
+            feedforward network, specified as a callable or a string name
+            (e.g., "relu"). (default: torch.nn.functional.relu)
+        layer_norm_eps (float): Epsilon value for all LayerNorm layers to
+            ensure numerical stability. (default: 1e-5)
+        batch_first (bool): If True, input and output tensors are expected
+            in shape `(batch_size, seq_len, d_model)`; otherwise
+            `(seq_len, batch_size, d_model)`. (default: True)
+        norm_first (bool): If True, apply LayerNorm before self-attention
+            and feedforward; otherwise apply after the residual connection.
+            (default: False)
+        use_layer_norm (bool): Whether to include LayerNorm layers in each
+            sub-block. (default: True)
+        device (Optional[torch.device]): Device on which to allocate layer
+            parameters. (default: None)
+        dtype (Optional[torch.dtype]): Data type for layer parameters.
+            (default: None)
+    """
+
     __constants__ = ['batch_first', 'norm_first']
 
-    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation=F.relu,
+    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation=torch.nn.functional.relu,
                  layer_norm_eps=1e-5, batch_first=True, norm_first=False,
                  device=None, dtype=None, use_layer_norm=True) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(d_model, nhead, batch_first=batch_first, **factory_kwargs)
+        self.self_attn = torch.nn.MultiheadAttention(d_model, nhead, batch_first=batch_first, **factory_kwargs)
         # Implementation of Feedforward model
-        self.linear1 = nn.Linear(d_model, dim_feedforward, **factory_kwargs)
-        self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model, **factory_kwargs)
+        self.linear1 = torch.nn.Linear(d_model, dim_feedforward, **factory_kwargs)
+        self.dropout = torch.nn.Dropout(dropout)
+        self.linear2 = torch.nn.Linear(dim_feedforward, d_model, **factory_kwargs)
 
         # Implementation of gates
-        self.gate_linear = nn.Linear(d_model, 1, bias=False)
-        self.gate_act = nn.Sigmoid()
+        self.gate_linear = torch.nn.Linear(d_model, 1, bias=False)
+        self.gate_act = torch.nn.Sigmoid()
 
         self.norm_first = norm_first
         self.use_layer_norm = use_layer_norm
 
         if self.use_layer_norm:
-            self.norm1 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
-            self.norm2 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
-        self.dropout1 = nn.Dropout(dropout)
-        self.dropout2 = nn.Dropout(dropout)
+            self.norm1 = torch.nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
+            self.norm2 = torch.nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
+        self.dropout1 = torch.nn.Dropout(dropout)
+        self.dropout2 = torch.nn.Dropout(dropout)
 
         # Legacy string support for activation function.
         if isinstance(activation, str):
@@ -433,21 +548,28 @@ class TransTabTransformerLayer(nn.Module):
 
     def __setstate__(self, state):
         if 'activation' not in state:
-            state['activation'] = F.relu
+            state['activation'] = torch.nn.functional.relu
         super().__setstate__(state)
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None, is_causal=None, **kwargs) -> Tensor:
-        r"""Pass the input through the encoder layer.
+        r"""Pass the input through this encoder layer.
 
         Args:
-            src: the sequence to the encoder layer (required).
-            src_mask: the mask for the src sequence (optional).
-            src_key_padding_mask: the mask for the src keys per batch (optional).
+            src (Tensor): Input tensor of shape
+                `(batch_size, seq_len, d_model)` if `batch_first=True`,
+                else `(seq_len, batch_size, d_model)`.
+            src_mask (Optional[Tensor]): Attention mask of shape
+                `(seq_len, seq_len)` or broadcastable. (default: None)
+            src_key_padding_mask (Optional[Tensor]): Padding mask of shape
+                `(batch_size, seq_len)` where True values are ignored. (default: None)
+            is_causal (Optional[bool]): Unused; present for API compatibility.
 
-        Shape:
-            see the docs in Transformer class.
+        Returns:
+            Tensor: Output tensor of the same shape as `src`, after applying
+            self-attention, gated feedforward, residual connections, and
+            optional layer normalization.
         """
-        # see Fig. 1 of https://arxiv.org/pdf/2002.04745v1.pdf
+
         x = src
         if self.use_layer_norm:
             if self.norm_first:
@@ -463,11 +585,40 @@ class TransTabTransformerLayer(nn.Module):
         return x
 
 
-class TransTabConv(nn.Module):
+class TransTabConv(torch.nn.Module):
+    r"""The TransTabConv introduced in the
+    `"TransTab: Learning Transferable Tabular Transformers Across Tables"`
+    <https://arxiv.org/abs/2205.09328>`_ paper.
+
+    This module stacks one or more Transformer encoder layers to process a
+    sequence of column embeddings, enabling transfer of learned patterns
+    across different tables.
+
+    Args:
+        hidden_dim (int): Dimensionality of input/output embeddings (d_model). (default: 128)
+        num_layer (int): Total number of Transformer encoder layers to apply.
+            If >1, the first layer is a custom TransTabTransformerEncoderLayer
+            and the rest are standard clones. (default: 2)
+        num_attention_head (int): Number of attention heads per layer. (default: 2)
+        hidden_dropout_prob (float): Dropout probability in attention and
+            feedforward sublayers. (default: 0.0)
+        ffn_dim (int): Inner feedforward dimension (typically ≥ hidden_dim). (default: 256)
+        activation (str): Activation function for the feedforward network,
+            e.g. "relu". (default: "relu")
+        layer_norm_eps (float): Epsilon for LayerNorm layers. (default: 1e-5)
+        norm_first (bool): If True, apply LayerNorm before sublayers;
+            otherwise after residuals. (default: False)
+        use_layer_norm (bool): Whether to include LayerNorm in each layer.
+            (default: True)
+        batch_first (bool): If True, expect inputs as (batch, seq, dim);
+            else (seq, batch, dim). (default: True)
+        device (torch.device, optional): Device for model parameters.
+        dtype (torch.dtype, optional): Dtype for model parameters.
+
+    Returns:
+        torch.Tensor: Output of shape (batch_size, seq_len, hidden_dim).
     """
-    Multi‐layer Transformer encoder for tabular inputs.
-    Mirrors original TransTabEncoder behavior.
-    """
+
     def __init__(
         self,
         hidden_dim: int = 128,
@@ -486,8 +637,8 @@ class TransTabConv(nn.Module):
         super().__init__()
         factory_kwargs = {'device': device, 'dtype': dtype}
 
-        # First layer: one custom TransTabTransformerLayer
-        first_layer = TransTabTransformerLayer(
+        # First layer: one custom TransTabTransformerEncoderLayer
+        first_layer = TransTabTransformerEncoderLayer(
             d_model=hidden_dim,
             nhead=num_attention_head,
             dropout=hidden_dropout_prob,
@@ -500,11 +651,11 @@ class TransTabConv(nn.Module):
             **factory_kwargs,
         )
 
-        self.transformer_layers = nn.ModuleList([first_layer])
+        self.transformer_layers = torch.nn.ModuleList([first_layer])
 
         # If more than one layer, stack the rest in a TransformerEncoder
         if num_layer > 1:
-            encoder_layer = TransTabTransformerLayer(
+            encoder_layer = TransTabTransformerEncoderLayer(
                 d_model=hidden_dim,
                 nhead=num_attention_head,
                 dropout=hidden_dropout_prob,
@@ -516,7 +667,7 @@ class TransTabConv(nn.Module):
                 batch_first=batch_first,
                 **factory_kwargs,
             )
-            stacked = nn.TransformerEncoder(encoder_layer, num_layers=num_layer - 1)
+            stacked = torch.nn.TransformerEncoder(encoder_layer, num_layers=num_layer - 1)
             self.transformer_layers.append(stacked)
 
     def forward(
@@ -536,7 +687,7 @@ class TransTabConv(nn.Module):
         x = embedding
         # iterate through each transformer module
         for layer in self.transformer_layers:
-            # both TransTabTransformerLayer and nn.TransformerEncoder accept
+            # both TransTabTransformerEncoderLayer and torch.nn.TransformerEncoder accept
             # src_key_padding_mask argument
             x = layer(x, src_key_padding_mask=attention_mask)
         return x

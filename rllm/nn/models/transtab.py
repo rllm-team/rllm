@@ -6,11 +6,11 @@ import os
 
 import torch
 from torch import Tensor
-import torch.nn as nn
-import torch.nn.init as nn_init
 import numpy as np
 import pandas as pd
-from loguru import logger
+import logging
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 from rllm.data.table_data import TableData
 from rllm.nn.conv.table_conv import (
@@ -23,13 +23,21 @@ from rllm.nn.pre_encoder import TransTabPreEncoder
 from rllm.types import ColType
 
 
-class TransTabCLSToken(nn.Module):
-    '''add a learnable cls token embedding at the end of each sequence.
-    '''
+class TransTabCLSToken(torch.nn.Module):
+    r"""Add a learnable CLS token embedding to the beginning of each sequence.
+
+    This module maintains a trainable embedding vector of size `hidden_dim`
+    that is prepended to the input embeddings on each forward pass. If an
+    attention mask is provided, it is also updated to include the new token.
+
+    Args:
+        hidden_dim (int): Dimensionality of the CLS token embedding.
+    """
+
     def __init__(self, hidden_dim) -> None:
         super().__init__()
-        self.weight = nn.Parameter(Tensor(hidden_dim))
-        nn_init.uniform_(self.weight, a=-1 / math.sqrt(hidden_dim), b=1 / math.sqrt(hidden_dim))
+        self.weight = torch.nn.Parameter(Tensor(hidden_dim))
+        torch.nn.init.uniform_(self.weight, a=-1 / math.sqrt(hidden_dim), b=1 / math.sqrt(hidden_dim))
         self.hidden_dim = hidden_dim
 
     def expand(self, *leading_dimensions):
@@ -46,27 +54,53 @@ class TransTabCLSToken(nn.Module):
         return outputs
 
 
-class TransTabProjectionHead(nn.Module):
+class TransTabProjectionHead(torch.nn.Module):
     def __init__(self, hidden_dim=128, projection_dim=128):
         super().__init__()
-        self.dense = nn.Linear(hidden_dim, projection_dim, bias=False)
+        self.dense = torch.nn.Linear(hidden_dim, projection_dim, bias=False)
 
     def forward(self, x) -> Tensor:
         h = self.dense(x)
         return h
 
 
-class TransTabModel(nn.Module):
-    """
-    A full TransTab model for downstream tasks.
-    Combines:
-      1) Table → token ids/values (TransTabDataExtractor)
-      2) token ids/values → embeddings + masks (TransTabDataProcessor)
-      3) prepend [CLS], run through Transformer stack (TransTabConv + TransTabCLSToken)
-      4) extract final CLS embedding
+class TransTab(torch.nn.Module):
+    r"""TransTab: End-to-end TransTab model for downstream prediction tasks,
+    `"TransTab: Learning Transferable Tabular Transformers Across Tables"`
+    <https://arxiv.org/abs/2205.09328>`_ paper.
 
-    API compatible with original TransTabModel.
+    This model implements the full TransTab pipeline:
+      1) Extract raw DataFrame columns into token IDs and value tensors
+         (TransTabDataExtractor).
+      2) Convert tokens/values into feature embeddings and attention masks
+         (TransTabDataProcessor).
+      3) Prepend a learnable [CLS] token and encode the sequence via a
+         multi-layer Transformer stack (TransTabCLSToken + TransTabConv).
+      4) Produce a single-vector representation from the final CLS position,
+         optionally apply a contrastive projection head, and (subclasses may)
+         append a classification head.
+
+    Args:
+        categorical_columns (Optional[List[str]]): Names of categorical features.
+        numerical_columns (Optional[List[str]]): Names of numerical features.
+        binary_columns (Optional[List[str]]): Names of binary (0/1) features.
+        hidden_dim (int): Dimension of all internal embeddings (d_model).
+        num_layer (int): Number of Transformer encoder layers to stack.
+        num_attention_head (int): Number of attention heads per layer.
+        hidden_dropout_prob (float): Dropout probability in Transformer sublayers.
+        layer_norm_eps (float): Epsilon for all LayerNorm operations.
+        ffn_dim (int): Inner dimension of Transformer feedforward networks.
+        activation (str): Activation function for feedforward ("relu", etc.).
+        device (Union[str, torch.device]): Device on which to run the model.
+        projection_dim (int): Output dimension of the contrastive projection head.
+        overlap_ratio (float): Overlap fraction used in contrastive partitioning.
+        num_partition (int): Number of partitions for contrastive sampling.
+        supervised (bool): If True, use supervised contrastive loss; otherwise unsupervised.
+        temperature (float): Temperature parameter for contrastive loss.
+        base_temperature (float): Base temperature for stability scaling.
+        **kwargs: Additional keyword arguments passed to TransTabDataExtractor.
     """
+
     def __init__(
         self,
         categorical_columns: List[str] = None,
@@ -157,7 +191,7 @@ class TransTabModel(nn.Module):
         self.base_temperature = base_temperature
         self.num_partition = num_partition
         self.overlap_ratio = overlap_ratio
-        self.ce_loss = nn.CrossEntropyLoss()
+        self.ce_loss = torch.nn.CrossEntropyLoss()
         # device already set
 
     def forward(
@@ -230,7 +264,7 @@ class TransTabModel(nn.Module):
         os.makedirs(ckpt_dir, exist_ok=True)
         model_path = os.path.join(ckpt_dir, constants.WEIGHTS_NAME)
         torch.save(self.state_dict(), model_path)
-        logger.info(f"Saved TransTabModel weights to {model_path}")
+        logger.info(f"Saved TransTab weights to {model_path}")
 
     def load(self, ckpt_dir: str) -> None:
         """
@@ -252,7 +286,7 @@ class TransTabModel(nn.Module):
         model_path = os.path.join(ckpt_dir, constants.WEIGHTS_NAME)
         state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
-        logger.info(f"Loaded TransTabModel weights from {model_path}")
+        logger.info(f"Loaded TransTab weights from {model_path}")
         logger.info(f" Missing keys: {missing}")
         logger.info(f" Unexpected keys: {unexpected}")
 
@@ -291,7 +325,7 @@ class TransTabModel(nn.Module):
             self.categorical_columns = ext.categorical_columns
             self.numerical_columns = ext.numerical_columns
             self.binary_columns = ext.binary_columns
-            logger.info("Updated column mappings in TransTabModel.")
+            logger.info("Updated column mappings in TransTab.")
 
             # 2) Rebuild pre_encoder + reload embedding
             new_meta = {
@@ -335,36 +369,65 @@ class TransTabModel(nn.Module):
         self.clf.to(self.device)
         # Reconstruction loss
         if num_class > 2:
-            self.loss_fn = nn.CrossEntropyLoss(reduction='none')
+            self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
         else:
-            self.loss_fn = nn.BCEWithLogitsLoss(reduction='none')
+            self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
         logger.info(f"Rebuilt classifier for num_class={num_class}.")
 
 
-class TransTabLinearClassifier(nn.Module):
+class TransTabLinearClassifier(torch.nn.Module):
+    r"""TransTabLinearClassifier: Simple linear classification head with
+    layer normalization followed by a fully-connected layer on the
+    CLS embedding.
+
+    Args:
+        num_class (int): Number of target classes (<=2 produces a single logit).
+        hidden_dim (int): Dimensionality of input CLS embedding.
     """
-    Simple linear classification head, LayerNorm + fully connected directly on CLS embedding.
-    """
+
     def __init__(self, num_class: int, hidden_dim: int = 128) -> None:
         super().__init__()
         out_dim = 1 if num_class <= 2 else num_class
-        self.fc = nn.Linear(hidden_dim, out_dim)
-        self.norm = nn.LayerNorm(hidden_dim)
+        self.fc = torch.nn.Linear(hidden_dim, out_dim)
+        self.norm = torch.nn.LayerNorm(hidden_dim)
 
     def forward(self, cls_emb: torch.Tensor) -> torch.Tensor:
         """
-        cls_emb: [batch, hidden_dim]
-        Returns logits: [batch] (binary classification) or [batch, num_class]
+        Args:
+            cls_emb (torch.Tensor): CLS token embeddings of shape (batch_size, hidden_dim).
+
+        Returns:
+            torch.Tensor: Classification logits of shape
+                (batch_size,) for binary or (batch_size, num_class).
         """
         x = self.norm(cls_emb)
         logits = self.fc(x)
         return logits
 
 
-class TransTabClassifier(TransTabModel):
+class TransTabClassifier(TransTab):
+    r"""TransTabClassifier: Classification model built on TransTab.
+
+    Inherits the full TransTab pipeline (data extraction, preprocessing,
+    Transformer encoding, CLS token) and adds a linear classification head
+    on the final CLS embedding, computing either cross-entropy or binary
+    cross-entropy loss.
+
+    Args:
+        categorical_columns (Optional[List[str]]): Names of categorical features.
+        numerical_columns (Optional[List[str]]): Names of numerical features.
+        binary_columns (Optional[List[str]]): Names of binary (0/1) features.
+        num_class (int): Number of target classes (≤2 yields a single-logit binary head).
+        hidden_dim (int): Dimensionality of internal embeddings (d_model).
+        num_layer (int): Number of Transformer encoder layers to stack.
+        num_attention_head (int): Number of attention heads per Transformer layer.
+        hidden_dropout_prob (float): Dropout probability in Transformer sublayers.
+        ffn_dim (int): Inner dimension of Transformer feedforward networks.
+        activation (str): Activation function for feedforward layers ("relu", etc.).
+        device (Union[str, torch.device]): Device on which to run the model.
+        **kwargs: Additional keyword arguments passed to `TransTab`.
     """
-    Inherits from TransTabModel, adds a linear classification head on top of its CLS vector, and calculates the loss.
-    """
+
     def __init__(
         self,
         categorical_columns: List[str] = None,
@@ -399,9 +462,9 @@ class TransTabClassifier(TransTabModel):
         self.clf = TransTabLinearClassifier(num_class=num_class, hidden_dim=hidden_dim)
 
         if num_class > 2:
-            self.loss_fn = nn.CrossEntropyLoss(reduction='none')
+            self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
         else:
-            self.loss_fn = nn.BCEWithLogitsLoss(reduction='none')
+            self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
 
         self.to(self.device)
 
@@ -411,20 +474,20 @@ class TransTabClassifier(TransTabModel):
         y: Optional[Union[pd.Series, torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         """
-        Parameters:
-        x: pd.DataFrame, original table batch data
-        y: pd.Series optional labels
-        Return:
-        logits or (logits, loss)
+        Args:
+            x (DataFrame | TableData | Dict[ColType, Tensor]): Input batch.
+            y (Optional[Series | Tensor]): Ground-truth labels.
+
+        Returns:
+            Tuple containing:
+              - logits (Tensor): Classification logits.
+              - loss (Optional[Tensor]): Mean loss if `y` provided, else None.
         """
-        # Use the parent class to get the CLS vector [batch, hidden_dim]
         cls_emb = super().forward(x)
 
         logits = self.clf(cls_emb)
 
-        # If a label is given, calculate and return the loss
         if y is not None:
-            # If y is already a Tensor, move it directly to the device; otherwise it is assumed to be a pd.Series
             if isinstance(y, torch.Tensor):
                 y_ts = y.to(self.device)
             else:
@@ -443,67 +506,35 @@ class TransTabClassifier(TransTabModel):
         return logits, loss
 
 
-class TransTabForCL(TransTabModel):
-    '''The contrasstive learning model subclass from :class:`transtab.modeling_transtab.TransTabModel`.
+class TransTabForCL(TransTab):
+    r"""TransTabForCL: Contrastive learning model subclassing TransTab.
 
-    Parameters
-    ----------
-    categorical_columns: list
-        a list of categorical feature names.
+    Implements vertical-partition contrastive learning (VPCL) by sampling
+    multiple column subsets per table, encoding each view through the
+    TransTab pipeline, projecting to a lower-dimensional space, and
+    computing either supervised or self-supervised contrastive loss.
 
-    numerical_columns: list
-        a list of numerical feature names.
+    Args:
+        categorical_columns (Optional[List[str]]): Names of categorical features.
+        numerical_columns (Optional[List[str]]): Names of numerical features.
+        binary_columns (Optional[List[str]]): Names of binary (0/1) features.
+        hidden_dim (int): Dimensionality of internal embeddings (d_model).
+        num_layer (int): Number of Transformer encoder layers to stack.
+        num_attention_head (int): Number of attention heads per layer.
+        hidden_dropout_prob (float): Dropout probability in Transformer sublayers.
+        ffn_dim (int): Inner dimension of Transformer feedforward networks.
+        projection_dim (int): Dimension of the contrastive projection head.
+        overlap_ratio (float): Fraction of overlap between adjacent partitions.
+        num_partition (int): Number of column partitions per sample.
+        supervised (bool): Use supervised contrastive loss if True;
+            otherwise self-supervised.
+        temperature (float): Temperature scaling for contrastive logits.
+        base_temperature (float): Base temperature for loss normalization.
+        activation (str): Activation function for feedforward layers.
+        device (Union[str, torch.device]): Device on which to run the model.
+        **kwargs: Additional keyword arguments passed to `TransTab`.
+    """
 
-    binary_columns: list
-        a list of binary feature names, accept binary indicators like (yes,no); (true,false); (0,1).
-
-    feature_extractor: TransTabFeatureExtractor
-        a feature extractor to tokenize the input tables. if not passed the model will build itself.
-
-    hidden_dim: int
-        the dimension of hidden embeddings.
-
-    num_layer: int
-        the number of transformer layers used in the encoder.
-
-    num_attention_head: int
-        the numebr of heads of multihead self-attention layer in the transformers.
-
-    hidden_dropout_prob: float
-        the dropout ratio in the transformer encoder.
-
-    ffn_dim: int
-        the dimension of feed-forward layer in the transformer layer.
-
-    projection_dim: int
-        the dimension of projection head on the top of encoder.
-
-    overlap_ratio: float
-        the overlap ratio of columns of different partitions when doing subsetting.
-
-    num_partition: int
-        the number of partitions made for vertical-partition contrastive learning.
-
-    supervised: bool
-        whether or not to take supervised VPCL, otherwise take self-supervised VPCL.
-
-    temperature: float
-        temperature used to compute logits for contrastive learning.
-
-    base_temperature: float
-        base temperature used to normalize the temperature.
-
-    activation: str
-        the name of used activation functions, support ``"relu"``, ``"gelu"``, ``"selu"``, ``"leakyrelu"``.
-
-    device: str
-        the device, ``"cpu"`` or ``"cuda:0"``.
-
-    Returns
-    -------
-    A TransTabForCL model.
-
-    '''
     def __init__(
         self,
         categorical_columns=None,
@@ -541,7 +572,7 @@ class TransTabForCL(TransTabModel):
         assert isinstance(num_partition, int), f'number of constrative subsets must be int, got {type(num_partition)}'
         assert overlap_ratio >= 0 and overlap_ratio < 1, f'overlap_ratio must be in [0, 1), got {overlap_ratio}'
         self.projection_head = TransTabProjectionHead(hidden_dim, projection_dim)
-        self.cross_entropy_loss = nn.CrossEntropyLoss()
+        self.cross_entropy_loss = torch.nn.CrossEntropyLoss()
         self.temperature = temperature
         self.base_temperature = base_temperature
         self.num_partition = num_partition
@@ -551,26 +582,16 @@ class TransTabForCL(TransTabModel):
         self.to(device)
 
     def forward(self, x, y=None):
-        '''Make forward pass given the input feature ``x`` and label ``y`` (optional).
+        """
+        Args:
+            x (DataFrame | Dict[ColType, Tensor]): Input batch or extracted features.
+            y (Optional[Tensor]): Labels for supervised contrastive loss.
 
-        Parameters
-        ----------
-        x: pd.DataFrame or dict
-            pd.DataFrame: a batch of raw tabular samples; dict: the output of TransTabFeatureExtractor.
-
-        y: pd.Series
-            the corresponding labels for each sample in ``x``. if label is given, the model will return
-            the classification loss by ``self.loss_fn``.
-
-        Returns
-        -------
-        logits: None
-            this CL model does NOT return logits.
-
-        loss: torch.Tensor
-            the supervised or self-supervised VPCL loss.
-
-        '''
+        Returns:
+            Tuple containing:
+              - None (no logits returned for CL model)
+              - loss (Tensor): Computed contrastive loss.
+        """
         # do positive sampling
         feat_x_list = []
         if isinstance(x, pd.DataFrame):
@@ -599,7 +620,6 @@ class TransTabForCL(TransTabModel):
             labels = y.to(self.device).long()
             loss = self.supervised_contrastive_loss(feat_x_multiview, labels)
         else:
-            # print("#0628##########No labels provided, using self-supervised contrastive loss.##############")
             loss = self.self_supervised_contrastive_loss(feat_x_multiview)
 
         return None, loss
@@ -637,18 +657,18 @@ class TransTabForCL(TransTabModel):
         return torch.mm(a_norm, b_norm.transpose(0, 1))
 
     def self_supervised_contrastive_loss(self, features):
-        '''Compute the self-supervised VPCL loss.
+        r"""Compute self‑supervised vertical‑partition contrastive loss (VPCL).
 
-        Parameters
-        ----------
-        features: torch.Tensor
-            the encoded features of multiple partitions of input tables, with shape ``(bs, n_partition, proj_dim)``.
+        Treats each column partition as a separate view and maximizes agreement
+        between partitions of the same sample without using labels.
 
-        Returns
-        -------
-        loss: torch.Tensor
-            the computed self-supervised VPCL loss.
-        '''
+        Args:
+            features (torch.Tensor): Encoded features of shape
+                `(batch_size, num_partition, proj_dim)`.
+
+        Returns:
+            torch.Tensor: Scalar self‑supervised contrastive loss.
+        """
         batch_size = features.shape[0]
         labels = torch.arange(batch_size, dtype=torch.long, device=self.device).view(-1, 1)
         mask = torch.eq(labels, labels.T).float().to(labels.device)
@@ -679,22 +699,19 @@ class TransTabForCL(TransTabModel):
         return loss
 
     def supervised_contrastive_loss(self, features, labels):
-        '''Compute the supervised VPCL loss.
+        r"""Compute supervised vertical‑partition contrastive loss (VPCL).
 
-        Parameters
-        ----------
-        features: torch.Tensor
-            the encoded features of multiple partitions of input tables, with shape ``(bs, n_partition, proj_dim)``.
+        Uses class labels to form positive pairs across partitions, encouraging
+        same‑class views to be closer in projection space.
 
-        labels: torch.Tensor
-            the class labels to be used for building positive/negative pairs in VPCL.
+        Args:
+            features (torch.Tensor): Encoded features of shape
+                `(batch_size, num_partition, proj_dim)`.
+            labels (torch.Tensor): Ground‑truth labels of shape `(batch_size,)`.
 
-        Returns
-        -------
-        loss: torch.Tensor
-            the computed VPCL loss.
-
-        '''
+        Returns:
+            torch.Tensor: Scalar supervised contrastive loss.
+        """
         labels = labels.contiguous().view(-1, 1)
         batch_size = features.shape[0]
         mask = torch.eq(labels, labels.T).float().to(labels.device)

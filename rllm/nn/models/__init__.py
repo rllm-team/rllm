@@ -15,7 +15,7 @@ from .tabnet import (
     # GLU_Layer
 )
 from .bridge import BRIDGE, TableEncoder, GraphEncoder
-from .transtab import TransTabClassifier, TransTabForCL
+from .transtab import TransTab, TransTabClassifier, TransTabForCL
 
 __all__ = [
     "RECT_L",
@@ -23,6 +23,7 @@ __all__ = [
     "BRIDGE",
     "TableEncoder",
     "GraphEncoder",
+    "TransTab",
     "TransTabClassifier",
-    "TransTabForCL"
+    "TransTabForCL",
 ]

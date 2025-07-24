@@ -9,7 +9,20 @@ from rllm.types import ColType, StatType
 
 
 class TransTabNumEmbeddingEncoder(ColEncoder):
-    """Numerical feature encoder adapted from original TransTabNumEmbedding."""
+    r"""Numerical feature encoder for TransTab.
+
+    Encodes each numerical column by multiplying a learned embedding vector
+    by the raw value and adding a per-feature bias. Adapted from the original
+    TransTabNumEmbedding implementation.
+
+    Args:
+        hidden_dim (int): Dimensionality of the output embedding for each feature.
+        stats_list (Optional[List[Dict[StatType, Any]]]): Precomputed statistics
+            (e.g., mean, std) for each numerical column. (default: None)
+        post_module (Optional[torch.nn.Module]): Optional module to apply
+            after encoding (e.g., batch normalization or activation). (default: None)
+    """
+
     supported_types = {ColType.NUMERICAL}
 
     def __init__(
