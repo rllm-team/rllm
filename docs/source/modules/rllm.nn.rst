@@ -37,6 +37,7 @@ Table Conv
    SAINTConv
    TabTransformerConv
    TromptConv
+   TransTabConv
 
 Pre-Encoder
 ----------------
@@ -65,4 +66,5 @@ Models
    BRIDGE
    RECT_L
    TabNet
+   TransTab
 
