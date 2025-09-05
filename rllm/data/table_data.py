@@ -399,9 +399,10 @@ class TableData(BaseTable):
         cols = list(self.col_types.keys())
         if self.target_col is not None:
             cols.remove(self.target_col)
-        for fkey in self.fkeys_:
-            if fkey in cols:
-                cols.remove(fkey)
+        if self.fkeys_ is not None:
+            for fkey in self.fkeys_:
+                if fkey in cols:
+                    cols.remove(fkey)
         return cols
 
     @property
@@ -624,13 +625,24 @@ class TableData(BaseTable):
                 col_copy.values.astype(float), dtype=torch.float32
             ).reshape(-1, 1)
 
+        elif col_types == ColType.BINARY:
+            if col_copy.isnull().any():
+                col_copy.fillna(col_copy.mode()[0], inplace=True)
+            indicators = getattr(self, "binary_indicator", ["1", "yes", "true", "t", "y"])
+            col_copy = col_copy.astype(str).map(
+                lambda x: 1 if x.lower() in indicators else 0
+            )
+            return torch.tensor(
+                col_copy.values.astype(float), dtype=torch.float32
+            ).reshape(-1, 1)
+
         elif col_types == ColType.TEXT:
             embedder = text_embedder_config.text_embedder
             batch_size = text_embedder_config.batch_size
             assert embedder is not None, "Need an embedder for text column!"
             col_copy = col_copy.astype(str)
             col_list = col_copy.to_list()
-    
+
             if batch_size is None:
                 embeddings = embedder(col_list)
             else:
@@ -712,3 +724,16 @@ class TableData(BaseTable):
         out.__dict__["_len"] = index.numel()
 
         return out
+
+    @after_materialize
+    def get_label_ids(
+        self,
+        indices: Sequence[int],
+        device: Optional[torch.device] = None
+    ) -> torch.Tensor:
+        r"""Returns the label id Tensor (long) for the given row number.
+        Make sure to only do fit/transform once, then index y directly."""
+        labels = self.y[torch.tensor(indices, dtype=torch.long)]
+        if device is not None:
+            labels = labels.to(device)
+        return labels.long()

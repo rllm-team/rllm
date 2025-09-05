@@ -8,3 +8,4 @@ pandas
 scikit_learn
 scipy
 tqdm
+transformers<=4.30.0
