@@ -82,7 +82,7 @@ class TransTabPreEncoder(PreEncoder):
 
                 # 3) Scale embeddings by numeric values and add bias
                 num_emb = self.pre_encoder_dict[ColType.NUMERICAL.value](
-                    col_emb, raw_vals
+                    col_emb, raw_vals=raw_vals
                 )
                 feat_encoded[col_type] = num_emb
 

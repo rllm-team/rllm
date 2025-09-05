@@ -327,10 +327,11 @@ class TransTabDataProcessor(torch.nn.Module):
         pre_encoder: TransTabPreEncoder,
         out_dim: int,
         device: str | torch.device = "cpu",
+        extractor: TransTabDataExtractor | None = None,
     ) -> None:
         super().__init__()
         self.pre_encoder = pre_encoder.to(device)
-        self.extractor = TransTabDataExtractor(
+        self.extractor = extractor if extractor is not None else TransTabDataExtractor(
             categorical_columns=None,
             numerical_columns=None,
             binary_columns=None,

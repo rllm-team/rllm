@@ -3,8 +3,8 @@
 # ArXiv: https://arxiv.org/abs/2205.09328
 
 # Datasets  Titanic    Adult
-# AUC       0.843      0.908
-# Time      35.0s      154.6s
+# AUC       0.848      0.876
+# Time      27.7s      1289.1s
 
 import argparse
 import sys
@@ -31,8 +31,8 @@ parser.add_argument("--num_layers", type=int, default=2, help="Number of transfo
 parser.add_argument("--num_heads", type=int, default=8, help="Number of attention heads")
 parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
-parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
-parser.add_argument("--wd", type=float, default=1e-4, help="Weight decay")
+parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
+parser.add_argument("--wd", type=float, default=0, help="Weight decay")
 parser.add_argument("--seed", type=int, default=123, help="Random seed")
 args = parser.parse_args()
 

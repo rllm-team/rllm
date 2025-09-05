@@ -82,3 +82,13 @@ def test_saint():
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
     assert float(stdout[-8:]) > 0.89
+
+
+def test_transtab():
+    script = os.path.join(EXAMPLE_ROOT, "transtab.py")
+    out = subprocess.run(["python", str(script)], capture_output=True)
+    assert (
+        out.returncode == 0
+    ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
+    stdout = out.stdout.decode("utf-8")
+    assert float(stdout[-8:]) > 0.80

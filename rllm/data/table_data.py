@@ -399,9 +399,10 @@ class TableData(BaseTable):
         cols = list(self.col_types.keys())
         if self.target_col is not None:
             cols.remove(self.target_col)
-        for fkey in self.fkeys_:
-            if fkey in cols:
-                cols.remove(fkey)
+        if self.fkeys_ is not None:
+            for fkey in self.fkeys_:
+                if fkey in cols:
+                    cols.remove(fkey)
         return cols
 
     @property

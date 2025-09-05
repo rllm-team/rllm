@@ -159,6 +159,7 @@ class TransTab(torch.nn.Module):
             pre_encoder=self.pre_encoder,
             out_dim=hidden_dim,
             device=device,
+            extractor=self.extractor,
         )
 
         # 5) Building a multi-layer Transformer encoder (using TransTabConv)
