@@ -113,8 +113,12 @@ class TransTabDataExtractor:
         num_cols = [c for c in cols if self.numerical_columns and c in self.numerical_columns]
         bin_cols = [c for c in cols if self.binary_columns and c in self.binary_columns]
 
+        configured = bool(self.categorical_columns or self.numerical_columns or self.binary_columns)
         if not any((cat_cols, num_cols, bin_cols)):
-            cat_cols = cols
+            if configured:
+                raise ValueError("Configured cat/num/bin columns, but none matched DataFrame columns.")
+            else:
+                cat_cols = cols
 
         if shuffle:
             np.random.shuffle(cat_cols)
@@ -133,7 +137,7 @@ class TransTabDataExtractor:
 
         # Numerical columns
         if num_cols:
-            x_num_df = df[num_cols].fillna(0).infer_objects(copy=False)
+            x_num_df = df[num_cols].infer_objects(copy=False).fillna(0)
             out["x_num"] = torch.tensor(x_num_df.values, dtype=torch.float32)
             tokens = self.tokenizer(
                 num_cols,
@@ -168,19 +172,30 @@ class TransTabDataExtractor:
 
         # Binary columns
         if bin_cols:
-            x_bin = df[bin_cols].fillna(0).astype(int)
+            x_bin = df[bin_cols].copy()
+            try:
+                x_bin = x_bin.astype(str).map(lambda s: s.strip().lower())
+            except AttributeError:
+                x_bin = x_bin.astype(str).applymap(lambda s: s.strip().lower())
+
+            POS = {"1", "true", "t", "yes", "y", "on"}
+            NEG = {"0", "false", "f", "no", "n", "off", "", "nan", "none", "null"}
+            pos_mask = x_bin.isin(POS)
+            neg_mask = x_bin.isin(NEG)
+            rem = x_bin.where(~(pos_mask | neg_mask))
+            num = rem.apply(pd.to_numeric, errors="coerce")
+            gt0 = (num.fillna(0).astype(float) > 0)
+            x_bin_int = (pos_mask | gt0).astype(int)
+
             bin_texts: list[str] = []
-            for values in x_bin.values:
+            for values in x_bin_int.values:
                 tokens = [col for col, flag in zip(bin_cols, values) if flag]
                 bin_texts.append(" ".join(tokens))
+
             tokens = self.tokenizer(
-                bin_texts,
-                padding=True,
-                truncation=True,
-                add_special_tokens=False,
-                return_tensors="pt",
+                bin_texts, padding=True, truncation=True,
+                add_special_tokens=False, return_tensors="pt",
             )
-            # Only include when there is at least one token per row
             if tokens["input_ids"].shape[1] > 0:
                 out["x_bin_input_ids"] = tokens["input_ids"]
                 out["bin_att_mask"] = tokens["attention_mask"]

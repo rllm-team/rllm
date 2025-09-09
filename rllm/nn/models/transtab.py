@@ -302,57 +302,20 @@ class TransTab(torch.nn.Module):
         self.to(self.device)
 
     def update(self, config: Dict[str, Any]) -> None:
-        # Completely replace the extractor column
         col_map = {k: v for k, v in config.items() if k in ('cat', 'num', 'bin')}
         if col_map:
             ext = self.data_processor.extractor
-            if 'cat' in col_map:
-                ext.categorical_columns = list(col_map['cat'])
-            if 'num' in col_map:
-                ext.numerical_columns = list(col_map['num'])
-            if 'bin' in col_map:
-                ext.binary_columns = list(col_map['bin'])
-
-            ok, dup = ext._check_column_overlap(
-                ext.categorical_columns,
-                ext.numerical_columns,
-                ext.binary_columns)
-            if not ok:
-                if not ext.ignore_duplicate_cols:
-                    raise ValueError(f"Column overlap after update: {dup}")
-                ext._solve_duplicate_cols(dup)
-
-            # Synchronize top-level properties
+            ext.update(
+                cat=col_map.get('cat', None),
+                num=col_map.get('num', None),
+                bin=col_map.get('bin', None),
+            )
             self.categorical_columns = ext.categorical_columns
             self.numerical_columns = ext.numerical_columns
             self.binary_columns = ext.binary_columns
-            logger.info("Updated column mappings in TransTab.")
 
-            # 2) Rebuild pre_encoder + reload embedding
-            new_meta = {
-                ColType.CATEGORICAL: self.categorical_columns,
-                ColType.BINARY: self.binary_columns,
-                ColType.NUMERICAL: self.numerical_columns,
-            }
-            self.pre_encoder = TransTabPreEncoder(
-                out_dim=self.cls_token.hidden_dim,
-                metadata=new_meta,
-                vocab_size=ext.tokenizer.vocab_size,
-                padding_idx=ext.tokenizer.pad_token_id,
-                hidden_dropout_prob=self.hidden_dropout_prob,
-                layer_norm_eps=self.layer_norm_eps,
-            ).to(self.device)
-            # Reload the cached weights from pre-training
-            self.pre_encoder.load_state_dict(self._preencoder_state, strict=False)
+            logger.info("Extended column mappings in TransTab via extractor.update().")
 
-            # Rebuild data_processor
-            self.data_processor = TransTabDataProcessor(
-                pre_encoder=self.pre_encoder,
-                out_dim=self.cls_token.hidden_dim,
-                device=self.device,
-            )
-
-        # 3) Rebuild the classification header (optional)
         if 'num_class' in config:
             self._adapt_to_new_num_class(config['num_class'])
 
@@ -404,6 +367,19 @@ class TransTabLinearClassifier(torch.nn.Module):
         x = self.norm(cls_emb)
         logits = self.fc(x)
         return logits
+
+
+class TransTabLinearRegressor(torch.nn.Module):
+    def __init__(self, hidden_dim=128) -> None:
+        super().__init__()
+        self.fc = torch.nn.Linear(hidden_dim, 1)
+        self.norm = torch.nn.LayerNorm(hidden_dim)
+
+    def forward(self, x) -> Tensor:
+        x = x[:, 0, :]  # take the cls token embedding
+        x = self.norm(x)
+        output = self.fc(x)
+        return output
 
 
 class TransTabClassifier(TransTab):
