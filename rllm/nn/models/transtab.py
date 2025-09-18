@@ -1,26 +1,31 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, Union, Tuple
-
 import math
 import os
+import logging
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 import torch
 from torch import Tensor
 import numpy as np
 import pandas as pd
-import logging
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 from rllm.data.table_data import TableData
-from rllm.nn.conv.table_conv import (
-    constants,
-    TransTabConv,
-    TransTabDataExtractor,
-    TransTabDataProcessor,
-)
-from rllm.nn.pre_encoder import TransTabPreEncoder
+from rllm.nn.conv.table_conv import TransTabConv
+from rllm.nn.pre_encoder import TransTabDataExtractor, TransTabPreEncoder
 from rllm.types import ColType
+
+
+TRAINING_ARGS_NAME = "training_args.json"
+TRAINER_STATE_NAME = "trainer_state.json"
+OPTIMIZER_NAME = "optimizer.pt"
+SCHEDULER_NAME = "scheduler.pt"
+WEIGHTS_NAME = "pytorch_model.bin"
+TOKENIZER_DIR = 'tokenizer'
+EXTRACTOR_STATE_DIR = 'extractor'
+EXTRACTOR_STATE_NAME = 'extractor.json'
+INPUT_ENCODER_NAME = 'input_encoder.bin'
 
 
 class TransTabCLSToken(torch.nn.Module):
@@ -85,7 +90,7 @@ class TransTab(torch.nn.Module):
         numerical_columns (Optional[List[str]]): Names of numerical features.
         binary_columns (Optional[List[str]]): Names of binary (0/1) features.
         hidden_dim (int): Dimension of all internal embeddings (d_model).
-        num_layer (int): Number of Transformer encoder layers to stack.
+        num_layer (int): Number of Transformer encoder(conv) layers to stack.
         num_attention_head (int): Number of attention heads per layer.
         hidden_dropout_prob (float): Dropout probability in Transformer sublayers.
         layer_norm_eps (float): Epsilon for all LayerNorm operations.
@@ -131,7 +136,7 @@ class TransTab(torch.nn.Module):
         self.numerical_columns = list(set(numerical_columns)) if numerical_columns else None
         self.binary_columns = list(set(binary_columns)) if binary_columns else None
 
-        # 2) Initialize DataExtractor (keep all **kwargs configuration)
+        # 2) Initialize DataExtractor
         self.extractor = TransTabDataExtractor(
             categorical_columns=self.categorical_columns,
             numerical_columns=self.numerical_columns,
@@ -152,30 +157,41 @@ class TransTab(torch.nn.Module):
             padding_idx=self.extractor.tokenizer.pad_token_id,
             hidden_dropout_prob=self.hidden_dropout_prob,
             layer_norm_eps=self.layer_norm_eps,
-        )
-
-        # 4) Initialize DataProcessor and combine extractor with pre_encoder
-        self.data_processor = TransTabDataProcessor(
-            pre_encoder=self.pre_encoder,
-            out_dim=hidden_dim,
             device=device,
             extractor=self.extractor,
+            use_align_layer=True,
         )
 
-        # 5) Building a multi-layer Transformer encoder (using TransTabConv)
-        self.encoder = TransTabConv(
-            hidden_dim=hidden_dim,
-            num_layer=num_layer,
-            num_attention_head=num_attention_head,
-            hidden_dropout_prob=hidden_dropout_prob,
-            ffn_dim=ffn_dim,
-            activation=activation,
-            layer_norm_eps=self.layer_norm_eps,
-            norm_first=False,
-            use_layer_norm=True,
-            batch_first=True,
-            device=device,
+        self.convs = torch.nn.ModuleList()
+        self.convs.append(
+            TransTabConv(
+                conv_dim=hidden_dim,
+                nhead=num_attention_head,
+                dropout=hidden_dropout_prob,
+                dim_feedforward=ffn_dim,
+                activation=activation,
+                layer_norm_eps=self.layer_norm_eps,
+                norm_first=False,
+                use_layer_norm=True,
+                batch_first=True,
+                device=device,
+            )
         )
+        for _ in range(num_layer - 1):
+            self.convs.append(
+                TransTabConv(
+                    conv_dim=hidden_dim,
+                    nhead=num_attention_head,
+                    dropout=hidden_dropout_prob,
+                    dim_feedforward=ffn_dim,
+                    activation=activation,
+                    layer_norm_eps=self.layer_norm_eps,
+                    norm_first=False,
+                    use_layer_norm=True,
+                    batch_first=True,
+                    device=device,
+                )
+            )
 
         # 6) CLS token module, used to insert a learnable vector at the front of the sequence
         self.cls_token = TransTabCLSToken(hidden_dim=hidden_dim)
@@ -206,7 +222,6 @@ class TransTab(torch.nn.Module):
         Return: final [CLS] vector, shape = (batch, hidden_dim)
         """
         if isinstance(x, dict):
-            import pandas as pd
             parts = []
             if x.get(ColType.CATEGORICAL) is not None:
                 parts.append(
@@ -236,7 +251,7 @@ class TransTab(torch.nn.Module):
             df = x
 
         # 1) DataProcessor gets embedding + mask
-        proc_out = self.data_processor(df)
+        proc_out = self.pre_encoder(df)
         emb = proc_out['embedding']       # (batch, seq_len, hidden_dim)
         mask = proc_out['attention_mask']  # (batch, seq_len)
 
@@ -246,7 +261,10 @@ class TransTab(torch.nn.Module):
         mask2 = cls_out['attention_mask']  # (batch, seq_len+1)
 
         # 3) Transformer Encoding
-        enc_out = self.encoder(embedding=emb2, attention_mask=mask2)
+        # enc_out = self.convs(embedding=emb2, attention_mask=mask2)
+        for conv in self.convs:
+            enc_out = conv(x=emb2, src_key_padding_mask=mask2)
+            emb2 = enc_out
 
         # 4) Take the first position (CLS) as the sample representation
         final_cls = enc_out[:, 0, :]       # (batch, hidden_dim)
@@ -256,14 +274,14 @@ class TransTab(torch.nn.Module):
         """
         Save the entire model:
         1) data_processor.save → extractor/tokenizer + pre_encoder
-        2) Save the state_dict of this model (encoder + cls_token)
+        2) Save the state_dict of this model (conv + cls_token)
         """
         # 1) save extractor + pre_encoder
-        self.data_processor.save(ckpt_dir)
+        self.pre_encoder.save(ckpt_dir)
 
         # 2) Save model weights
         os.makedirs(ckpt_dir, exist_ok=True)
-        model_path = os.path.join(ckpt_dir, constants.WEIGHTS_NAME)
+        model_path = os.path.join(ckpt_dir, WEIGHTS_NAME)
         torch.save(self.state_dict(), model_path)
         logger.info(f"Saved TransTab weights to {model_path}")
 
@@ -276,15 +294,15 @@ class TransTab(torch.nn.Module):
         4) Move the model to self.device
         """
         # 1) Restore extractor + pre_encoder
-        self.data_processor.load(ckpt_dir)
+        self.pre_encoder.load(ckpt_dir)
 
         # 2) Synchronous column mapping
-        self.categorical_columns = self.data_processor.extractor.categorical_columns
-        self.numerical_columns = self.data_processor.extractor.numerical_columns
-        self.binary_columns = self.data_processor.extractor.binary_columns
+        self.categorical_columns = self.pre_encoder.extractor.categorical_columns
+        self.numerical_columns = self.pre_encoder.extractor.numerical_columns
+        self.binary_columns = self.pre_encoder.extractor.binary_columns
 
         # 3) Load model weights to CPU
-        model_path = os.path.join(ckpt_dir, constants.WEIGHTS_NAME)
+        model_path = os.path.join(ckpt_dir, WEIGHTS_NAME)
         state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         logger.info(f"Loaded TransTab weights from {model_path}")
@@ -292,7 +310,7 @@ class TransTab(torch.nn.Module):
         logger.info(f" Unexpected keys: {unexpected}")
 
         # 4) Cache the pre-trained pre_encoder status, which will be used in the subsequent update
-        pe_path = os.path.join(ckpt_dir, constants.INPUT_ENCODER_NAME)
+        pe_path = os.path.join(ckpt_dir, INPUT_ENCODER_NAME)
         self._preencoder_state = torch.load(
             pe_path,
             map_location='cpu',
@@ -304,7 +322,7 @@ class TransTab(torch.nn.Module):
     def update(self, config: Dict[str, Any]) -> None:
         col_map = {k: v for k, v in config.items() if k in ('cat', 'num', 'bin')}
         if col_map:
-            ext = self.data_processor.extractor
+            ext = self.pre_encoder.extractor
             ext.update(
                 cat=col_map.get('cat', None),
                 num=col_map.get('num', None),
@@ -579,7 +597,7 @@ class TransTabForCL(TransTab):
                 mask = proc["attention_mask"]
 
                 cls_out = self.cls_token(emb, attention_mask=mask)
-                enc_out = self.encoder(
+                enc_out = self.convs(
                     embedding=cls_out["embedding"],
                     attention_mask=cls_out["attention_mask"],
                 )

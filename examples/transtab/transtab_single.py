@@ -44,7 +44,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = Titanic(cached_dir=path)[0]
-data.lazy_materialize()
 target_col = data.target_col
 
 
@@ -97,6 +96,7 @@ def train(epoch: int) -> float:
     model.train()
     loss_accum = total_count = 0.0
     for x_batch, y in tqdm(train_loader, desc=f"Epoch: {epoch}"):
+        # x_batch: pd.DataFrame, y: torch.Tensor
         logits, loss = model(x_batch, y)
         optimizer.zero_grad()
         loss.backward()

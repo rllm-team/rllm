@@ -3,7 +3,7 @@ from .tab_transformer_conv import TabTransformerConv
 from .excelformer_conv import ExcelFormerConv
 from .trompt_conv import TromptConv
 from .saint_conv import SAINTConv
-from .transtab_conv import TransTabDataExtractor, TransTabDataProcessor, TransTabConv
+from .transtab_conv import TransTabConv
 
 __all__ = [
     "FTTransformerConv",
@@ -11,7 +11,5 @@ __all__ = [
     "ExcelFormerConv",
     "TromptConv",
     "SAINTConv",
-    "TransTabDataExtractor",
-    "TransTabDataProcessor",
     "TransTabConv",
 ]
