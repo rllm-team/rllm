@@ -3,8 +3,6 @@ from typing import Any, Dict, List, Optional, Union, Tuple
 import math
 import os
 import logging
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 import torch
 from torch import Tensor
@@ -26,6 +24,9 @@ TOKENIZER_DIR = 'tokenizer'
 EXTRACTOR_STATE_DIR = 'extractor'
 EXTRACTOR_STATE_NAME = 'extractor.json'
 INPUT_ENCODER_NAME = 'input_encoder.bin'
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class TransTabCLSToken(torch.nn.Module):

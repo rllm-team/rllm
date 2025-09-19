@@ -10,13 +10,13 @@ import argparse
 import time
 from typing import List, Tuple, Dict
 
+from tqdm import tqdm
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
-from tqdm import tqdm
 
 from rllm.types import ColType
 from rllm.datasets import Adult
@@ -129,7 +129,6 @@ class EarlyStopperAUC:
         if val_auc > self.best + self.min_delta:
             self.best = val_auc
             self.counter = 0
-            # 仅保存张量内容，避免引用
             self.best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
             return False
         else:

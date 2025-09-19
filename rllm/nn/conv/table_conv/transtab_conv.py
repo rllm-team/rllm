@@ -1,8 +1,5 @@
 from __future__ import annotations
 from typing import Optional
-import logging
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 import torch
 from torch import Tensor
