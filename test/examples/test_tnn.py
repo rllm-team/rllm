@@ -9,6 +9,8 @@
 # 4. excelformer.py: Tests the ExcelFormer model.
 # 5. trompt.py: Tests the Trompt model.
 # 6. saint.py: Tests the SAINT model.
+# 7. transtab_single.py: Tests the TransTab model.
+# 8. transtab_transfer.py: Tests the TransTab model with transfer learning.
 
 # Each test function runs the corresponding example script and verifies the
 # output to ensure it meets the expected criteria.
@@ -82,3 +84,30 @@ def test_saint():
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
     assert float(stdout[-8:]) > 0.89
+
+
+def test_transtab_single():
+    script = os.path.join(EXAMPLE_ROOT, "./transtab/transtab_single.py")
+    out = subprocess.run(["python", str(script)], capture_output=True)
+    assert (
+        out.returncode == 0
+    ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
+    stdout = out.stdout.decode("utf-8")
+    assert float(stdout[-8:]) > 0.80
+
+
+def test_transtab_transfer():
+    script = os.path.join(EXAMPLE_ROOT, "./transtab/transtab_transfer.py")
+    out = subprocess.run(
+        [
+            "python", str(script),
+            "--pre_epochs", "1",
+            "--finetune_epochs", "1",
+        ],
+        capture_output=True
+    )
+    assert (
+        out.returncode == 0
+    ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
+    stdout = out.stdout.decode("utf-8")
+    assert float(stdout[-8:]) > 0.6

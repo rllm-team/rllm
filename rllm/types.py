@@ -39,16 +39,19 @@ class ColType(Enum):
 
         col_type = ColType.NUMERICAL  # Numerical columns
         col_type = ColType.CATEGORICAL  # Categorical columns
+        col_type = ColType.BINARY  # Binary columns
         ...
 
     Attributes:
         NUMERICAL: Numerical columns.
         CATEGORICAL: Categorical columns.
+        BINARY: Binary columns.
         TEXT: Text columns.
     """
 
     NUMERICAL = "numerical"
     CATEGORICAL = "categorical"
+    BINARY = "binary"
     TEXT = "text"
 
     def __lt__(self, other):
@@ -93,6 +96,7 @@ class NAMode(Enum):
         namode_type = {
             ColType.NUMERICAL: [NAMode.MAX, NAMode.MIN, NAMode.MEAN, NAMode.ZERO],
             ColType.CATEGORICAL: [NAMode.MOST_FREQUENT, NAMode.ZERO],
+            ColType.BINARY: [NAMode.MOST_FREQUENT, NAMode.ZERO],
         }
         return namode_type.get(col_type, [])
 
@@ -137,6 +141,10 @@ class StatType(Enum):
                 StatType.QUANTILES,
             ],
             ColType.CATEGORICAL: [
+                StatType.COUNT,
+                StatType.MOST_FREQUENT,
+            ],
+            ColType.BINARY: [
                 StatType.COUNT,
                 StatType.MOST_FREQUENT,
             ],
