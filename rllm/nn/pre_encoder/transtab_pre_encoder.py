@@ -66,7 +66,7 @@ class TransTabDataExtractor:
         categorical_columns: list[str] | None = None,
         numerical_columns: list[str] | None = None,
         binary_columns: list[str] | None = None,
-        tokenizer_dir: str = "./examples/transtab/tokenizer",
+        tokenizer_dir: str = "./tokenizer",
         disable_tokenizer_parallel: bool = True,
         ignore_duplicate_cols: bool = False,
     ) -> None:

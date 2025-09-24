@@ -21,9 +21,11 @@ from sklearn.model_selection import train_test_split
 
 sys.path.append("./")
 sys.path.append("../")
+sys.path.append("../../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
 from rllm.nn.models import TransTabClassifier
+from utils import build_collate_fn
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--hidden_dim", type=int, default=128, help="Transformer hidden dim")
@@ -42,17 +44,11 @@ np.random.seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
-path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
+path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 data = Titanic(cached_dir=path)[0]
 target_col = data.target_col
 
-
-#  collate function to batch raw DataFrame slices
-def collate_td(index_batch: List[int]):
-    x_batch = data.df.iloc[index_batch].reset_index(drop=True).drop(columns=[target_col])
-    y_batch = data.get_label_ids(index_batch, device=device)
-    return x_batch, y_batch
-
+collate_fn = build_collate_fn(data, target_col, device)
 
 indices = np.arange(data.num_rows)
 labels = data.df[target_col].values
@@ -63,10 +59,10 @@ val_idx, test_idx = train_test_split(
     temp_idx, test_size=2 / 3, stratify=labels[temp_idx], random_state=args.seed
 )
 
-# Replace get_dataloader with DataLoader over indices + collate_td
-train_loader = DataLoader(train_idx.tolist(), batch_size=args.batch_size, shuffle=True, collate_fn=collate_td)
-val_loader = DataLoader(val_idx.tolist(), batch_size=args.batch_size, shuffle=False, collate_fn=collate_td)
-test_loader = DataLoader(test_idx.tolist(), batch_size=args.batch_size, shuffle=False, collate_fn=collate_td)
+# Replace get_dataloader with DataLoader over indices + collate_batch
+train_loader = DataLoader(train_idx.tolist(), batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
+val_loader = DataLoader(val_idx.tolist(), batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
+test_loader = DataLoader(test_idx.tolist(), batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
 
 # Build model and optimizer
 col_types = data.col_types
@@ -83,10 +79,7 @@ model = TransTabClassifier(
     hidden_dim=args.hidden_dim,
     num_layer=args.num_layers,
     num_attention_head=args.num_heads,
-    hidden_dropout_prob=0.1,
     ffn_dim=args.hidden_dim * 2,
-    activation="relu",
-    device=device,
 ).to(device)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd)
@@ -97,7 +90,7 @@ def train(epoch: int) -> float:
     loss_accum = total_count = 0.0
     for x_batch, y in tqdm(train_loader, desc=f"Epoch: {epoch}"):
         # x_batch: pd.DataFrame, y: torch.Tensor
-        logits, loss = model(x_batch, y)
+        _, loss = model(x_batch, y)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -109,16 +102,16 @@ def train(epoch: int) -> float:
 @torch.no_grad()
 def test(loader: DataLoader) -> float:
     model.eval()
-    ys, ps = [], []
+    y_true_list, y_prob_list = [], []
     for x_batch, y in loader:
         logits, _ = model(x_batch)
         if num_classes <= 2:
             prob = torch.sigmoid(logits).view(-1)
         else:
             prob = torch.softmax(logits, dim=1)[:, 1]
-        ys.append(y.cpu().numpy())
-        ps.append(prob.cpu().numpy())
-    return roc_auc_score(np.concatenate(ys), np.concatenate(ps))
+        y_true_list.append(y.cpu().numpy())
+        y_prob_list.append(prob.cpu().numpy())
+    return roc_auc_score(np.concatenate(y_true_list), np.concatenate(y_prob_list))
 
 
 metric = "AUC"
