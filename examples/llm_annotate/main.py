@@ -13,7 +13,7 @@ from rllm.datasets import TLF2KDataset, TACM12KDataset, TML1MDataset
 from annotation.annotation import annotate
 from node_selection.node_selection import active_generate_mask
 from langchain_community.llms import Tongyi
-from utils import preprocess
+from preprocess import preprocess
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", type=str, default="tlf2k", choices=["tlf2k", "tml1m", "tacm12k"], help="dataset")
@@ -30,7 +30,7 @@ args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-llm = Tongyi(dashscope_api_key='sk-19964643d8104217af9c6ee0802d446e', model_name='qwen-max-2025-01-25', model_kwargs={}, client=dashscope.Generation)
+llm = Tongyi(dashscope_api_key='your-secret-key', model_name='qwen-max-2025-01-25', model_kwargs={}, client=dashscope.Generation)
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 if args.dataset == "TLF2K" or args.dataset == "tlf2k":
