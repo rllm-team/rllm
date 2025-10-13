@@ -98,6 +98,7 @@ model = TransTabClassifier(
     num_layer=args.num_layers,
     num_attention_head=args.num_heads,
     ffn_dim=args.hidden_dim * 2,
+    device=device,
 ).to(device)
 
 # Run pre-training on source table
