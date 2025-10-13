@@ -1,5 +1,7 @@
 from typing import List, Dict, Tuple, Optional
 import time
+import os
+import random
 
 from tqdm import tqdm
 import numpy as np
@@ -13,14 +15,17 @@ from rllm.types import ColType
 
 
 __all__ = [
-    "set_seed",
-    "mask_to_index",
-    "build_collate_fn",
+    # Core: data/columns & views
     "get_column_partitions",
-    "EarlyStopping",
     "split_columns_half_overlap",
-    "SubTable",
+    "TableView",
+    # Dataset splits & loaders
     "build_split_masks",
+    "make_batch_fn",
+    "mask_to_index",
+    # Training utilities
+    "set_seed", 
+    "EarlyStopping",
     "evaluate",
     "train_epoch",
     "run_phase",
@@ -28,11 +33,15 @@ __all__ = [
 
 
 def set_seed(seed: int):
-    r"""Set random seed for numpy, torch CPU and CUDA."""
+    """Set random seed for reproducibility across runs."""
+    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    os.environ["PYTHONHASHSEED"] = str(seed)
 
 def mask_to_index(mask_tensor: torch.Tensor) -> np.ndarray:
     r"""Convert boolean/0-1 mask tensor to numpy index array."""
@@ -42,7 +51,7 @@ def mask_to_index(mask_tensor: torch.Tensor) -> np.ndarray:
     return np.where(m != 0)[0]
 
 
-def build_collate_fn(table, target_col: str, device: torch.device):
+def make_batch_fn(table, target_col: str, device: torch.device):
     r"""Build a collate_fn for DataLoader: indices -> (X_batch, y_batch)."""
     def _collate(index_batch: List[int]):
         x_batch = table.df.iloc[index_batch].reset_index(drop=True).drop(columns=[target_col])
@@ -110,7 +119,7 @@ class EarlyStopping:
             model.load_state_dict(self.best_state)
 
 
-def split_one_type(feats: List[str], rng: np.random.RandomState) -> Tuple[List[str], List[str], List[str]]:
+def split_features_one_type(feats: List[str], rng: np.random.RandomState) -> Tuple[List[str], List[str], List[str]]:
     r"""Split features into overlap, set A, and set B (~1/3 overlap)."""
     feats = feats.copy()
     rng.shuffle(feats)
@@ -137,9 +146,9 @@ def split_columns_half_overlap(
     nums = [c for c, t in col_types.items() if t == ColType.NUMERICAL]
     bins = [c for c, t in col_types.items() if t == ColType.BINARY]
 
-    O_c, A_c, B_c = split_one_type(cats, rng)
-    O_n, A_n, B_n = split_one_type(nums, rng)
-    O_b, A_b, B_b = split_one_type(bins, rng)
+    O_c, A_c, B_c = split_features_one_type(cats, rng)
+    O_n, A_n, B_n = split_features_one_type(nums, rng)
+    O_b, A_b, B_b = split_features_one_type(bins, rng)
 
     overlap = O_c + O_n + O_b
     subset1_only = A_c + A_n + A_b
@@ -159,7 +168,7 @@ def split_columns_half_overlap(
     return _dedup(cols_subset1), _dedup(cols_subset2)
 
 
-class SubTable:
+class TableView:
     r"""Wrapper for creating a sub-table with selected columns and masks."""
     def __init__(self, base_table, keep_cols: List[str], target_col: str):
         self.base_table = base_table
@@ -171,7 +180,7 @@ class SubTable:
         self.col_types = {c: t for c, t in base_table.col_types.items() if c in self.df.columns}
         self.num_classes = base_table.num_classes
 
-        self.train_mask = base_table.train_mask
+        self.train_mask = getattr(base_table, "train_mask", None)
         self.val_mask = getattr(base_table, "val_mask", None)
         self.test_mask = getattr(base_table, "test_mask", None)
 
@@ -234,7 +243,7 @@ def build_split_masks(
 def evaluate(model, loader: DataLoader, num_classes: int) -> Dict[str, float]:
     r"""Evaluate AUC / Accuracy / Macro-F1 on a given loader."""
     model.eval()
-    ys, probs_list, preds_list = [], [], []
+    labels_list, probs_list, preds_list = [], [], []
     for x_batch, y in loader:
         logits, _ = model(x_batch)
         if num_classes <= 2:
@@ -244,11 +253,11 @@ def evaluate(model, loader: DataLoader, num_classes: int) -> Dict[str, float]:
             prob = F.softmax(logits, dim=1)                   # [N,C]
         pred = prob.argmax(dim=1)
 
-        ys.append(y.cpu().numpy())
+        labels_list.append(y.cpu().numpy())
         probs_list.append(prob.cpu().numpy())
         preds_list.append(pred.cpu().numpy())
 
-    y_true = np.concatenate(ys, axis=0)
+    y_true = np.concatenate(labels_list, axis=0)
     y_prob = np.concatenate(probs_list, axis=0)
     y_pred = np.concatenate(preds_list, axis=0)
 
@@ -309,7 +318,7 @@ def run_phase(
             if optional_test_loader is None else
             evaluate(model, optional_test_loader, num_classes)
         )
-        dt = time.time() - t0
+        t = time.time() - t0
 
         if metrics_val["auc"] > best_val_auc:
             best_val_auc = metrics_val["auc"]
@@ -320,7 +329,7 @@ def run_phase(
             f"Loss {train_loss:.4f}  "
             f"Train AUC {metrics_train['auc']:.4f} Val AUC {metrics_val['auc']:.4f} Test AUC {metrics_test['auc']:.4f} "
             f"Val Acc {metrics_val['acc']:.4f} Test Acc {metrics_test['acc']:.4f}  "
-            f"Val F1 {metrics_val['f1_macro']:.4f} Test F1 {metrics_test['f1_macro']:.4f} ({dt:.2f}s)"
+            f"Val F1 {metrics_val['f1_macro']:.4f} Test F1 {metrics_test['f1_macro']:.4f} ({t:.2f}s)"
         )
 
         if es.step(metrics_val["auc"], model):

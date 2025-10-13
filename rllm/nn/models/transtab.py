@@ -262,7 +262,6 @@ class TransTab(torch.nn.Module):
         mask2 = cls_out['attention_mask']  # (batch, seq_len+1)
 
         # 3) Transformer Encoding
-        # enc_out = self.convs(embedding=emb2, attention_mask=mask2)
         for conv in self.convs:
             enc_out = conv(x=emb2, src_key_padding_mask=mask2)
             emb2 = enc_out
