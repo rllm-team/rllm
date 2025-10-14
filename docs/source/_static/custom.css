@@ -1,0 +1,27 @@
+/* custom.css */
+
+.autosummary table {
+    width: 100%;
+    border-collapse: collapse; /* 确保表格边框不重复显示 */
+    margin-left: 0; /* 确保表格左对齐 */
+}
+
+/* 自定义 autosummary 表格第一列内容靠左，并设置固定宽度 */
+.autosummary table th:first-child,
+.autosummary table td:first-child {
+    text-align: left;
+    width: 150px; /* 固定宽度，可以根据需要调整 */
+}
+
+/* 设置表格宽度为100% */
+.custom-table {
+    width: 100%;
+    border-collapse: collapse; /* 确保表格边框不重复显示 */
+}
+
+/* 自定义表格第一列内容靠左 */
+.custom-table th:first-child,
+.custom-table td:first-child {
+    text-align: left;
+    width: 150px; /* 固定宽度，可以根据需要调整 */
+}

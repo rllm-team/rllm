@@ -1,0 +1,5 @@
+"""Set of constants."""
+
+DEFAULT_TEMPERATURE = 0.1
+DEFAULT_CONTEXT_WINDOW = 3900  # tokens
+DEFAULT_NUM_OUTPUTS = 256  # tokens
