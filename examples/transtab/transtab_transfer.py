@@ -5,7 +5,7 @@
 # Datasets    Titanic                 Adult
 #             pre_train  finetune     pre_train  finetune
 # AUC(rept.)   -          -           0.88       0.90
-# AUC(ours)   0.7578     0.8105       0.8350     0.8918
+# AUC(ours)   0.7639     0.8102       0.8350     0.8918
 # Time        8.7s       9.5s         612.3s     807.6s
 
 import argparse

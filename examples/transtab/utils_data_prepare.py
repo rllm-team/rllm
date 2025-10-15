@@ -29,17 +29,22 @@ def get_column_partitions(table, target_col: str) -> Tuple[List[str], List[str],
     return cat_cols, num_cols, bin_cols, num_classes
 
 
-def split_features_one_type(feats: List[str], rng: Generator) -> Tuple[List[str], List[str], List[str]]:
-    # Split one type of features into overlap, set A, and set B (~1/3 overlap).
-    feats = feats.copy()
-    rng.shuffle(feats)
-    n = len(feats)
-    n_overlap = int(round(n / 3.0))
+def split_features(
+    feat_cols: List[str],
+    rng: Generator,
+    overlap_ratio: float = 1 / 3,
+) -> Tuple[List[str], List[str], List[str]]:
+    # Randomly split all feature columns into (overlap, set_a, set_b).
+    cols = feat_cols.copy()
+    rng.shuffle(cols)
+    n = len(cols)
+    n_overlap = int(round(n * overlap_ratio))
     rest = n - n_overlap
-    n_aonly = int(round(rest / 2.0))
-    overlap = feats[:n_overlap]
-    set_a = feats[n_overlap:n_overlap + n_aonly]
-    set_b = feats[n_overlap + n_aonly:]
+    n_a = rest // 2
+
+    overlap = cols[:n_overlap]
+    set_a = cols[n_overlap:n_overlap + n_a]
+    set_b = cols[n_overlap + n_a:]
     return overlap, set_a, set_b
 
 
@@ -49,22 +54,15 @@ def split_columns_half_overlap(
     rng: Generator,
 ) -> Tuple[List[str], List[str]]:
     # Split columns into two sets with 50% overlap (for transfer experiments).
-    col_types = table.col_types
+    all_feat_cols = [c for c in table.col_types.keys() if c != target_col]
 
-    cats = [c for c, t in col_types.items() if t == ColType.CATEGORICAL and c != target_col]
-    nums = [c for c, t in col_types.items() if t == ColType.NUMERICAL and c != target_col]
-    bins = [c for c, t in col_types.items() if t == ColType.BINARY and c != target_col]
+    overlap, set_a, set_b = split_features(all_feat_cols, rng=rng)
+    cols_subset_a = overlap + set_a
+    cols_subset_b = overlap + set_b
 
-    overlap_cat, subset_a_cat, subset_b_cat = split_features_one_type(cats, rng)
-    overlap_num, subset_a_num, subset_b_num = split_features_one_type(nums, rng)
-    overlap_bin, subset_a_bin, subset_b_bin = split_features_one_type(bins, rng)
-
-    overlap = overlap_cat + overlap_num + overlap_bin
-    subset_a = subset_a_cat + subset_a_num + subset_a_bin
-    subset_b = subset_b_cat + subset_b_num + subset_b_bin
-
-    cols_subset_a = overlap + subset_a
-    cols_subset_b = overlap + subset_b
+    # optional: fail-fast uniqueness checks
+    assert len(cols_subset_a) == len(set(cols_subset_a))
+    assert len(cols_subset_b) == len(set(cols_subset_b))
 
     return cols_subset_a, cols_subset_b
 
