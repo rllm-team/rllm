@@ -23,7 +23,7 @@ sys.path.append("../../")
 from rllm.types import ColType
 from rllm.datasets import Titanic
 from rllm.nn.models import TransTabClassifier
-import utils
+import utils_run
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--hidden_dim", type=int, default=128, help="Transformer hidden dim")
@@ -31,13 +31,13 @@ parser.add_argument("--num_layers", type=int, default=2, help="Number of transfo
 parser.add_argument("--num_heads", type=int, default=8, help="Number of attention heads")
 parser.add_argument("--batch_size", type=int, default=256, help="Batch size")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
-parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate") 
+parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
 parser.add_argument("--seed", type=int, default=42, help="Random seed")
 args = parser.parse_args()
 
 # Set random seed and device
-utils.set_seed(args.seed)
+utils_run.set_seed(args.seed)
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = torch.device("cpu")
 
@@ -46,7 +46,7 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 data = Titanic(cached_dir=path)[0]
 target_col = data.target_col
 
-batch_fn = utils.make_batch_fn(data, target_col, device)  
+batch_fn = utils_run.make_batch_fn(data, target_col, device)
 
 indices = np.arange(data.num_rows)
 labels = data.df[target_col].values
@@ -89,10 +89,10 @@ times: List[float] = []
 
 for epoch in range(1, args.epochs + 1):
     start = time.time()
-    train_loss = utils.train_epoch(model, train_loader, optimizer)
-    train_auc = utils.evaluate(model, train_loader, num_classes)["auc"]
-    val_auc = utils.evaluate(model, val_loader, num_classes)["auc"]
-    tmp_test_auc = utils.evaluate(model, test_loader, num_classes)["auc"]
+    train_loss = utils_run.train_epoch(model, train_loader, optimizer)
+    train_auc = utils_run.evaluate(model, train_loader, num_classes)["auc"]
+    val_auc = utils_run.evaluate(model, val_loader, num_classes)["auc"]
+    tmp_test_auc = utils_run.evaluate(model, test_loader, num_classes)["auc"]
 
     if val_auc > best_val_metric:
         best_val_metric = val_auc
