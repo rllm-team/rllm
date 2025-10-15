@@ -1,14 +1,13 @@
 import sys
 import os.path as osp
 import pandas as pd
+import json
 import torch
 
 sys.path.append("./")
 sys.path.append("../")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 
 
 def load_bi_graph(
@@ -79,7 +78,7 @@ class MyData():
         self.num_classes = len(self.label_names)
 
 
-def preprocess(data_list, name):
+def annotation_data_prepare(data_list, name):
     if name == 'tacm12k' or name == 'TACM12K':
         y = data_list[0].df['conference'].tolist()
         adj = load_bi_graph(
@@ -154,3 +153,22 @@ def add_user_favs(users_df,
     users_df['FavMovies'] = [fav_titles.get(user_id, "") for user_id in users_df.index]
 
     return users_df
+
+
+def save_cache(name, pred, mask, conf=None):
+    name = name.lower()
+    pred = pred.tolist()
+    if conf is not None:
+        conf = conf.tolist()
+    mask = mask.tolist()
+    with open('cache/' + name + '_pl_cache.json', "w") as f:
+        json.dump({'pred': pred, 'conf': conf, 'mask': mask}, f, indent=4)
+
+
+def load_cache(name):
+    name = name.lower()
+    cache_path = 'cache/' + name + '_pl_cache.json'
+    if osp.exists(cache_path):
+        with open(cache_path, 'r') as f:
+            return json.load(f)
+    return None

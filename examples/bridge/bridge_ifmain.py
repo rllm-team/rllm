@@ -145,23 +145,7 @@ def data_prepare(dataset, dataset_name, device):
     return target_table, non_table_embeddings, adj, y, num_classes, emb_size, train_mask, val_mask, test_mask
 
 
-def train_bridge_model(target_table, non_table_embeddings, adj, y, num_classes, emb_size, train_mask, val_mask, test_mask, epochs, lr, wd, device):
-
-    t_encoder = TableEncoder(
-        in_dim=emb_size,
-        out_dim=emb_size,
-        table_conv=TabTransformerConv,
-        metadata=target_table.metadata,
-    )
-    g_encoder = GraphEncoder(
-        in_dim=emb_size,
-        out_dim=num_classes,
-        graph_conv=GCNConv,
-    )
-    model = BRIDGE(
-        table_encoder=t_encoder,
-        graph_encoder=g_encoder,
-    ).to(device)
+def train_bridge_model(model, target_table, non_table_embeddings, adj, y, num_classes, emb_size, train_mask, val_mask, test_mask, epochs, lr, wd, device):
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
 
@@ -211,4 +195,20 @@ if __name__ == "__main__":
 
     target_table, non_table_embeddings, adj, y, num_classes, emb_size, train_mask, val_mask, test_mask = data_prepare(dataset, args.dataset, device)
 
-    train_bridge_model(target_table, non_table_embeddings, adj, y, num_classes, emb_size, train_mask, val_mask, test_mask,  args.epochs, args.lr, args.wd, device)
+    t_encoder = TableEncoder(
+        in_dim=emb_size,
+        out_dim=emb_size,
+        table_conv=TabTransformerConv,
+        metadata=target_table.metadata,
+    )
+    g_encoder = GraphEncoder(
+        in_dim=emb_size,
+        out_dim=num_classes,
+        graph_conv=GCNConv,
+    )
+    model = BRIDGE(
+        table_encoder=t_encoder,
+        graph_encoder=g_encoder,
+    ).to(device)
+
+    train_bridge_model(model, target_table, non_table_embeddings, adj, y, num_classes, emb_size, train_mask, val_mask, test_mask,  args.epochs, args.lr, args.wd, device)

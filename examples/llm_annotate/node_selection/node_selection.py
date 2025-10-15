@@ -1,10 +1,10 @@
-from .active import *
+from .selection_methods import *
 from .ns_helpers import *
 
 
-def active_generate_mask(data, method, select_mask, train_num):
+def generate_mask(data, method, select_mask, train_num):
     """
-    Actively select nodes for annotation. Supported active methods include VertexCover, FeatProp and Random.
+    Select nodes for annotation.
     """
 
     select_mask = remove_isolated_nodes(select_mask, data.adj)

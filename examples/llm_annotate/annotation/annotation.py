@@ -1,7 +1,7 @@
 import torch
 
 from .at_helpers import *
-from examples.test_annotate.data import load_cache, save_cache
+from utils_annotation_data import load_cache, save_cache
 
 
 def annotate(name, data, mask, llm, use_cache, n_tries=1):
