@@ -38,8 +38,7 @@ args = parser.parse_args()
 
 # Set random seed and device
 utils_run.set_seed(args.seed)
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device("cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")

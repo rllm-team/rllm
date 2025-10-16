@@ -86,7 +86,7 @@ def test_saint():
     assert float(stdout[-8:]) > 0.89
 
 
-def test_transtab_single():
+def test_transtab():
     script = os.path.join(EXAMPLE_ROOT, "./transtab/transtab.py")
     out = subprocess.run(["python", str(script)], capture_output=True)
     assert (
