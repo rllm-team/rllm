@@ -724,16 +724,3 @@ class TableData(BaseTable):
         out.__dict__["_len"] = index.numel()
 
         return out
-
-    @after_materialize
-    def get_label_ids(
-        self,
-        indices: Sequence[int],
-        device: Optional[torch.device] = None
-    ) -> torch.Tensor:
-        r"""Returns the label id Tensor (long) for the given row number.
-        Make sure to only do fit/transform once, then index y directly."""
-        labels = self.y[torch.tensor(indices, dtype=torch.long)]
-        if device is not None:
-            labels = labels.to(device)
-        return labels.long()

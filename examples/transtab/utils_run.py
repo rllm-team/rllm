@@ -33,11 +33,11 @@ def set_seed(seed: int):
     os.environ["PYTHONHASHSEED"] = str(seed)
 
 
-def make_batch_fn(table, target_col: str, device: torch.device):
+def make_batch_fn(table, target_col: str, device: torch.device):  # : TableView
     # Build a collate_fn for DataLoader: indices -> (X_batch, y_batch).
     def _collate(index_batch: List[int]):
         x_batch = table.df.iloc[index_batch].reset_index(drop=True).drop(columns=[target_col])
-        y_batch = table.get_label_ids(index_batch, device=device)
+        y_batch = table.y[index_batch]
         return x_batch, y_batch
     return _collate
 

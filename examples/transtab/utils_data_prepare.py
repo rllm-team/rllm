@@ -83,8 +83,6 @@ class TableView:
         self.val_mask = getattr(base_table, "val_mask", None)
         self.test_mask = getattr(base_table, "test_mask", None)
 
-        self.get_label_ids = base_table.get_label_ids
-
 
 def build_split_masks(
     table,
