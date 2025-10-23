@@ -3,6 +3,7 @@ from .bank_marketing import BankMarketing
 from .churn_modelling import ChurnModelling
 from .dblp import DBLP
 from .imdb import IMDB
+from .jannis import Jannis
 from .planetoid import PlanetoidDataset
 from .sjtutables.tml1m import TML1MDataset
 from .sjtutables.tlf2k import TLF2KDataset
@@ -17,6 +18,7 @@ __all__ = [
     "ChurnModelling",
     "DBLP",
     "IMDB",
+    "Jannis",
     "PlanetoidDataset",
     "TML1MDataset",
     "TAPEDataset",

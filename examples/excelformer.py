@@ -2,9 +2,11 @@
 # "ExcelFormer: A neural network surpassing GBDTs on tabular data" paper.
 # ArXiv: https://arxiv.org/abs/2301.02819
 
-# Datasets  Titanic    Adult
-# AUC       0.920      0.913
-# Time      7.3s       231.1s
+# Datasets      Titanic    Jannis
+# Metrics       Acc        AUC
+# Rept.         -          0.735
+# Ours          0.920      0.715
+# Time          7.3s       251.1s
 
 import argparse
 import sys
@@ -22,12 +24,12 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets.titanic import Titanic
+from rllm.datasets import Jannis
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import ExcelFormerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--emb_dim", help="embedding dim.", type=int, default=32)
+parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=3)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--epochs", type=int, default=50)
@@ -42,7 +44,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = Titanic(cached_dir=path)[0]
+# data = Titanic(cached_dir=path)[0]
+data = Jannis(cached_dir=path)[0]
 
 # Transform data
 transform = DefaultTableTransform(out_dim=args.emb_dim)
@@ -97,10 +100,10 @@ model = ExcelFormer(
     num_layers=args.num_layers,
     metadata=data.metadata,
 ).to(device)
-optimizer = torch.optim.Adam(
+optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=args.lr,
-    weight_decay=args.wd,
+    # weight_decay=args.wd,
 )
 
 
@@ -128,13 +131,35 @@ def test(loader: DataLoader) -> float:
         x, y = batch
         pred = model.forward(x)
         all_labels.append(y.cpu())
-        all_preds.append(pred[:, 1].detach().cpu())
-    all_labels = torch.cat(all_labels).numpy()
-    all_preds = torch.cat(all_preds).numpy()
+        # pred shape: (B, num_classes) or (B,) / (B,1)
+        if pred.dim() == 1 or (pred.dim() == 2 and pred.size(1) == 1):
+            # single score per sample
+            scores = pred.view(-1).detach().cpu()
+            all_preds.append(scores)
+        else:
+            # multiple logits -> convert to probabilities
+            probs = torch.softmax(pred, dim=1).detach().cpu()
+            # if binary with 2 classes, use probability of positive class as score
+            if probs.size(1) == 2:
+                all_preds.append(probs[:, 1])
+            else:
+                # multiclass: keep full probability matrix
+                all_preds.append(probs)
 
-    # Compute the overall AUC
-    overall_auc = roc_auc_score(all_labels, all_preds)
-    return overall_auc
+    all_labels = torch.cat(all_labels).numpy()
+
+    # Concatenate predictions: handle vector scores vs probability matrices
+    first = all_preds[0]
+    if first.dim() == 1:
+        all_preds = torch.cat(all_preds).numpy()
+        overall_auc = float(roc_auc_score(all_labels, all_preds))
+        return overall_auc
+    else:
+        # matrix: (N, num_classes) -> compute accuracy
+        all_probs = torch.cat(all_preds, dim=0)
+        preds = torch.argmax(all_probs, dim=1).numpy()
+        overall_acc = float((preds == all_labels).mean())
+        return overall_acc
 
 
 metric = "AUC"

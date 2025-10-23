@@ -2,9 +2,11 @@
 # "Revisiting Deep Learning Models for Tabular Data" paper.
 # ArXiv: https://arxiv.org/abs/2106.11959
 
-# Datasets  Titanic    Adult
-# Acc       0.820      0.854
-# Time      9.8s      276.1s
+# Datasets      Titanic     Adult
+# Metrics       Acc         Acc
+# Rept.         -           0.859
+# Ours          0.842       0.861
+# Time          9.8s        351.5s
 
 import argparse
 import sys

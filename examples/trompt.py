@@ -2,9 +2,10 @@
 # "Trompt: Towards a Better Deep Neural Network for Tabular Data" paper.
 # ArXiv: https://arxiv.org/abs/2305.18446
 
-# Datasets  Titanic    Adult
-# Acc       0.853      0.861
-# Time      13.9s      911.7s
+# Datasets      Titanic     Adult
+# Acc(rept.)    -           0.862
+# Acc(ours)     0.853       0.861
+# Time          13.9s       911.7s
 
 import argparse
 import sys

@@ -125,6 +125,7 @@ class ExcelFormerConv(torch.nn.Module):
     ):
         super().__init__()
         self.layer_norm = torch.nn.LayerNorm(conv_dim)
+        self.glu_norm = torch.nn.LayerNorm(conv_dim)
         self.sp_attention = SemiPermeableAttention(
             dim=conv_dim, num_heads=num_heads, head_dim=head_dim, dropout=dropout
         )
@@ -142,6 +143,7 @@ class ExcelFormerConv(torch.nn.Module):
 
     def reset_parameters(self) -> None:
         self.layer_norm.reset_parameters()
+        self.glu_norm.reset_parameters()
         self.sp_attention.reset_parameters()
         self.glu_layer.reset_parameters()
         if self.pre_encoder:
@@ -150,7 +152,6 @@ class ExcelFormerConv(torch.nn.Module):
     def forward(self, x: Union[Dict, Tensor]) -> Tensor:
         if self.pre_encoder:
             x = self.pre_encoder(x)
-        x = self.layer_norm(x)
-        x = self.sp_attention(x)
-        x = x + self.glu_layer(x)
+        x = x + self.sp_attention(self.layer_norm(x))
+        x = x + self.glu_layer(self.glu_norm(x))
         return x
