@@ -6,6 +6,7 @@ from uuid import uuid4
 from warnings import warn
 from dataclasses import dataclass
 import copy
+from collections.abc import Mapping
 
 import numpy as np
 from pandas import DataFrame
@@ -24,6 +25,18 @@ from rllm.data.storage import BaseStorage
 class TextEmbedderConfig:
     text_embedder: Callable[[list[str]], Tensor]
     batch_size: int | None = None
+
+
+@dataclass
+class TokenizerConfig:
+    tokenizer: Callable[[list[str]], Any]
+    batch_size: int | None = None
+    pad_token_id: int = 0
+    tokenize_combine: bool = True
+    include_colname: bool = True
+    save_colname_token_ids: bool = False
+    segment_sep: str = " "
+    name_value_sep: str = " "
 
 
 class BaseTable:
@@ -145,6 +158,7 @@ class TableData(BaseTable):
         target_col: Optional[str] = None,
         y: Tensor = None,
         text_embedder_config: Optional[TextEmbedderConfig] = None,
+        tokenizer_config: Optional[TokenizerConfig] = None,
         **kwargs,
     ):
         self._mapping = BaseStorage()
@@ -165,6 +179,8 @@ class TableData(BaseTable):
         self.target_col = target_col
         self.y = y
 
+        self.colname_token_ids = {}
+
         for key, value in kwargs.items():
             setattr(self, key, value)
 
@@ -180,7 +196,10 @@ class TableData(BaseTable):
             if lazy_feature:
                 self._inherit_feat_dict = False
             else:
-                self._generate_feat_dict(text_embedder_config)
+                self._generate_feat_dict(
+                    text_embedder_config=text_embedder_config,
+                    tokenizer_config=tokenizer_config,
+                )
                 self._inherit_feat_dict = False
 
         if metadata is None:
@@ -188,6 +207,9 @@ class TableData(BaseTable):
                 pass
             else:
                 self._generate_metadata()
+
+        if tokenizer_config is not None:
+            self._save_column_name_tokens(tokenizer_config)
 
     # init funcs ##########################################
     def infer_table_type(self) -> TableType:
@@ -571,14 +593,25 @@ class TableData(BaseTable):
     def _generate_feat_dict(
         self,
         text_embedder_config: Optional[TextEmbedderConfig] = None,
+        tokenizer_config: Optional[TokenizerConfig] = None,
     ):
         r"""Get feat dict from single tabular dataset."""
         # 1. Iterate each column
         feat_dict = {}
-        for col, col_type in self.col_types.items():
-            # 2. Get column tensor shape: (n, 1) for cat/num, (n, d) for text
-            col_tensor = self._generate_column_tensor(col, text_embedder_config)
 
+        merged_token = None
+        if tokenizer_config is not None and tokenizer_config.tokenize_combine:
+            merged_token = self._tokenize_merged_cols(tokenizer_config)  # (ids [N,L], mask [N,L]) or None
+
+        for col, col_type in self.col_types.items():
+            if merged_token is not None and col_type == ColType.TOKENIZED:
+                continue
+            # 2. Get column tensor shape: (n, 1) for cat/num, (n, d) for text
+            col_tensor = self._generate_column_tensor(
+                col,
+                text_embedder_config=text_embedder_config,
+                tokenizer_config=tokenizer_config,
+            )
             # 3. Update feat dict
             if col == self.target_col:
                 # Only need one-dimensional
@@ -592,8 +625,16 @@ class TableData(BaseTable):
         for col_type, xs in feat_dict.items():
             if col_type == ColType.TEXT:
                 feat_dict[col_type] = torch.stack(xs, dim=1)
+            elif col_type == ColType.TOKENIZED:
+                # xs: List[(ids [N,L], mask [N,L])]
+                ids = torch.stack([t[0] for t in xs], dim=1).long()  # [N, C_tok, L]
+                mask = torch.stack([t[1] for t in xs], dim=1).long()  # [N, C_tok, L]
+                feat_dict[col_type] = (ids, mask)
             else:
                 feat_dict[col_type] = torch.cat(xs, dim=-1)
+
+        if merged_token is not None:
+            feat_dict[ColType.TOKENIZED] = merged_token  # (ids [N,L], mask [N,L])
 
         # TODO: Change hard-coding here
         if ColType.CATEGORICAL in feat_dict.keys():
@@ -602,7 +643,9 @@ class TableData(BaseTable):
 
     @df_requisite
     def _generate_column_tensor(
-        self, col: str = None, text_embedder_config: Optional[TextEmbedderConfig] = None
+        self, col: str = None,
+        text_embedder_config: Optional[TextEmbedderConfig] = None,
+        tokenizer_config: Optional[TokenizerConfig] = None,
     ):
         col_types = self.col_types[col]
         col_copy = self.df[col].copy()
@@ -653,6 +696,19 @@ class TableData(BaseTable):
                     emb_list.append(emb)
                 embeddings = torch.cat(emb_list, dim=0)
             return embeddings.float()
+
+        elif col_types == ColType.TOKENIZED:
+            assert tokenizer_config is not None and tokenizer_config.tokenizer is not None, \
+                "Need a tokenizer_config with a valid tokenizer for tokenized column!"
+            col_str = self.df[col].astype(str).fillna("")
+            if tokenizer_config.include_colname:
+                name_value_sep = tokenizer_config.name_value_sep
+                col_list = [f"{col}{name_value_sep}{v}" for v in col_str.tolist()]
+            else:
+                col_list = col_str.tolist()
+
+            input_ids, attention_mask = self._tokenize_strings(col_list, tokenizer_config)
+            return (input_ids.long(), attention_mask.long())
 
     def _generate_metadata(
         self,
@@ -724,3 +780,163 @@ class TableData(BaseTable):
         out.__dict__["_len"] = index.numel()
 
         return out
+
+    def _tokenize_strings(self, seqs: list[str], cfg: TokenizerConfig) -> tuple[torch.Tensor, torch.Tensor]:
+        r"""Tokenize a list of strings(texts) and return (input_ids [B,L], attention_mask [B,L]) as LongTensors."""
+        tokenizer = cfg.tokenizer
+        batch_size = cfg.batch_size
+        pad_token_id = cfg.pad_token_id
+
+        if batch_size is None:
+            input_ids, attention_mask = self._standardize_tokenizer_output(tokenizer(seqs), pad_token_id)
+            return input_ids.long(), attention_mask.long()
+
+        ids_list, mask_list = [], []
+        for i in range(0, len(seqs), batch_size):
+            _ids, _mask = self._standardize_tokenizer_output(tokenizer(seqs[i:i + batch_size]), pad_token_id)
+            ids_list.append(_ids)
+            mask_list.append(_mask)
+        return torch.cat(ids_list, dim=0).long(), torch.cat(mask_list, dim=0).long()
+
+    def _standardize_tokenizer_output(self, tok_output, pad_token_id: int):
+        r"""
+        Standardize diverse tokenizer outputs into (input_ids [B, L], attention_mask [B, L]) as LongTensors.
+
+        Supported input formats:
+        - Mapping (e.g., transformers.BatchEncoding): keys "input_ids", optional "attention_mask"
+        - Tuple/List: (input_ids, attention_mask) or List[Encoding] or List[List[int]]
+        - Single Encoding/EncodingFast: .ids, optional .attention_mask
+        - Raw ids only: List[int] | List[List[int]] | np.ndarray | torch.Tensor
+
+        Behavior:
+        - Converts to 2D tensors [B, L]; ragged sequences are padded with `pad_token_id`.
+        - If attention_mask is missing, it is derived as (input_ids != pad_token_id).
+        - Ensures input_ids and attention_mask share the same shape and dtype=torch.long.
+        """
+        def _ensure_batch_tensor(x) -> torch.Tensor:
+            r""" Convert `x` into a 2D tensor [B, L]; if ragged, pad with `pad_token_id` first."""
+            # Ragged cases before converting to Tensor
+            if isinstance(x, (list, tuple)) and x and isinstance(x[0], (list, tuple, np.ndarray)):
+                seqs = [list(s) for s in x]
+                max_len = max((len(s) for s in seqs), default=0)
+                padded = [(s + [pad_token_id] * (max_len - len(s)))[:max_len] for s in seqs]
+                return torch.as_tensor(padded)
+            if isinstance(x, np.ndarray) and x.dtype == object:
+                seqs = x.tolist()
+                max_len = max((len(s) for s in seqs), default=0)
+                padded = [(list(s) + [pad_token_id] * (max_len - len(s)))[:max_len] for s in seqs]
+                return torch.as_tensor(padded)
+
+            t = x if torch.is_tensor(x) else torch.as_tensor(x)
+            if t.dim() == 1:  # [L] -> [1, L]
+                t = t.unsqueeze(0)
+            return t
+
+        input_ids, attention_mask = None, None
+        # 1) Mapping (e.g., BatchEncoding)
+        if isinstance(tok_output, Mapping) and ("input_ids" in tok_output):
+            input_ids = tok_output["input_ids"]
+            attention_mask = tok_output.get("attention_mask", None)
+        # 2) Tuple/List: (ids, mask) or List[Encoding] or List[List[int]]
+        elif isinstance(tok_output, (tuple, list)) and len(tok_output) > 0:
+            first_item = tok_output[0]
+            # 2a) explicit (ids, mask)
+            if len(tok_output) == 2 and not hasattr(first_item, "input_ids"):
+                input_ids, attention_mask = tok_output[0], tok_output[1]
+            else:
+                # 2b) list[Encoding]
+                if hasattr(first_item, "input_ids"):
+                    input_ids = [enc.input_ids for enc in tok_output]
+                    attention_mask = [getattr(enc, "attention_mask", [1] * len(enc.input_ids)) for enc in tok_output]
+                else:
+                    # 2c) treat as list[list[int]]
+                    input_ids, attention_mask = tok_output, None
+        # 3) Single Encoding / EncodingFast
+        elif hasattr(tok_output, "input_ids"):
+            input_ids = tok_output.input_ids
+            attention_mask = getattr(tok_output, "attention_mask", None)
+        # 4) Fallback: ids only
+        else:
+            input_ids = tok_output
+            attention_mask = None
+        # fit to [batch_size, seq_len]
+        input_ids = _ensure_batch_tensor(input_ids)
+        if attention_mask is None:
+            attention_mask = (input_ids != pad_token_id).to(torch.long)
+        else:
+            attention_mask = _ensure_batch_tensor(attention_mask).to(torch.long)
+            # Shape alignment with input_ids
+            batch_size, seq_len = input_ids.shape
+            if attention_mask.shape != (batch_size, seq_len):
+                if attention_mask.shape[0] != batch_size:
+                    attention_mask = (input_ids != pad_token_id).to(torch.long)  # rebuild
+                else:
+                    if attention_mask.shape[1] < seq_len:
+                        pad_cols = seq_len - attention_mask.shape[1]
+                        pad_zeros = torch.zeros((batch_size, pad_cols), dtype=attention_mask.dtype)
+                        attention_mask = torch.cat([attention_mask, pad_zeros], dim=1)
+                    elif attention_mask.shape[1] > seq_len:
+                        attention_mask = attention_mask[:, :seq_len]
+        input_ids = input_ids.to(torch.long)
+        assert input_ids.dim() == 2 and attention_mask.dim() == 2 and input_ids.size() == attention_mask.size(), \
+            f"Tokenizer output must be [B,L]; got ids {tuple(input_ids.size())}, mask {tuple(attention_mask.size())}"
+
+        return input_ids, attention_mask
+
+    def _tokenize_merged_cols(self, tokenizer_config) -> tuple | None:
+        r"""
+        Merge all TOKENIZED columns per row into a single text (optionally prefixed by column names),
+        then tokenize. Returns (input_ids [B,L], attention_mask [B,L]); returns None if none exist.
+        """
+        tokenized_cols = [c for c, t in self.col_types.items() if t == ColType.TOKENIZED and c != self.target_col]
+        if not tokenized_cols:
+            return None
+
+        values_df = self.df[tokenized_cols].copy()
+        non_empty = ~values_df.isna()
+        values_df = values_df.fillna("").astype(str)
+        values_df = values_df.map(str.strip, na_action="ignore").replace("", np.nan)
+        valid_mask = non_empty & values_df.notna()
+
+        # build per-column segments vectorized
+        if tokenizer_config.include_colname:
+            name_value_sep = tokenizer_config.name_value_sep
+            values_filled = values_df.fillna("")
+            seg_cols = {}
+            for col in tokenized_cols:
+                v = values_filled[col].values.astype(np.str_)
+                m = valid_mask[col].values.astype(bool)
+                seg_cols[col] = np.where(
+                    m,
+                    np.core.defchararray.add(f"{col}{name_value_sep}", v),
+                    np.nan
+                )
+            df_seg = DataFrame(seg_cols, index=values_df.index)
+        else:
+            df_seg = values_df.where(valid_mask, np.nan)
+        # row-wise merge of non-empty segments
+        segment_sep = tokenizer_config.segment_sep
+        col_list = df_seg.apply(
+            lambda r: segment_sep.join(r.dropna().tolist()),
+            axis=1
+        ).tolist()
+
+        input_ids, attention_mask = self._tokenize_strings(col_list, tokenizer_config)
+        return input_ids, attention_mask
+
+    def _save_column_name_tokens(self, tokenizer_config):
+        r"""
+        Tokenize all column names once and store them in `self.colname_token_ids`.
+
+        If `cfg.save_colname_token_ids` is disabled or `cfg` is None, the function returns immediately.
+        Stored format: Dict[str, (input_ids [L], attention_mask [L])].
+        """
+        if tokenizer_config is None or not tokenizer_config.save_colname_token_ids:
+            return
+        column_names = list(self.col_types.keys())
+        tokenizer = tokenizer_config.tokenizer
+        pad_token_id = tokenizer_config.pad_token_id
+        # [C, L], [C, L]
+        input_ids, attention_mask = self._standardize_tokenizer_output(tokenizer(column_names), pad_token_id)
+        for i, name in enumerate(column_names):
+            self.colname_token_ids[name] = (input_ids[i].clone(), attention_mask[i].clone())  # [L], [L]
