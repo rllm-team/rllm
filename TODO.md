@@ -1,0 +1,8 @@
+- types.py中的`ColType`新增两种对应的格式。
+- table_data.py中我已经实现了TextEmbedding的部分，需要传入`TextEmbedderConfig`。
+  - 目前的实现方式是手动传入一个已经初始化好的编码器和batch_size，你可以先仿照这个实现Tokenizer的传入和处理
+  - Tokenizer和Embedding是否需要处理列名？如果需要的话可能你还要自己写个参数。
+- 是否可能有一个列对应两种或者以上的`ColType`？如果有的话还要做一下适配。
+  - 现在的做法是一个列只能有一个`ColType`，`_generate_feat_dict`函数中会去遍历每个列，并生成对应的`tensor`
+  - 一个列对应多个`ColType`的话，可能要`init`里面先做一个`dict`，`ColType`为Key，列名List为Value。然后`_generate_feat_dict`处理这个字典，同一个ColType下列名的顺序就按照输入顺序即可。（或者你有更好的想法可以自己实现）
+- 看下能否拆分`_generate_column_tensor`里面对每个`ColType`的处理，拆分成类或者函数，然后有一个工厂类/工厂方法统一拿到对应的处理类/函数，不然随着`ColType`不断增加，这里会变得非常冗长。
