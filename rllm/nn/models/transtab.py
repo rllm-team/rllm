@@ -9,10 +9,12 @@ from torch import Tensor
 import numpy as np
 import pandas as pd
 
+from rllm.types import ColType
 from rllm.data.table_data import TableData
 from rllm.nn.conv.table_conv import TransTabConv
 from rllm.nn.pre_encoder import TransTabDataExtractor, TransTabPreEncoder
-from rllm.types import ColType
+from rllm.nn.loss.supervised_vpcl import VerticalPartitionSupervisedLoss
+from rllm.nn.loss.self_supervised_vpcl import VerticalPartitionSelfSupervisedLoss
 
 
 TRAINING_ARGS_NAME = "training_args.json"
@@ -273,7 +275,7 @@ class TransTab(torch.nn.Module):
     def save(self, ckpt_dir: str) -> None:
         """
         Save the entire model:
-        1) data_processor.save → extractor/tokenizer + pre_encoder
+        1) pre_encoder.save → extractor/tokenizer + pre_encoder
         2) Save the state_dict of this model (conv + cls_token)
         """
         # 1) save extractor + pre_encoder
@@ -573,6 +575,17 @@ class TransTabForCL(TransTab):
         self.num_partition = num_partition
         self.overlap_ratio = overlap_ratio
         self.supervised = supervised
+        self.selfsup_criterion = VerticalPartitionSelfSupervisedLoss(
+            temperature=self.temperature,
+            base_temperature=self.base_temperature,
+            similarity="dot",   # "cosine"
+        )
+
+        self.sup_criterion = VerticalPartitionSupervisedLoss(
+            temperature=self.temperature,
+            base_temperature=self.base_temperature,
+            similarity="dot",
+        )
         self.device = device
         self.to(device)
 
@@ -592,15 +605,17 @@ class TransTabForCL(TransTab):
         if isinstance(x, pd.DataFrame):
             sub_x_list = self._build_positive_pairs(x, self.num_partition)
             for sub_x in sub_x_list:
-                proc = self.data_processor(sub_x)
+                proc = self.pre_encoder(sub_x)
                 emb = proc["embedding"]
                 mask = proc["attention_mask"]
 
                 cls_out = self.cls_token(emb, attention_mask=mask)
-                enc_out = self.convs(
-                    embedding=cls_out["embedding"],
-                    attention_mask=cls_out["attention_mask"],
-                )
+                emb = cls_out["embedding"]
+                mask = cls_out["attention_mask"]
+
+                for conv in self.convs:
+                    enc_out = conv(x=emb, src_key_padding_mask=mask)
+                    emb = enc_out
 
                 feat = enc_out[:, 0, :]      # [bs, hidden_dim]
                 feat_proj = self.projection_head(feat)  # [bs, proj_dim]
@@ -613,9 +628,11 @@ class TransTabForCL(TransTab):
 
         if y is not None and self.supervised:
             labels = y.to(self.device).long()
-            loss = self.supervised_contrastive_loss(feat_x_multiview, labels)
+            loss = self.sup_criterion(feat_x_multiview, labels)
+            # print("Using supervised contrastive loss.")
         else:
-            loss = self.self_supervised_contrastive_loss(feat_x_multiview)
+            loss = self.selfsup_criterion(feat_x_multiview)
+            # print("Using self-supervised contrastive loss.")
 
         return None, loss
 
@@ -650,96 +667,3 @@ class TransTabForCL(TransTab):
         a_norm = torch.nn.functional.normalize(a, p=2, dim=1)
         b_norm = torch.nn.functional.normalize(b, p=2, dim=1)
         return torch.mm(a_norm, b_norm.transpose(0, 1))
-
-    def self_supervised_contrastive_loss(self, features):
-        r"""Compute self‑supervised vertical‑partition contrastive loss (VPCL).
-
-        Treats each column partition as a separate view and maximizes agreement
-        between partitions of the same sample without using labels.
-
-        Args:
-            features (torch.Tensor): Encoded features of shape
-                `(batch_size, num_partition, proj_dim)`.
-
-        Returns:
-            torch.Tensor: Scalar self‑supervised contrastive loss.
-        """
-        batch_size = features.shape[0]
-        labels = torch.arange(batch_size, dtype=torch.long, device=self.device).view(-1, 1)
-        mask = torch.eq(labels, labels.T).float().to(labels.device)
-
-        contrast_count = features.shape[1]
-        # [[0,1],[2,3]] -> [0,2,1,3]
-        contrast_feature = torch.cat(torch.unbind(features, dim=1), dim=0)
-        anchor_feature = contrast_feature
-        anchor_count = contrast_count
-        anchor_dot_contrast = torch.div(torch.matmul(anchor_feature, contrast_feature.T), self.temperature)
-        logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
-        logits = anchor_dot_contrast - logits_max.detach()
-        mask = mask.repeat(anchor_count, contrast_count)
-        indices_for_scatter = (
-            torch.arange(batch_size * anchor_count)
-            .view(-1, 1)
-            .to(features.device)
-        )
-        logits_mask = torch.scatter(torch.ones_like(mask), 1, indices_for_scatter, 0)
-        mask = mask * logits_mask
-        # compute log_prob
-        exp_logits = torch.exp(logits) * logits_mask
-        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
-        # compute mean of log-likelihood over positive
-        mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
-        loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos
-        loss = loss.view(anchor_count, batch_size).mean()
-        return loss
-
-    def supervised_contrastive_loss(self, features, labels):
-        r"""Compute supervised vertical‑partition contrastive loss (VPCL).
-
-        Uses class labels to form positive pairs across partitions, encouraging
-        same‑class views to be closer in projection space.
-
-        Args:
-            features (torch.Tensor): Encoded features of shape
-                `(batch_size, num_partition, proj_dim)`.
-            labels (torch.Tensor): Ground‑truth labels of shape `(batch_size,)`.
-
-        Returns:
-            torch.Tensor: Scalar supervised contrastive loss.
-        """
-        labels = labels.contiguous().view(-1, 1)
-        batch_size = features.shape[0]
-        mask = torch.eq(labels, labels.T).float().to(labels.device)
-
-        contrast_count = features.shape[1]
-        contrast_feature = torch.cat(torch.unbind(features, dim=1), dim=0)
-
-        # contrast_mode == 'all'
-        anchor_feature = contrast_feature
-        anchor_count = contrast_count
-
-        # compute logits
-        anchor_dot_contrast = torch.div(
-            torch.matmul(anchor_feature, contrast_feature.T),
-            self.temperature)
-        # for numerical stability
-        logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
-        logits = anchor_dot_contrast - logits_max.detach()
-        # tile mask
-        mask = mask.repeat(anchor_count, contrast_count)
-        # mask-out self-contrast cases
-        logits_mask = torch.scatter(
-            torch.ones_like(mask),
-            1,
-            torch.arange(batch_size * anchor_count).view(-1, 1).to(features.device),
-            0,
-        )
-        mask = mask * logits_mask
-        # compute log_prob
-        exp_logits = torch.exp(logits) * logits_mask
-        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
-        # compute mean of log-likelihood over positive
-        mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
-        loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos
-        loss = loss.view(anchor_count, batch_size).mean()
-        return loss
