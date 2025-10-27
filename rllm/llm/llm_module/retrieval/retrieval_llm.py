@@ -20,7 +20,7 @@ class LC:
     )
 
 
-from retriever import SingleTableRetriever
+from .retriever import SingleTableRetriever
 
 system_prompt = (
     "You are a helpful data analyst. I'll give you a tabular dataset's task description,"

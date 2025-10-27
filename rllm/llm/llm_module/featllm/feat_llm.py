@@ -14,7 +14,7 @@ class LC:
     from langchain.chat_models.base import BaseChatModel
 
 
-from feat_engineer import FeatLLMEngineer
+from .feat_engineer import FeatLLMEngineer
 
 
 class simple_model(nn.Module):
