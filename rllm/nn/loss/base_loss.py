@@ -8,12 +8,10 @@ from typing import Literal
 
 class BaseLoss(nn.Module):
     r"""
-    BaseLoss
-
     Minimal root class for all custom loss functions in this repository.
 
     Rationale:
-    - We want a single, consistent parent type so that higher-level code
+    - It is a single, consistent parent type so that higher-level code
       (trainer loops, registries, logging utilities) can treat every
       project-specific loss in a uniform way.
     - Concrete subclasses must implement `forward(...)` and return a
@@ -34,46 +32,33 @@ class BaseLoss(nn.Module):
 
 class BaseContrastiveLoss(BaseLoss):
     r"""
-    BaseContrastiveLoss
+    Generalized InfoNCE-style contrastive loss with a customizable positive mask.
 
-    A reusable InfoNCE / supervised-contrastive style loss core.
+    This class provides a reusable implementation of the InfoNCE / SupCon
+    contrastive objective used in self-supervised, supervised, and vertical-partition
+    contrastive learning. Subclasses only define how positives are selected
+    (via `pos_mask`); all numerical and normalization steps are handled here.
 
-    This class encapsulates the *generic* contrastive computation pattern
-    that appears in:
-      - Self-supervised contrastive learning (InfoNCE / NT-Xent),
-      - Supervised contrastive learning (SupCon),
-      - Vertical-partition contrastive learning (VPCL) variants used in
-        table representation learning (e.g. TransTab-style Self-VPCL /
-        Supervised-VPCL).
+    Per-anchor loss:
+    \[
+        \ell_i = -\frac{1}{|P(i)|}
+        \sum_{p \in P(i)} \log
+        \frac{\exp(s_{ip} / \tau)}
+             {\sum_{a \neq i} \exp(s_{ia} / \tau)}
+    \]
 
-    Key idea:
-    Subclasses DO NOT re-implement the log-softmax math. They ONLY define
-    what counts as a "positive pair" by building a positive-mask `pos_mask`.
-
-    Notation:
-        feats: [N, D]
-            N = total number of contrastive instances (e.g. batch_size * num_partitions)
-            D = projection dim
-        pos_mask: [N, N]
-            pos_mask[a, b] = 1.0 iff b is considered a positive sample for anchor a.
-            pos_mask[a, a] can be 1.0 or 0.0 when provided; we will internally
-            mask out exact self-pairs so they do not contribute.
-
-    The loss matches your TransTab-style implementation:
-        1. Compute pairwise similarity (dot or cosine),
-        2. Divide by temperature,
-        3. Row-wise max subtraction for numerical stability,
-        4. Exclude self-contrast from denominator,
-        5. For each anchor, compute average log_prob over its positives,
-        6. Multiply by -(T / T0) and average over anchors.
+    Batch loss (with scaling factor \(\frac{\tau}{\tau_0}\)):
+    \[
+        \mathcal{L} =
+        \frac{\tau}{\tau_0} \cdot
+        \frac{1}{N} \sum_{i=1}^{N} \ell_i
+    \]
 
     Args:
-        temperature (float): τ in InfoNCE. Scales the logits.
-        base_temperature (float): τ₀ for final scaling (T / T0).
-        similarity (str): "dot" or "cosine".
-            - "dot": raw dot product.
-            - "cosine": L2-normalize feats first, then dot product (cosine sim).
-        eps (float): numerical stability in logs and divisions.
+        temperature (float): Temperature \(\tau\) scaling the logits.
+        base_temperature (float): Reference temperature \(\tau_0\) for scaling.
+        similarity (str): Similarity metric, "dot" or "cosine".
+        eps (float): Numerical stability constant.
     """
 
     def __init__(

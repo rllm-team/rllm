@@ -13,8 +13,8 @@ from rllm.types import ColType
 from rllm.data.table_data import TableData
 from rllm.nn.conv.table_conv import TransTabConv
 from rllm.nn.pre_encoder import TransTabDataExtractor, TransTabPreEncoder
-from rllm.nn.loss.supervised_vpcl import VerticalPartitionSupervisedLoss
-from rllm.nn.loss.self_supervised_vpcl import VerticalPartitionSelfSupervisedLoss
+from rllm.nn.loss.supervised_vpcl import SupervisedVPCL
+from rllm.nn.loss.self_supervised_vpcl import SelfSupervisedVPCL
 
 
 TRAINING_ARGS_NAME = "training_args.json"
@@ -575,13 +575,13 @@ class TransTabForCL(TransTab):
         self.num_partition = num_partition
         self.overlap_ratio = overlap_ratio
         self.supervised = supervised
-        self.selfsup_criterion = VerticalPartitionSelfSupervisedLoss(
+        self.selfsup_criterion = SelfSupervisedVPCL(
             temperature=self.temperature,
             base_temperature=self.base_temperature,
             similarity="dot",   # "cosine"
         )
 
-        self.sup_criterion = VerticalPartitionSupervisedLoss(
+        self.sup_criterion = SupervisedVPCL(
             temperature=self.temperature,
             base_temperature=self.base_temperature,
             similarity="dot",

@@ -1,7 +1,7 @@
-from .self_supervised_vpcl import VerticalPartitionSelfSupervisedLoss
-from .supervised_vpcl import VerticalPartitionSupervisedLoss
+from .self_supervised_vpcl import SelfSupervisedVPCL
+from .supervised_vpcl import SupervisedVPCL
 
 __all__ = [
-    "VerticalPartitionSelfSupervisedLoss",
-    "VerticalPartitionSupervisedLoss",
+    "SelfSupervisedVPCL",
+    "SupervisedVPCL",
 ]

@@ -6,37 +6,67 @@ from typing import Literal
 from rllm.nn.loss.base_loss import BaseContrastiveLoss
 
 
-class VerticalPartitionSupervisedLoss(BaseContrastiveLoss):
+class SupervisedVPCL(BaseContrastiveLoss):
     r"""
-    Supervised vertical partition contrastive loss(Supervised VPCL).
+    Supervised Vertical-Partition Contrastive Loss (Supervised VPCL).
 
-    This class implements the supervised variant of vertical-partition contrastive
-    learning (VPCL). Each table row is split into multiple vertical partitions
-    (i.e., column subsets), each partition is encoded into an embedding, and
-    embeddings are trained to align across samples with the same class label.
+    This loss was proposed in
+    *"TransTab: Learning Transferable Tabular Transformers Across Tables"*
+    (<https://arxiv.org/abs/2205.09328>),
+    as a supervised contrastive learning objective tailored for tabular data.
+    It extends the InfoNCE formulation to vertically partitioned tables, where each
+    row is divided into multiple column subsets (partitions) that serve as distinct views.
 
-    Positive pairs are formed between any two partition embeddings whose
-    source rows share the same class label. Negative pairs are formed between
-    partition embeddings from rows with different labels. This is analogous
-    to supervised contrastive learning / supervised InfoNCE, but positives
-    and negatives are defined at the (row, partition) level rather than just
-    the row level.
+    Each partition embedding is trained to align with embeddings from samples of the
+    **same class label** while repelling embeddings from **different classes**.
+    Positive pairs are drawn across partitions from different samples that share
+    identical labels, and negatives are drawn from different labels.
+    This generalizes supervised contrastive learning (SupCon) to the
+    (row, partition) level.
 
-    Expected input shapes:
-        features (torch.Tensor): [B, K, D]
-            B = batch size
-            K = number of partitions (column subsets) per row
-            D = projection dimension
-        labels (torch.Tensor): [B]
-            Integer class label for each row in the batch
+    Mathematical Formulation:
 
-    Args:
-        temperature (float): Temperature τ used to scale pairwise logits.
-        base_temperature (float): Normalization temperature τ₀ used in
-            the final scaling factor (τ / τ₀).
-        similarity (str): Similarity metric, "dot" for raw dot product or
-            "cosine" for cosine similarity (L2-normalized dot product).
-        eps (float): Numerical stability constant.
+    The supervised VPCL loss is defined as:
+
+    \[
+    \ell(X, y) =
+    - \sum_{i=1}^{B} \sum_{j=1}^{B} \sum_{k=1}^{K} \sum_{k'=1}^{K}
+    \mathbf{1}\{y_j = y_i\}
+    \log
+    \frac{
+        \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_j^{k'})\big)
+    }{
+        \sum_{j^{\dagger}=1}^{B}\sum_{k^{\dagger}=1}^{K}
+        \mathbf{1}\{y_{j^{\dagger}} \neq y_i\}
+        \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_{j^{\dagger}}^{k^{\dagger}})\big)
+    } .
+    \]
+
+    where:
+    - \( B \): batch size
+    - \( K \): number of column partitions per sample
+    - \( \mathbf{v}_i^{k} \): embedding of the \(k\)-th partition of the \(i\)-th row
+    - \( \psi(\cdot, \cdot) \): similarity function (dot product or cosine similarity)
+    - \( \mathbf{1}\{\cdot\} \): indicator function
+    - \( y_i \): class label for the \(i\)-th sample
+
+    The objective encourages alignment among embeddings belonging to the same class
+    while ensuring separability between embeddings of different classes.
+
+    Input Shapes:
+    - features: torch.Tensor of shape [B, K, D]
+        - \( B \): batch size
+        - \( K \): number of partitions per row
+        - \( D \): projection dimension
+    - labels: torch.Tensor of shape [B]
+        - Integer class label for each sample
+
+    Arguments:
+    - temperature (float): Temperature \( \tau \) scaling the logits.
+    - base_temperature (float): Reference temperature \( \tau_0 \) used for final scaling \( \tau / \tau_0 \).
+    - similarity (str): Similarity metric; `"dot"` for raw dot product,
+      "cosine" for L2-normalized cosine similarity.
+    - eps (float): Numerical stability constant.
     """
 
     def __init__(

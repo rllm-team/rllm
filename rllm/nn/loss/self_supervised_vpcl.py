@@ -6,35 +6,59 @@ from typing import Literal
 from rllm.nn.loss.base_loss import BaseContrastiveLoss
 
 
-class VerticalPartitionSelfSupervisedLoss(BaseContrastiveLoss):
+class SelfSupervisedVPCL(BaseContrastiveLoss):
     r"""
-    Self-supervised vertical-partition contrastive loss(Self-supervised VPCL).
+    Self-Supervised Vertical-Partition Contrastive Loss (Self-VPCL).
 
-    This class implements the self-supervised variant of vertical-partition
-    contrastive learning (VPCL). Each row in a table is split into multiple
-    vertical partitions (i.e., column subsets), each partition is encoded into
-    an embedding, and embeddings from the *same row* are encouraged to align
-    even without labels.
+    This loss was proposed in
+    *"TransTab: Learning Transferable Tabular Transformers Across Tables"*
+    (<https://arxiv.org/abs/2205.09328>),
+    as a self-supervised contrastive learning objective designed for tabular data.
+    It extends InfoNCE-style contrastive learning to vertically partitioned tables,
+    where each row is divided into multiple column subsets (partitions) treated as
+    distinct "views" of the same sample.
 
-    Positive pairs are formed between any two partition embeddings that come
-    from the same original row. Negative pairs are formed between partition
-    embeddings from different rows. This follows the InfoNCE / NT-Xent
-    contrastive learning formulation, but treats different column subsets of
-    the same row as different "views."
+    Positive pairs are formed between different partition embeddings derived from
+    the **same row**, while negative pairs are formed across different rows.
+    This formulation encourages consistency among embeddings of the same record
+    under different column subsets, without relying on labels.
 
-    Expected input shapes:
-        features (torch.Tensor): [B, K, D]
-            B = batch size
-            K = number of partitions (column subsets) per row
-            D = projection dimension
+    Mathematical Formulation:
 
-    Args:
-        temperature (float): Temperature τ for scaling pairwise logits.
-        base_temperature (float): Reference temperature τ₀ for final scaling
-            (τ / τ₀).
-        similarity (str): "dot" for raw dot product similarity or "cosine" for
-            cosine similarity (L2-normalized dot product).
-        eps (float): Numerical stability constant.
+    The self-supervised VPCL loss is defined as:
+
+    \[
+    \ell(X) =
+    - \sum_{i=1}^{B} \sum_{k=1}^{K} \sum_{k' \neq k}^{K}
+    \log
+    \frac{
+        \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_i^{k'})\big)
+    }{
+        \sum_{j=1}^{B}\sum_{k^{\dagger}=1}^{K}
+        \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_j^{k^{\dagger}})\big)
+    } .
+    \]
+
+    where:
+    - \( B \): batch size
+    - \( K \): number of column partitions per sample
+    - \( \mathbf{v}_i^{k} \): embedding of the \(k\)-th partition of the \(i\)-th row
+    - \( \psi(\cdot, \cdot) \): similarity function (e.g., cosine or dot-product similarity)
+
+    This objective maximizes the agreement between partition embeddings of the same
+    record, while distinguishing them from embeddings belonging to other rows.
+
+    Input Shapes
+    - features: torch.Tensor of shape [B, K, D]
+        - \( B \): batch size
+        - \( K \): number of partitions per row
+        - \( D \): projection dimension
+
+    Arguments
+    - temperature (float): Temperature \( \tau \) scaling the logits.
+    - base_temperature (float): Reference temperature \( \tau_0 \) used for final scaling \( \tau / \tau_0 \).
+    - similarity (str): Similarity metric; `"dot"` for raw dot product, `"cosine"` for L2-normalized cosine similarity.
+    - eps (float): Numerical stability constant.
     """
 
     def __init__(
