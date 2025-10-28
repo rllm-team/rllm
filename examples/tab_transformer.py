@@ -2,9 +2,11 @@
 # "TabTransformer: Tabular Data Modeling Using Contextual Embeddings" paper.
 # ArXiv: https://arxiv.org/abs/2012.06678
 
-# Datasets  Titanic    Adult
-# Acc       0.842      0.842
-# Time      5.26s      152.9s
+# Datasets      Titanic    Adult
+# Metrics       Acc        AUC
+# Rept.         -          0.737
+# Ours          0.842      0.892
+# Time          5.26s      251.1s
 
 import argparse
 import sys
