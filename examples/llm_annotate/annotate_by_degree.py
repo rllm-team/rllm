@@ -31,7 +31,7 @@ parser.add_argument("--use_cache", type=bool, default=False, help="Whether to us
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DASHSCOPE_API_KEY = "sk-dbc98c564b844cd1b15c537f3814ff4d"
+DASHSCOPE_API_KEY = "your-api-key"
 llm = Tongyi(dashscope_api_key=DASHSCOPE_API_KEY, model_kwargs={"api_key": DASHSCOPE_API_KEY, "model": "qwen-max-2025-01-25"}, client=dashscope.Generation)
 
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
