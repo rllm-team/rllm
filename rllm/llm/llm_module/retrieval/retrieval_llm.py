@@ -7,14 +7,13 @@ import random
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from langchain_openai import ChatOpenAI
 from sklearn.model_selection import train_test_split
 
 
 class LC:
     from langchain_core.language_models import BaseLLM
     from langchain.chat_models.base import BaseChatModel
-    from langchain.schema import (
+    from langchain_core.messages import (
         HumanMessage,
         SystemMessage,
     )
@@ -121,7 +120,12 @@ class LLMWithRetriever:
         with open(label_info_path, "r") as f:
             self.label_info = f.read()
 
-        self.llm = llm if llm is not None else ChatOpenAI()
+        if not isinstance(llm, (LC.BaseChatModel, LC.BaseLLM)):
+            raise TypeError(
+                f"llm must be an instance of BaseChatModel or BaseLLM, "
+                f"but got {type(llm).__name__}"
+            )
+        self.llm = llm
         self.shots = shots
         self.seed = seed
 

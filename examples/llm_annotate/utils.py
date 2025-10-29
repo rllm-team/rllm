@@ -9,8 +9,6 @@ sys.path.append("../")
 from rllm.llm import Predictor
 from rllm.llm.llm_module.langchain_llm import LangChainLLM
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 def annotate(name, label_names, target_table, mask, llm, use_cache=False):
     """
@@ -60,6 +58,7 @@ def annotate(name, label_names, target_table, mask, llm, use_cache=False):
             if label.lower() in output.lower():
                 matched = label
                 break
+        print(matched)
         if matched is None:
             matched = label_names[0]
         select_pred.append(label_names.index(matched))

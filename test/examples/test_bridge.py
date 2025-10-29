@@ -23,8 +23,8 @@ EXAMPLE_ROOT = os.path.join(
 
 
 def test_bridge_tml1m():
-    script = os.path.join(EXAMPLE_ROOT, "bridge_tml1m.py")
-    out = subprocess.run(["python", str(script)], capture_output=True)
+    script = os.path.join(EXAMPLE_ROOT, "bridge.py")
+    out = subprocess.run(["python", str(script), "--dataset", "tml1m"], capture_output=True)
     assert (
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
@@ -33,8 +33,8 @@ def test_bridge_tml1m():
 
 
 def test_bridge_tlf2k():
-    script = os.path.join(EXAMPLE_ROOT, "bridge_tlf2k.py")
-    out = subprocess.run(["python", str(script)], capture_output=True)
+    script = os.path.join(EXAMPLE_ROOT, "bridge.py")
+    out = subprocess.run(["python", str(script), "--dataset", "tlf2k"], capture_output=True)
     assert (
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
@@ -43,8 +43,8 @@ def test_bridge_tlf2k():
 
 
 def test_bridge_tacm12k():
-    script = os.path.join(EXAMPLE_ROOT, "bridge_tacm12k.py")
-    out = subprocess.run(["python", str(script)], capture_output=True)
+    script = os.path.join(EXAMPLE_ROOT, "bridge.py")
+    out = subprocess.run(["python", str(script), "--dataset", "tacm12k"], capture_output=True)
     assert (
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"

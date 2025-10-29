@@ -1,8 +1,10 @@
 # The BRIDGE method from the "rLLM: Relational Table Learning with LLMs" paper.
 # ArXiv: https://arxiv.org/abs/2407.20157
 
-# Datasets  TLF2K   TML1M   TACM12K
-# Acc       0.471   0.397   0.293
+# Datasets      TLF2K   TML1M   TACM12K
+# Acc(rept.)    0.471   0.397   0.293
+# Acc(ours)     0.477   0.401   0.297
+# Time(s)       32.48   372.33  28.61
 
 import time
 import argparse
@@ -14,6 +16,7 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
+sys.path.append("../../")
 from rllm.datasets import TLF2KDataset, TACM12KDataset, TML1MDataset
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
@@ -108,13 +111,13 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
-    if args.dataset == "TLF2K" or args.dataset == "tlf2k":
+    if args.dataset == "tlf2k":
         dataset = TLF2KDataset(cached_dir=path, force_reload=True)
-    elif args.dataset == "TML1M" or args.dataset == "tml1m":
+    elif args.dataset == "tml1m":
         dataset = TML1MDataset(cached_dir=path, force_reload=True)
-    elif args.dataset == "TACM12K" or args.dataset == "tacm12k":
+    elif args.dataset == "tacm12k":
         dataset = TACM12KDataset(cached_dir=path, force_reload=True)
 
     target_table, non_table_embeddings, adj, emb_size = data_prepare(dataset, args.dataset, device)
-    model = build_bridge_model(target_table.num_classe, target_table.metadatas, emb_size).to(device)
+    model = build_bridge_model(target_table.num_classes, target_table.metadata, emb_size).to(device)
     train_bridge_model(model, target_table, non_table_embeddings, adj, args.epochs, args.lr, args.wd, device)
