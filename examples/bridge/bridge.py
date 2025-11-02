@@ -2,7 +2,7 @@
 # ArXiv: https://arxiv.org/abs/2407.20157
 
 # Datasets      TLF2K   TML1M   TACM12K
-# Acc(rept.)    0.471   0.397   0.293
+# Acc(rept.)    0.422   0.362   0.256
 # Acc(ours)     0.477   0.401   0.297
 # Time(s)       32.48   372.33  28.61
 

@@ -1,4 +1,5 @@
 from typing import Any, List, Literal, Optional
+import time
 
 import pandas as pd
 from tqdm import tqdm
@@ -94,6 +95,7 @@ class Predictor:
         outputs = []
         for index, row in tqdm(df.iterrows(), total=len(df)):
             outputs.append(self._llm.predict(self.prompt, row=row, **kwargs))
+            time.sleep(0.5)
 
         return outputs
 
