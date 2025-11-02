@@ -1,6 +1,6 @@
 # Datasets  TLF2K   TML1M   TACM12K
 # Acc       0.436   0.330   0.234
-# Time(s)   280s    723s    286s
+# Time(s)   280.08  722.92  286.16
 
 
 import time
@@ -28,7 +28,7 @@ parser.add_argument("--dataset", type=str, default="tlf2k", choices=["tlf2k", "t
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--wd", type=float, default=1e-4, help="Weight decay")
-parser.add_argument("--use_cache", type=bool, default=True, help="Whether to use cache")
+parser.add_argument("--use_cache", type=bool, default=False, help="Whether to use cache")
 parser.add_argument("--train_budget", type=int, default=100, help="Annotation budget for training")
 parser.add_argument("--val_budget", type=int, default=100, help="Annotation budget for validation")
 args = parser.parse_args()
@@ -84,7 +84,7 @@ real_labels = torch.tensor([label_names.index(_) if _ in label_names else random
 pseudo_labels = annotate(args.dataset, label_names, target_table, train_mask | val_mask, llm, use_cache=args.use_cache)
 
 y = real_labels.long().to(device)
-y[train_mask] = pseudo_labels.long().to(device)[train_mask]
+y[train_mask | val_mask] = pseudo_labels.long().to(device)[train_mask | val_mask]
 target_table.y = y
 
 model = build_bridge_model(target_table.num_classes, target_table.metadata, emb_size).to(device)
