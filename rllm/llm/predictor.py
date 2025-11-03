@@ -94,7 +94,12 @@ class Predictor:
         # Make prediction, remeber `row` is a default argument.
         outputs = []
         for index, row in tqdm(df.iterrows(), total=len(df)):
-            outputs.append(self._llm.predict(self.prompt, row=row, **kwargs))
+            try:
+                output = self._llm.predict(self.prompt, row=row, **kwargs)
+            except Exception as e:
+                print(f"Row {index} failed: {type(e).__name__} - {e}")
+                output = ""
+            outputs.append(output)
             time.sleep(0.5)
 
         return outputs

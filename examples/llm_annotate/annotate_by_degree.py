@@ -1,3 +1,6 @@
+# This script uses LLM to generate data annotation and trains BRIDGE model on annotated data.
+# Training samples are selected based on node degree.
+
 # Datasets  TLF2K   TML1M   TACM12K
 # Acc       0.436   0.330   0.234
 # Time(s)   280.08  722.92  286.16
