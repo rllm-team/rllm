@@ -6,6 +6,8 @@ import torch
 from torch import Tensor
 
 from rllm.data import GraphData
+from rllm.transforms.graph_transforms import GCNTransform
+from rllm.transforms.table_transforms import TabTransformerTransform
 
 
 def reorder_ids(
@@ -137,3 +139,85 @@ def build_batch_homo_graph(blocks, target_table):
     graph = GraphData(adj=adj)
 
     return graph
+
+
+def data_prepare(dataset, dataset_name, device):
+    if dataset_name == "tlf2k":
+        # Get the required data
+        artist_table, ua_table, _ = dataset.data_list
+        emb_size = 384 # Use the same embedding size as BERT for simplicity
+        artist_size = len(artist_table)
+        user_size = ua_table.df["userID"].max()
+
+        target_table = artist_table.to(device)
+        non_table_embeddings = torch.randn((user_size, emb_size)).to(device)
+
+        ordered_ua = reorder_ids(
+            relation_df=ua_table.df,
+            src_col_name="artistID",
+            tgt_col_name="userID",
+            n_src=artist_size,
+        )
+
+        # Build graph
+        graph = build_homo_graph(
+            relation_df=ordered_ua,
+            n_all=artist_size + user_size,
+        ).to(device)
+
+    elif dataset_name == "tml1m":
+        # Get the required data
+        (
+            user_table,
+            _,
+            rating_table,
+            movie_embeddings,
+        ) = dataset.data_list
+        emb_size = movie_embeddings.size(1)
+        user_size = len(user_table)
+
+        ordered_rating = reorder_ids(
+            relation_df=rating_table.df,
+            src_col_name="UserID",
+            tgt_col_name="MovieID",
+            n_src=user_size,
+        )
+        target_table = user_table.to(device)
+        non_table_embeddings = movie_embeddings.to(device)
+
+        # Build graph
+        graph = build_homo_graph(
+            relation_df=ordered_rating,
+            n_all=user_size + movie_embeddings.size(0),
+        ).to(device)
+
+    elif dataset_name == "tacm12k":
+        # Get the required data
+        (
+            papers_table,
+            authors_table,
+            citations_table,
+            _,
+            paper_embeddings,
+            _,
+        ) = dataset.data_list
+        emb_size = paper_embeddings.size(1)
+        target_table = papers_table.to(device)
+        non_table_embeddings = paper_embeddings.to(device)
+
+        # Build graph
+        graph = build_homo_graph(
+            relation_df=citations_table.df,
+            n_all=len(papers_table),
+        ).to(device)
+
+    # Transform data
+    table_transform = TabTransformerTransform(
+        out_dim=emb_size, metadata=target_table.metadata
+    )
+    target_table = table_transform(data=target_table)
+    graph_transform = GCNTransform()
+    adj = graph_transform(data=graph).adj
+    target_table.y = target_table.y.long().to(device)
+
+    return target_table, non_table_embeddings, adj, emb_size

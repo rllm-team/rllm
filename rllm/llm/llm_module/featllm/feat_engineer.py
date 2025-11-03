@@ -43,7 +43,6 @@ import torch
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from langchain_openai import ChatOpenAI
 from sklearn.model_selection import train_test_split
 
 
@@ -54,12 +53,9 @@ class LC:
     LangChain components.
     """
 
-    from langchain.base_language import BaseLanguageModel
-    from langchain_core.language_models import BaseLLM
+    from langchain_core.language_models import BaseLLM, BaseLanguageModel
     from langchain.chat_models.base import BaseChatModel
-    from langchain_openai import OpenAI
-    from langchain_openai import ChatOpenAI
-    from langchain.schema import (
+    from langchain_core.messages import (
         AIMessage,
         BaseMessage,
         ChatMessage,
@@ -145,7 +141,12 @@ class FeatLLMEngineer:
         with open(task_info_path, "r") as f:
             self.task_info = f.read()
 
-        self.llm = llm if llm is not None else ChatOpenAI()
+        if not isinstance(llm, (LC.BaseChatModel, LC.BaseLLM)):
+            raise TypeError(
+                f"llm must be an instance of BaseChatModel or BaseLLM, "
+                f"but got {type(llm).__name__}"
+            )
+        self.llm = llm
         self.query_num = query_num
         self.shots = shots
         self.seed = seed
@@ -711,6 +712,7 @@ if __name__ == "__main__":
     """
     API_KEY = "<Your API KEY>"
     API_URL = "<Your API URL>"
+    from langchain_openai import ChatOpenAI
     llm = ChatOpenAI(
         model_name="Your Model Name", openai_api_base=API_URL, openai_api_key=API_KEY
     )

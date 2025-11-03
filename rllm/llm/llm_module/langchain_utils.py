@@ -4,11 +4,11 @@ from rllm.llm.types import ChatMessage, LLMMetadata, MessageRole
 
 
 class LC:
-    from langchain.base_language import BaseLanguageModel
+    from langchain_core.language_models import BaseLanguageModel
     from langchain.chat_models.base import BaseChatModel
     from langchain_community.llms import OpenAI
     from langchain_community.chat_models import ChatOpenAI
-    from langchain.schema import (
+    from langchain_core.messages import (
         AIMessage,
         BaseMessage,
         ChatMessage,
