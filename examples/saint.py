@@ -25,11 +25,12 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets import BankMarketing
+from rllm.datasets import Titanic, BankMarketing
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv.saint_conv import SAINTConv
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--dataset", type=str, default="titanic")
 parser.add_argument("--emb_dim", help="embedding dim.", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=1)
 parser.add_argument("--batch_size", type=int, default=256)
@@ -45,7 +46,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = BankMarketing(cached_dir=path)[0]
+if args.dataset.lower() == "bankmarketing":
+    data = BankMarketing(cached_dir=path)[0]
+else:
+    data = Titanic(cached_dir=path)[0]
 
 # Transform data
 transform = DefaultTableTransform(out_dim=args.emb_dim)
