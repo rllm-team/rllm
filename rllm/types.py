@@ -40,23 +40,20 @@ class ColType(Enum):
         col_type = ColType.NUMERICAL  # Numerical columns
         col_type = ColType.CATEGORICAL  # Categorical columns
         col_type = ColType.BINARY  # Binary columns
-        col_type = ColType.TEXT  # Free-text columns (LLM/BERT encoder)
-        col_type = ColType.TOKENIZED  # Token-id sequences (Embedding + Table_conv)
+        col_type = ColType.TEXT  # Text columns (embedding or tokenization)
         ...
 
     Attributes:
         NUMERICAL: Numerical columns.
         CATEGORICAL: Categorical columns.
         BINARY: Binary columns.
-        TEXT: Text columns.
-        TOKENIZED: Token-id sequences.
+        TEXT: Text columns (processed as embeddings or token sequences based on config).
     """
 
     NUMERICAL = "numerical"
     CATEGORICAL = "categorical"
     BINARY = "binary"
     TEXT = "text"
-    TOKENIZED = "tokenized"
 
     def __lt__(self, other):
         return self.value < other.value
@@ -101,8 +98,7 @@ class NAMode(Enum):
             ColType.NUMERICAL: [NAMode.MAX, NAMode.MIN, NAMode.MEAN, NAMode.ZERO],
             ColType.CATEGORICAL: [NAMode.MOST_FREQUENT, NAMode.ZERO],
             ColType.BINARY: [NAMode.MOST_FREQUENT, NAMode.ZERO],
-            ColType.TEXT: [],  # [NAMode.MOST_FREQUENT] or [NAMode.ZERO]
-            ColType.TOKENIZED: [],  # [NAMode.ZERO]（pad_id=0）
+            ColType.TEXT: [],  # Handled by embedder or tokenizer config
         }
         return namode_type.get(col_type, [])
 
@@ -155,7 +151,6 @@ class StatType(Enum):
                 StatType.MOST_FREQUENT,
             ],
             ColType.TEXT: [],
-            ColType.TOKENIZED: [],
         }
         return stats_type.get(col_type, [])
 
