@@ -10,12 +10,12 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     get_linear_schedule_with_warmup,
 )
-from peft import IA3Config, get_peft_model
 from tqdm import tqdm
-from datasets import Dataset, ClassLabel, Value, Features, load_from_disk
 
 
 def get_hf_dataset(csv_file: str, target_column: str):
+    from datasets import Dataset, ClassLabel, Value, Features, load_from_disk
+
     # Read the input CSV file
     df = pd.read_csv(csv_file)
 
@@ -188,6 +188,7 @@ class Seq2SeqFinetuner:
         self.val_ds = FinetuneDataset(ds["validation"], self.tokenizer, self.task_info)
 
         # model + PEFT
+        from peft import IA3Config, get_peft_model
         base = AutoModelForSeq2SeqLM.from_pretrained(cfg.model_name)
         peft_config = IA3Config(task_type=cfg.peft_task_type)
         self.model = get_peft_model(base, peft_config).to(cfg.device)
