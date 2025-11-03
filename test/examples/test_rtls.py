@@ -1,11 +1,9 @@
-# This file contains unit tests for the BRIDGE examples in the rLLM framework.
+# This file contains unit tests for the relational table learning examples in the rLLM framework.
 # The tests ensure that the example scripts run successfully and produce the
 # expected output.
 
-# The following example scripts are tested:
-# 1. bridge_tml1m.py: Tests the BRIDGE model on the TML1M dataset.
-# 2. bridge_tlf2k.py: Tests the BRIDGE model on the TLF2K dataset.
-# 3. bridge_tacm12k.py: Tests the BRIDGE model on the TACM12K dataset.
+# The following example script is tested:
+# 1. bridge.py: Tests the BRIDGE model on the TML1M, TLF2K and TACM12K dataset.
 
 # Each test function runs the corresponding example script and verifies the
 # output to ensure it meets the expected criteria.
