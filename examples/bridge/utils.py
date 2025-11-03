@@ -218,5 +218,6 @@ def data_prepare(dataset, dataset_name, device):
     target_table = table_transform(data=target_table)
     graph_transform = GCNTransform()
     adj = graph_transform(data=graph).adj
+    target_table.y = target_table.y.long().to(device)
 
     return target_table, non_table_embeddings, adj, emb_size

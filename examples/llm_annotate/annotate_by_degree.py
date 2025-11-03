@@ -91,6 +91,6 @@ y[train_mask | val_mask] = pseudo_labels.long().to(device)[train_mask | val_mask
 target_table.y = y
 
 model = build_bridge_model(target_table.num_classes, target_table.metadata, emb_size).to(device)
-train_bridge_model(model, target_table, non_table_embeddings, adj, args.epochs, args.lr, args.wd, device)
+train_bridge_model(model, target_table, non_table_embeddings, adj, args.epochs, args.lr, args.wd)
 
 print(f"Annotation and training time: {time.time() - start_time}s")

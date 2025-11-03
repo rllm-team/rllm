@@ -65,8 +65,8 @@ def test(model, target_table, non_table_embeddings, adj, y, masks):
     return accs
 
 
-def train_bridge_model(model, target_table, non_table_embeddings, adj, epochs, lr, wd, device):
-    y = target_table.y.long().to(device)
+def train_bridge_model(model, target_table, non_table_embeddings, adj, epochs, lr, wd):
+    y = target_table.y
     train_mask, val_mask, test_mask = (
         target_table.train_mask,
         target_table.val_mask,
@@ -120,4 +120,4 @@ if __name__ == "__main__":
 
     target_table, non_table_embeddings, adj, emb_size = data_prepare(dataset, args.dataset, device)
     model = build_bridge_model(target_table.num_classes, target_table.metadata, emb_size).to(device)
-    train_bridge_model(model, target_table, non_table_embeddings, adj, args.epochs, args.lr, args.wd, device)
+    train_bridge_model(model, target_table, non_table_embeddings, adj, args.epochs, args.lr, args.wd)
