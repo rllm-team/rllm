@@ -4,7 +4,7 @@
 # expected output.
 
 # The following example script is tested:
-# 1. bridge.py: Tests the BRIDGE model on the TML1M, TLF2K and TACM12K dataset.
+# 1. bridge.py: Tests the BRIDGE model on the TML1M, TLF2K and TACM12K datasets.
 
 # Each test function runs the corresponding example script and verifies the
 # output to ensure it meets the expected criteria.
