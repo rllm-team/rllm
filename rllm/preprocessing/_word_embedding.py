@@ -1,5 +1,3 @@
-"""Word/text embedding utilities."""
-
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -34,7 +32,7 @@ def embed_text_column(col_series: Series, config: TextEmbedderConfig) -> Tensor:
         for i in tqdm(
             range(0, len(col_list), batch_size), desc="Embedding raw data in mini-batch"
         ):
-            emb = embedder(col_list[i : i + batch_size])
+            emb = embedder(col_list[i: i + batch_size])
             emb_list.append(emb)
         embeddings = torch.cat(emb_list, dim=0)
     return embeddings.float()

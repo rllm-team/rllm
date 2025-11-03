@@ -1,5 +1,3 @@
-"""Type conversion utilities for different column types."""
-
 from typing import Optional
 from pandas import Series
 from sklearn.preprocessing import LabelEncoder

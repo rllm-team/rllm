@@ -1,11 +1,11 @@
-"""Text tokenization utilities for processing tokenized column types."""
-
 from typing import Any, Callable, Optional
 from collections.abc import Mapping
 from dataclasses import dataclass
 import numpy as np
 from pandas import Series, DataFrame
 import torch
+
+from rllm.types import ColType
 
 
 @dataclass
@@ -219,7 +219,6 @@ def tokenize_merged_cols(
     Returns:
         Tuple of (input_ids [B, L], attention_mask [B, L]) or None
     """
-    from rllm.types import ColType
 
     text_cols = [
         c for c, t in col_types.items() if t == ColType.TEXT and c != target_col
