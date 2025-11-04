@@ -7,6 +7,7 @@ from rllm.preprocessing._fillna import (
 from rllm.preprocessing._type_convert import (
     encode_categorical,
     convert_binary,
+    convert_categorical_to_text,
     DEFAULT_BINARY_MAP,
 )
 from rllm.preprocessing._text_tokenize import (
@@ -31,6 +32,7 @@ __all__ = [
     # type convert
     "encode_categorical",
     "convert_binary",
+    "convert_categorical_to_text",
     "DEFAULT_BINARY_MAP",
     # text tokenize
     "TokenizerConfig",

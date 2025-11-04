@@ -1,6 +1,7 @@
 from typing import Any, Callable, Optional
 from collections.abc import Mapping
 from dataclasses import dataclass
+
 import numpy as np
 from pandas import Series, DataFrame
 import torch
