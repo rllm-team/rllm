@@ -134,10 +134,23 @@ class TransTab(torch.nn.Module):
 
         self.hidden_dropout_prob = hidden_dropout_prob
         self.layer_norm_eps = layer_norm_eps
-        # 1) Record and deduplicate various column names
-        self.categorical_columns = list(set(categorical_columns)) if categorical_columns else None
-        self.numerical_columns = list(set(numerical_columns)) if numerical_columns else None
-        self.binary_columns = list(set(binary_columns)) if binary_columns else None
+
+        # 1) Record and deduplicate various column names (preserving order for reproducibility)
+        def deduplicate_preserving_order(lst):
+            """Remove duplicates while preserving order."""
+            if lst is None:
+                return None
+            seen = set()
+            result = []
+            for item in lst:
+                if item not in seen:
+                    seen.add(item)
+                    result.append(item)
+            return result
+
+        self.categorical_columns = deduplicate_preserving_order(categorical_columns)
+        self.numerical_columns = deduplicate_preserving_order(numerical_columns)
+        self.binary_columns = deduplicate_preserving_order(binary_columns)
 
         # 2) Initialize DataExtractor
         self.extractor = TransTabDataExtractor(
@@ -248,13 +261,15 @@ class TransTab(torch.nn.Module):
                     )
                 )
             df = pd.concat(parts, axis=1)
+            proc_out = self.pre_encoder(df)
         elif isinstance(x, TableData):
-            df = x.df
+            # Pass TableData directly to pre_encoder for proper handling of sliced data
+            proc_out = self.pre_encoder(x)
         else:
-            df = x
+            # DataFrame case
+            proc_out = self.pre_encoder(x)
 
         # 1) DataProcessor gets embedding + mask
-        proc_out = self.pre_encoder(df)
         emb = proc_out['embedding']       # (batch, seq_len, hidden_dim)
         mask = proc_out['attention_mask']  # (batch, seq_len)
 

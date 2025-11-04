@@ -21,8 +21,9 @@ __all__ = [
 
 def get_column_partitions(table, target_col: str) -> Tuple[List[str], List[str], List[str], int]:
     # Partition table columns by ColType, returning categorical, numerical, binary columns and number of classes.
+    # Note: In TransTab's terminology, "categorical" corresponds to TEXT in TableData (merged tokenized features)
     col_types = table.col_types
-    cat_cols = [c for c, t in col_types.items() if t == ColType.CATEGORICAL and c != target_col]
+    cat_cols = [c for c, t in col_types.items() if t == ColType.TEXT and c != target_col]
     num_cols = [c for c, t in col_types.items() if t == ColType.NUMERICAL]
     bin_cols = [c for c, t in col_types.items() if t == ColType.BINARY]
     num_classes = table.num_classes
@@ -78,6 +79,9 @@ class TableView:
 
         self.col_types = {c: t for c, t in base_table.col_types.items() if c in self.df.columns}
         self.num_classes = base_table.num_classes
+
+        # Copy target labels (y) from base table
+        self.y = base_table.y
 
         self.train_mask = getattr(base_table, "train_mask", None)
         self.val_mask = getattr(base_table, "val_mask", None)

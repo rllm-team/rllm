@@ -33,13 +33,32 @@ def set_seed(seed: int):
     os.environ["PYTHONHASHSEED"] = str(seed)
 
 
-def make_batch_fn(table, target_col: str, device: torch.device):  # : TableView
-    # Build a collate_fn for DataLoader: indices -> (X_batch, y_batch).
-    def _collate(index_batch: List[int]):
-        x_batch = table.df.iloc[index_batch].reset_index(drop=True).drop(columns=[target_col])
-        y_batch = table.y[index_batch]
-        return x_batch, y_batch
-    return _collate
+def make_batch_fn(table, target_col: str, device: torch.device, use_tabledata: bool = False):
+    """
+    Build a collate_fn for DataLoader: indices -> (X_batch, y_batch).
+
+    Args:
+        table: TableData object
+        target_col: Name of target column
+        device: Device to place tensors on
+        use_tabledata: If True, return TableData slice instead of DataFrame
+    """
+    if use_tabledata:
+        # New TableData-based collate function
+        def _collate(index_batch: List[int]):
+            indices = torch.tensor(index_batch, dtype=torch.long)
+            # Use TableData's tensor slicing to get a subset
+            x_batch = table[indices]  # Returns a new TableData with sliced feat_dict
+            y_batch = table.y[index_batch]
+            return x_batch, y_batch
+        return _collate
+    else:
+        # Original DataFrame-based collate function
+        def _collate(index_batch: List[int]):
+            x_batch = table.df.iloc[index_batch].reset_index(drop=True).drop(columns=[target_col])
+            y_batch = table.y[index_batch]
+            return x_batch, y_batch
+        return _collate
 
 
 class EarlyStopping:
@@ -127,13 +146,15 @@ def evaluate(model, loader: DataLoader, num_classes: int) -> Dict[str, float]:
     return {"auc": auc, "acc": acc, "f1_macro": f1m}
 
 
-def train_epoch(model, loader: DataLoader, optimizer: torch.optim.Optimizer) -> float:
+def train_epoch(model, loader: DataLoader, optimizer: torch.optim.Optimizer, max_grad_norm: float = 1.0) -> float:
     model.train()
     loss_sum, count = 0.0, 0
     for x_batch, y in tqdm(loader, leave=False, desc="Train"):
         _, loss = model(x_batch, y)
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
+        # Gradient clipping to prevent gradient explosion
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
         optimizer.step()
         loss_sum += loss.item() * y.size(0)
         count += y.size(0)

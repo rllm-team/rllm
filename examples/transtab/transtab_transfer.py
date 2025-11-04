@@ -1,11 +1,12 @@
 # The Transtab method from the
 # "TransTab: Learning Transferable Tabular Transformers Across Tables" paper.
 # ArXiv: https://arxiv.org/abs/2205.09328
+# This is multi-table transfer learning example.
 
 # Datasets    Titanic                 Adult
 #             pre_train  finetune     pre_train  finetune
 # AUC(rept.)   -          -           0.88       0.90
-# AUC(ours)   0.7639     0.8102       0.8350     0.8918
+# AUC(ours)
 # Time        8.7s       9.5s         612.3s     807.6s
 
 import argparse
@@ -15,12 +16,14 @@ import os.path as osp
 import torch
 from torch.utils.data import DataLoader
 from numpy.random import default_rng
+from transformers import BertTokenizerFast
 
 sys.path.append("./")
 sys.path.append("../")
 sys.path.append("../../")
-from rllm.datasets import Titanic
+from rllm.datasets import Titanic, Adult
 from rllm.nn.models import TransTabClassifier
+from rllm.preprocessing import TokenizerConfig
 import utils_run
 import utils_data_prepare
 
@@ -37,6 +40,8 @@ parser.add_argument("--wd", type=float, default=0, help="Weight decay")
 parser.add_argument("--seed", type=int, default=123, help="Random seed")
 parser.add_argument("--patience_pre", type=int, default=10, help="Early stopping patience (pre-train)")
 parser.add_argument("--patience_ft", type=int, default=10, help="Early stopping patience (fine-tune)")
+parser.add_argument("--dataset", type=str, default="titanic", choices=["titanic", "adult"])
+parser.add_argument("--tokenizer_dir", type=str, default="./tokenizer", help="Tokenizer directory")
 args = parser.parse_args()
 
 
@@ -44,9 +49,28 @@ utils_run.set_seed(args.seed)
 rng = default_rng(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Initialize tokenizer for consistent text processing
+tokenizer = BertTokenizerFast.from_pretrained(
+    args.tokenizer_dir if osp.exists(args.tokenizer_dir) else "bert-base-uncased"
+)
+if not osp.exists(args.tokenizer_dir):
+    tokenizer.save_pretrained(args.tokenizer_dir)
+
+# Create tokenizer config for TableData
+tokenizer_config = TokenizerConfig(
+    tokenizer=tokenizer,
+    pad_token_id=tokenizer.pad_token_id,
+    tokenize_combine=True,
+    include_colname=True,
+    save_colname_token_ids=True,
+)
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
-original_table = Titanic(cached_dir=path)[0]
+if args.dataset == "titanic":
+    original_table = Titanic(cached_dir=path, tokenizer_config=tokenizer_config)[0]
+elif args.dataset == "adult":
+    original_table = Adult(cached_dir=path, tokenizer_config=tokenizer_config)[0]
+
 target_column = original_table.target_col
 utils_data_prepare.build_split_masks(
     original_table,
@@ -108,6 +132,7 @@ model = TransTabClassifier(
     num_attention_head=args.num_heads,
     ffn_dim=args.hidden_dim * 2,
     device=device,
+    tokenizer=tokenizer,
 ).to(device)
 
 # Run pre-training on source table
