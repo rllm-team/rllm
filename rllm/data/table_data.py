@@ -19,6 +19,7 @@ from rllm.preprocessing._fillna import fillna_by_coltype
 from rllm.preprocessing._type_convert import (
     encode_categorical,
     convert_binary,
+    convert_categorical_to_text,
     DEFAULT_BINARY_MAP,
 )
 from rllm.preprocessing._text_tokenize import (
@@ -129,6 +130,11 @@ class TableData(BaseTable):
             (default: :obj:`None`)
         y (Tensor, optional): A tensor containing the target values.
             (default: :obj:`None`, in which case it will be generated)
+        categorical_as_text (bool, optional): If True, automatically convert
+            all CATEGORICAL columns (except target_col) to TEXT type for
+            tokenization. This is useful for models like TransTab that require
+            text processing for categorical features.
+            (default: :obj:`False`)
         **kwargs: Additional key-value attributes to set as instance variables.
     """
 
@@ -154,13 +160,19 @@ class TableData(BaseTable):
         y: Tensor = None,
         text_embedder_config: Optional[TextEmbedderConfig] = None,
         tokenizer_config: Optional[TokenizerConfig] = None,
+        categorical_as_text: bool = False,
         **kwargs,
     ):
         self._mapping = BaseStorage()
 
         # base
         self.df = df
-        self.col_types = col_types
+
+        # Convert CATEGORICAL to TEXT if requested (for TransTab-like models)
+        if categorical_as_text:
+            self.col_types = convert_categorical_to_text(col_types, target_col)
+        else:
+            self.col_types = col_types
 
         # additional
         self.table_name = name or "table_" + str(uuid4())

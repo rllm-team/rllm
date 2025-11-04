@@ -49,10 +49,12 @@ class Titanic(Dataset):
     url = "https://github.com/datasciencedojo/datasets/raw/master/titanic.csv"
 
     def __init__(
-        self, cached_dir: str, forced_reload: Optional[bool] = False, transform=None
+        self, cached_dir: str, forced_reload: Optional[bool] = False, transform=None,
+        tokenizer_config=None
     ) -> None:
         self.name = "titanic"
         root = os.path.join(cached_dir, self.name)
+        self._tokenizer_config = tokenizer_config
         super().__init__(root, force_reload=forced_reload)
         self.data_list = [TableData.load(self.processed_paths[0])]
         self.transform = transform
@@ -88,7 +90,13 @@ class Titanic(Dataset):
             "Fare": ColType.NUMERICAL,
             "Embarked": ColType.CATEGORICAL,
         }
-        data = TableData(df=df, col_types=col_types, target_col="Survived")
+        data = TableData(
+            df=df,
+            col_types=col_types,
+            target_col="Survived",
+            tokenizer_config=self._tokenizer_config,
+            categorical_as_text=(self._tokenizer_config is not None),
+        )
 
         data.save(self.processed_paths[0])
 
