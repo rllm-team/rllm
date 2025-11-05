@@ -15,9 +15,9 @@ from typing import List
 import os.path as osp
 
 import numpy as np
-from transformers import BertTokenizerFast
 import torch
 from torch.utils.data import DataLoader
+from transformers import BertTokenizerFast
 from sklearn.model_selection import train_test_split
 
 sys.path.append("./")
@@ -43,7 +43,7 @@ parser.add_argument("--tokenizer_dir", type=str, default="./tokenizer", help="To
 args = parser.parse_args()
 
 # Set random seed and device
-# utils_run.set_seed(args.seed)
+utils_run.set_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset

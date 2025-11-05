@@ -6,17 +6,17 @@
 # Datasets    Titanic                 Adult
 #             pre_train  finetune     pre_train  finetune
 # AUC(rept.)   -          -           0.88       0.90
-# AUC(ours)   0.671      0.680        0.853      0.882
+# AUC(ours)   0.767      0.809        0.853      0.882
 # Time        8.7s       9.5s         612.3s     807.6s
 
 import argparse
 import sys
 import os.path as osp
 
-from transformers import BertTokenizerFast
+from numpy.random import default_rng
 import torch
 from torch.utils.data import DataLoader
-from numpy.random import default_rng
+from transformers import BertTokenizerFast
 
 sys.path.append("./")
 sys.path.append("../")
