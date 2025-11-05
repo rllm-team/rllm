@@ -3,8 +3,10 @@
 # ArXiv: https://arxiv.org/abs/2003.01332
 
 # Datasets  IMDB
-# Acc       0.583
-# TIme      2.0s
+# Metrics   Macro-F1
+# Rept.     -
+# Ours      0.567     
+# Time      0.659s
 
 import argparse
 import sys

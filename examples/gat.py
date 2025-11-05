@@ -5,7 +5,7 @@
 # Datasets  CiteSeer    Cora      PubMed
 # Metrics   Acc         Acc       Acc
 # Rept.     0.725       0.830     0.790
-# Acc       0.717       0.830     0.778
+# Ours      0.717       0.830     0.778
 # Time      3.1s        3.2s      5.6s
 
 import argparse

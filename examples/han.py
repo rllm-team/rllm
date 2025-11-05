@@ -2,9 +2,11 @@
 # "Heterogeneous Graph Attention Network" paper.
 # ArXiv: https://arxiv.org/abs/1903.07293
 
-# Datasets  IMDB
-# Acc       0.571
-# Time      3.0s
+# Datasets  IMDB        DBLP
+# Metrics   Macro-F1    Macro-F1
+# Rept.     0.543       0.928
+# Ours      0.560       
+# Time      0.959s        
 
 import argparse
 import sys
@@ -14,13 +16,17 @@ import os.path as osp
 
 import torch
 import torch.nn.functional as F
+from sklearn.metrics import f1_score
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.datasets import IMDB
+from rllm.datasets import IMDB, DBLP
 from rllm.nn.conv.graph_conv import HANConv
 
 parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--dataset", type=str, default="IMDB", choices=["IMDB", "DBLP"]
+)
 parser.add_argument("--lr", type=float, default=5e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=1e-3, help="Weight decay")
 parser.add_argument("--dropout", type=float, default=0.6, help="Graph Dropout")
@@ -32,7 +38,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = IMDB(path)[0]
+if args.dataset.lower() == "imdb":
+    data = IMDB(path)[0]
+else:
+    data = DBLP(path)[0]
 data.to(device)
 
 
@@ -95,34 +104,37 @@ def test() -> List[float]:
     model.eval()
     pred = model(data.x_dict(), data.adj_dict()).argmax(dim=-1)
 
-    accs = []
+    f1s = []
     for split in ["train_mask", "val_mask", "test_mask"]:
         mask = getattr(data, split)
-        acc = (pred[mask] == data["movie"].y[mask]).sum() / mask.sum()
-        accs.append(float(acc))
-    return accs
+        y_true = data["movie"].y[mask].cpu().numpy()
+        y_pred = pred[mask].cpu().numpy()
+        f1 = f1_score(y_true, y_pred, average="macro")
+        f1s.append(float(f1))
+    return f1s
 
 
-metric = "Acc"
-best_val_acc = test_acc = 0
+metric = "Macro-F1"
+best_val_f1 = test_f1 = 0
 times = []
 for epoch in range(1, 51):
     start = time.time()
 
     train_loss = train()
-    train_acc, val_acc, tmp_test_acc = test()
+    train_f1, val_f1, tmp_test_f1 = test()
 
-    if val_acc > best_val_acc:
-        best_val_acc = val_acc
-        test_acc = tmp_test_acc
+    if val_f1 > best_val_f1:
+        best_val_f1 = val_f1
+        test_f1 = tmp_test_f1
 
     times.append(time.time() - start)
     print(
-        f"Epoch: [{epoch}/{51}] "
-        f"Train Loss: {train_loss:.4f} Train {metric}: {train_acc:.4f} "
-        f"Val {metric}: {val_acc:.4f}, Test {metric}: {tmp_test_acc:.4f} "
+        f"Epoch: [{epoch}/50] "
+        f"Train Loss: {train_loss:.4f} Train {metric}: {train_f1:.4f} "
+        f"Val {metric}: {val_f1:.4f}, Test {metric}: {tmp_test_f1:.4f}"
     )
 
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
 print(f"Total time: {sum(times):.4f}s")
-print(f"Test {metric} at best Val: {test_acc:.4f}")
+print(f"Test {metric} at best Val: {test_f1:.4f}")
+

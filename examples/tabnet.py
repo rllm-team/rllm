@@ -2,11 +2,11 @@
 # "TabNet: Attentive Interpretable Tabular Learning" paper.
 # ArXiv: https://arxiv.org/abs/1908.07442
 
-# Datasets      Titanic    Adult
-# Metrics       Acc        Acc
-# Rept.         -          0.857
-# Ours          0.809      0.851
-# Time          14.2s      300.6s
+# Datasets      Titanic
+# Metrics       Acc    
+# Rept.         -    
+# Ours          0.809
+# Time          14.2s
 
 import argparse
 import sys
