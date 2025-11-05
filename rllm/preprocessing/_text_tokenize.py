@@ -1,8 +1,9 @@
 from typing import Any, Callable, Optional
-from collections.abc import Mapping
 from dataclasses import dataclass
+from collections.abc import Mapping
 
 import numpy as np
+import pandas
 from pandas import Series, DataFrame
 import torch
 
@@ -221,37 +222,32 @@ def tokenize_merged_cols(
         Tuple of (input_ids [B, L], attention_mask [B, L]) or None
     """
 
-    text_cols = [
-        c for c, t in col_types.items() if t == ColType.TEXT and c != target_col
-    ]
+    text_cols = [c for c, t in col_types.items() if t == ColType.TEXT and c != target_col]
     if not text_cols:
         return None
 
     values_df = df[text_cols].copy()
-    non_empty = ~values_df.isna()
-    values_df = values_df.fillna("").astype(str)
-    values_df = values_df.map(str.strip, na_action="ignore").replace("", np.nan)
-    valid_mask = non_empty & values_df.notna()
+    values_df = values_df.astype("string")
+    values_df = values_df.apply(lambda s: s.str.strip())
+    values_df = values_df.replace("", pandas.NA)
+    valid_mask = values_df.notna()
 
     # build per-column segments vectorized
     if tokenizer_config.include_colname:
         name_value_sep = tokenizer_config.name_value_sep
-        values_filled = values_df.fillna("")
         seg_cols = {}
         for col in text_cols:
-            v = values_filled[col].values.astype(np.str_)
-            m = valid_mask[col].values.astype(bool)
-            seg_cols[col] = np.where(
-                m, np.core.defchararray.add(f"{col}{name_value_sep}", v), np.nan
-            )
-        df_seg = DataFrame(seg_cols, index=values_df.index)
+            # Use object dtype to avoid NumPy 2.x DTypePromotionError when mixing str and NaN
+            s = values_df[col]
+            seg = (f"{col}{name_value_sep}" + s)
+            seg = seg.where(valid_mask[col], other=pandas.NA)
+            seg_cols[col] = seg
+        df_seg = pandas.DataFrame(seg_cols, index=values_df.index)
     else:
-        df_seg = values_df.where(valid_mask, np.nan)
+        df_seg = values_df.where(valid_mask, other=pandas.NA).astype("string")
     # row-wise merge of non-empty segments
     segment_sep = tokenizer_config.segment_sep
-    col_list = df_seg.apply(
-        lambda r: segment_sep.join(r.dropna().tolist()), axis=1
-    ).tolist()
+    col_list = df_seg.apply(lambda r: segment_sep.join(r.dropna().tolist()), axis=1).tolist()
 
     input_ids, attention_mask = tokenize_strings(
         col_list,
