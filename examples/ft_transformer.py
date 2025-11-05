@@ -29,7 +29,7 @@ from rllm.nn.conv.table_conv import FTTransformerConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", type=str, default="titanic")
-parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
+parser.add_argument("--emb_dim", help="embedding dim", type=int, default=64)
 parser.add_argument("--num_layers", type=int, default=3)
 parser.add_argument("--batch_size", type=int, default=256)
 parser.add_argument("--epochs", type=int, default=100)

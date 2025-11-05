@@ -35,9 +35,9 @@ parser.add_argument("--emb_dim", help="embedding dim.", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=1)
 parser.add_argument("--batch_size", type=int, default=256)
 parser.add_argument("--lr", type=float, default=1e-4)
+parser.add_argument("--wd", type=float, default=1e-2)
 parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--seed", type=int, default=0)
-parser.add_argument("--wd", type=float, default=1e-2)
 args = parser.parse_args()
 
 # Set random seed and device

@@ -33,7 +33,7 @@ parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--lr", type=float, default=1e-3)
 parser.add_argument("--wd", type=float, default=5e-4)
-parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
 # Set random seed and device

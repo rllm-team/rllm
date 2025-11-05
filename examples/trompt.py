@@ -121,6 +121,7 @@ class Trompt(torch.nn.Module):
         return torch.cat(outs, dim=1).mean(dim=1)
 
 
+print(data.num_cols, data.num_classes)
 # Set up model and optimizer
 model = Trompt(
     in_dim=data.num_cols,
