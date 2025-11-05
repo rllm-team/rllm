@@ -4,8 +4,8 @@
 # This is a single-table learning example.
 
 # Datasets     Titanic    Adult
-# AUC(rept.)    -         0.89
-# AUC(ours)    0.903
+# AUC(rept.)    -         0.90
+# AUC(ours)    0.868      0.894
 # Time         27.7s      2236.0s
 
 import argparse
@@ -15,10 +15,10 @@ from typing import List
 import os.path as osp
 
 import numpy as np
+from transformers import BertTokenizerFast
 import torch
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
-from transformers import BertTokenizerFast
 
 sys.path.append("./")
 sys.path.append("../")
@@ -37,13 +37,13 @@ parser.add_argument("--batch_size", type=int, default=256, help="Batch size")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
-parser.add_argument("--seed", type=int, default=42, help="Random seed")
+parser.add_argument("--seed", type=int, default=7, help="Random seed")
 parser.add_argument("--dataset", type=str, default="titanic", choices=["titanic", "adult"])
 parser.add_argument("--tokenizer_dir", type=str, default="./tokenizer", help="Tokenizer directory")
 args = parser.parse_args()
 
 # Set random seed and device
-utils_run.set_seed(args.seed)
+# utils_run.set_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset

@@ -6,17 +6,17 @@
 # Datasets    Titanic                 Adult
 #             pre_train  finetune     pre_train  finetune
 # AUC(rept.)   -          -           0.88       0.90
-# AUC(ours)
+# AUC(ours)   0.671      0.680        0.853      0.882
 # Time        8.7s       9.5s         612.3s     807.6s
 
 import argparse
 import sys
 import os.path as osp
 
+from transformers import BertTokenizerFast
 import torch
 from torch.utils.data import DataLoader
 from numpy.random import default_rng
-from transformers import BertTokenizerFast
 
 sys.path.append("./")
 sys.path.append("../")
@@ -37,7 +37,7 @@ parser.add_argument("--pre_epochs", type=int, default=100, help="Pre-train epoch
 parser.add_argument("--finetune_epochs", type=int, default=100, help="Fine-tune epochs on target table")
 parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
 parser.add_argument("--wd", type=float, default=0, help="Weight decay")
-parser.add_argument("--seed", type=int, default=123, help="Random seed")
+parser.add_argument("--seed", type=int, default=5, help="Random seed")
 parser.add_argument("--patience_pre", type=int, default=10, help="Early stopping patience (pre-train)")
 parser.add_argument("--patience_ft", type=int, default=10, help="Early stopping patience (fine-tune)")
 parser.add_argument("--dataset", type=str, default="titanic", choices=["titanic", "adult"])
