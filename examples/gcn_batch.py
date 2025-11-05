@@ -4,6 +4,8 @@
 # This is the random neighbor sampling version of GCN.
 
 # Datasets      CiteSeer    Cora      PubMed
+# Metrics       Acc         Acc       Acc
+# Rept.         0.703       0.815     0.790
 # Acc           0.655       0.760     0.771
 # Fullbatch     0.712       0.816     0.787
 
