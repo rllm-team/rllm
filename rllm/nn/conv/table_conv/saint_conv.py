@@ -47,7 +47,7 @@ class SAINTConv(torch.nn.Module):
         col_encoder_layer = torch.nn.TransformerEncoderLayer(
             d_model=conv_dim,
             nhead=num_heads,
-            dim_feedforward=conv_dim,
+            dim_feedforward=conv_dim * 4,
             dropout=dropout,
             activation=activation,
             batch_first=True,
@@ -63,7 +63,7 @@ class SAINTConv(torch.nn.Module):
         row_encoder_layer = torch.nn.TransformerEncoderLayer(
             d_model=conv_dim * num_feats,
             nhead=num_heads,
-            dim_feedforward=conv_dim * num_feats,
+            dim_feedforward=conv_dim * num_feats * 4,
             dropout=dropout,
             activation=activation,
             batch_first=True,

@@ -2,9 +2,11 @@
 # "TabNet: Attentive Interpretable Tabular Learning" paper.
 # ArXiv: https://arxiv.org/abs/1908.07442
 
-# Datasets  Titanic     Adult
-# Acc       0.809       0.851
-# Time      14.2s       454.8s
+# Datasets      Titanic    Adult
+# Metrics       Acc        Acc
+# Rept.         -          0.857
+# Ours          0.809      0.851
+# Time          14.2s      300.6s
 
 import argparse
 import sys
@@ -20,17 +22,18 @@ from torch.utils.data import DataLoader
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets import Titanic
+from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.models import TabNet
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--dataset", type=str, default="titanic")
 parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--lr", type=float, default=1e-3)
 parser.add_argument("--wd", type=float, default=5e-4)
-parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--seed", type=int, default=0)
 args = parser.parse_args()
 
 # Set random seed and device
@@ -39,7 +42,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = Titanic(cached_dir=path)[0]
+if args.dataset.lower() == "adult":
+    data = Adult(cached_dir=path)[0]
+else:
+    data = Titanic(cached_dir=path)[0]
 
 # Transform data
 transform = DefaultTableTransform(out_dim=args.emb_dim)
@@ -48,7 +54,7 @@ data.shuffle()
 
 # Split dataset, here the ratio of train-val-test is 80%-10%-10%
 train_loader, val_loader, test_loader = data.get_dataloader(
-    train_split=0.8, val_split=0.1, test_split=0.1, batch_size=args.batch_size
+    train_split=0.64, val_split=0.16, test_split=0.2, batch_size=args.batch_size
 )
 
 

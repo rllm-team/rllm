@@ -2,9 +2,11 @@
 # "TabTransformer: Tabular Data Modeling Using Contextual Embeddings" paper.
 # ArXiv: https://arxiv.org/abs/2012.06678
 
-# Datasets  Titanic    Adult
-# Acc       0.842      0.842
-# Time      5.26s      152.9s
+# Datasets      Titanic    Adult
+# Metrics       Acc        AUC
+# Rept.         -          0.737
+# Ours          0.842      0.892
+# Time          5.26s      251.1s
 
 import argparse
 import sys
@@ -20,11 +22,12 @@ from torch.utils.data import DataLoader
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets import Titanic
+from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--dataset", type=str, default="titanic")
 parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=2)
 parser.add_argument("--num_heads", type=int, default=8)
@@ -41,7 +44,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = Titanic(cached_dir=path)[0]
+if args.dataset.lower() == "adult":
+    data = Adult(cached_dir=path)[0]
+else:
+    data = Titanic(cached_dir=path)[0]
 
 # Transform data
 transform = TabTransformerTransform(out_dim=args.emb_dim)

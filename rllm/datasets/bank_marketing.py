@@ -12,7 +12,7 @@ from rllm.utils.extract import extract_zip
 
 
 class BankMarketing(Dataset):
-    r"""`The Bank Marketing dataset <https://archive.ics.uci.edu/dataset/
+    r"""The `Bank Marketing dataset <https://archive.ics.uci.edu/dataset/
     222/bank+marketing>`__ is related to direct marketing campaigns of
     a Portuguese banking institution. The marketing campaigns were based on
     phone calls. Often, more than one contact to the same client was required
