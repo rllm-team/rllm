@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-import torch
 from pandas import Series
+import torch
 from torch import Tensor
 from tqdm import tqdm
 

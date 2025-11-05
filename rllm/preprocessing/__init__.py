@@ -9,6 +9,7 @@ from rllm.preprocessing._type_convert import (
     convert_binary,
     convert_categorical_to_text,
     DEFAULT_BINARY_MAP,
+    dict_to_df
 )
 from rllm.preprocessing._text_tokenize import (
     TokenizerConfig,
@@ -17,6 +18,7 @@ from rllm.preprocessing._text_tokenize import (
     standardize_tokenizer_output,
     tokenize_merged_cols,
     save_column_name_tokens,
+    TransTabDataExtractor,
 )
 from rllm.preprocessing._word_embedding import (
     TextEmbedderConfig,
@@ -34,6 +36,7 @@ __all__ = [
     "convert_binary",
     "convert_categorical_to_text",
     "DEFAULT_BINARY_MAP",
+    "dict_to_df",
     # text tokenize
     "TokenizerConfig",
     "process_tokenized_column",
@@ -41,6 +44,7 @@ __all__ = [
     "standardize_tokenizer_output",
     "tokenize_merged_cols",
     "save_column_name_tokens",
+    "TransTabDataExtractor",
     # word embedding
     "TextEmbedderConfig",
     "embed_text_column",

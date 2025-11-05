@@ -22,8 +22,8 @@ sys.path.append("./")
 sys.path.append("../")
 sys.path.append("../../")
 from rllm.datasets import Titanic, Adult
-from rllm.nn.models import TransTabClassifier
 from rllm.preprocessing import TokenizerConfig
+from rllm.nn.models import TransTabClassifier
 import utils_run
 import utils_data_prepare
 

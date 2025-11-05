@@ -1,12 +1,12 @@
 from __future__ import annotations
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from typing import Literal
 
+import torch
+import torch.nn
+import torch.nn.functional as F
 
-class BaseLoss(nn.Module):
+
+class BaseLoss(torch.nn.Module):
     r"""
     Minimal root class for all custom loss functions in this repository.
 

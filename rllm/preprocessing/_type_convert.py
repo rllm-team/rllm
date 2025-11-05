@@ -1,4 +1,6 @@
 from typing import Optional, Dict
+
+import pandas
 from pandas import Series
 from sklearn.preprocessing import LabelEncoder
 
@@ -71,3 +73,36 @@ def convert_categorical_to_text(
         else:
             converted_types[col_name] = col_type
     return converted_types
+
+
+def dict_to_df(
+        data_dict: Dict[str, list],
+        categorical_columns,
+        numerical_columns,
+        binary_columns
+) -> "pandas.DataFrame":
+    parts = []
+    if data_dict.get(ColType.CATEGORICAL) is not None:
+        parts.append(
+            pandas.DataFrame(
+                data_dict[ColType.CATEGORICAL].cpu().numpy(),
+                columns=categorical_columns,
+            )
+        )
+    if data_dict.get(ColType.NUMERICAL) is not None:
+        parts.append(
+            pandas.DataFrame(
+                data_dict[ColType.NUMERICAL].cpu().numpy(),
+                columns=numerical_columns,
+            )
+        )
+    if data_dict.get(ColType.BINARY) is not None:
+        parts.append(
+            pandas.DataFrame(
+                data_dict[ColType.BINARY].cpu().numpy(),
+                columns=binary_columns,
+            )
+        )
+
+    df = pandas.concat(parts, axis=1)
+    return df

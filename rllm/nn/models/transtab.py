@@ -4,27 +4,23 @@ import math
 import os
 import logging
 
-import torch
-from torch import Tensor
 import numpy as np
 import pandas as pd
+import torch
+from torch import Tensor
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData
+from rllm.preprocessing._text_tokenize import TransTabDataExtractor
+from rllm.nn.pre_encoder import TransTabPreEncoder
 from rllm.nn.conv.table_conv import TransTabConv
-from rllm.nn.pre_encoder import TransTabDataExtractor, TransTabPreEncoder
 from rllm.nn.loss.supervised_vpcl import SupervisedVPCL
 from rllm.nn.loss.self_supervised_vpcl import SelfSupervisedVPCL
+from rllm.nn.models.base_model import LinearClassifier
+from rllm.preprocessing._type_convert import dict_to_df
 
 
-TRAINING_ARGS_NAME = "training_args.json"
-TRAINER_STATE_NAME = "trainer_state.json"
-OPTIMIZER_NAME = "optimizer.pt"
-SCHEDULER_NAME = "scheduler.pt"
 WEIGHTS_NAME = "pytorch_model.bin"
-TOKENIZER_DIR = 'tokenizer'
-EXTRACTOR_STATE_DIR = 'extractor'
-EXTRACTOR_STATE_NAME = 'extractor.json'
 INPUT_ENCODER_NAME = 'input_encoder.bin'
 
 logger = logging.getLogger(__name__)
@@ -44,9 +40,9 @@ class TransTabCLSToken(torch.nn.Module):
 
     def __init__(self, hidden_dim) -> None:
         super().__init__()
-        self.weight = torch.nn.Parameter(Tensor(hidden_dim))
-        torch.nn.init.uniform_(self.weight, a=-1 / math.sqrt(hidden_dim), b=1 / math.sqrt(hidden_dim))
         self.hidden_dim = hidden_dim
+        self.weight = torch.nn.Parameter(Tensor(self.hidden_dim))
+        torch.nn.init.uniform_(self.weight, a=-1 / math.sqrt(self.hidden_dim), b=1 / math.sqrt(self.hidden_dim))
 
     def expand(self, *leading_dimensions):
         new_dims = (1,) * (len(leading_dimensions) - 1)
@@ -65,10 +61,10 @@ class TransTabCLSToken(torch.nn.Module):
 class TransTabProjectionHead(torch.nn.Module):
     def __init__(self, hidden_dim=128, projection_dim=128):
         super().__init__()
-        self.dense = torch.nn.Linear(hidden_dim, projection_dim, bias=False)
+        self.fc = torch.nn.Linear(hidden_dim, projection_dim, bias=False)
 
     def forward(self, x) -> Tensor:
-        h = self.dense(x)
+        h = self.fc(x)
         return h
 
 
@@ -179,21 +175,7 @@ class TransTab(torch.nn.Module):
         )
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(
-            TransTabConv(
-                conv_dim=hidden_dim,
-                nhead=num_attention_head,
-                dropout=hidden_dropout_prob,
-                dim_feedforward=ffn_dim,
-                activation=activation,
-                layer_norm_eps=self.layer_norm_eps,
-                norm_first=False,
-                use_layer_norm=True,
-                batch_first=True,
-                device=device,
-            )
-        )
-        for _ in range(num_layer - 1):
+        for _ in range(num_layer):
             self.convs.append(
                 TransTabConv(
                     conv_dim=hidden_dim,
@@ -213,7 +195,7 @@ class TransTab(torch.nn.Module):
         self.cls_token = TransTabCLSToken(hidden_dim=hidden_dim)
 
         self.device = device
-        self.to(device)
+        # self.to(device)
 
         # Contrastive Learning
         # Add a small projection head on top of the CLS embedding
@@ -238,29 +220,7 @@ class TransTab(torch.nn.Module):
         Return: final [CLS] vector, shape = (batch, hidden_dim)
         """
         if isinstance(x, dict):
-            parts = []
-            if x.get(ColType.CATEGORICAL) is not None:
-                parts.append(
-                    pd.DataFrame(
-                        x[ColType.CATEGORICAL].cpu().numpy(),
-                        columns=self.categorical_columns,
-                    )
-                )
-            if x.get(ColType.NUMERICAL) is not None:
-                parts.append(
-                    pd.DataFrame(
-                        x[ColType.NUMERICAL].cpu().numpy(),
-                        columns=self.numerical_columns,
-                    )
-                )
-            if x.get(ColType.BINARY) is not None:
-                parts.append(
-                    pd.DataFrame(
-                        x[ColType.BINARY].cpu().numpy(),
-                        columns=self.binary_columns,
-                    )
-                )
-            df = pd.concat(parts, axis=1)
+            df = dict_to_df(x, self.categorical_columns, self.numerical_columns, self.binary_columns)
             proc_out = self.pre_encoder(df)
         elif isinstance(x, TableData):
             # Pass TableData directly to pre_encoder for proper handling of sliced data
@@ -363,8 +323,7 @@ class TransTab(torch.nn.Module):
             return
         self.num_class = num_class
         # Rebuilding the classification header
-        self.clf = TransTabLinearClassifier(num_class=num_class,
-                                            hidden_dim=self.cls_token.hidden_dim)
+        self.clf = LinearClassifier(num_class=num_class, hidden_dim=self.cls_token.hidden_dim)
         self.clf.to(self.device)
         # Reconstruction loss
         if num_class > 2:
@@ -372,49 +331,6 @@ class TransTab(torch.nn.Module):
         else:
             self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
         logger.info(f"Rebuilt classifier for num_class={num_class}.")
-
-
-class TransTabLinearClassifier(torch.nn.Module):
-    r"""TransTabLinearClassifier: Simple linear classification head with
-    layer normalization followed by a fully-connected layer on the
-    CLS embedding.
-
-    Args:
-        num_class (int): Number of target classes (<=2 produces a single logit).
-        hidden_dim (int): Dimensionality of input CLS embedding.
-    """
-
-    def __init__(self, num_class: int, hidden_dim: int = 128) -> None:
-        super().__init__()
-        out_dim = 1 if num_class <= 2 else num_class
-        self.fc = torch.nn.Linear(hidden_dim, out_dim)
-        self.norm = torch.nn.LayerNorm(hidden_dim)
-
-    def forward(self, cls_emb: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            cls_emb (torch.Tensor): CLS token embeddings of shape (batch_size, hidden_dim).
-
-        Returns:
-            torch.Tensor: Classification logits of shape
-                (batch_size,) for binary or (batch_size, num_class).
-        """
-        x = self.norm(cls_emb)
-        logits = self.fc(x)
-        return logits
-
-
-class TransTabLinearRegressor(torch.nn.Module):
-    def __init__(self, hidden_dim=128) -> None:
-        super().__init__()
-        self.fc = torch.nn.Linear(hidden_dim, 1)
-        self.norm = torch.nn.LayerNorm(hidden_dim)
-
-    def forward(self, x) -> Tensor:
-        x = x[:, 0, :]  # take the cls token embedding
-        x = self.norm(x)
-        output = self.fc(x)
-        return output
 
 
 class TransTabClassifier(TransTab):
@@ -471,7 +387,7 @@ class TransTabClassifier(TransTab):
 
         self.num_class = num_class
         # Classification head: receives a CLS vector of [batch, hidden_dim]
-        self.clf = TransTabLinearClassifier(num_class=num_class, hidden_dim=hidden_dim)
+        self.clf = LinearClassifier(num_class=num_class, hidden_dim=hidden_dim)
 
         if num_class > 2:
             self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
@@ -590,7 +506,7 @@ class TransTabForCL(TransTab):
         self.num_partition = num_partition
         self.overlap_ratio = overlap_ratio
         self.supervised = supervised
-        self.selfsup_criterion = SelfSupervisedVPCL(
+        self.self_sup_criterion = SelfSupervisedVPCL(
             temperature=self.temperature,
             base_temperature=self.base_temperature,
             similarity="dot",   # "cosine"
@@ -646,7 +562,7 @@ class TransTabForCL(TransTab):
             loss = self.sup_criterion(feat_x_multiview, labels)
             # print("Using supervised contrastive loss.")
         else:
-            loss = self.selfsup_criterion(feat_x_multiview)
+            loss = self.self_sup_criterion(feat_x_multiview)
             # print("Using self-supervised contrastive loss.")
 
         return None, loss
@@ -665,20 +581,3 @@ class TransTabForCL(TransTab):
             sub_x = x.copy()[sub_col]
             sub_x_list.append(sub_x)
         return sub_x_list
-
-    def cos_sim(self, a, b):
-        if not isinstance(a, torch.Tensor):
-            a = torch.tensor(a)
-
-        if not isinstance(b, torch.Tensor):
-            b = torch.tensor(b)
-
-        if len(a.shape) == 1:
-            a = a.unsqueeze(0)
-
-        if len(b.shape) == 1:
-            b = b.unsqueeze(0)
-
-        a_norm = torch.nn.functional.normalize(a, p=2, dim=1)
-        b_norm = torch.nn.functional.normalize(b, p=2, dim=1)
-        return torch.mm(a_norm, b_norm.transpose(0, 1))
