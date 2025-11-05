@@ -167,7 +167,6 @@ class TableData(BaseTable):
 
         # base
         self.df = df
-
         # Convert CATEGORICAL to TEXT if requested (for TransTab-like models)
         if categorical_as_text:
             self.col_types = convert_categorical_to_text(col_types, target_col)
@@ -517,14 +516,24 @@ class TableData(BaseTable):
         feat_dict = {}
         # Get tensors corresponding to each in ColType
         for col_type in self.feat_dict.keys():
-            feat_dict[col_type] = self.feat_dict[col_type][start_row:end_row]
+            feat_value = self.feat_dict[col_type]
+            if isinstance(feat_value, tuple):
+                # Handle tokenized features (e.g., TEXT type as (input_ids, attention_mask))
+                feat_dict[col_type] = tuple(tensor[start_row:end_row] for tensor in feat_value)
+            else:
+                feat_dict[col_type] = feat_value[start_row:end_row]
         return feat_dict
 
     @after_materialize
     def get_feat_dict_from_mask(self, mask: Tensor) -> dict[ColType, Tensor]:
         feat_dict = {}
         for col_type in self.feat_dict.keys():
-            feat_dict[col_type] = self.feat_dict[col_type][mask]
+            feat_value = self.feat_dict[col_type]
+            if isinstance(feat_value, tuple):
+                # Handle tokenized features (e.g., TEXT type as (input_ids, attention_mask))
+                feat_dict[col_type] = tuple(tensor[mask] for tensor in feat_value)
+            else:
+                feat_dict[col_type] = feat_value[mask]
         return feat_dict
 
     @after_materialize
@@ -533,7 +542,12 @@ class TableData(BaseTable):
         perm = torch.randperm(len(self))
         self.df = self.df.iloc[perm].reset_index(drop=True)
         for col_type in self.feat_dict.keys():
-            self.feat_dict[col_type] = self.feat_dict[col_type][perm]
+            feat_value = self.feat_dict[col_type]
+            if isinstance(feat_value, tuple):
+                # Handle tokenized features (e.g., TEXT type as (input_ids, attention_mask))
+                self.feat_dict[col_type] = tuple(tensor[perm] for tensor in feat_value)
+            else:
+                self.feat_dict[col_type] = feat_value[perm]
         self.y = self.y[perm]
         if return_perm:
             return perm
