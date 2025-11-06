@@ -5,7 +5,7 @@
 # Datasets      Titanic    Adult
 # Metrics       Acc        AUC
 # Rept.         -          0.737
-# Ours          0.842      0.892
+# Ours          0.842      0.850
 # Time          5.26s      251.1s
 
 import argparse
@@ -27,7 +27,9 @@ from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type=str, default="titanic")
+parser.add_argument(
+    "--dataset", type=str, default="titanic", choices=["titanic", "adult"]
+)
 parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=2)
 parser.add_argument("--num_heads", type=int, default=8)
@@ -86,13 +88,19 @@ class TabTransformer(torch.nn.Module):
                 TabTransformerConv(conv_dim=hidden_dim, num_heads=num_heads)
             )
 
-        self.fc = torch.nn.Linear(hidden_dim, out_dim)
+        self.fc = torch.nn.Linear(
+            len(metadata[ColType.CATEGORICAL]) * hidden_dim
+            + len(metadata[ColType.NUMERICAL]),
+            out_dim,
+        )
 
     def forward(self, x):
         for conv in self.convs:
             x = conv(x)
+        x[ColType.CATEGORICAL] = x[ColType.CATEGORICAL].flatten(1)
+        x[ColType.NUMERICAL] = x[ColType.NUMERICAL].flatten(1)
         x = torch.cat(list(x.values()), dim=1)
-        out = self.fc(x.mean(dim=1))
+        out = self.fc(x)
         return out
 
 

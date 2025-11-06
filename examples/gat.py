@@ -3,7 +3,9 @@
 # ArXiv: https://arxiv.org/abs/1710.10903
 
 # Datasets  CiteSeer    Cora      PubMed
-# Acc       0.717       0.830     0.778
+# Metrics   Acc         Acc       Acc
+# Rept.     0.725       0.830     0.790
+# Ours      0.717       0.830     0.778
 # Time      3.1s        3.2s      5.6s
 
 import argparse
@@ -24,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--dataset", type=str, default="cora", choices=["citeseer", "cora", "pubmed"]
 )
-parser.add_argument("--hidden_dim", type=int, default=8)
+parser.add_argument("--hidden_dim", type=int, default=64)
 parser.add_argument("--num_heads", type=int, default=8, help="Attention num_heads")
 parser.add_argument("--lr", type=float, default=5e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")

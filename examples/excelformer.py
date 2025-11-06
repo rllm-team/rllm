@@ -3,9 +3,9 @@
 # ArXiv: https://arxiv.org/abs/2301.02819
 
 # Datasets      Titanic    Jannis
-# Metrics       Acc        AUC
+# Metrics       AUC        Acc
 # Rept.         -          0.735
-# Ours          0.920      0.715
+# Ours          0.895      0.713
 # Time          7.3s       251.1s
 
 import argparse
@@ -15,7 +15,7 @@ from typing import Any, Dict, List
 import os.path as osp
 
 from tqdm import tqdm
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, accuracy_score
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -29,8 +29,10 @@ from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import ExcelFormerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type=str, default="titanic")
-parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
+parser.add_argument(
+    "--dataset", type=str, default="titanic", choices=["titanic", "jannis"]
+)
+parser.add_argument("--emb_dim", help="embedding dim", type=int, default=64)
 parser.add_argument("--num_layers", type=int, default=3)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--epochs", type=int, default=50)
@@ -47,8 +49,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 if args.dataset.lower() == "jannis":
     data = Jannis(cached_dir=path)[0]
+    metric = "acc"
 else:
     data = Titanic(cached_dir=path)[0]
+    metric = "auc"
 
 # Transform data
 transform = DefaultTableTransform(out_dim=args.emb_dim)
@@ -126,55 +130,48 @@ def train(epoch: int) -> float:
 
 
 @torch.no_grad()
-def test(loader: DataLoader) -> float:
+def test(loader: DataLoader, model, metric: str = "auc") -> float:
+    """
+    Evaluate a model for binary or multi-class classification.
+    Automatically detects task type based on label variety.
+    """
     model.eval()
     all_preds = []
     all_labels = []
-    for batch in loader:
-        x, y = batch
-        pred = model.forward(x)
+
+    for x, y in loader:
+        pred = model(x)  # shape: (B, O)
+        probs = torch.softmax(pred, dim=1)  # convert logits → probabilities
         all_labels.append(y.cpu())
-        # pred shape: (B, num_classes) or (B,) / (B,1)
-        if pred.dim() == 1 or (pred.dim() == 2 and pred.size(1) == 1):
-            # single score per sample
-            scores = pred.view(-1).detach().cpu()
-            all_preds.append(scores)
-        else:
-            # multiple logits -> convert to probabilities
-            probs = torch.softmax(pred, dim=1).detach().cpu()
-            # if binary with 2 classes, use probability of positive class as score
-            if probs.size(1) == 2:
-                all_preds.append(probs[:, 1])
-            else:
-                # multiclass: keep full probability matrix
-                all_preds.append(probs)
-
+        all_preds.append(probs.detach().cpu())
     all_labels = torch.cat(all_labels).numpy()
+    all_probs = torch.cat(all_preds, dim=0).numpy()
+    num_classes = len(torch.unique(torch.tensor(all_labels)))
 
-    # Concatenate predictions: handle vector scores vs probability matrices
-    first = all_preds[0]
-    if first.dim() == 1:
-        all_preds = torch.cat(all_preds).numpy()
-        overall_auc = float(roc_auc_score(all_labels, all_preds))
-        return overall_auc
+    if metric.lower() == "auc":
+        if num_classes == 2:
+            # Binary classification → use positive-class probability
+            score = float(roc_auc_score(all_labels, all_probs[:, 1]))
+        else:
+            # Multi-class classification (One-vs-Rest)
+            score = float(roc_auc_score(all_labels, all_probs, multi_class="ovr"))
+    elif metric.lower() == "acc":
+        preds = torch.argmax(torch.tensor(all_probs), dim=1).numpy()
+        score = float(accuracy_score(all_labels, preds))
     else:
-        # matrix: (N, num_classes) -> compute accuracy
-        all_probs = torch.cat(all_preds, dim=0)
-        preds = torch.argmax(all_probs, dim=1).numpy()
-        overall_acc = float((preds == all_labels).mean())
-        return overall_acc
+        raise ValueError(f"Unsupported metric: {metric}")
+    return score
 
 
-metric = "AUC"
 best_val_metric = test_metric = 0
 times = []
 for epoch in range(1, args.epochs + 1):
     start = time.time()
 
     train_loss = train(epoch)
-    train_metric = test(train_loader)
-    val_metric = test(val_loader)
-    tmp_test_metric = test(test_loader)
+    train_metric = test(train_loader, model, metric)
+    val_metric = test(val_loader, model, metric)
+    tmp_test_metric = test(test_loader, model, metric)
 
     if val_metric > best_val_metric:
         best_val_metric = val_metric

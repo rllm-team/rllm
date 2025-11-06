@@ -24,7 +24,7 @@ class TabTransformerTransform(TableTransform):
     ) -> None:
         super().__init__(
             out_dim=out_dim,
-            transforms=[ColNormalize(), StackNumerical(out_dim)],
+            transforms=[ColNormalize()] #, StackNumerical(out_dim)],
         )
         self.metadata = metadata
 

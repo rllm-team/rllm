@@ -27,7 +27,9 @@ from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type=str, default="titanic")
+parser.add_argument(
+    "--dataset", type=str, default="titanic", choices=["titanic", "adult"]
+)
 parser.add_argument("--emb_dim", help="embedding dim", type=int, default=128)
 parser.add_argument("--num_layers", type=int, default=6)
 parser.add_argument("--num_prompts", type=int, default=128)

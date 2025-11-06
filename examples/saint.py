@@ -5,7 +5,7 @@
 
 # Datasets      Titanic    BankMarketing
 # AUC(rept.)    -          0.933
-# AUC(ours)     0.900      0.915
+# AUC(ours)     0.900      0.913
 # Time          11.3s      336.6s
 
 
@@ -25,13 +25,15 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets import Titanic, BankMarketing
+from rllm.datasets import Titanic, BankMarketing, Jannis
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv.saint_conv import SAINTConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type=str, default="titanic")
-parser.add_argument("--emb_dim", help="embedding dim.", type=int, default=32)
+parser.add_argument(
+    "--dataset", type=str, default="titanic", choices=["titanic", "bankmarketing"]
+)
+parser.add_argument("--emb_dim", help="embedding dim.", type=int, default=64)
 parser.add_argument("--num_layers", type=int, default=1)
 parser.add_argument("--batch_size", type=int, default=256)
 parser.add_argument("--lr", type=float, default=1e-4)
@@ -50,7 +52,7 @@ if args.dataset.lower() == "bankmarketing":
     data = BankMarketing(cached_dir=path)[0]
 else:
     data = Titanic(cached_dir=path)[0]
-
+data = Jannis(cached_dir=path)[0]
 # Transform data
 transform = DefaultTableTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)

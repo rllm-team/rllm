@@ -27,7 +27,9 @@ from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.models import TabNet
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type=str, default="titanic")
+parser.add_argument(
+    "--dataset", type=str, default="titanic", choices=["titanic", "adult"]
+)
 parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--epochs", type=int, default=50)
