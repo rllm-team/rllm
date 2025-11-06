@@ -5,7 +5,7 @@
 # Datasets      Titanic    Adult
 # Metrics       Acc        AUC
 # Rept.         -          0.737
-# Ours          0.842      0.892
+# Ours          0.842      0.850
 # Time          5.26s      251.1s
 
 import argparse
@@ -27,7 +27,9 @@ from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type=str, default="titanic")
+parser.add_argument(
+    "--dataset", type=str, default="titanic", choices=["titanic", "adult"]
+)
 parser.add_argument("--emb_dim", help="embedding dim", type=int, default=32)
 parser.add_argument("--num_layers", type=int, default=2)
 parser.add_argument("--num_heads", type=int, default=8)
