@@ -2,11 +2,11 @@
 # "Heterogeneous Graph Attention Network" paper.
 # ArXiv: https://arxiv.org/abs/1903.07293
 
-# Datasets  IMDB        DBLP
-# Metrics   Macro-F1    Macro-F1
-# Rept.     0.543       0.928
-# Ours      0.560       
-# Time      0.959s        
+# Datasets  IMDB
+# Metrics   Macro-F1
+# Rept.     0.543
+# Ours      0.560
+# Time      8.846s
 
 import argparse
 import sys
@@ -24,9 +24,7 @@ from rllm.datasets import IMDB, DBLP
 from rllm.nn.conv.graph_conv import HANConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--dataset", type=str, default="IMDB", choices=["IMDB", "DBLP"]
-)
+parser.add_argument("--dataset", type=str, default="imdb", choices=["imdb", "dblp"])
 parser.add_argument("--lr", type=float, default=5e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=1e-3, help="Weight decay")
 parser.add_argument("--dropout", type=float, default=0.6, help="Graph Dropout")
@@ -38,10 +36,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-if args.dataset.lower() == "imdb":
-    data = IMDB(path)[0]
+if args.dataset.lower() == "dblp":
+    data = DBLP(cached_dir=path)[0]
+    data["conference"].x = torch.full(
+        (data["conference"].num_nodes, 1), 1, dtype=torch.float
+    )
+    target_node_type = "author"
 else:
-    data = DBLP(path)[0]
+    data = IMDB(cached_dir=path)[0]
+    target_node_type = "movie"
 data.to(device)
 
 
@@ -68,13 +71,13 @@ class HAN(torch.nn.Module):
 
     def forward(self, x_dict, adj_dict):
         out = self.han_conv(x_dict, adj_dict)
-        out = self.lin(out["movie"])
+        out = self.lin(out[target_node_type])
         return out
 
 
 # Set up model and optimizer
 in_dim = {node_type: data[node_type].x.shape[1] for node_type in data.node_types}
-out_dim = torch.unique(data["movie"].y).numel()
+out_dim = torch.unique(data[target_node_type].y).numel()
 model = HAN(
     in_dim=in_dim,
     out_dim=out_dim,
@@ -93,7 +96,7 @@ def train() -> float:
     optimizer.zero_grad()
     out = model(data.x_dict(), data.adj_dict())
     mask = data.train_mask
-    loss = F.cross_entropy(out[mask], data["movie"].y[mask])
+    loss = F.cross_entropy(out[mask], data[target_node_type].y[mask])
     loss.backward()
     optimizer.step()
     return float(loss)
@@ -107,7 +110,7 @@ def test() -> List[float]:
     f1s = []
     for split in ["train_mask", "val_mask", "test_mask"]:
         mask = getattr(data, split)
-        y_true = data["movie"].y[mask].cpu().numpy()
+        y_true = data[target_node_type].y[mask].cpu().numpy()
         y_pred = pred[mask].cpu().numpy()
         f1 = f1_score(y_true, y_pred, average="macro")
         f1s.append(float(f1))
@@ -117,7 +120,7 @@ def test() -> List[float]:
 metric = "Macro-F1"
 best_val_f1 = test_f1 = 0
 times = []
-for epoch in range(1, 51):
+for epoch in range(args.epochs):
     start = time.time()
 
     train_loss = train()
@@ -129,7 +132,7 @@ for epoch in range(1, 51):
 
     times.append(time.time() - start)
     print(
-        f"Epoch: [{epoch}/50] "
+        f"Epoch: [{epoch+1}/{args.epochs}] "
         f"Train Loss: {train_loss:.4f} Train {metric}: {train_f1:.4f} "
         f"Val {metric}: {val_f1:.4f}, Test {metric}: {tmp_test_f1:.4f}"
     )
@@ -137,4 +140,3 @@ for epoch in range(1, 51):
 print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
 print(f"Total time: {sum(times):.4f}s")
 print(f"Test {metric} at best Val: {test_f1:.4f}")
-
