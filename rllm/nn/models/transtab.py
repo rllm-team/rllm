@@ -11,17 +11,12 @@ from torch import Tensor
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData
-from rllm.preprocessing._text_tokenize import TransTabDataExtractor
+from rllm.preprocessing import TransTabDataExtractor
 from rllm.nn.pre_encoder import TransTabPreEncoder
 from rllm.nn.conv.table_conv import TransTabConv
-from rllm.nn.loss.supervised_vpcl import SupervisedVPCL
-from rllm.nn.loss.self_supervised_vpcl import SelfSupervisedVPCL
+from rllm.nn.loss import SupervisedVPCL, SelfSupervisedVPCL
 from rllm.nn.models.base_model import LinearClassifier
-from rllm.preprocessing._type_convert import dict_to_df
 
-
-WEIGHTS_NAME = "pytorch_model.bin"
-INPUT_ENCODER_NAME = 'input_encoder.bin'
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -56,16 +51,6 @@ class TransTabCLSToken(torch.nn.Module):
                 [torch.ones(attention_mask.shape[0], 1).to(attention_mask.device), attention_mask], 1)
         outputs['attention_mask'] = attention_mask
         return outputs
-
-
-class TransTabProjectionHead(torch.nn.Module):
-    def __init__(self, hidden_dim=128, projection_dim=128):
-        super().__init__()
-        self.fc = torch.nn.Linear(hidden_dim, projection_dim, bias=False)
-
-    def forward(self, x) -> Tensor:
-        h = self.fc(x)
-        return h
 
 
 class TransTab(torch.nn.Module):
@@ -199,7 +184,7 @@ class TransTab(torch.nn.Module):
 
         # Contrastive Learning
         # Add a small projection head on top of the CLS embedding
-        self.projection_head = TransTabProjectionHead(hidden_dim, projection_dim)
+        self.projection_head = torch.nn.Linear(hidden_dim, projection_dim, bias=False)
         # CL hyperparameters
         self.supervised = supervised
         self.temperature = temperature
@@ -219,15 +204,11 @@ class TransTab(torch.nn.Module):
         y: optional label (placeholder only, ignored by the base class)
         Return: final [CLS] vector, shape = (batch, hidden_dim)
         """
-        if isinstance(x, dict):
-            df = dict_to_df(x, self.categorical_columns, self.numerical_columns, self.binary_columns)
-            proc_out = self.pre_encoder(df)
-        elif isinstance(x, TableData):
-            # Pass TableData directly to pre_encoder for proper handling of sliced data
+        if isinstance(x, TableData) or hasattr(x, 'feat_dict'):
+            # Pass TableData or TableData-like object to pre_encoder
             proc_out = self.pre_encoder(x)
         else:
-            # DataFrame case
-            proc_out = self.pre_encoder(x)
+            raise ValueError(f"Expected input type TableData or object with feat_dict, got {type(x)}")
 
         # 1) DataProcessor gets embedding + mask
         emb = proc_out['embedding']       # (batch, seq_len, hidden_dim)
@@ -258,7 +239,7 @@ class TransTab(torch.nn.Module):
 
         # 2) Save model weights
         os.makedirs(ckpt_dir, exist_ok=True)
-        model_path = os.path.join(ckpt_dir, WEIGHTS_NAME)
+        model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
         torch.save(self.state_dict(), model_path)
         logger.info(f"Saved TransTab weights to {model_path}")
 
@@ -279,7 +260,7 @@ class TransTab(torch.nn.Module):
         self.binary_columns = self.pre_encoder.extractor.binary_columns
 
         # 3) Load model weights to CPU
-        model_path = os.path.join(ckpt_dir, WEIGHTS_NAME)
+        model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
         state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         logger.info(f"Loaded TransTab weights from {model_path}")
@@ -287,7 +268,7 @@ class TransTab(torch.nn.Module):
         logger.info(f" Unexpected keys: {unexpected}")
 
         # 4) Cache the pre-trained pre_encoder status, which will be used in the subsequent update
-        pe_path = os.path.join(ckpt_dir, INPUT_ENCODER_NAME)
+        pe_path = os.path.join(ckpt_dir, 'input_encoder.bin')
         self._preencoder_state = torch.load(
             pe_path,
             map_location='cpu',
@@ -499,7 +480,7 @@ class TransTabForCL(TransTab):
         assert num_partition > 0, f'number of contrastive subsets must be greater than 0, got {num_partition}'
         assert isinstance(num_partition, int), f'number of constrative subsets must be int, got {type(num_partition)}'
         assert overlap_ratio >= 0 and overlap_ratio < 1, f'overlap_ratio must be in [0, 1), got {overlap_ratio}'
-        self.projection_head = TransTabProjectionHead(hidden_dim, projection_dim)
+        self.projection_head = torch.nn.Linear(hidden_dim, projection_dim, bias=False)
         self.cross_entropy_loss = torch.nn.CrossEntropyLoss()
         self.temperature = temperature
         self.base_temperature = base_temperature

@@ -1,7 +1,8 @@
-from .self_supervised_vpcl import SelfSupervisedVPCL
-from .supervised_vpcl import SupervisedVPCL
+from .contrastive_loss import ContrastiveLoss
+from .vpcl_loss import SelfSupervisedVPCL, SupervisedVPCL
 
 __all__ = [
+    "ContrastiveLoss",
     "SelfSupervisedVPCL",
     "SupervisedVPCL",
 ]

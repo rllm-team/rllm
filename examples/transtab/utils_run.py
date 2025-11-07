@@ -33,7 +33,7 @@ def set_seed(seed: int):
     os.environ["PYTHONHASHSEED"] = str(seed)
 
 
-def make_batch_fn(table, target_col: str, device: torch.device, use_tabledata: bool = False):
+def make_batch_fn(table, target_col: str, device: torch.device, use_tabledata: bool = True):
     """
     Build a collate_fn for DataLoader: indices -> (X_batch, y_batch).
 

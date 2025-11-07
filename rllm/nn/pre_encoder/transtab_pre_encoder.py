@@ -7,15 +7,13 @@ import pandas as pd
 import torch
 from torch import Tensor
 
+from rllm.types import ColType
+from rllm.preprocessing import TransTabDataExtractor
 from .pre_encoder import PreEncoder
 from ._transtab_word_embedding_encoder import TransTabWordEmbeddingEncoder
 from ._transtab_num_embedding_encoder import TransTabNumEmbeddingEncoder
-from rllm.types import ColType
 from rllm.data.table_data import TableData
-from rllm.preprocessing._text_tokenize import TransTabDataExtractor
 
-
-INPUT_ENCODER_NAME = "input_encoder.bin"
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -200,11 +198,10 @@ class TransTabPreEncoder(PreEncoder):
             else (lambda: torch.no_grad())
         )
         with grad_ctx():
-            # Check if x is a TableData object
-            from rllm.data.table_data import TableData
-            if isinstance(x, TableData):
+            # Check if x is a TableData object or TableData-like object
+            if isinstance(x, TableData) or hasattr(x, 'feat_dict'):
                 # Extract feat_dict and colname_token_ids from TableData
-                if not x.if_materialized():
+                if hasattr(x, 'if_materialized') and callable(x.if_materialized) and not x.if_materialized():
                     raise ValueError(
                         "TableData must be materialized before passing to TransTabPreEncoder. "
                         "Call table_data.lazy_materialize() first."
@@ -212,7 +209,6 @@ class TransTabPreEncoder(PreEncoder):
 
                 # Use extractor to convert feat_dict to TransTab format
                 data = self.extractor(
-                    df=None,
                     shuffle=shuffle,
                     feat_dict=x.feat_dict,
                     colname_token_ids=getattr(x, 'colname_token_ids', None),
@@ -252,76 +248,19 @@ class TransTabPreEncoder(PreEncoder):
                 }
                 masks = self._collect_masks_from_inputs(feat_dict, emb_dict, df_masks=df_masks)
                 return self._align_and_concat(emb_dict, masks)
-
-            elif isinstance(x, pd.DataFrame):
-                data = self.extractor(x, shuffle=shuffle)
-
-                feat_dict: Dict[ColType, Tensor | Tuple[Tensor, ...]] = {}
-                if data["x_cat_input_ids"] is not None:
-                    feat_dict[ColType.CATEGORICAL] = (
-                        data["x_cat_input_ids"].to(self.device),
-                        data["cat_att_mask"].to(self.device),
-                    )
-                if data["x_bin_input_ids"] is not None:
-                    feat_dict[ColType.BINARY] = (
-                        data["x_bin_input_ids"].to(self.device),
-                        data["bin_att_mask"].to(self.device),
-                    )
-                if data["x_num"] is not None:
-                    feat_dict[ColType.NUMERICAL] = (
-                        data["num_col_input_ids"].to(self.device),
-                        data["num_att_mask"].to(self.device),
-                        data["x_num"].to(self.device),
-                    )
-
-                emb_dict = self._encode_feat_dict(feat_dict)
-                if not align_and_concat:
-                    if return_dict:
-                        return emb_dict
-                    return (
-                        torch.cat(list(emb_dict.values()), dim=1)
-                        if len(emb_dict) > 0
-                        else None
-                    )
-
-                df_masks = {
-                    "cat_att_mask": (data["cat_att_mask"] if data["cat_att_mask"] is not None else None),
-                    "bin_att_mask": (data["bin_att_mask"] if data["bin_att_mask"] is not None else None),
-                }
-                masks = self._collect_masks_from_inputs(
-                    feat_dict, emb_dict, df_masks=df_masks
-                )
-                return self._align_and_concat(emb_dict, masks)
-
-            elif isinstance(x, dict):
-                feat_dict = {k: v for k, v in x.items()}  # type: ignore
-                emb_dict = self._encode_feat_dict(feat_dict)
-
-                if not align_and_concat:
-                    if return_dict:
-                        return emb_dict
-                    return (
-                        torch.cat(list(emb_dict.values()), dim=1)
-                        if len(emb_dict) > 0
-                        else None
-                    )
-
-                masks = self._collect_masks_from_inputs(feat_dict, emb_dict, df_masks=None)
-                return self._align_and_concat(emb_dict, masks)
-
             else:
                 raise TypeError("TransTabPreEncoder.forward: x must be a pandas.DataFrame or a feat_dict mapping.")
 
     def save(self, path: str) -> None:
         self.extractor.save(path)
         os.makedirs(path, exist_ok=True)
-        encoder_path = os.path.join(path, INPUT_ENCODER_NAME)
+        encoder_path = os.path.join(path, "input_encoder.bin")
         torch.save(self.state_dict(), encoder_path)
         logger.info(f"Saved pre_encoder (integrated) weights to {encoder_path}")
 
     def load(self, ckpt_dir: str) -> None:
         self.extractor.load(ckpt_dir)
-        encoder_path = os.path.join(ckpt_dir, INPUT_ENCODER_NAME)
+        encoder_path = os.path.join(ckpt_dir, "input_encoder.bin")
         try:
             state_dict = torch.load(encoder_path, map_location=self.device, weights_only=True)
         except TypeError:

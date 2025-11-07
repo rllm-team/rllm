@@ -80,11 +80,14 @@ utils_data_prepare.build_split_masks(
     val_ratio=0.1,
     test_ratio=0.2)
 
-# Construct two sub-tables with 50% column overlap ( pre-train, fine-tune)
+# Construct two sub-tables with 50% column overlap (pre-train, fine-tune)
+# Use create_subtable to create real TableData objects (not views) for complete consistency
 source_table_cols, target_table_cols = utils_data_prepare.split_columns_half_overlap(
     original_table, target_col=target_column, rng=rng)
-subtable_source = utils_data_prepare.TableView(original_table, keep_cols=source_table_cols, target_col=target_column)
-subtable_target = utils_data_prepare.TableView(original_table, keep_cols=target_table_cols, target_col=target_column)
+subtable_source = utils_data_prepare.create_subtable(
+    original_table, keep_cols=source_table_cols, target_col=target_column, tokenizer_config=tokenizer_config)
+subtable_target = utils_data_prepare.create_subtable(
+    original_table, keep_cols=target_table_cols, target_col=target_column, tokenizer_config=tokenizer_config)
 
 # Build loaders for subset source table (pre-train phase)
 train_idx_source = utils_data_prepare.mask_to_index(subtable_source.train_mask)

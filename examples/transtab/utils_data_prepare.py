@@ -6,13 +6,14 @@ import torch
 from sklearn.model_selection import train_test_split
 
 from rllm.types import ColType
+from rllm.data import TableData
 
 
 __all__ = [
-    # Core: data/columns & views
+    # Core: data/columns & subtables
     "get_column_partitions",
     "split_columns_half_overlap",
-    "TableView",
+    "create_subtable",
     # Dataset splits & loaders
     "build_split_masks",
     "mask_to_index",
@@ -22,10 +23,11 @@ __all__ = [
 def get_column_partitions(table, target_col: str) -> Tuple[List[str], List[str], List[str], int]:
     # Partition table columns by ColType, returning categorical, numerical, binary columns and number of classes.
     # Note: In TransTab's terminology, "categorical" corresponds to TEXT in TableData (merged tokenized features)
+    # CRITICAL: Exclude target_col from all column lists to match feat_dict and colname_token_ids
     col_types = table.col_types
     cat_cols = [c for c, t in col_types.items() if t == ColType.TEXT and c != target_col]
-    num_cols = [c for c, t in col_types.items() if t == ColType.NUMERICAL]
-    bin_cols = [c for c, t in col_types.items() if t == ColType.BINARY]
+    num_cols = [c for c, t in col_types.items() if t == ColType.NUMERICAL and c != target_col]
+    bin_cols = [c for c, t in col_types.items() if t == ColType.BINARY and c != target_col]
     num_classes = table.num_classes
     return cat_cols, num_cols, bin_cols, num_classes
 
@@ -68,24 +70,42 @@ def split_columns_half_overlap(
     return cols_subset_a, cols_subset_b
 
 
-class TableView:
-    # Create a subtable view from the base table, keeping selected columns and masks.
-    def __init__(self, base_table, keep_cols: List[str], target_col: str):
-        self.base_table = base_table
-        self.target_col = target_col
-
-        cols = [c for c in keep_cols if c != target_col] + [target_col]
-        self.df = base_table.df[cols].copy()
-
-        self.col_types = {c: t for c, t in base_table.col_types.items() if c in self.df.columns}
-        self.num_classes = base_table.num_classes
-
-        # Copy target labels (y) from base table
-        self.y = base_table.y
-
-        self.train_mask = getattr(base_table, "train_mask", None)
-        self.val_mask = getattr(base_table, "val_mask", None)
-        self.test_mask = getattr(base_table, "test_mask", None)
+def create_subtable(base_table, keep_cols: List[str], target_col: str, tokenizer_config=None):
+    """
+    Create a new TableData from a subset of columns of the base table.
+    This is better than TableView because:
+    1. Creates a real TableData object with proper feat_dict and colname_token_ids generation
+    2. Ensures complete consistency with single-table processing
+    3. No need to manually manage column filtering or slicing
+    Args:
+        base_table: The original TableData
+        keep_cols: List of columns to keep (including target_col)
+        target_col: Name of the target column
+        tokenizer_config: TokenizerConfig for text processing (should be same as base_table)
+    Returns:
+        A new TableData object with only the specified columns
+    """
+    # Ensure column order: features first, then target
+    cols = [c for c in keep_cols if c != target_col] + [target_col]
+    # Extract subset DataFrame
+    sub_df = base_table.df[cols].copy()
+    # Extract subset col_types (maintaining order from cols)
+    sub_col_types = {c: base_table.col_types[c] for c in cols if c in base_table.col_types}
+    # Create new TableData - this will regenerate feat_dict and colname_token_ids correctly
+    subtable = TableData(
+        df=sub_df,
+        col_types=sub_col_types,
+        target_col=target_col,
+        tokenizer_config=tokenizer_config,
+        categorical_as_text=(tokenizer_config is not None),
+    )
+    if hasattr(base_table, 'train_mask'):
+        subtable.train_mask = base_table.train_mask
+    if hasattr(base_table, 'val_mask'):
+        subtable.val_mask = base_table.val_mask
+    if hasattr(base_table, 'test_mask'):
+        subtable.test_mask = base_table.test_mask
+    return subtable
 
 
 def build_split_masks(

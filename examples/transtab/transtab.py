@@ -90,8 +90,8 @@ test_loader = DataLoader(test_idx.tolist(), batch_size=args.batch_size, shuffle=
 # Build model and optimizer
 col_types = data.col_types
 cat_cols = [c for c, t in col_types.items() if t == ColType.TEXT and c != target_col]
-num_cols = [c for c, t in col_types.items() if t == ColType.NUMERICAL]
-bin_cols = [c for c, t in col_types.items() if t == ColType.BINARY]
+num_cols = [c for c, t in col_types.items() if t == ColType.NUMERICAL and c != target_col]
+bin_cols = [c for c, t in col_types.items() if t == ColType.BINARY and c != target_col]
 num_classes = data.num_classes
 
 model = TransTabClassifier(
