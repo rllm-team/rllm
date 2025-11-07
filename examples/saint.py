@@ -3,10 +3,11 @@
 # via Row Attention and Contrastive Pre-Training" paper.
 # ArXiv: https://arxiv.org/abs/2106.01342
 
-# Datasets      Titanic    BankMarketing
-# AUC(rept.)    -          0.933
-# AUC(ours)     0.900      0.913
-# Time          11.3s      336.6s
+# Datasets      Titanic     BankMarketing
+# Metrics       AUC         AUC
+# Rept.         -           0.933
+# Ours          0.900       0.913
+# Time          11.3s       336.6s
 
 
 import argparse

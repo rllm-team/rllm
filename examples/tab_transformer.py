@@ -18,6 +18,7 @@ from tqdm import tqdm
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from sklearn.metrics import roc_auc_score, accuracy_score
 
 sys.path.append("./")
 sys.path.append("../")
@@ -48,8 +49,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 if args.dataset.lower() == "adult":
     data = Adult(cached_dir=path)[0]
+    metric = "auc"
 else:
     data = Titanic(cached_dir=path)[0]
+    metric = "acc"
 
 # Transform data
 transform = TabTransformerTransform(out_dim=args.emb_dim)
@@ -135,29 +138,42 @@ def train(epoch: int) -> float:
 
 
 @torch.no_grad()
-def test(loader: DataLoader) -> float:
+def test(loader: DataLoader, metric: str = "auc") -> float:
     model.eval()
-    correct = total = 0
-    for batch in loader:
-        feat_dict, y = batch
-        pred = model.forward(feat_dict)
-        _, predicted = torch.max(pred, 1)
-        total += y.size(0)
-        correct += (predicted == y).sum().item()
-    accuracy = correct / total
-    return accuracy
+    all_preds = []
+    all_labels = []
+
+    for x, y in loader:
+        pred = model(x)
+        probs = torch.softmax(pred, dim=1)
+        all_labels.append(y.cpu())
+        all_preds.append(probs.detach().cpu())
+    all_labels = torch.cat(all_labels).numpy()
+    all_probs = torch.cat(all_preds, dim=0).numpy()
+    num_classes = len(torch.unique(torch.tensor(all_labels)))
+
+    if metric.lower() == "auc":
+        if num_classes == 2:
+            score = float(roc_auc_score(all_labels, all_probs[:, 1]))
+        else:
+            score = float(roc_auc_score(all_labels, all_probs, multi_class="ovr"))
+    elif metric.lower() == "acc":
+        preds = torch.argmax(torch.tensor(all_probs), dim=1).numpy()
+        score = float(accuracy_score(all_labels, preds))
+    else:
+        raise ValueError(f"Unsupported metric: {metric}")
+    return score
 
 
-metric = "Acc"
 best_val_metric = test_metric = 0
 times = []
 for epoch in range(1, args.epochs + 1):
     start = time.time()
 
     train_loss = train(epoch)
-    train_metric = test(train_loader)
-    val_metric = test(val_loader)
-    tmp_test_metric = test(test_loader)
+    train_metric = test(train_loader, metric)
+    val_metric = test(val_loader, metric)
+    tmp_test_metric = test(test_loader, metric)
 
     if val_metric > best_val_metric:
         best_val_metric = val_metric
