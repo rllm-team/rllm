@@ -6,7 +6,6 @@ import pandas as pd
 
 # import arff
 from scipy.io import arff
-import numpy as np
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData

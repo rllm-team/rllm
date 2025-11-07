@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 
 from rllm.transforms.table_transforms.col_normalize import ColNormalize
 from rllm.types import ColType
-from rllm.transforms.table_transforms import StackNumerical, TableTransform
+from rllm.transforms.table_transforms import TableTransform
 
 
 class TabTransformerTransform(TableTransform):
@@ -23,8 +23,7 @@ class TabTransformerTransform(TableTransform):
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ) -> None:
         super().__init__(
-            out_dim=out_dim,
-            transforms=[ColNormalize()] #, StackNumerical(out_dim)],
+            out_dim=out_dim, transforms=[ColNormalize()]  # , StackNumerical(out_dim)],
         )
         self.metadata = metadata
 

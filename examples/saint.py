@@ -4,8 +4,9 @@
 # ArXiv: https://arxiv.org/abs/2106.01342
 
 # Datasets      Titanic    BankMarketing
-# AUC(rept.)    -          0.933
-# AUC(ours)     0.900      0.913
+# Metrics       AUC        AUC
+# Rept.         -          0.933
+# Ours          0.900      0.913
 # Time          11.3s      336.6s
 
 
@@ -25,7 +26,7 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets import Titanic, BankMarketing, Jannis
+from rllm.datasets import Titanic, BankMarketing
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv.saint_conv import SAINTConv
 
@@ -52,7 +53,7 @@ if args.dataset.lower() == "bankmarketing":
     data = BankMarketing(cached_dir=path)[0]
 else:
     data = Titanic(cached_dir=path)[0]
-data = Jannis(cached_dir=path)[0]
+
 # Transform data
 transform = DefaultTableTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)
@@ -146,7 +147,7 @@ def test(loader: DataLoader) -> float:
 
     # Compute the overall AUC
     overall_auc = roc_auc_score(all_labels, all_preds)
-    return overall_auc
+    return float(overall_auc)
 
 
 metric = "AUC"

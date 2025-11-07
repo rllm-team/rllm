@@ -131,17 +131,13 @@ def train(epoch: int) -> float:
 
 @torch.no_grad()
 def test(loader: DataLoader, model, metric: str = "auc") -> float:
-    """
-    Evaluate a model for binary or multi-class classification.
-    Automatically detects task type based on label variety.
-    """
     model.eval()
     all_preds = []
     all_labels = []
 
     for x, y in loader:
-        pred = model(x)  # shape: (B, O)
-        probs = torch.softmax(pred, dim=1)  # convert logits → probabilities
+        pred = model(x)
+        probs = torch.softmax(pred, dim=1)
         all_labels.append(y.cpu())
         all_preds.append(probs.detach().cpu())
     all_labels = torch.cat(all_labels).numpy()
@@ -150,10 +146,8 @@ def test(loader: DataLoader, model, metric: str = "auc") -> float:
 
     if metric.lower() == "auc":
         if num_classes == 2:
-            # Binary classification → use positive-class probability
             score = float(roc_auc_score(all_labels, all_probs[:, 1]))
         else:
-            # Multi-class classification (One-vs-Rest)
             score = float(roc_auc_score(all_labels, all_probs, multi_class="ovr"))
     elif metric.lower() == "acc":
         preds = torch.argmax(torch.tensor(all_probs), dim=1).numpy()

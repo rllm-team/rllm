@@ -16,7 +16,7 @@ __all__ = [
     "BaseTable",
     "TableData",
     "TableDataset",
-    "TextEmbedderConfig"
+    "TextEmbedderConfig",
     # storage_classes
     "BaseStorage",
     "NodeStorage",
