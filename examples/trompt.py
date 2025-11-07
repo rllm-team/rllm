@@ -3,8 +3,9 @@
 # ArXiv: https://arxiv.org/abs/2305.18446
 
 # Datasets      Titanic     Adult
-# Acc(rept.)    -           0.862
-# Acc(ours)     0.853       0.861
+# Metrics       Acc         Acc
+# Rept.         -           0.862
+# Ours          0.853       0.861
 # Time          13.9s       911.7s
 
 import argparse
