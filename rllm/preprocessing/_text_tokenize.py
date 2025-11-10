@@ -90,7 +90,7 @@ def tokenize_strings(
     ids_list, mask_list = [], []
     for i in range(0, len(seqs), batch_size):
         _ids, _mask = standardize_func(
-            tokenizer(seqs[i: i + batch_size]), pad_token_id
+            tokenizer(seqs[i : i + batch_size]), pad_token_id
         )
         ids_list.append(_ids)
         mask_list.append(_mask)
@@ -125,7 +125,11 @@ def standardize_tokenizer_output(
     def _ensure_batch_tensor(x) -> torch.Tensor:
         """Convert `x` into a 2D tensor [B, L]; if ragged, pad with `pad_token_id` first."""
         # Ragged cases before converting to Tensor
-        if (isinstance(x, (list, tuple)) and x and isinstance(x[0], (list, tuple, np.ndarray))):
+        if (
+            isinstance(x, (list, tuple))
+            and x
+            and isinstance(x[0], (list, tuple, np.ndarray))
+        ):
             seqs = [list(s) for s in x]
             max_len = max((len(s) for s in seqs), default=0)
             padded = [(s + [pad_token_id] * (max_len - len(s)))[:max_len] for s in seqs]
@@ -223,7 +227,9 @@ def tokenize_merged_cols(
         Tuple of (input_ids [B, L], attention_mask [B, L]) or None
     """
 
-    text_cols = [c for c, t in col_types.items() if t == ColType.TEXT and c != target_col]
+    text_cols = [
+        c for c, t in col_types.items() if t == ColType.TEXT and c != target_col
+    ]
     if not text_cols:
         return None
 
@@ -240,7 +246,7 @@ def tokenize_merged_cols(
         for col in text_cols:
             # Use object dtype to avoid NumPy 2.x DTypePromotionError when mixing str and NaN
             s = values_df[col]
-            seg = (f"{col}{name_value_sep}" + s)
+            seg = f"{col}{name_value_sep}" + s
             seg = seg.where(valid_mask[col], other=pandas.NA)
             seg_cols[col] = seg
         df_seg = pandas.DataFrame(seg_cols, index=values_df.index)
@@ -248,7 +254,9 @@ def tokenize_merged_cols(
         df_seg = values_df.where(valid_mask, other=pandas.NA).astype("string")
     # row-wise merge of non-empty segments
     segment_sep = tokenizer_config.segment_sep
-    col_list = df_seg.apply(lambda r: segment_sep.join(r.dropna().tolist()), axis=1).tolist()
+    col_list = df_seg.apply(
+        lambda r: segment_sep.join(r.dropna().tolist()), axis=1
+    ).tolist()
 
     input_ids, attention_mask = tokenize_strings(
         col_list,

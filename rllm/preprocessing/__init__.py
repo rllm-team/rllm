@@ -7,9 +7,7 @@ from rllm.preprocessing._fillna import (
 from rllm.preprocessing._type_convert import (
     encode_categorical,
     convert_binary,
-    convert_categorical_to_text,
-    DEFAULT_BINARY_MAP,
-    dict_to_df
+    dict_to_df,
 )
 from rllm.preprocessing._text_tokenize import (
     TokenizerConfig,
@@ -23,8 +21,11 @@ from rllm.preprocessing._word_embedding import (
     TextEmbedderConfig,
     embed_text_column,
 )
+from rllm.preprocessing.df_to_tensor import df_to_tensor
 
 __all__ = [
+    # df to tensor
+    "df_to_tensor",
     # fillna
     "fillna_numerical",
     "fillna_categorical",
@@ -33,8 +34,6 @@ __all__ = [
     # type convert
     "encode_categorical",
     "convert_binary",
-    "convert_categorical_to_text",
-    "DEFAULT_BINARY_MAP",
     "dict_to_df",
     # text tokenize
     "TokenizerConfig",
