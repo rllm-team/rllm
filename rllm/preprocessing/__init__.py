@@ -23,7 +23,6 @@ from rllm.preprocessing._word_embedding import (
     TextEmbedderConfig,
     embed_text_column,
 )
-from rllm.preprocessing.transtab_preprocessing import TransTabDataExtractor
 
 __all__ = [
     # fillna
@@ -44,7 +43,6 @@ __all__ = [
     "standardize_tokenizer_output",
     "tokenize_merged_cols",
     "save_column_name_tokens",
-    "TransTabDataExtractor",
     # word embedding
     "TextEmbedderConfig",
     "embed_text_column",
