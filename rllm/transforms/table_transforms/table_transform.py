@@ -77,6 +77,8 @@ class TableTransform(torch.nn.Module, ABC):
             na_mode = {
                 ColType.NUMERICAL: NAMode.MEAN,
                 ColType.CATEGORICAL: NAMode.MOST_FREQUENT,
+                ColType.BINARY: NAMode.MOST_FREQUENT,
+                ColType.TEXT: NAMode.MOST_FREQUENT,
             }
 
         self.out_dim = out_dim
@@ -128,6 +130,15 @@ class TableTransform(torch.nn.Module, ABC):
         # object.
         feats = data.get_feat_dict()
         for col_type, feat in feats.items():
+            # Skip TEXT type as it's already tokenized (tuple of tensors)
+            # NaN handling for TEXT is done during tokenization
+            if col_type == ColType.TEXT:
+                continue
+
+            # Skip if col_type not in na_mode (defensive check)
+            if col_type not in self.na_mode:
+                continue
+
             feat = self._fill_nan(feat, data.metadata[col_type], self.na_mode[col_type])
             # Handle NaN in case na_mode is None
             feats[col_type] = torch.nan_to_num(feat, nan=0)
