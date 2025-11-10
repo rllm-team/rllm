@@ -156,6 +156,7 @@ class TableData(BaseTable):
 
         # base
         self.df = df
+        self.col_types = col_types
         # Convert CATEGORICAL to TEXT if requested (for TransTab-like models)
         if categorical_as_text:
             for col_name, col_type in self.col_types.items():
@@ -164,8 +165,6 @@ class TableData(BaseTable):
                     if col_type == ColType.CATEGORICAL and col_name != target_col
                     else col_type
                 )
-        else:
-            self.col_types = col_types
 
         # additional
         self.table_name = name or "table_" + str(uuid4())

@@ -21,6 +21,7 @@ from rllm.preprocessing._word_embedding import (
     TextEmbedderConfig,
     embed_text_column,
 )
+from rllm.preprocessing.df_to_tensor import df_to_tensor
 from rllm.preprocessing.transtab_preprocessing import TransTabDataExtractor
 
 __all__ = [
