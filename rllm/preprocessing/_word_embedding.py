@@ -13,7 +13,10 @@ class TextEmbedderConfig:
     batch_size: Optional[int] = None
 
 
-def embed_text_column(col_series: Series, config: TextEmbedderConfig) -> Tensor:
+def embed_text_column(
+    col_series: Series,
+    config: TextEmbedderConfig,
+) -> Tensor:
     """
     Embed a pandas Series of texts using the provided embedder.
     Returns a float Tensor of shape [N, D].
@@ -32,7 +35,7 @@ def embed_text_column(col_series: Series, config: TextEmbedderConfig) -> Tensor:
         for i in tqdm(
             range(0, len(col_list), batch_size), desc="Embedding raw data in mini-batch"
         ):
-            emb = embedder(col_list[i: i + batch_size])
+            emb = embedder(col_list[i : i + batch_size])
             emb_list.append(emb)
         embeddings = torch.cat(emb_list, dim=0)
     return embeddings.float()

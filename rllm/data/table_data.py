@@ -15,23 +15,12 @@ from torch.utils.data import Dataset, DataLoader
 
 from rllm.types import ColType, TaskType, StatType, TableType
 from rllm.data.storage import BaseStorage
-from rllm.preprocessing._fillna import fillna_by_coltype
-from rllm.preprocessing._type_convert import (
-    encode_categorical,
-    convert_binary,
-    convert_categorical_to_text,
-    DEFAULT_BINARY_MAP,
-)
-from rllm.preprocessing._text_tokenize import (
+from rllm.preprocessing import (
     TokenizerConfig,
-    process_tokenized_column,
-    tokenize_merged_cols,
+    TextEmbedderConfig,
+    df_to_tensor,
     save_column_name_tokens,
     standardize_tokenizer_output,
-)
-from rllm.preprocessing._word_embedding import (
-    TextEmbedderConfig,
-    embed_text_column,
 )
 
 
@@ -169,7 +158,12 @@ class TableData(BaseTable):
         self.df = df
         # Convert CATEGORICAL to TEXT if requested (for TransTab-like models)
         if categorical_as_text:
-            self.col_types = convert_categorical_to_text(col_types, target_col)
+            for col_name, col_type in self.col_types.items():
+                self.col_types[col_name] = (
+                    ColType.TEXT
+                    if col_type == ColType.CATEGORICAL and col_name != target_col
+                    else col_type
+                )
         else:
             self.col_types = col_types
 
@@ -519,7 +513,9 @@ class TableData(BaseTable):
             feat_value = self.feat_dict[col_type]
             if isinstance(feat_value, tuple):
                 # Handle tokenized features (e.g., TEXT type as (input_ids, attention_mask))
-                feat_dict[col_type] = tuple(tensor[start_row:end_row] for tensor in feat_value)
+                feat_dict[col_type] = tuple(
+                    tensor[start_row:end_row] for tensor in feat_value
+                )
             else:
                 feat_dict[col_type] = feat_value[start_row:end_row]
         return feat_dict
@@ -622,108 +618,15 @@ class TableData(BaseTable):
         tokenizer_config: Optional[TokenizerConfig] = None,
     ):
         r"""Get feat dict from single tabular dataset."""
-        # 1. Iterate each column
-        feat_dict = {}
-
-        merged_token = None
-        if tokenizer_config is not None and tokenizer_config.tokenize_combine:
-            merged_token = tokenize_merged_cols(
-                df=self.df,
-                col_types=self.col_types,
-                tokenizer_config=tokenizer_config,
-                target_col=self.target_col,
-            )  # (ids [N,L], mask [N,L]) or None
-
-        for col, col_type in self.col_types.items():
-            if merged_token is not None and col_type == ColType.TEXT:
-                continue
-            # 2. Get column tensor shape: (n, 1) for cat/num, (n, d) for text
-            col_tensor = self._generate_column_tensor(
-                col,
-                text_embedder_config=text_embedder_config,
-                tokenizer_config=tokenizer_config,
-            )
-            # 3. Update feat dict
-            if col == self.target_col:
-                # Only need one-dimensional
-                self.y = col_tensor.squeeze()
-                continue
-            if col_type not in feat_dict.keys():
-                feat_dict[col_type] = []
-            feat_dict[col_type].append(col_tensor)
-
-        # 4. Concat column tensors
-        for col_type, xs in feat_dict.items():
-            if col_type == ColType.TEXT:
-                # Check if TEXT columns are tokenized or embedded
-                if tokenizer_config is not None and isinstance(xs[0], tuple):
-                    # xs: List[(ids [N,L], mask [N,L])]
-                    ids = torch.stack([t[0] for t in xs], dim=1).long()  # [N, C_tok, L]
-                    mask = torch.stack([t[1] for t in xs], dim=1).long()  # [N, C_tok, L]
-                    feat_dict[col_type] = (ids, mask)
-                else:
-                    # Embedded text: stack along dim=1
-                    feat_dict[col_type] = torch.stack(xs, dim=1)
-            else:
-                feat_dict[col_type] = torch.cat(xs, dim=-1)
-
-        if merged_token is not None:
-            feat_dict[ColType.TEXT] = merged_token  # (ids [N,L], mask [N,L])
-
-        # TODO: Change hard-coding here
-        if ColType.CATEGORICAL in feat_dict.keys():
-            feat_dict[ColType.CATEGORICAL] = feat_dict[ColType.CATEGORICAL].int()
-        self.feat_dict = feat_dict
-
-    @df_requisite
-    def _generate_column_tensor(
-        self,
-        col: str = None,
-        text_embedder_config: Optional[TextEmbedderConfig] = None,
-        tokenizer_config: Optional[TokenizerConfig] = None,
-    ):
-        col_types = self.col_types[col]
-        col_copy = self.df[col].copy()
-
-        if col_types == ColType.NUMERICAL:
-            col_copy = fillna_by_coltype(col_copy, ColType.NUMERICAL)
-            return torch.tensor(
-                col_copy.values.astype(float), dtype=torch.float32
-            ).reshape(-1, 1)
-
-        elif col_types == ColType.CATEGORICAL:
-            col_copy = fillna_by_coltype(col_copy, ColType.CATEGORICAL)
-            col_copy, _ = encode_categorical(col_copy)
-            return torch.tensor(
-                col_copy.values.astype(float), dtype=torch.float32
-            ).reshape(-1, 1)
-
-        elif col_types == ColType.BINARY:
-            col_copy = fillna_by_coltype(col_copy, ColType.BINARY)
-            binary_map = getattr(self, "binary_map", DEFAULT_BINARY_MAP)
-            col_copy = convert_binary(col_copy, binary_map)
-            return torch.tensor(
-                col_copy.values.astype(float), dtype=torch.float32
-            ).reshape(-1, 1)
-
-        elif col_types == ColType.TEXT:
-            # Determine processing mode based on config
-            if tokenizer_config is not None:
-                # Tokenize mode
-                assert tokenizer_config.tokenizer is not None, \
-                    "Need a tokenizer_config with a valid tokenizer for TEXT column!"
-
-                input_ids, attention_mask = process_tokenized_column(
-                    col_series=col_copy,
-                    col_name=col,
-                    tokenizer_config=tokenizer_config,
-                    include_colname=tokenizer_config.include_colname,
-                    name_value_sep=tokenizer_config.name_value_sep,
-                )
-                return (input_ids, attention_mask)
-            else:
-                # Embedding mode
-                return embed_text_column(col_copy, text_embedder_config)
+        # Convert df to tensor for each column, including target_col
+        self.feat_dict, self.y = df_to_tensor(
+            df=self.df,
+            col_types=self.col_types,
+            target_col=self.target_col,
+            text_embedder_config=text_embedder_config,
+            tokenizer_config=tokenizer_config,
+            concat=True,
+        )
 
     def _generate_metadata(
         self,
@@ -800,7 +703,7 @@ class TableData(BaseTable):
         out.__dict__["_len"] = index.numel()
 
         # Clear the lru_cache for __len__ to ensure it returns the updated length
-        if hasattr(out.__len__, 'cache_clear'):
+        if hasattr(out.__len__, "cache_clear"):
             out.__len__.cache_clear()
 
         return out
