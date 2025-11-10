@@ -1,6 +1,6 @@
-langchain==0.1.8
-langchain_community==0.0.21
-langchain_core==0.1.25
+langchain==1.0.2
+langchain_community==0.4.1
+langchain_core==1.0.1
 networkx==3.0
 torch>=2.1.0,<=2.3.0
 numpy

@@ -28,7 +28,7 @@ class TAPEDataset(Dataset):
     """The citation network datasets, include `cora` and `pubmed`,
     collected from paper `Harnessing Explanations: LLM-to-LM
     Interpreter for Enhanced Text-Attributed Graph Representation Learning
-    <https://arxiv.org/abs/1603.08861>`__ paper.
+    <https://arxiv.org/abs/2305.19523>`__ paper.
 
     Args:
         cached_dir (str):

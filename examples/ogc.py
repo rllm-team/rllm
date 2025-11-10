@@ -3,7 +3,9 @@
 # ArXiv: https://arxiv.org/abs/2309.13599
 
 # Datasets  CiteSeer    Cora      PubMed
-# Acc       0.773       0.869     0.837
+# Metrics   Acc         Acc       Acc
+# Rept.     0.775       0.869     0.834
+# Ours      0.774       0.869     0.837
 # Time      3.7s        2.3s      4.3s
 
 import argparse
@@ -24,7 +26,7 @@ from rllm.nn.conv.graph_conv import LGCConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--dataset", type=str, default="cora", choices=["citeseer, cora, pubmed"]
+    "--dataset", type=str, default="cora", choices=["citeseer", "cora", "pubmed"]
 )
 parser.add_argument("--decline", type=float, default=0.9, help="decline rate"),
 parser.add_argument("--lr_sup", type=float, default=0.001, help="lr for loss")
