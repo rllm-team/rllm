@@ -49,8 +49,11 @@ class Titanic(Dataset):
     url = "https://github.com/datasciencedojo/datasets/raw/master/titanic.csv"
 
     def __init__(
-        self, cached_dir: str, forced_reload: Optional[bool] = False, transform=None,
-        tokenizer_config=None
+        self,
+        cached_dir: str,
+        forced_reload: Optional[bool] = False,
+        transform=None,
+        tokenizer_config=None,
     ) -> None:
         self.name = "titanic"
         root = os.path.join(cached_dir, self.name)
