@@ -48,24 +48,19 @@ class TransTabConv(torch.nn.Module):
             (default: False)
         use_layer_norm (bool): Whether to include LayerNorm layers in each
             sub-block. (default: True)
-        device (Optional[torch.device]): Device on which to allocate layer
-            parameters. (default: None)
-        dtype (Optional[torch.dtype]): Data type for layer parameters.
-            (default: None)
     """
 
     __constants__ = ['batch_first', 'norm_first']
 
     def __init__(self, conv_dim, nhead, dim_feedforward=2048, dropout=0.1, activation=torch.nn.functional.relu,
                  layer_norm_eps=1e-5, batch_first=True, norm_first=False,
-                 device=None, dtype=None, use_layer_norm=True) -> None:
-        factory_kwargs = {'device': device, 'dtype': dtype}
+                 use_layer_norm=True) -> None:
         super().__init__()
-        self.self_attn = torch.nn.MultiheadAttention(conv_dim, nhead, batch_first=batch_first, **factory_kwargs)
+        self.self_attn = torch.nn.MultiheadAttention(conv_dim, nhead, batch_first=batch_first)
         # Implementation of Feedforward model
-        self.linear1 = torch.nn.Linear(conv_dim, dim_feedforward, **factory_kwargs)
+        self.linear1 = torch.nn.Linear(conv_dim, dim_feedforward)
         self.dropout = torch.nn.Dropout(dropout)
-        self.linear2 = torch.nn.Linear(dim_feedforward, conv_dim, **factory_kwargs)
+        self.linear2 = torch.nn.Linear(dim_feedforward, conv_dim)
 
         # Implementation of gates
         self.gate_linear = torch.nn.Linear(conv_dim, 1, bias=False)
@@ -75,8 +70,8 @@ class TransTabConv(torch.nn.Module):
         self.use_layer_norm = use_layer_norm
 
         if self.use_layer_norm:
-            self.norm1 = torch.nn.LayerNorm(conv_dim, eps=layer_norm_eps, **factory_kwargs)
-            self.norm2 = torch.nn.LayerNorm(conv_dim, eps=layer_norm_eps, **factory_kwargs)
+            self.norm1 = torch.nn.LayerNorm(conv_dim, eps=layer_norm_eps)
+            self.norm2 = torch.nn.LayerNorm(conv_dim, eps=layer_norm_eps)
         self.dropout1 = torch.nn.Dropout(dropout)
         self.dropout2 = torch.nn.Dropout(dropout)
 

@@ -80,7 +80,6 @@ class TransTab(torch.nn.Module):
         layer_norm_eps (float): Epsilon for all LayerNorm operations.
         ffn_dim (int): Inner dimension of Transformer feedforward networks.
         activation (str): Activation function for feedforward ("relu", etc.).
-        device (Union[str, torch.device]): Device on which to run the model.
         projection_dim (int): Output dimension of the contrastive projection head.
         overlap_ratio (float): Overlap fraction used in contrastive partitioning.
         num_partition (int): Number of partitions for contrastive sampling.
@@ -102,7 +101,6 @@ class TransTab(torch.nn.Module):
         layer_norm_eps: float = 1e-5,
         ffn_dim: int = 256,
         activation: str = 'relu',
-        device: Union[str, torch.device] = 'cuda:0',
         projection_dim: int = 128,
         overlap_ratio: float = 0.1,
         num_partition: int = 2,
@@ -154,7 +152,6 @@ class TransTab(torch.nn.Module):
             padding_idx=self.extractor.tokenizer.pad_token_id,
             hidden_dropout_prob=self.hidden_dropout_prob,
             layer_norm_eps=self.layer_norm_eps,
-            device=device,
             extractor=self.extractor,
             use_align_layer=True,
         )
@@ -172,15 +169,11 @@ class TransTab(torch.nn.Module):
                     norm_first=False,
                     use_layer_norm=True,
                     batch_first=True,
-                    device=device,
                 )
             )
 
         # 6) CLS token module, used to insert a learnable vector at the front of the sequence
         self.cls_token = TransTabCLSToken(hidden_dim=hidden_dim)
-
-        self.device = device
-        # self.to(device)
 
         # Contrastive Learning
         # Add a small projection head on top of the CLS embedding
@@ -192,7 +185,6 @@ class TransTab(torch.nn.Module):
         self.num_partition = num_partition
         self.overlap_ratio = overlap_ratio
         self.ce_loss = torch.nn.CrossEntropyLoss()
-        # device already set
 
     def forward(
         self,
@@ -259,9 +251,9 @@ class TransTab(torch.nn.Module):
         self.numerical_columns = self.pre_encoder.extractor.numerical_columns
         self.binary_columns = self.pre_encoder.extractor.binary_columns
 
-        # 3) Load model weights to CPU
+        # 3) Load model weights to CPU first, then let user move to device with .to(device)
         model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
-        state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
+        state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         logger.info(f"Loaded TransTab weights from {model_path}")
         logger.info(f" Missing keys: {missing}")
@@ -274,8 +266,6 @@ class TransTab(torch.nn.Module):
             map_location='cpu',
             weights_only=True
         )
-
-        self.to(self.device)
 
     def update(self, config: Dict[str, Any]) -> None:
         col_map = {k: v for k, v in config.items() if k in ('cat', 'num', 'bin')}
@@ -305,7 +295,13 @@ class TransTab(torch.nn.Module):
         self.num_class = num_class
         # Rebuilding the classification header
         self.clf = LinearClassifier(num_class=num_class, hidden_dim=self.cls_token.hidden_dim)
-        self.clf.to(self.device)
+        # Move classifier to the same device as the model
+        try:
+            device = next(self.parameters()).device
+            self.clf.to(device)
+        except StopIteration:
+            # Model has no parameters yet, classifier will be moved when model is moved
+            pass
         # Reconstruction loss
         if num_class > 2:
             self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
@@ -333,7 +329,6 @@ class TransTabClassifier(TransTab):
         hidden_dropout_prob (float): Dropout probability in Transformer sublayers.
         ffn_dim (int): Inner dimension of Transformer feedforward networks.
         activation (str): Activation function for feedforward layers ("relu", etc.).
-        device (Union[str, torch.device]): Device on which to run the model.
         **kwargs: Additional keyword arguments passed to `TransTab`.
     """
 
@@ -349,7 +344,6 @@ class TransTabClassifier(TransTab):
         hidden_dropout_prob: float = 0.1,
         ffn_dim: int = 256,
         activation: str = 'relu',
-        device: Union[str, torch.device] = 'cuda:0',
         **kwargs,
     ) -> None:
         super().__init__(
@@ -362,7 +356,6 @@ class TransTabClassifier(TransTab):
             hidden_dropout_prob=hidden_dropout_prob,
             ffn_dim=ffn_dim,
             activation=activation,
-            device=device,
             **kwargs,
         )
 
@@ -374,8 +367,6 @@ class TransTabClassifier(TransTab):
             self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
         else:
             self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
-
-        self.to(self.device)
 
     def forward(
         self,
@@ -397,10 +388,12 @@ class TransTabClassifier(TransTab):
         logits = self.clf(cls_emb)
 
         if y is not None:
+            # Get device from model parameters
+            device = next(self.parameters()).device
             if isinstance(y, torch.Tensor):
-                y_ts = y.to(self.device)
+                y_ts = y.to(device)
             else:
-                y_ts = torch.tensor(y.values, device=self.device)
+                y_ts = torch.tensor(y.values, device=device)
 
             if self.num_class > 2:
                 y_ts = y_ts.long()
@@ -440,7 +433,6 @@ class TransTabForCL(TransTab):
         temperature (float): Temperature scaling for contrastive logits.
         base_temperature (float): Base temperature for loss normalization.
         activation (str): Activation function for feedforward layers.
-        device (Union[str, torch.device]): Device on which to run the model.
         **kwargs: Additional keyword arguments passed to `TransTab`.
     """
 
@@ -461,7 +453,6 @@ class TransTabForCL(TransTab):
         temperature=10,
         base_temperature=10,
         activation='relu',
-        device='cuda:0',
         **kwargs,
     ) -> None:
         super().__init__(
@@ -474,7 +465,6 @@ class TransTabForCL(TransTab):
             hidden_dropout_prob=hidden_dropout_prob,
             ffn_dim=ffn_dim,
             activation=activation,
-            device=device,
             **kwargs,
         )
         assert num_partition > 0, f'number of contrastive subsets must be greater than 0, got {num_partition}'
@@ -498,8 +488,6 @@ class TransTabForCL(TransTab):
             base_temperature=self.base_temperature,
             similarity="dot",
         )
-        self.device = device
-        self.to(device)
 
     def forward(self, x, y=None):
         """
@@ -539,7 +527,9 @@ class TransTabForCL(TransTab):
         feat_x_multiview = torch.stack(feat_x_list, dim=1)
 
         if y is not None and self.supervised:
-            labels = y.to(self.device).long()
+            # Get device from model parameters
+            device = next(self.parameters()).device
+            labels = y.to(device).long()
             loss = self.sup_criterion(feat_x_multiview, labels)
             # print("Using supervised contrastive loss.")
         else:
