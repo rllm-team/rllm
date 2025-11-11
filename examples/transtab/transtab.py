@@ -37,7 +37,7 @@ parser.add_argument("--batch_size", type=int, default=256, help="Batch size")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
-parser.add_argument("--seed", type=int, default=42, help="Random seed")
+parser.add_argument("--seed", type=int, default=7, help="Random seed")
 parser.add_argument("--dataset", type=str, default="titanic", choices=["titanic", "adult"])
 parser.add_argument("--tokenizer_dir", type=str, default="./tokenizer", help="Tokenizer directory")
 args = parser.parse_args()
@@ -104,7 +104,7 @@ model = TransTabClassifier(
     num_attention_head=args.num_heads,
     ffn_dim=args.hidden_dim * 2,
     tokenizer=tokenizer,  # Pass the same tokenizer instance used in TableData
-).to(device)
+).to(device)  # Move model to device after initialization
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd)
 

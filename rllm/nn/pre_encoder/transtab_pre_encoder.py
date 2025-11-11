@@ -32,8 +32,6 @@ class TransTabPreEncoder(PreEncoder):
         padding_idx: Padding index for token embeddings.
         hidden_dropout_prob: Dropout probability in token embeddings.
         layer_norm_eps: Epsilon for LayerNorm in token embeddings.
-        extractor: Optional TransTabDataExtractor instance.
-        use_align_layer: Whether to use alignment layer. (default: True)
     """
 
     def __init__(
@@ -82,6 +80,11 @@ class TransTabPreEncoder(PreEncoder):
             else torch.nn.Identity()
         )
 
+    @property
+    def device(self) -> torch.device:
+        """Dynamically get the device of model parameters."""
+        return next(self.parameters()).device
+
     def _encode_feat_dict(
         self,
         feat_dict: Dict[ColType, Tensor | Tuple[Tensor, ...]],
@@ -114,16 +117,6 @@ class TransTabPreEncoder(PreEncoder):
 
         return feat_encoded
 
-    def _get_device(self, reference_tensor: Tensor | None = None) -> torch.device:
-        try:
-            return next(self.parameters()).device
-        except StopIteration:
-            # Model has no parameters, try reference tensor
-            if reference_tensor is not None:
-                return reference_tensor.device
-            # Fallback to CPU
-            return torch.device("cpu")
-
     def _collect_masks_from_inputs(
         self,
         feat_dict: Dict[ColType, Tensor | Tuple[Tensor, ...]],
@@ -132,20 +125,17 @@ class TransTabPreEncoder(PreEncoder):
     ) -> Dict[ColType, Tensor]:
         masks: Dict[ColType, Tensor] = {}
 
-        # Get device from embeddings (they should already be on the correct device)
-        device = self._get_device(reference_tensor=next(iter(emb_dict.values())) if emb_dict else None)
-
         # Numerical: ones mask
         if ColType.NUMERICAL in emb_dict:
             B, n_num, _ = emb_dict[ColType.NUMERICAL].shape
-            masks[ColType.NUMERICAL] = torch.ones(B, n_num, device=device)
+            masks[ColType.NUMERICAL] = torch.ones(B, n_num, device=self.device)
 
         # From DataFrame path
         if df_masks is not None:
             if "cat_att_mask" in df_masks and ColType.CATEGORICAL in emb_dict:
-                masks[ColType.CATEGORICAL] = df_masks["cat_att_mask"].to(device).float()
+                masks[ColType.CATEGORICAL] = df_masks["cat_att_mask"].to(self.device).float()
             if "bin_att_mask" in df_masks and ColType.BINARY in emb_dict:
-                masks[ColType.BINARY] = df_masks["bin_att_mask"].to(device).float()
+                masks[ColType.BINARY] = df_masks["bin_att_mask"].to(self.device).float()
 
         # From feat_dict path (optional tuple masks)
         else:
@@ -153,10 +143,10 @@ class TransTabPreEncoder(PreEncoder):
                 if ct in emb_dict:
                     feat = feat_dict.get(ct)
                     if isinstance(feat, tuple) and len(feat) >= 2:
-                        masks[ct] = feat[1].to(device).float()  # provided att_mask
+                        masks[ct] = feat[1].to(self.device).float()  # provided att_mask
                     else:
                         B, n_cols, _ = emb_dict[ct].shape
-                        masks[ct] = torch.ones(B, n_cols, device=device)
+                        masks[ct] = torch.ones(B, n_cols, device=self.device)
 
         return masks
 
@@ -224,25 +214,22 @@ class TransTabPreEncoder(PreEncoder):
                     colname_token_ids=getattr(x, 'colname_token_ids', None),
                 )
 
-                # Get device from model parameters or use input tensor device
-                device = self._get_device()
-
                 feat_dict: Dict[ColType, Tensor | Tuple[Tensor, ...]] = {}
                 if data["x_cat_input_ids"] is not None:
                     feat_dict[ColType.CATEGORICAL] = (
-                        data["x_cat_input_ids"].to(device),
-                        data["cat_att_mask"].to(device),
+                        data["x_cat_input_ids"].to(self.device),
+                        data["cat_att_mask"].to(self.device),
                     )
                 if data["x_bin_input_ids"] is not None:
                     feat_dict[ColType.BINARY] = (
-                        data["x_bin_input_ids"].to(device),
-                        data["bin_att_mask"].to(device),
+                        data["x_bin_input_ids"].to(self.device),
+                        data["bin_att_mask"].to(self.device),
                     )
                 if data["x_num"] is not None:
                     feat_dict[ColType.NUMERICAL] = (
-                        data["num_col_input_ids"].to(device),
-                        data["num_att_mask"].to(device),
-                        data["x_num"].to(device),
+                        data["num_col_input_ids"].to(self.device),
+                        data["num_att_mask"].to(self.device),
+                        data["x_num"].to(self.device),
                     )
 
                 emb_dict = self._encode_feat_dict(feat_dict)
@@ -274,11 +261,10 @@ class TransTabPreEncoder(PreEncoder):
     def load(self, ckpt_dir: str) -> None:
         self.extractor.load(ckpt_dir)
         encoder_path = os.path.join(ckpt_dir, "input_encoder.bin")
-        # Load to CPU first, then let user move to device with .to(device)
         try:
-            state_dict = torch.load(encoder_path, map_location="cpu", weights_only=True)
+            state_dict = torch.load(encoder_path, map_location='cpu', weights_only=True)
         except TypeError:
-            state_dict = torch.load(encoder_path, map_location="cpu")
+            state_dict = torch.load(encoder_path, map_location='cpu')
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         logger.info(f"Loaded pre_encoder (integrated) weights from {encoder_path}")
         logger.info(f" Missing keys: {missing}")

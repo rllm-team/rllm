@@ -185,6 +185,11 @@ class TransTab(torch.nn.Module):
         self.num_partition = num_partition
         self.overlap_ratio = overlap_ratio
         self.ce_loss = torch.nn.CrossEntropyLoss()
+        # device already set
+
+    @property
+    def device(self) -> torch.device:
+        return next(self.parameters()).device
 
     def forward(
         self,
@@ -251,9 +256,9 @@ class TransTab(torch.nn.Module):
         self.numerical_columns = self.pre_encoder.extractor.numerical_columns
         self.binary_columns = self.pre_encoder.extractor.binary_columns
 
-        # 3) Load model weights to CPU first, then let user move to device with .to(device)
+        # 3) Load model weights to CPU
         model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
-        state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
+        state_dict = torch.load(model_path, map_location='cpu', weights_only=True)
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         logger.info(f"Loaded TransTab weights from {model_path}")
         logger.info(f" Missing keys: {missing}")
@@ -295,13 +300,7 @@ class TransTab(torch.nn.Module):
         self.num_class = num_class
         # Rebuilding the classification header
         self.clf = LinearClassifier(num_class=num_class, hidden_dim=self.cls_token.hidden_dim)
-        # Move classifier to the same device as the model
-        try:
-            device = next(self.parameters()).device
-            self.clf.to(device)
-        except StopIteration:
-            # Model has no parameters yet, classifier will be moved when model is moved
-            pass
+        # Note: clf will be on the same device as the model after model.to(device) is called
         # Reconstruction loss
         if num_class > 2:
             self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
@@ -388,12 +387,10 @@ class TransTabClassifier(TransTab):
         logits = self.clf(cls_emb)
 
         if y is not None:
-            # Get device from model parameters
-            device = next(self.parameters()).device
             if isinstance(y, torch.Tensor):
-                y_ts = y.to(device)
+                y_ts = y.to(self.device)
             else:
-                y_ts = torch.tensor(y.values, device=device)
+                y_ts = torch.tensor(y.values, device=self.device)
 
             if self.num_class > 2:
                 y_ts = y_ts.long()
@@ -527,14 +524,10 @@ class TransTabForCL(TransTab):
         feat_x_multiview = torch.stack(feat_x_list, dim=1)
 
         if y is not None and self.supervised:
-            # Get device from model parameters
-            device = next(self.parameters()).device
-            labels = y.to(device).long()
+            labels = y.to(self.device).long()
             loss = self.sup_criterion(feat_x_multiview, labels)
-            # print("Using supervised contrastive loss.")
         else:
             loss = self.self_sup_criterion(feat_x_multiview)
-            # print("Using self-supervised contrastive loss.")
 
         return None, loss
 
