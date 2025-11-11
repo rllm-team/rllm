@@ -86,6 +86,9 @@ class TransTab(torch.nn.Module):
         supervised (bool): If True, use supervised contrastive loss; otherwise unsupervised.
         temperature (float): Temperature parameter for contrastive loss.
         base_temperature (float): Base temperature for stability scaling.
+        tokenizer: Optional pretrained tokenizer instance (e.g., BertTokenizerFast).
+            If provided, will be used by TransTabDataExtractor; otherwise extractor
+            creates its own. (default: None)
         **kwargs: Additional keyword arguments passed to TransTabDataExtractor.
     """
 
@@ -107,6 +110,7 @@ class TransTab(torch.nn.Module):
         supervised: bool = True,
         temperature: float = 10.0,
         base_temperature: float = 10.0,
+        tokenizer=None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -132,10 +136,12 @@ class TransTab(torch.nn.Module):
         self.binary_columns = deduplicate_preserving_order(binary_columns)
 
         # 2) Initialize DataExtractor
+        # Pass tokenizer explicitly if provided, otherwise let extractor create its own
         self.extractor = TransTabDataExtractor(
             categorical_columns=self.categorical_columns,
             numerical_columns=self.numerical_columns,
             binary_columns=self.binary_columns,
+            tokenizer=tokenizer,
             **kwargs,
         )
 
@@ -328,6 +334,8 @@ class TransTabClassifier(TransTab):
         hidden_dropout_prob (float): Dropout probability in Transformer sublayers.
         ffn_dim (int): Inner dimension of Transformer feedforward networks.
         activation (str): Activation function for feedforward layers ("relu", etc.).
+        tokenizer: Optional pretrained tokenizer instance. If provided, will be
+            used by the underlying TransTab model. (default: None)
         **kwargs: Additional keyword arguments passed to `TransTab`.
     """
 
@@ -343,6 +351,7 @@ class TransTabClassifier(TransTab):
         hidden_dropout_prob: float = 0.1,
         ffn_dim: int = 256,
         activation: str = 'relu',
+        tokenizer=None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -355,6 +364,7 @@ class TransTabClassifier(TransTab):
             hidden_dropout_prob=hidden_dropout_prob,
             ffn_dim=ffn_dim,
             activation=activation,
+            tokenizer=tokenizer,
             **kwargs,
         )
 
@@ -430,6 +440,8 @@ class TransTabForCL(TransTab):
         temperature (float): Temperature scaling for contrastive logits.
         base_temperature (float): Base temperature for loss normalization.
         activation (str): Activation function for feedforward layers.
+        tokenizer: Optional pretrained tokenizer instance. If provided, will be
+            used by the underlying TransTab model. (default: None)
         **kwargs: Additional keyword arguments passed to `TransTab`.
     """
 
@@ -450,6 +462,7 @@ class TransTabForCL(TransTab):
         temperature=10,
         base_temperature=10,
         activation='relu',
+        tokenizer=None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -462,6 +475,7 @@ class TransTabForCL(TransTab):
             hidden_dropout_prob=hidden_dropout_prob,
             ffn_dim=ffn_dim,
             activation=activation,
+            tokenizer=tokenizer,
             **kwargs,
         )
         assert num_partition > 0, f'number of contrastive subsets must be greater than 0, got {num_partition}'
