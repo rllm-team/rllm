@@ -2,7 +2,7 @@ import torch
 
 
 class LinearClassifier(torch.nn.Module):
-    r"""TransTabLinearClassifier: Simple linear classification head with
+    r"""LinearClassifier: Simple linear classification head with
     layer normalization followed by a fully-connected layer on the
     CLS embedding.
 
