@@ -552,7 +552,7 @@ class FeatLLMEngineer:
         Returns:
             str: Serialized string representation of the row.
         """
-        target_str = f""
+        target_str = ""
         for attr_idx, attr_name in enumerate(list(row.index)):
             if attr_idx < len(list(row.index)) - 1:
                 target_str += " is ".join(

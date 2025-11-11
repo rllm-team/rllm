@@ -19,14 +19,16 @@ import time
 import torch
 import torch.nn.functional as F
 from annotation.annotation import annotate
-from langchain_community.llms import LlamaCpp
 
 sys.path.append("../")
+sys.path.append("../..")
+
+import dashscope
+from langchain_community.llms import Tongyi
 
 from node_selection.node_selection import active_generate_mask, post_filter
 from rllm.datasets.tagdataset import TAGDataset
 from rllm.transforms.graph_transforms import GCNTransform
-from rllm.llm.llm_module.langchain_llm import LangChainLLM
 from rllm.nn.conv.graph_conv import GCNConv
 
 parser = argparse.ArgumentParser()
@@ -118,8 +120,8 @@ train_mask, val_mask, test_mask = active_generate_mask(
 )
 
 if not args.use_cache:
-    model_path = "/path/to/llm"
-    llm = LangChainLLM(LlamaCpp(model_path=model_path, n_gpu_layers=33))
+    DASHSCOPE_API_KEY = "your-api-key"
+    llm = Tongyi(dashscope_api_key=DASHSCOPE_API_KEY, model_kwargs={"api_key": DASHSCOPE_API_KEY, "model": "qwen-max-2025-01-25"}, client=dashscope.Generation)
     pl_indices = torch.nonzero(train_mask | val_mask, as_tuple=False).squeeze()
     data = annotate(data, pl_indices, llm, args.n_tries)
 

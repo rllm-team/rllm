@@ -145,7 +145,8 @@ def data_prepare(dataset, dataset_name, device):
     if dataset_name == "tlf2k":
         # Get the required data
         artist_table, ua_table, _ = dataset.data_list
-        emb_size = 384 # Use the same embedding size as BERT for simplicity
+        # Use the same embedding size as BERT for simplicity
+        emb_size = 384
         artist_size = len(artist_table)
         user_size = ua_table.df["userID"].max()
 

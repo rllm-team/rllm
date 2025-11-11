@@ -82,7 +82,7 @@ def compute_propagated_features(x, edge_index):
     """
     num_nodes = x.shape[0]
     edge_weight = torch.ones(edge_index.size(1), dtype=torch.float32, device=edge_index.device)
-    row, col = edge_index[0], edge_index[1]
+    row = edge_index[0]
     deg = torch.zeros(num_nodes)
     deg.index_add_(0, row, edge_weight)
     deg_inv = 1.0 / deg
