@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Union, Tuple
 import math
 import os
-import logging
 
 import numpy as np
 import pandas as pd
@@ -11,15 +10,12 @@ from torch import Tensor
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData
+from rllm.preprocessing import TokenizerConfig
 from rllm.preprocessing import TransTabDataExtractor
 from rllm.nn.pre_encoder import TransTabPreEncoder
 from rllm.nn.conv.table_conv import TransTabConv
 from rllm.nn.loss import SupervisedVPCL, SelfSupervisedVPCL
 from rllm.nn.models.base_model import LinearClassifier
-
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 class TransTabCLSToken(torch.nn.Module):
@@ -244,7 +240,7 @@ class TransTab(torch.nn.Module):
         os.makedirs(ckpt_dir, exist_ok=True)
         model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
         torch.save(self.state_dict(), model_path)
-        logger.info(f"Saved TransTab weights to {model_path}")
+        print(f"Saved TransTab weights to {model_path}")
 
     def load(self, ckpt_dir: str) -> None:
         """
@@ -266,9 +262,9 @@ class TransTab(torch.nn.Module):
         model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
         state_dict = torch.load(model_path, map_location='cpu', weights_only=True)
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
-        logger.info(f"Loaded TransTab weights from {model_path}")
-        logger.info(f" Missing keys: {missing}")
-        logger.info(f" Unexpected keys: {unexpected}")
+        print(f"Loaded TransTab weights from {model_path}")
+        print(f" Missing keys: {missing}")
+        print(f" Unexpected keys: {unexpected}")
 
         # 4) Cache the pre-trained pre_encoder status, which will be used in the subsequent update
         pe_path = os.path.join(ckpt_dir, 'input_encoder.bin')
@@ -291,7 +287,7 @@ class TransTab(torch.nn.Module):
             self.numerical_columns = ext.numerical_columns
             self.binary_columns = ext.binary_columns
 
-            logger.info("Extended column mappings in TransTab via extractor.update().")
+            print("Extended column mappings in TransTab via extractor.update().")
 
         if 'num_class' in config:
             self._adapt_to_new_num_class(config['num_class'])
@@ -312,7 +308,7 @@ class TransTab(torch.nn.Module):
             self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
         else:
             self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
-        logger.info(f"Rebuilt classifier for num_class={num_class}.")
+        print(f"Rebuilt classifier for num_class={num_class}.")
 
 
 class TransTabClassifier(TransTab):
@@ -503,7 +499,9 @@ class TransTabForCL(TransTab):
     def forward(self, x, y=None):
         """
         Args:
-            x (DataFrame | Dict[ColType, Tensor]): Input batch or extracted features.
+            x (DataFrame | TableData): Input batch.
+               - DataFrame: Will be split into column subsets for contrastive learning
+               - TableData: Pre-tokenized data, will extract df for column splitting
             y (Optional[Tensor]): Labels for supervised contrastive loss.
 
         Returns:
@@ -511,32 +509,63 @@ class TransTabForCL(TransTab):
               - None (no logits returned for CL model)
               - loss (Tensor): Computed contrastive loss.
         """
-        # do positive sampling
-        feat_x_list = []
+        # Extract DataFrame from input
         if isinstance(x, pd.DataFrame):
-            sub_x_list = self._build_positive_pairs(x, self.num_partition)
-            for sub_x in sub_x_list:
-                proc = self.pre_encoder(sub_x)
-                emb = proc["embedding"]
-                mask = proc["attention_mask"]
-
-                cls_out = self.cls_token(emb, attention_mask=mask)
-                emb = cls_out["embedding"]
-                mask = cls_out["attention_mask"]
-
-                for conv in self.convs:
-                    enc_out = conv(x=emb, src_key_padding_mask=mask)
-                    emb = enc_out
-
-                feat = enc_out[:, 0, :]      # [bs, hidden_dim]
-                feat_proj = self.projection_head(feat)  # [bs, proj_dim]
-                feat_x_list.append(feat_proj)
+            df = x
+        elif hasattr(x, 'df'):  # TableData
+            df = x.df
         else:
-            raise ValueError(f"Expected input type pd.DataFrame, got {type(x)}")
+            raise ValueError(f"Expected input type pd.DataFrame or TableData, got {type(x)}")
 
-        # bs, num_partition, proj_dim
+        # Build positive pairs by splitting columns at DataFrame level
+        sub_df_list = self._build_positive_pairs(df, self.num_partition)
+
+        # Create tokenizer_config from model's own tokenizer
+        tokenizer_config = TokenizerConfig(
+            tokenizer=self.extractor.tokenizer,
+            pad_token_id=self.extractor.tokenizer.pad_token_id,
+            tokenize_combine=True,
+            include_colname=True,
+            save_colname_token_ids=True,
+        )
+
+        # Process each partition through the full pipeline
+        feat_x_list = []
+        for sub_df in sub_df_list:
+            # Build col_types for this subset
+            if hasattr(x, 'col_types'):
+                sub_col_types = {col: x.col_types[col] for col in sub_df.columns if col in x.col_types}
+            else:
+                # If no col_types available, use extractor's column info
+                sub_col_types = self._infer_col_types_from_extractor(sub_df.columns)
+
+            sub_table = TableData(
+                df=sub_df,
+                col_types=sub_col_types,
+                categorical_as_text=True,
+                tokenizer_config=tokenizer_config,
+            )
+            # Process through pre_encoder
+            proc = self.pre_encoder(sub_table)
+            emb = proc["embedding"]
+            mask = proc["attention_mask"]
+            # Add CLS token
+            cls_out = self.cls_token(emb, attention_mask=mask)
+            emb = cls_out["embedding"]
+            mask = cls_out["attention_mask"]
+
+            for conv in self.convs:
+                enc_out = conv(x=emb, src_key_padding_mask=mask)
+                emb = enc_out
+
+            # Extract CLS representation and project
+            feat = enc_out[:, 0, :]      # [bs, hidden_dim]
+            feat_proj = self.projection_head(feat)  # [bs, proj_dim]
+            feat_x_list.append(feat_proj)
+
+        # Stack multi-view features: [bs, num_partition, proj_dim]
         feat_x_multiview = torch.stack(feat_x_list, dim=1)
-
+        # Compute contrastive loss
         if y is not None and self.supervised:
             labels = y.to(self.device).long()
             loss = self.sup_criterion(feat_x_multiview, labels)
@@ -544,6 +573,20 @@ class TransTabForCL(TransTab):
             loss = self.self_sup_criterion(feat_x_multiview)
 
         return None, loss
+
+    def _infer_col_types_from_extractor(self, columns):
+        col_types = {}
+        for col in columns:
+            if col in self.extractor.categorical_columns:
+                col_types[col] = ColType.TEXT  # categorical_as_text=True
+            elif col in self.extractor.numerical_columns:
+                col_types[col] = ColType.NUMERICAL
+            elif col in self.extractor.binary_columns:
+                col_types[col] = ColType.BINARY
+            else:
+                # Default to TEXT if unknown
+                col_types[col] = ColType.TEXT
+        return col_types
 
     def _build_positive_pairs(self, x, n):
         x_cols = x.columns.tolist()

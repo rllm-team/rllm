@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Tuple, Union
 import os
-import logging
 
 import pandas as pd
 import torch
@@ -13,10 +12,6 @@ from .pre_encoder import PreEncoder
 from ._transtab_word_embedding_encoder import TransTabWordEmbeddingEncoder
 from ._transtab_num_embedding_encoder import TransTabNumEmbeddingEncoder
 from rllm.data.table_data import TableData
-
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 class TransTabPreEncoder(PreEncoder):
@@ -256,7 +251,7 @@ class TransTabPreEncoder(PreEncoder):
         os.makedirs(path, exist_ok=True)
         encoder_path = os.path.join(path, "input_encoder.bin")
         torch.save(self.state_dict(), encoder_path)
-        logger.info(f"Saved pre_encoder (integrated) weights to {encoder_path}")
+        print(f"Saved pre_encoder (integrated) weights to {encoder_path}")
 
     def load(self, ckpt_dir: str) -> None:
         self.extractor.load(ckpt_dir)
@@ -266,6 +261,6 @@ class TransTabPreEncoder(PreEncoder):
         except TypeError:
             state_dict = torch.load(encoder_path, map_location='cpu')
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
-        logger.info(f"Loaded pre_encoder (integrated) weights from {encoder_path}")
-        logger.info(f" Missing keys: {missing}")
-        logger.info(f" Unexpected keys: {unexpected}")
+        print(f"Loaded pre_encoder (integrated) weights from {encoder_path}")
+        print(f" Missing keys: {missing}")
+        print(f" Unexpected keys: {unexpected}")
