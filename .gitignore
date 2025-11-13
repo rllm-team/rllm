@@ -28,6 +28,7 @@ coverage.xml
 *.pt
 *.onnx
 *.exe
+*.ckpt
 examples/**/*.png
 examples/**/*.pdf
 benchmark/results/
