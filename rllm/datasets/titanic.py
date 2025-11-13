@@ -1,3 +1,4 @@
+from ast import Set
 import os
 import os.path as osp
 from typing import Optional
@@ -98,8 +99,8 @@ class Titanic(Dataset):
             col_types=col_types,
             target_col="Survived",
             tokenizer_config=self._tokenizer_config,
-            categorical_as_text=(
-                (ColType.CATEGORICAL) if self._tokenizer_config else None
+            convert_text_coltypes=(
+                {ColType.CATEGORICAL} if self._tokenizer_config else None
             ),
         )
 
