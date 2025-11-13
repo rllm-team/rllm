@@ -37,7 +37,6 @@ parser.add_argument("--pre_epochs", type=int, default=100, help="Pre-train epoch
 parser.add_argument("--finetune_epochs", type=int, default=100, help="Fine-tune epochs on target table")
 parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
 parser.add_argument("--wd", type=float, default=0, help="Weight decay")
-parser.add_argument("--seed", type=int, default=5, help="Random seed")
 parser.add_argument("--patience_pre", type=int, default=10, help="Early stopping patience (pre-train)")
 parser.add_argument("--patience_ft", type=int, default=10, help="Early stopping patience (fine-tune)")
 parser.add_argument("--dataset", type=str, default="titanic", choices=["titanic", "adult"])
@@ -45,8 +44,7 @@ parser.add_argument("--tokenizer_dir", type=str, default="./tokenizer", help="To
 args = parser.parse_args()
 
 
-utils_run.set_seed(args.seed)
-rng = default_rng(args.seed)
+rng = default_rng()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Initialize tokenizer for consistent text processing
@@ -75,7 +73,6 @@ target_column = original_table.target_col
 utils_data_prepare.build_split_masks(
     original_table,
     target_col=target_column,
-    seed=args.seed,
     train_ratio=0.7,
     val_ratio=0.1,
     test_ratio=0.2)

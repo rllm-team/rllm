@@ -111,7 +111,7 @@ def create_subtable(base_table, keep_cols: List[str], target_col: str, tokenizer
 def build_split_masks(
     table,
     target_col: str,
-    seed: int = 42,
+    seed: bool = None,
     train_ratio: float = 0.7,
     val_ratio: float = 0.1,
     test_ratio: float = 0.2,
