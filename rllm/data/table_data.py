@@ -1,7 +1,18 @@
 from __future__ import annotations
 import gc
 from functools import lru_cache, wraps
-from typing import Any, Dict, List, Union, Tuple, Callable, Optional, Sequence, overload
+from typing import (
+    Any,
+    Dict,
+    List,
+    Set,
+    Union,
+    Tuple,
+    Callable,
+    Optional,
+    Sequence,
+    overload,
+)
 from uuid import uuid4
 from warnings import warn
 import copy
@@ -119,11 +130,12 @@ class TableData(BaseTable):
             (default: :obj:`None`)
         y (Tensor, optional): A tensor containing the target values.
             (default: :obj:`None`, in which case it will be generated)
-        categorical_as_text (bool, optional): If True, automatically convert
-            all CATEGORICAL columns (except target_col) to TEXT type for
-            tokenization. This is useful for models like TransTab that require
-            text processing for categorical features.
-            (default: :obj:`False`)
+        convert_text_coltypes: (Set[ColType], optional): Specifies which
+            column types to automatically convert to TEXT type for tokenization.
+            This is useful for models like TransTab that require text processing for
+            certain feature types. When provided, columns of the specified types
+            (excluding target_col) will be converted to TEXT type to enable
+            tokenization-based processing.
         **kwargs: Additional key-value attributes to set as instance variables.
     """
 
@@ -142,27 +154,28 @@ class TableData(BaseTable):
         fkeys: Optional[Sequence[str]] = None,
         # lazy_feature
         lazy_feature: bool = False,
-        feat_dict: Dict[ColType, Tensor] = None,
+        feat_dict: Dict[ColType, Tensor] | None = None,
         metadata: Dict[ColType, List[dict[str, Any]]] | None = None,
         # task table
         target_col: Optional[str] = None,
-        y: Tensor = None,
+        y: Tensor | None = None,
         text_embedder_config: Optional[TextEmbedderConfig] = None,
         tokenizer_config: Optional[TokenizerConfig] = None,
-        categorical_as_text: bool = False,
+        convert_text_coltypes: Set[ColType] | None = None,
         **kwargs,
     ):
         self._mapping = BaseStorage()
 
-        # base
+        # Base table data and column types
         self.df = df
         self.col_types = col_types
+
         # Convert CATEGORICAL to TEXT if requested (for TransTab-like models)
-        if categorical_as_text:
+        if convert_text_coltypes is not None:
             for col_name, col_type in self.col_types.items():
                 self.col_types[col_name] = (
                     ColType.TEXT
-                    if col_type == ColType.CATEGORICAL and col_name != target_col
+                    if col_type in convert_text_coltypes and col_name != target_col
                     else col_type
                 )
 
