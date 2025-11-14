@@ -177,7 +177,16 @@ class GraphData(BaseGraph):
     def num_nodes(self):
         if "num_nodes" in self._mapping:
             return self._mapping["num_nodes"]
-        return len(self.y)
+        if hasattr(self, "y") and self.y is not None:
+            return len(self.y)
+        elif hasattr(self, "x") and self.x is not None:
+            return len(self.x)
+        elif hasattr(self, "adj") and self.adj is not None:
+            return self.adj.size(0)
+        else:
+            raise AttributeError(
+                "Cannot determine number of nodes: no y, x, or adj attributes available"
+            )
 
     @property
     def num_classes(self):
@@ -281,6 +290,7 @@ class GraphData(BaseGraph):
             setattr(hetero_data, attr, value)
 
         return hetero_data
+
 
 """
 `EdgeType` and `NodeType` are used as the types of
