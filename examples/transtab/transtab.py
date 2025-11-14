@@ -5,7 +5,7 @@
 
 # Datasets     Titanic    Adult
 # AUC(rept.)    -         0.90
-# AUC(ours)    0.867      0.894
+# AUC(ours)    0.861      0.894
 # Time         27.7s      2236.0s
 
 import argparse
