@@ -6,11 +6,11 @@ import pandas as pd
 import torch
 from torch import Tensor
 
-from rllm.types import ColType
-from rllm.preprocessing import TransTabDataExtractor
 from .pre_encoder import PreEncoder
 from ._transtab_word_embedding_encoder import TransTabWordEmbeddingEncoder
 from ._transtab_num_embedding_encoder import TransTabNumEmbeddingEncoder
+from rllm.types import ColType
+from rllm.preprocessing import TransTabDataExtractor
 from rllm.data.table_data import TableData
 
 

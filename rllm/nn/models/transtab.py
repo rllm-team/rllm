@@ -9,12 +9,11 @@ import torch
 from torch import Tensor
 
 from rllm.types import ColType
+from rllm.preprocessing import TokenizerConfig, TransTabDataExtractor
 from rllm.data.table_data import TableData
-from rllm.preprocessing import TokenizerConfig
-from rllm.preprocessing import TransTabDataExtractor
+from rllm.nn.loss import SupervisedVPCL, SelfSupervisedVPCL
 from rllm.nn.pre_encoder import TransTabPreEncoder
 from rllm.nn.conv.table_conv import TransTabConv
-from rllm.nn.loss import SupervisedVPCL, SelfSupervisedVPCL
 from rllm.nn.models.base_model import LinearClassifier
 
 

@@ -96,8 +96,8 @@ model = TransTabClassifier(
     num_layer=args.num_layers,
     num_attention_head=args.num_heads,
     ffn_dim=args.hidden_dim * 2,
-    tokenizer=tokenizer,  # Pass the same tokenizer instance used in TableData
-).to(device)  # Move model to device after initialization
+    tokenizer=tokenizer,
+).to(device)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd)
 
