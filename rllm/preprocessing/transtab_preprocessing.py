@@ -3,7 +3,6 @@ import os
 from typing import Dict, Tuple
 import collections
 import json
-import logging
 
 import numpy as np
 import torch
@@ -11,10 +10,6 @@ from torch import Tensor
 from transformers import BertTokenizerFast
 
 from rllm.types import ColType
-
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 class TransTabDataExtractor:
@@ -98,7 +93,7 @@ class TransTabDataExtractor:
         if not col_ok:
             if not self.ignore_duplicate_cols:
                 for c in dup:
-                    logger.error(f"Find duplicate cols named `{c}`; set ignore_duplicate_cols=True to auto-resolve.")
+                    print(f"ERROR: Find duplicate cols named `{c}`; set ignore_duplicate_cols=True to auto-resolve.")
                 raise ValueError("Column overlap detected; aborting.")
             else:
                 self._solve_duplicate_cols(dup)
@@ -208,119 +203,6 @@ class TransTabDataExtractor:
         # Use feat_dict-based processing
         if feat_dict is not None:
             return self._process_from_feat_dict(feat_dict, colname_token_ids, shuffle)
-        # # Otherwise use original DataFrame-based processing
-        # if df is None:
-        #     raise ValueError("Either df or feat_dict must be provided")
-        # cols = df.columns.tolist()
-        # cat_cols = [
-        #     c
-        #     for c in cols
-        #     if self.categorical_columns and c in self.categorical_columns
-        # ]
-        # num_cols = [
-        #     c for c in cols if self.numerical_columns and c in self.numerical_columns
-        # ]
-        # bin_cols = [c for c in cols if self.binary_columns and c in self.binary_columns]
-
-        # configured = bool(
-        #     self.categorical_columns or self.numerical_columns or self.binary_columns
-        # )
-        # if not any((cat_cols, num_cols, bin_cols)):
-        #     if configured:
-        #         raise ValueError(
-        #             "Configured cat/num/bin columns, but none matched DataFrame columns."
-        #         )
-        #     else:
-        #         cat_cols = cols
-
-        # if shuffle:
-        #     np.random.shuffle(cat_cols)
-        #     np.random.shuffle(num_cols)
-        #     np.random.shuffle(bin_cols)
-
-        # out: dict[str, Tensor | None] = {
-        #     "x_num": None,
-        #     "num_col_input_ids": None,
-        #     "num_att_mask": None,
-        #     "x_cat_input_ids": None,
-        #     "cat_att_mask": None,
-        #     "x_bin_input_ids": None,
-        #     "bin_att_mask": None,
-        # }
-
-        # # Numerical columns
-        # if num_cols:
-        #     x_num_df = df[num_cols].infer_objects(copy=False).fillna(0)
-        #     out["x_num"] = torch.tensor(x_num_df.values, dtype=torch.float32)
-        #     tokens = self.tokenizer(
-        #         num_cols,
-        #         padding=True,
-        #         truncation=True,
-        #         add_special_tokens=False,
-        #         return_tensors="pt",
-        #     )
-        #     out["num_col_input_ids"] = tokens["input_ids"]
-        #     out["num_att_mask"] = tokens["attention_mask"]
-
-        # # Categorical columns
-        # if cat_cols:
-        #     x_cat = df[cat_cols]
-        #     mask = (~x_cat.isna()).astype(int)
-        #     with pd.option_context("future.no_silent_downcasting", True):
-        #         x_cat = x_cat.fillna("")
-        #     x_cat = x_cat.astype(str)
-        #     cat_texts: list[str] = []
-        #     for values, flags in zip(x_cat.values, mask.values):
-        #         tokens = [
-        #             f"{col} {val}"
-        #             for col, val, flag in zip(cat_cols, values, flags)
-        #             if flag
-        #         ]
-        #         cat_texts.append(" ".join(tokens))
-        #     tokens = self.tokenizer(
-        #         cat_texts,
-        #         padding=True,
-        #         truncation=True,
-        #         add_special_tokens=False,
-        #         return_tensors="pt",
-        #     )
-        #     out["x_cat_input_ids"] = tokens["input_ids"]
-        #     out["cat_att_mask"] = tokens["attention_mask"]
-
-        # # Binary columns
-        # if bin_cols:
-        #     x_bin = df[bin_cols].copy()
-        #     try:
-        #         x_bin = x_bin.astype(str).map(lambda s: s.strip().lower())
-        #     except AttributeError:
-        #         x_bin = x_bin.astype(str).applymap(lambda s: s.strip().lower())
-
-        #     POS = {"1", "true", "t", "yes", "y", "on"}
-        #     NEG = {"0", "false", "f", "no", "n", "off", "", "nan", "none", "null"}
-        #     pos_mask = x_bin.isin(POS)
-        #     neg_mask = x_bin.isin(NEG)
-        #     rem = x_bin.where(~(pos_mask | neg_mask))
-        #     num = rem.apply(pd.to_numeric, errors="coerce")
-        #     gt0 = num.fillna(0).astype(float) > 0
-        #     x_bin_int = (pos_mask | gt0).astype(int)
-
-        #     bin_texts: list[str] = []
-        #     for values in x_bin_int.values:
-        #         tokens = [col for col, flag in zip(bin_cols, values) if flag]
-        #         bin_texts.append(" ".join(tokens))
-
-        #     tokens = self.tokenizer(
-        #         bin_texts,
-        #         padding=True,
-        #         truncation=True,
-        #         add_special_tokens=False,
-        #         return_tensors="pt",
-        #     )
-        #     if tokens["input_ids"].shape[1] > 0:
-        #         out["x_bin_input_ids"] = tokens["input_ids"]
-        #         out["bin_att_mask"] = tokens["attention_mask"]
-
-        # return out
         else:
             raise ValueError("Must provide feat_dict for processing.")
 
@@ -370,7 +252,7 @@ class TransTabDataExtractor:
         self.categorical_columns = col_type_dict.get("categorical", [])
         self.numerical_columns = col_type_dict.get("numerical", [])
         self.binary_columns = col_type_dict.get("binary", [])
-        logger.info(f"Loaded extractor state from {coltype_path}")
+        print(f"Loaded extractor state from {coltype_path}")
 
     def update(
         self,
@@ -405,9 +287,7 @@ class TransTabDataExtractor:
         if not col_ok:
             if not self.ignore_duplicate_cols:
                 for c in dup:
-                    logger.error(
-                        f"Find duplicate cols named `{c}`; set ignore_duplicate_cols=True to auto-resolve."
-                    )
+                    print(f"ERROR: Find duplicate cols named `{c}`; set ignore_duplicate_cols=True to auto-resolve.")
                 raise ValueError("Column overlap detected after update; aborting.")
             else:
                 self._solve_duplicate_cols(dup)
@@ -428,7 +308,7 @@ class TransTabDataExtractor:
             all_cols += bin_cols
 
         if not all_cols:
-            logger.warning("No columns specified; default to categorical.")
+            print("WARNING: No columns specified; default to categorical.")
             return True, []
 
         counter = collections.Counter(all_cols)
@@ -438,7 +318,7 @@ class TransTabDataExtractor:
     def _solve_duplicate_cols(self, duplicate_cols: list[str]) -> None:
         """Duplicate columns are automatically renamed to distinguish them."""
         for col in duplicate_cols:
-            logger.warning(f"Auto-resolving duplicate column `{col}`")
+            print(f"WARNING: Auto-resolving duplicate column `{col}`")
             if col in self.categorical_columns:
                 self.categorical_columns.remove(col)
                 self.categorical_columns.append(f"[cat]{col}")

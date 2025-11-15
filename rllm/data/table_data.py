@@ -169,7 +169,6 @@ class TableData(BaseTable):
         # Base table data and column types
         self.df = df
         self.col_types = col_types
-
         # Convert CATEGORICAL to TEXT if requested (for TransTab-like models)
         if convert_text_coltypes is not None:
             for col_name, col_type in self.col_types.items():
