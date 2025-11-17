@@ -5,7 +5,7 @@
 
 # Datasets     Titanic    Adult
 # AUC(rept.)    -         0.90
-# AUC(ours)    0.868      0.894
+# AUC(ours)    0.861      0.894
 # Time         27.7s      2236.0s
 
 import argparse
@@ -37,13 +37,10 @@ parser.add_argument("--batch_size", type=int, default=256, help="Batch size")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
-parser.add_argument("--seed", type=int, default=42, help="Random seed")
 parser.add_argument("--dataset", type=str, default="titanic", choices=["titanic", "adult"])
 parser.add_argument("--tokenizer_dir", type=str, default="./tokenizer", help="Tokenizer directory")
 args = parser.parse_args()
 
-# Set random seed and device
-# utils_run.set_seed(args.seed)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
@@ -74,12 +71,8 @@ target_col = data.target_col
 # Create train/val/test splits
 indices = np.arange(data.num_rows)
 labels = data.y.numpy()
-train_idx, temp_idx = train_test_split(
-    indices, test_size=0.3, stratify=labels, random_state=args.seed
-)
-val_idx, test_idx = train_test_split(
-    temp_idx, test_size=2 / 3, stratify=labels[temp_idx], random_state=args.seed
-)
+train_idx, temp_idx = train_test_split(indices, test_size=0.3, stratify=labels)
+val_idx, test_idx = train_test_split(temp_idx, test_size=2 / 3, stratify=labels[temp_idx])
 
 # Create DataLoader with TableData-based collate function
 batch_fn = utils_run.make_batch_fn(data, target_col, device, use_tabledata=True)
@@ -103,7 +96,7 @@ model = TransTabClassifier(
     num_layer=args.num_layers,
     num_attention_head=args.num_heads,
     ffn_dim=args.hidden_dim * 2,
-    tokenizer=tokenizer,  # Pass the same tokenizer instance used in TableData
+    tokenizer=tokenizer,
 ).to(device)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd)

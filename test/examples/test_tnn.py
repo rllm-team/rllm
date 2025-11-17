@@ -93,7 +93,7 @@ def test_transtab():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-8:]) > 0.80
+    assert float(stdout[-8:]) > 0.83
 
 
 def test_transtab_transfer():
@@ -110,4 +110,4 @@ def test_transtab_transfer():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-8:]) > 0.6
+    assert float(stdout[-8:]) > 0.70
