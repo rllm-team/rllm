@@ -40,6 +40,8 @@ jobs:
         python tab_transformer.py --epochs 1
         python ft_transformer.py --epochs 1
         python tab_transformer.py --epochs 1
+        python excelformer.py --epochs 1
+        python trompy.py --epochs 1
         python rect.py
         python ogc.py
         python han.py
@@ -48,3 +50,5 @@ jobs:
         python bridge/bridge.py --dataset tacm12k --epochs 1
         python bridge/bridge.py --dataset tlf2k --epochs 1
         python bridge/bridge.py --dataset tml1m --epochs 1
+        python transtab/transtab.py --epochs 1
+        python transtab/transtab_transfer.py --epochs 1
