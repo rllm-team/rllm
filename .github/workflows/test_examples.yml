@@ -41,7 +41,7 @@ jobs:
         python ft_transformer.py --epochs 1
         python tab_transformer.py --epochs 1
         python excelformer.py --epochs 1
-        python trompy.py --epochs 1
+        python trompt.py --epochs 1
         python rect.py
         python ogc.py
         python han.py
