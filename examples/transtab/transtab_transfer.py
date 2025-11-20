@@ -73,7 +73,6 @@ target_column = original_table.target_col
 utils_data_prepare.build_split_masks(
     original_table,
     target_col=target_column,
-    train_ratio=0.7,
     val_ratio=0.1,
     test_ratio=0.2)
 
