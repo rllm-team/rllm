@@ -9,7 +9,7 @@
 # 4. excelformer.py: Tests the ExcelFormer model.
 # 5. trompt.py: Tests the Trompt model.
 # 6. saint.py: Tests the SAINT model.
-# 7. transtab_single.py: Tests the TransTab model.
+# 7. transtab.py: Tests the TransTab model.
 # 8. transtab_transfer.py: Tests the TransTab model with transfer learning.
 
 # Each test function runs the corresponding example script and verifies the
@@ -86,14 +86,14 @@ def test_saint():
     assert float(stdout[-8:]) > 0.89
 
 
-def test_transtab_single():
-    script = os.path.join(EXAMPLE_ROOT, "./transtab/transtab_single.py")
+def test_transtab():
+    script = os.path.join(EXAMPLE_ROOT, "./transtab/transtab.py")
     out = subprocess.run(["python", str(script)], capture_output=True)
     assert (
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-8:]) > 0.80
+    assert float(stdout[-8:]) > 0.83
 
 
 def test_transtab_transfer():
@@ -110,4 +110,4 @@ def test_transtab_transfer():
         out.returncode == 0
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-8:]) > 0.6
+    assert float(stdout[-8:]) > 0.70

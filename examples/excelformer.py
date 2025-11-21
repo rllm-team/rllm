@@ -2,9 +2,11 @@
 # "ExcelFormer: A neural network surpassing GBDTs on tabular data" paper.
 # ArXiv: https://arxiv.org/abs/2301.02819
 
-# Datasets  Titanic    Adult
-# AUC       0.920      0.913
-# Time      7.3s       231.1s
+# Datasets      Titanic    Jannis
+# Metrics       AUC        Acc
+# Rept.         -          0.735
+# Ours          0.895      0.713
+# Time          7.3s       251.1s
 
 import argparse
 import sys
@@ -13,7 +15,7 @@ from typing import Any, Dict, List
 import os.path as osp
 
 from tqdm import tqdm
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, accuracy_score
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -22,12 +24,15 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets.titanic import Titanic
+from rllm.datasets import Jannis, Titanic
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import ExcelFormerConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--emb_dim", help="embedding dim.", type=int, default=32)
+parser.add_argument(
+    "--dataset", type=str, default="titanic", choices=["titanic", "jannis"]
+)
+parser.add_argument("--emb_dim", help="embedding dim", type=int, default=64)
 parser.add_argument("--num_layers", type=int, default=3)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--epochs", type=int, default=50)
@@ -42,7 +47,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = Titanic(cached_dir=path)[0]
+if args.dataset.lower() == "jannis":
+    data = Jannis(cached_dir=path)[0]
+    metric = "acc"
+else:
+    data = Titanic(cached_dir=path)[0]
+    metric = "auc"
 
 # Transform data
 transform = DefaultTableTransform(out_dim=args.emb_dim)
@@ -97,10 +107,10 @@ model = ExcelFormer(
     num_layers=args.num_layers,
     metadata=data.metadata,
 ).to(device)
-optimizer = torch.optim.Adam(
+optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=args.lr,
-    weight_decay=args.wd,
+    # weight_decay=args.wd,
 )
 
 
@@ -120,33 +130,42 @@ def train(epoch: int) -> float:
 
 
 @torch.no_grad()
-def test(loader: DataLoader) -> float:
+def test(loader: DataLoader, model, metric: str = "auc") -> float:
     model.eval()
     all_preds = []
     all_labels = []
-    for batch in loader:
-        x, y = batch
-        pred = model.forward(x)
+
+    for x, y in loader:
+        pred = model(x)
+        probs = torch.softmax(pred, dim=1)
         all_labels.append(y.cpu())
-        all_preds.append(pred[:, 1].detach().cpu())
+        all_preds.append(probs.detach().cpu())
     all_labels = torch.cat(all_labels).numpy()
-    all_preds = torch.cat(all_preds).numpy()
+    all_probs = torch.cat(all_preds, dim=0).numpy()
+    num_classes = len(torch.unique(torch.tensor(all_labels)))
 
-    # Compute the overall AUC
-    overall_auc = roc_auc_score(all_labels, all_preds)
-    return overall_auc
+    if metric.lower() == "auc":
+        if num_classes == 2:
+            score = float(roc_auc_score(all_labels, all_probs[:, 1]))
+        else:
+            score = float(roc_auc_score(all_labels, all_probs, multi_class="ovr"))
+    elif metric.lower() == "acc":
+        preds = torch.argmax(torch.tensor(all_probs), dim=1).numpy()
+        score = float(accuracy_score(all_labels, preds))
+    else:
+        raise ValueError(f"Unsupported metric: {metric}")
+    return score
 
 
-metric = "AUC"
 best_val_metric = test_metric = 0
 times = []
 for epoch in range(1, args.epochs + 1):
     start = time.time()
 
     train_loss = train(epoch)
-    train_metric = test(train_loader)
-    val_metric = test(val_loader)
-    tmp_test_metric = test(test_loader)
+    train_metric = test(train_loader, model, metric)
+    val_metric = test(val_loader, model, metric)
+    tmp_test_metric = test(test_loader, model, metric)
 
     if val_metric > best_val_metric:
         best_val_metric = val_metric

@@ -2,9 +2,11 @@
 # "Trompt: Towards a Better Deep Neural Network for Tabular Data" paper.
 # ArXiv: https://arxiv.org/abs/2305.18446
 
-# Datasets  Titanic    Adult
-# Acc       0.853      0.861
-# Time      13.9s      911.7s
+# Datasets      Titanic     Adult
+# Metrics       Acc         Acc
+# Rept.         -           0.862
+# Ours          0.853       0.861
+# Time          13.9s       911.7s
 
 import argparse
 import sys
@@ -21,11 +23,14 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets import Titanic
+from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--dataset", type=str, default="titanic", choices=["titanic", "adult"]
+)
 parser.add_argument("--emb_dim", help="embedding dim", type=int, default=128)
 parser.add_argument("--num_layers", type=int, default=6)
 parser.add_argument("--num_prompts", type=int, default=128)
@@ -42,7 +47,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = Titanic(cached_dir=path)[0]
+if args.dataset.lower() == "adult":
+    data = Adult(cached_dir=path)[0]
+else:
+    data = Titanic(cached_dir=path)[0]
 
 # Transform data
 transform = DefaultTableTransform(out_dim=args.emb_dim)
@@ -116,6 +124,7 @@ class Trompt(torch.nn.Module):
         return torch.cat(outs, dim=1).mean(dim=1)
 
 
+print(data.num_cols, data.num_classes)
 # Set up model and optimizer
 model = Trompt(
     in_dim=data.num_cols,

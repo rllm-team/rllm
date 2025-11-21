@@ -2,31 +2,19 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Union, Tuple
 import math
 import os
-import logging
 
-import torch
-from torch import Tensor
 import numpy as np
 import pandas as pd
+import torch
+from torch import Tensor
 
-from rllm.data.table_data import TableData
-from rllm.nn.conv.table_conv import TransTabConv
-from rllm.nn.pre_encoder import TransTabDataExtractor, TransTabPreEncoder
 from rllm.types import ColType
-
-
-TRAINING_ARGS_NAME = "training_args.json"
-TRAINER_STATE_NAME = "trainer_state.json"
-OPTIMIZER_NAME = "optimizer.pt"
-SCHEDULER_NAME = "scheduler.pt"
-WEIGHTS_NAME = "pytorch_model.bin"
-TOKENIZER_DIR = 'tokenizer'
-EXTRACTOR_STATE_DIR = 'extractor'
-EXTRACTOR_STATE_NAME = 'extractor.json'
-INPUT_ENCODER_NAME = 'input_encoder.bin'
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
+from rllm.preprocessing import TokenizerConfig, TransTabDataExtractor
+from rllm.data.table_data import TableData
+from rllm.nn.loss import SupervisedVPCL, SelfSupervisedVPCL
+from rllm.nn.pre_encoder import TransTabPreEncoder
+from rllm.nn.conv.table_conv import TransTabConv
+from rllm.nn.models.base_model import LinearClassifier
 
 
 class TransTabCLSToken(torch.nn.Module):
@@ -42,9 +30,9 @@ class TransTabCLSToken(torch.nn.Module):
 
     def __init__(self, hidden_dim) -> None:
         super().__init__()
-        self.weight = torch.nn.Parameter(Tensor(hidden_dim))
-        torch.nn.init.uniform_(self.weight, a=-1 / math.sqrt(hidden_dim), b=1 / math.sqrt(hidden_dim))
         self.hidden_dim = hidden_dim
+        self.weight = torch.nn.Parameter(Tensor(self.hidden_dim))
+        torch.nn.init.uniform_(self.weight, a=-1 / math.sqrt(self.hidden_dim), b=1 / math.sqrt(self.hidden_dim))
 
     def expand(self, *leading_dimensions):
         new_dims = (1,) * (len(leading_dimensions) - 1)
@@ -58,16 +46,6 @@ class TransTabCLSToken(torch.nn.Module):
                 [torch.ones(attention_mask.shape[0], 1).to(attention_mask.device), attention_mask], 1)
         outputs['attention_mask'] = attention_mask
         return outputs
-
-
-class TransTabProjectionHead(torch.nn.Module):
-    def __init__(self, hidden_dim=128, projection_dim=128):
-        super().__init__()
-        self.dense = torch.nn.Linear(hidden_dim, projection_dim, bias=False)
-
-    def forward(self, x) -> Tensor:
-        h = self.dense(x)
-        return h
 
 
 class TransTab(torch.nn.Module):
@@ -97,13 +75,15 @@ class TransTab(torch.nn.Module):
         layer_norm_eps (float): Epsilon for all LayerNorm operations.
         ffn_dim (int): Inner dimension of Transformer feedforward networks.
         activation (str): Activation function for feedforward ("relu", etc.).
-        device (Union[str, torch.device]): Device on which to run the model.
         projection_dim (int): Output dimension of the contrastive projection head.
         overlap_ratio (float): Overlap fraction used in contrastive partitioning.
         num_partition (int): Number of partitions for contrastive sampling.
         supervised (bool): If True, use supervised contrastive loss; otherwise unsupervised.
         temperature (float): Temperature parameter for contrastive loss.
         base_temperature (float): Base temperature for stability scaling.
+        tokenizer: Optional pretrained tokenizer instance (e.g., BertTokenizerFast).
+            If provided, will be used by TransTabDataExtractor; otherwise extractor
+            creates its own. (default: None)
         **kwargs: Additional keyword arguments passed to TransTabDataExtractor.
     """
 
@@ -119,29 +99,44 @@ class TransTab(torch.nn.Module):
         layer_norm_eps: float = 1e-5,
         ffn_dim: int = 256,
         activation: str = 'relu',
-        device: Union[str, torch.device] = 'cuda:0',
         projection_dim: int = 128,
         overlap_ratio: float = 0.1,
         num_partition: int = 2,
         supervised: bool = True,
         temperature: float = 10.0,
         base_temperature: float = 10.0,
+        tokenizer=None,
         **kwargs,
     ) -> None:
         super().__init__()
 
         self.hidden_dropout_prob = hidden_dropout_prob
         self.layer_norm_eps = layer_norm_eps
-        # 1) Record and deduplicate various column names
-        self.categorical_columns = list(set(categorical_columns)) if categorical_columns else None
-        self.numerical_columns = list(set(numerical_columns)) if numerical_columns else None
-        self.binary_columns = list(set(binary_columns)) if binary_columns else None
+
+        # 1) Record and deduplicate various column names (preserving order for reproducibility)
+        def deduplicate_preserving_order(lst):
+            """Remove duplicates while preserving order."""
+            if lst is None:
+                return None
+            seen = set()
+            result = []
+            for item in lst:
+                if item not in seen:
+                    seen.add(item)
+                    result.append(item)
+            return result
+
+        self.categorical_columns = deduplicate_preserving_order(categorical_columns)
+        self.numerical_columns = deduplicate_preserving_order(numerical_columns)
+        self.binary_columns = deduplicate_preserving_order(binary_columns)
 
         # 2) Initialize DataExtractor
+        # Pass tokenizer explicitly if provided, otherwise let extractor create its own
         self.extractor = TransTabDataExtractor(
             categorical_columns=self.categorical_columns,
             numerical_columns=self.numerical_columns,
             binary_columns=self.binary_columns,
+            tokenizer=tokenizer,
             **kwargs,
         )
 
@@ -158,27 +153,12 @@ class TransTab(torch.nn.Module):
             padding_idx=self.extractor.tokenizer.pad_token_id,
             hidden_dropout_prob=self.hidden_dropout_prob,
             layer_norm_eps=self.layer_norm_eps,
-            device=device,
             extractor=self.extractor,
             use_align_layer=True,
         )
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(
-            TransTabConv(
-                conv_dim=hidden_dim,
-                nhead=num_attention_head,
-                dropout=hidden_dropout_prob,
-                dim_feedforward=ffn_dim,
-                activation=activation,
-                layer_norm_eps=self.layer_norm_eps,
-                norm_first=False,
-                use_layer_norm=True,
-                batch_first=True,
-                device=device,
-            )
-        )
-        for _ in range(num_layer - 1):
+        for _ in range(num_layer):
             self.convs.append(
                 TransTabConv(
                     conv_dim=hidden_dim,
@@ -190,19 +170,15 @@ class TransTab(torch.nn.Module):
                     norm_first=False,
                     use_layer_norm=True,
                     batch_first=True,
-                    device=device,
                 )
             )
 
         # 6) CLS token module, used to insert a learnable vector at the front of the sequence
         self.cls_token = TransTabCLSToken(hidden_dim=hidden_dim)
 
-        self.device = device
-        self.to(device)
-
         # Contrastive Learning
         # Add a small projection head on top of the CLS embedding
-        self.projection_head = TransTabProjectionHead(hidden_dim, projection_dim)
+        self.projection_head = torch.nn.Linear(hidden_dim, projection_dim, bias=False)
         # CL hyperparameters
         self.supervised = supervised
         self.temperature = temperature
@@ -211,6 +187,10 @@ class TransTab(torch.nn.Module):
         self.overlap_ratio = overlap_ratio
         self.ce_loss = torch.nn.CrossEntropyLoss()
         # device already set
+
+    @property
+    def device(self) -> torch.device:
+        return next(self.parameters()).device
 
     def forward(
         self,
@@ -222,37 +202,13 @@ class TransTab(torch.nn.Module):
         y: optional label (placeholder only, ignored by the base class)
         Return: final [CLS] vector, shape = (batch, hidden_dim)
         """
-        if isinstance(x, dict):
-            parts = []
-            if x.get(ColType.CATEGORICAL) is not None:
-                parts.append(
-                    pd.DataFrame(
-                        x[ColType.CATEGORICAL].cpu().numpy(),
-                        columns=self.categorical_columns,
-                    )
-                )
-            if x.get(ColType.NUMERICAL) is not None:
-                parts.append(
-                    pd.DataFrame(
-                        x[ColType.NUMERICAL].cpu().numpy(),
-                        columns=self.numerical_columns,
-                    )
-                )
-            if x.get(ColType.BINARY) is not None:
-                parts.append(
-                    pd.DataFrame(
-                        x[ColType.BINARY].cpu().numpy(),
-                        columns=self.binary_columns,
-                    )
-                )
-            df = pd.concat(parts, axis=1)
-        elif isinstance(x, TableData):
-            df = x.df
+        if isinstance(x, TableData) or hasattr(x, 'feat_dict'):
+            # Pass TableData or TableData-like object to pre_encoder
+            proc_out = self.pre_encoder(x)
         else:
-            df = x
+            raise ValueError(f"Expected input type TableData or object with feat_dict, got {type(x)}")
 
         # 1) DataProcessor gets embedding + mask
-        proc_out = self.pre_encoder(df)
         emb = proc_out['embedding']       # (batch, seq_len, hidden_dim)
         mask = proc_out['attention_mask']  # (batch, seq_len)
 
@@ -262,7 +218,6 @@ class TransTab(torch.nn.Module):
         mask2 = cls_out['attention_mask']  # (batch, seq_len+1)
 
         # 3) Transformer Encoding
-        # enc_out = self.convs(embedding=emb2, attention_mask=mask2)
         for conv in self.convs:
             enc_out = conv(x=emb2, src_key_padding_mask=mask2)
             emb2 = enc_out
@@ -274,7 +229,7 @@ class TransTab(torch.nn.Module):
     def save(self, ckpt_dir: str) -> None:
         """
         Save the entire model:
-        1) data_processor.save → extractor/tokenizer + pre_encoder
+        1) pre_encoder.save → extractor/tokenizer + pre_encoder
         2) Save the state_dict of this model (conv + cls_token)
         """
         # 1) save extractor + pre_encoder
@@ -282,9 +237,9 @@ class TransTab(torch.nn.Module):
 
         # 2) Save model weights
         os.makedirs(ckpt_dir, exist_ok=True)
-        model_path = os.path.join(ckpt_dir, WEIGHTS_NAME)
+        model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
         torch.save(self.state_dict(), model_path)
-        logger.info(f"Saved TransTab weights to {model_path}")
+        print(f"Saved TransTab weights to {model_path}")
 
     def load(self, ckpt_dir: str) -> None:
         """
@@ -303,22 +258,20 @@ class TransTab(torch.nn.Module):
         self.binary_columns = self.pre_encoder.extractor.binary_columns
 
         # 3) Load model weights to CPU
-        model_path = os.path.join(ckpt_dir, WEIGHTS_NAME)
-        state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
+        model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
+        state_dict = torch.load(model_path, map_location='cpu', weights_only=True)
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
-        logger.info(f"Loaded TransTab weights from {model_path}")
-        logger.info(f" Missing keys: {missing}")
-        logger.info(f" Unexpected keys: {unexpected}")
+        print(f"Loaded TransTab weights from {model_path}")
+        print(f" Missing keys: {missing}")
+        print(f" Unexpected keys: {unexpected}")
 
         # 4) Cache the pre-trained pre_encoder status, which will be used in the subsequent update
-        pe_path = os.path.join(ckpt_dir, INPUT_ENCODER_NAME)
+        pe_path = os.path.join(ckpt_dir, 'input_encoder.bin')
         self._preencoder_state = torch.load(
             pe_path,
             map_location='cpu',
             weights_only=True
         )
-
-        self.to(self.device)
 
     def update(self, config: Dict[str, Any]) -> None:
         col_map = {k: v for k, v in config.items() if k in ('cat', 'num', 'bin')}
@@ -333,7 +286,7 @@ class TransTab(torch.nn.Module):
             self.numerical_columns = ext.numerical_columns
             self.binary_columns = ext.binary_columns
 
-            logger.info("Extended column mappings in TransTab via extractor.update().")
+            print("Extended column mappings in TransTab via extractor.update().")
 
         if 'num_class' in config:
             self._adapt_to_new_num_class(config['num_class'])
@@ -347,58 +300,14 @@ class TransTab(torch.nn.Module):
             return
         self.num_class = num_class
         # Rebuilding the classification header
-        self.clf = TransTabLinearClassifier(num_class=num_class,
-                                            hidden_dim=self.cls_token.hidden_dim)
-        self.clf.to(self.device)
+        self.clf = LinearClassifier(num_class=num_class, hidden_dim=self.cls_token.hidden_dim)
+        # Note: clf will be on the same device as the model after model.to(device) is called
         # Reconstruction loss
         if num_class > 2:
             self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
         else:
             self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
-        logger.info(f"Rebuilt classifier for num_class={num_class}.")
-
-
-class TransTabLinearClassifier(torch.nn.Module):
-    r"""TransTabLinearClassifier: Simple linear classification head with
-    layer normalization followed by a fully-connected layer on the
-    CLS embedding.
-
-    Args:
-        num_class (int): Number of target classes (<=2 produces a single logit).
-        hidden_dim (int): Dimensionality of input CLS embedding.
-    """
-
-    def __init__(self, num_class: int, hidden_dim: int = 128) -> None:
-        super().__init__()
-        out_dim = 1 if num_class <= 2 else num_class
-        self.fc = torch.nn.Linear(hidden_dim, out_dim)
-        self.norm = torch.nn.LayerNorm(hidden_dim)
-
-    def forward(self, cls_emb: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            cls_emb (torch.Tensor): CLS token embeddings of shape (batch_size, hidden_dim).
-
-        Returns:
-            torch.Tensor: Classification logits of shape
-                (batch_size,) for binary or (batch_size, num_class).
-        """
-        x = self.norm(cls_emb)
-        logits = self.fc(x)
-        return logits
-
-
-class TransTabLinearRegressor(torch.nn.Module):
-    def __init__(self, hidden_dim=128) -> None:
-        super().__init__()
-        self.fc = torch.nn.Linear(hidden_dim, 1)
-        self.norm = torch.nn.LayerNorm(hidden_dim)
-
-    def forward(self, x) -> Tensor:
-        x = x[:, 0, :]  # take the cls token embedding
-        x = self.norm(x)
-        output = self.fc(x)
-        return output
+        print(f"Rebuilt classifier for num_class={num_class}.")
 
 
 class TransTabClassifier(TransTab):
@@ -420,7 +329,8 @@ class TransTabClassifier(TransTab):
         hidden_dropout_prob (float): Dropout probability in Transformer sublayers.
         ffn_dim (int): Inner dimension of Transformer feedforward networks.
         activation (str): Activation function for feedforward layers ("relu", etc.).
-        device (Union[str, torch.device]): Device on which to run the model.
+        tokenizer: Optional pretrained tokenizer instance. If provided, will be
+            used by the underlying TransTab model. (default: None)
         **kwargs: Additional keyword arguments passed to `TransTab`.
     """
 
@@ -436,7 +346,7 @@ class TransTabClassifier(TransTab):
         hidden_dropout_prob: float = 0.1,
         ffn_dim: int = 256,
         activation: str = 'relu',
-        device: Union[str, torch.device] = 'cuda:0',
+        tokenizer=None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -449,20 +359,18 @@ class TransTabClassifier(TransTab):
             hidden_dropout_prob=hidden_dropout_prob,
             ffn_dim=ffn_dim,
             activation=activation,
-            device=device,
+            tokenizer=tokenizer,
             **kwargs,
         )
 
         self.num_class = num_class
         # Classification head: receives a CLS vector of [batch, hidden_dim]
-        self.clf = TransTabLinearClassifier(num_class=num_class, hidden_dim=hidden_dim)
+        self.clf = LinearClassifier(num_class=num_class, hidden_dim=hidden_dim)
 
         if num_class > 2:
             self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
         else:
             self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
-
-        self.to(self.device)
 
     def forward(
         self,
@@ -527,7 +435,8 @@ class TransTabForCL(TransTab):
         temperature (float): Temperature scaling for contrastive logits.
         base_temperature (float): Base temperature for loss normalization.
         activation (str): Activation function for feedforward layers.
-        device (Union[str, torch.device]): Device on which to run the model.
+        tokenizer: Optional pretrained tokenizer instance. If provided, will be
+            used by the underlying TransTab model. (default: None)
         **kwargs: Additional keyword arguments passed to `TransTab`.
     """
 
@@ -548,7 +457,7 @@ class TransTabForCL(TransTab):
         temperature=10,
         base_temperature=10,
         activation='relu',
-        device='cuda:0',
+        tokenizer=None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -561,26 +470,37 @@ class TransTabForCL(TransTab):
             hidden_dropout_prob=hidden_dropout_prob,
             ffn_dim=ffn_dim,
             activation=activation,
-            device=device,
+            tokenizer=tokenizer,
             **kwargs,
         )
         assert num_partition > 0, f'number of contrastive subsets must be greater than 0, got {num_partition}'
         assert isinstance(num_partition, int), f'number of constrative subsets must be int, got {type(num_partition)}'
         assert overlap_ratio >= 0 and overlap_ratio < 1, f'overlap_ratio must be in [0, 1), got {overlap_ratio}'
-        self.projection_head = TransTabProjectionHead(hidden_dim, projection_dim)
+        self.projection_head = torch.nn.Linear(hidden_dim, projection_dim, bias=False)
         self.cross_entropy_loss = torch.nn.CrossEntropyLoss()
         self.temperature = temperature
         self.base_temperature = base_temperature
         self.num_partition = num_partition
         self.overlap_ratio = overlap_ratio
         self.supervised = supervised
-        self.device = device
-        self.to(device)
+        self.self_sup_criterion = SelfSupervisedVPCL(
+            temperature=self.temperature,
+            base_temperature=self.base_temperature,
+            similarity="dot",   # "cosine"
+        )
+
+        self.sup_criterion = SupervisedVPCL(
+            temperature=self.temperature,
+            base_temperature=self.base_temperature,
+            similarity="dot",
+        )
 
     def forward(self, x, y=None):
         """
         Args:
-            x (DataFrame | Dict[ColType, Tensor]): Input batch or extracted features.
+            x (DataFrame | TableData): Input batch.
+               - DataFrame: Will be split into column subsets for contrastive learning
+               - TableData: Pre-tokenized data, will extract df for column splitting
             y (Optional[Tensor]): Labels for supervised contrastive loss.
 
         Returns:
@@ -588,37 +508,84 @@ class TransTabForCL(TransTab):
               - None (no logits returned for CL model)
               - loss (Tensor): Computed contrastive loss.
         """
-        # do positive sampling
-        feat_x_list = []
+        # Extract DataFrame from input
         if isinstance(x, pd.DataFrame):
-            sub_x_list = self._build_positive_pairs(x, self.num_partition)
-            for sub_x in sub_x_list:
-                proc = self.data_processor(sub_x)
-                emb = proc["embedding"]
-                mask = proc["attention_mask"]
-
-                cls_out = self.cls_token(emb, attention_mask=mask)
-                enc_out = self.convs(
-                    embedding=cls_out["embedding"],
-                    attention_mask=cls_out["attention_mask"],
-                )
-
-                feat = enc_out[:, 0, :]      # [bs, hidden_dim]
-                feat_proj = self.projection_head(feat)  # [bs, proj_dim]
-                feat_x_list.append(feat_proj)
+            df = x
+        elif hasattr(x, 'df'):  # TableData
+            df = x.df
         else:
-            raise ValueError(f"Expected input type pd.DataFrame, got {type(x)}")
+            raise ValueError(f"Expected input type pd.DataFrame or TableData, got {type(x)}")
 
-        # bs, num_partition, proj_dim
+        # Build positive pairs by splitting columns at DataFrame level
+        sub_df_list = self._build_positive_pairs(df, self.num_partition)
+
+        # Create tokenizer_config from model's own tokenizer
+        tokenizer_config = TokenizerConfig(
+            tokenizer=self.extractor.tokenizer,
+            pad_token_id=self.extractor.tokenizer.pad_token_id,
+            tokenize_combine=True,
+            include_colname=True,
+            save_colname_token_ids=True,
+        )
+
+        # Process each partition through the full pipeline
+        feat_x_list = []
+        for sub_df in sub_df_list:
+            # Build col_types for this subset
+            if hasattr(x, 'col_types'):
+                sub_col_types = {col: x.col_types[col] for col in sub_df.columns if col in x.col_types}
+            else:
+                # If no col_types available, use extractor's column info
+                sub_col_types = self._infer_col_types_from_extractor(sub_df.columns)
+
+            sub_table = TableData(
+                df=sub_df,
+                col_types=sub_col_types,
+                categorical_as_text=True,
+                tokenizer_config=tokenizer_config,
+            )
+            # Process through pre_encoder
+            proc = self.pre_encoder(sub_table)
+            emb = proc["embedding"]
+            mask = proc["attention_mask"]
+            # Add CLS token
+            cls_out = self.cls_token(emb, attention_mask=mask)
+            emb = cls_out["embedding"]
+            mask = cls_out["attention_mask"]
+
+            for conv in self.convs:
+                enc_out = conv(x=emb, src_key_padding_mask=mask)
+                emb = enc_out
+
+            # Extract CLS representation and project
+            feat = enc_out[:, 0, :]      # [bs, hidden_dim]
+            feat_proj = self.projection_head(feat)  # [bs, proj_dim]
+            feat_x_list.append(feat_proj)
+
+        # Stack multi-view features: [bs, num_partition, proj_dim]
         feat_x_multiview = torch.stack(feat_x_list, dim=1)
-
+        # Compute contrastive loss
         if y is not None and self.supervised:
             labels = y.to(self.device).long()
-            loss = self.supervised_contrastive_loss(feat_x_multiview, labels)
+            loss = self.sup_criterion(feat_x_multiview, labels)
         else:
-            loss = self.self_supervised_contrastive_loss(feat_x_multiview)
+            loss = self.self_sup_criterion(feat_x_multiview)
 
         return None, loss
+
+    def _infer_col_types_from_extractor(self, columns):
+        col_types = {}
+        for col in columns:
+            if col in self.extractor.categorical_columns:
+                col_types[col] = ColType.TEXT  # categorical_as_text=True
+            elif col in self.extractor.numerical_columns:
+                col_types[col] = ColType.NUMERICAL
+            elif col in self.extractor.binary_columns:
+                col_types[col] = ColType.BINARY
+            else:
+                # Default to TEXT if unknown
+                col_types[col] = ColType.TEXT
+        return col_types
 
     def _build_positive_pairs(self, x, n):
         x_cols = x.columns.tolist()
@@ -634,113 +601,3 @@ class TransTabForCL(TransTab):
             sub_x = x.copy()[sub_col]
             sub_x_list.append(sub_x)
         return sub_x_list
-
-    def cos_sim(self, a, b):
-        if not isinstance(a, torch.Tensor):
-            a = torch.tensor(a)
-
-        if not isinstance(b, torch.Tensor):
-            b = torch.tensor(b)
-
-        if len(a.shape) == 1:
-            a = a.unsqueeze(0)
-
-        if len(b.shape) == 1:
-            b = b.unsqueeze(0)
-
-        a_norm = torch.nn.functional.normalize(a, p=2, dim=1)
-        b_norm = torch.nn.functional.normalize(b, p=2, dim=1)
-        return torch.mm(a_norm, b_norm.transpose(0, 1))
-
-    def self_supervised_contrastive_loss(self, features):
-        r"""Compute self‑supervised vertical‑partition contrastive loss (VPCL).
-
-        Treats each column partition as a separate view and maximizes agreement
-        between partitions of the same sample without using labels.
-
-        Args:
-            features (torch.Tensor): Encoded features of shape
-                `(batch_size, num_partition, proj_dim)`.
-
-        Returns:
-            torch.Tensor: Scalar self‑supervised contrastive loss.
-        """
-        batch_size = features.shape[0]
-        labels = torch.arange(batch_size, dtype=torch.long, device=self.device).view(-1, 1)
-        mask = torch.eq(labels, labels.T).float().to(labels.device)
-
-        contrast_count = features.shape[1]
-        # [[0,1],[2,3]] -> [0,2,1,3]
-        contrast_feature = torch.cat(torch.unbind(features, dim=1), dim=0)
-        anchor_feature = contrast_feature
-        anchor_count = contrast_count
-        anchor_dot_contrast = torch.div(torch.matmul(anchor_feature, contrast_feature.T), self.temperature)
-        logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
-        logits = anchor_dot_contrast - logits_max.detach()
-        mask = mask.repeat(anchor_count, contrast_count)
-        indices_for_scatter = (
-            torch.arange(batch_size * anchor_count)
-            .view(-1, 1)
-            .to(features.device)
-        )
-        logits_mask = torch.scatter(torch.ones_like(mask), 1, indices_for_scatter, 0)
-        mask = mask * logits_mask
-        # compute log_prob
-        exp_logits = torch.exp(logits) * logits_mask
-        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
-        # compute mean of log-likelihood over positive
-        mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
-        loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos
-        loss = loss.view(anchor_count, batch_size).mean()
-        return loss
-
-    def supervised_contrastive_loss(self, features, labels):
-        r"""Compute supervised vertical‑partition contrastive loss (VPCL).
-
-        Uses class labels to form positive pairs across partitions, encouraging
-        same‑class views to be closer in projection space.
-
-        Args:
-            features (torch.Tensor): Encoded features of shape
-                `(batch_size, num_partition, proj_dim)`.
-            labels (torch.Tensor): Ground‑truth labels of shape `(batch_size,)`.
-
-        Returns:
-            torch.Tensor: Scalar supervised contrastive loss.
-        """
-        labels = labels.contiguous().view(-1, 1)
-        batch_size = features.shape[0]
-        mask = torch.eq(labels, labels.T).float().to(labels.device)
-
-        contrast_count = features.shape[1]
-        contrast_feature = torch.cat(torch.unbind(features, dim=1), dim=0)
-
-        # contrast_mode == 'all'
-        anchor_feature = contrast_feature
-        anchor_count = contrast_count
-
-        # compute logits
-        anchor_dot_contrast = torch.div(
-            torch.matmul(anchor_feature, contrast_feature.T),
-            self.temperature)
-        # for numerical stability
-        logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
-        logits = anchor_dot_contrast - logits_max.detach()
-        # tile mask
-        mask = mask.repeat(anchor_count, contrast_count)
-        # mask-out self-contrast cases
-        logits_mask = torch.scatter(
-            torch.ones_like(mask),
-            1,
-            torch.arange(batch_size * anchor_count).view(-1, 1).to(features.device),
-            0,
-        )
-        mask = mask * logits_mask
-        # compute log_prob
-        exp_logits = torch.exp(logits) * logits_mask
-        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
-        # compute mean of log-likelihood over positive
-        mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
-        loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos
-        loss = loss.view(anchor_count, batch_size).mean()
-        return loss
