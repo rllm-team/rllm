@@ -363,8 +363,6 @@ class TAPEDataset(Dataset):
                 # edge_id \t paper:tail \t | \t paper:head
                 items = line.strip().split("\t")
 
-                edge_id = items[0]  # noqa
-
                 tail = items[1].split(":")[-1]
                 head = items[3].split(":")[-1]
 
