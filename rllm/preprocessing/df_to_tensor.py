@@ -17,6 +17,7 @@ from rllm.preprocessing._word_embedding import (
     TextEmbedderConfig,
     embed_text_column,
 )
+from rllm.preprocessing._timestamp import TimestampPreprocessor
 from rllm.types import ColType
 
 
@@ -131,6 +132,8 @@ def _generate_column_tensor(
             -1, 1
         )
 
+    # TODO: (Feiyu Pan) If table contains two text columns, which require different
+    # processing (one embedding, one tokenization), current design cannot handle it.
     elif col_type == ColType.TEXT:
         # Determine processing mode based on config
         if tokenizer_config is not None:
@@ -150,3 +153,14 @@ def _generate_column_tensor(
         else:
             # Embedding mode
             return embed_text_column(col_copy, text_embedder_config)
+
+    elif col_type == ColType.TIMESTAMP:
+        preprocessor = TimestampPreprocessor(format=None)
+        return preprocessor(col_copy).reshape(
+            -1, 1
+        )
+
+    else:
+        raise NotImplementedError(
+            f"Column type {col_type} not implemented in _generate_column_tensor."
+        )

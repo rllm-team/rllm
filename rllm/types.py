@@ -41,19 +41,21 @@ class ColType(Enum):
         col_type = ColType.CATEGORICAL  # Categorical columns
         col_type = ColType.BINARY  # Binary columns
         col_type = ColType.TEXT  # Text columns (embedding or tokenization)
-        ...
+        col_type = ColType.TIMESTAMP  # Timestamp columns
 
     Attributes:
         NUMERICAL: Numerical columns.
         CATEGORICAL: Categorical columns.
         BINARY: Binary columns.
         TEXT: Text columns (processed as embeddings or token sequences based on config).
+        TIMESTAMP: Timestamp columns.
     """
 
     NUMERICAL = "numerical"
     CATEGORICAL = "categorical"
     BINARY = "binary"
     TEXT = "text"
+    TIMESTAMP = "timestamp"
 
     def __lt__(self, other):
         return self.value < other.value
