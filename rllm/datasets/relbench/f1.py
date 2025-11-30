@@ -8,6 +8,7 @@ import pandas as pd
 import pyarrow as pa
 from pyarrow import parquet as pq
 
+from rllm.data.graph_data import HeteroGraphData
 from rllm.types import ColType, TableType
 from rllm.data.table_data import TableData
 from rllm.datasets.relbench.base import (
@@ -18,6 +19,8 @@ from rllm.datasets.relbench.base import (
 )
 from rllm.utils.type_infer import TypeInferencer
 from rllm.datasets.relbench.utils import (
+    save_coltypes,
+    save_table_stats,
     upto,
     load_task_data,
     GloveTextEmbedding
@@ -30,8 +33,26 @@ class RelF1Dataset(RelBenchDataset):
     A wrapper for rel-f1 dataset in RelBench benchmark from
     `RelBench: A Benchmark for Deep Learning on
     Relational Databases <https://arxiv.org/abs/2407.20060>`__ paper,
+    which contains Formula 1 racing data with 9 tables and 3 tasks.
 
+    Tables:
+        - circuits
+        - constructor_results
+        - constructors
+        - constructor_standings
+        - drivers
+        - qualifying
+        - races
+        - results
+        - standings
 
+    Tasks:
+        - driver-dnf: Binary classification task to
+            predict whether a driver did not finish a race.
+        - driver-position: Regression task to
+            predict the finishing position of a driver.
+        - driver-top3: Binary classification task to
+            predict whether a driver finished in the top 3.
     """
 
     url = "https://relbench.stanford.edu/download/rel-f1/"
@@ -53,38 +74,24 @@ class RelF1Dataset(RelBenchDataset):
         self.name = "rel-f1"
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
-        # self.data_list = []
 
     @property
     def tasks(self):
         return ["driver-dnf", "driver-position", "driver-top3"]
 
     @property
-    def raw_zip_files(self):
+    def table_names(self):
         return [
-            "db.zip",
-            "tasks/driver-dnf.zip",
-            "tasks/driver-position.zip",
-            "tasks/driver-top3.zip"
+            "circuits",
+            "constructor_results",
+            "constructors",
+            "constructor_standings",
+            "drivers",
+            "qualifying",
+            "races",
+            "results",
+            "standings"
         ]
-
-    @property
-    def raw_filenames(self):
-        return [
-            "circuits.parquet",
-            "constructor_results.parquet",
-            "constructors.parquet",
-            "constructor_standings.parquet",
-            "drivers.parquet",
-            "qualifying.parquet",
-            "races.parquet",
-            "results.parquet",
-            "standings.parquet",
-        ]
-
-    @property
-    def processed_filenames(self):
-        pass
 
     def process(self):
         r"""
@@ -114,23 +121,15 @@ class RelF1Dataset(RelBenchDataset):
 
         self._table_meta_dict = table_meta_dict
 
-        # 2. extrat coltype
+        # 2. extrat coltype and cache
         print("Inferring column types...")
         table_df_coltype_dict = TypeInferencer.infer_table_df_dict_coltype(
             df_dict=table_df_dict
         )
-        with open(self.coltypes_path, "w") as f:
-            json.dump(
-                {
-                    table_name: {
-                        col_name: col_type.value
-                        for col_name, col_type in coltype_dict.items()
-                    }
-                    for table_name, coltype_dict in table_df_coltype_dict.items()
-                },
-                f,
-                indent=2
-            )
+        save_coltypes(
+            table_df_coltype_dict,
+            osp.join(self.processed_dir, "coltypes.json")
+        )
 
         # 3. convert to TableData (lazy feature)
         print("Converting to TableData...")
@@ -159,9 +158,17 @@ class RelF1Dataset(RelBenchDataset):
         print("Validating dataset...")
         self.validate_dataset()
 
-        # 5. make pkey-fkey graph
+        # 5. make pkey-fkey graph and cache
         print("Making pkey-fkey graph...")
-        self.make_pkey_fkey_graph()
+        hdata, tabledata_stats_dict = self.make_pkey_fkey_graph()
+        hdata.save(osp.join(self.processed_dir, "pkey_fkey_graph.pt"))
+        save_table_stats(
+            tabledata_stats_dict,
+            osp.join(self.processed_dir, "tabledata_stats.json")
+        )
+
+        self._hdata = hdata
+        self._tabledata_stats_dict = tabledata_stats_dict
 
         # 6. construct tasks
         self._task_dict = {}
@@ -211,21 +218,7 @@ class RelF1Dataset(RelBenchDataset):
         )
         self._task_dict["driver-top3"] = driver_top3_task
 
-    @property
-    def task_dict(self) -> Dict[str, RelBenchTask]:
-        return self._task_dict
-
-    @property
-    def table_dict(self) -> Dict[str, TableData]:
-        return self._table_dict
-
-    @property
-    def table_meta_dict(self) -> Dict[str, RelBenchTableMeta]:
-        return self._table_meta_dict
-
-    @property
-    def has_process(self):
-        return False
+        print("Processing done.")
 
     def __len__(self):
         return 0

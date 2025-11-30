@@ -135,7 +135,7 @@ class StatType(Enum):
     MOST_FREQUENT = "MOST_FREQUENT"
 
     @staticmethod
-    def stats_for_col_type(col_type: ColType) -> list[ColType]:
+    def stats_for_col_type(col_type: ColType) -> list[StatType]:
         stats_type = {
             ColType.NUMERICAL: [
                 StatType.MEAN,

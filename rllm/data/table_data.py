@@ -653,8 +653,16 @@ class TableData(BaseTable):
     ):
         r"""Get each column's statistical data from single tabular dataset.
         Columns with same ColType will be integrated together.
-        eg: {ColType.CATEGORICAL: [{col_name: col_name1, stat1: xx, stat2: xx},
-        {col_name: col_name2, stat1: xx, stat2: xx}], ...}"""
+
+        eg:
+        {
+            ColType.CATEGORICAL:
+                [
+                    {col_name: col_name1, stat1: xx, stat2: xx},
+                    {col_name: col_name2, stat1: xx, stat2: xx}
+                ], ...
+        }
+        """
         metadata = {}
         # 1. Iterate each column
         col_types = self.col_types.copy()

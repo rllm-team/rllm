@@ -147,7 +147,7 @@ class NodeStorage(BaseStorage):
     Attributes:
         num_nodes (int): The number of nodes in the storage.
     """
-    NODE_KEYS = {"x", "pos", "batch", "n_id"}
+    NODE_KEYS = {"x", "pos", "batch", "n_id", "table"}
 
     def __init__(self, initialdata: Optional[Dict[str, Any]] = None, **kwargs):
         super().__init__(initialdata, **kwargs)
