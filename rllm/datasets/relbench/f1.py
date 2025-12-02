@@ -19,8 +19,6 @@ from rllm.datasets.relbench.base import (
 )
 from rllm.utils.type_infer import TypeInferencer
 from rllm.datasets.relbench.utils import (
-    save_coltypes,
-    save_table_stats,
     upto,
     load_task_data,
     GloveTextEmbedding
@@ -119,6 +117,7 @@ class RelF1Dataset(RelBenchDataset):
             table_df_dict[table_name] = df
             table_meta_dict[table_name] = metadata
 
+        self._save_table_meta_dict(table_meta_dict)
         self._table_meta_dict = table_meta_dict
 
         # 2. extrat coltype and cache
@@ -126,10 +125,8 @@ class RelF1Dataset(RelBenchDataset):
         table_df_coltype_dict = TypeInferencer.infer_table_df_dict_coltype(
             df_dict=table_df_dict
         )
-        save_coltypes(
-            table_df_coltype_dict,
-            osp.join(self.processed_dir, "coltypes.json")
-        )
+        self._save_coltypes(table_df_coltype_dict)
+        self._coltypes = table_df_coltype_dict
 
         # 3. convert to TableData (lazy feature)
         print("Converting to TableData...")
@@ -161,11 +158,8 @@ class RelF1Dataset(RelBenchDataset):
         # 5. make pkey-fkey graph and cache
         print("Making pkey-fkey graph...")
         hdata, tabledata_stats_dict = self.make_pkey_fkey_graph()
-        hdata.save(osp.join(self.processed_dir, "pkey_fkey_graph.pt"))
-        save_table_stats(
-            tabledata_stats_dict,
-            osp.join(self.processed_dir, "tabledata_stats.json")
-        )
+        hdata.save(osp.join(self.processed_dir, self.HDATA_FILE))
+        self._save_tabledata_stats_dict(tabledata_stats_dict)
 
         self._hdata = hdata
         self._tabledata_stats_dict = tabledata_stats_dict
@@ -217,11 +211,6 @@ class RelF1Dataset(RelBenchDataset):
             )
         )
         self._task_dict["driver-top3"] = driver_top3_task
+        self._save_task_dict(self._task_dict)
 
         print("Processing done.")
-
-    def __len__(self):
-        return 0
-
-    def __getitem__(self, idx):
-        pass
