@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import warnings
 from enum import Enum
 import tqdm
+from functools import lru_cache
 
 import torch
 import numpy as np
@@ -23,6 +24,7 @@ class RelBenchTableMeta:
     fkey_col_to_pkey_table: Dict[str, str]
     pkey_col: str
     time_col: Optional[str] = None
+
 
 class RelBenchTaskType(Enum):
     REGRESSION = "regression"

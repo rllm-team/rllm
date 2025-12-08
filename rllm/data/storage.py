@@ -147,7 +147,7 @@ class NodeStorage(BaseStorage):
     Attributes:
         num_nodes (int): The number of nodes in the storage.
     """
-    NODE_KEYS = {"x", "pos", "batch", "n_id", "table"}
+    NODE_KEYS = {"x", "pos", "batch", "n_id", "table", "time"}
 
     def __init__(self, initialdata: Optional[Dict[str, Any]] = None, **kwargs):
         super().__init__(initialdata, **kwargs)
@@ -267,13 +267,14 @@ class EdgeStorage(BaseStorage):
         edge_time: Optional[Union[str, Tensor]] = None,
     ) -> Tuple[Tensor, Tensor, Optional[Tensor]]:
         r"""Convert the edge storage to a CSC format.
+        This can be applied to both homogeneous and heterogeneous graphs.
 
         Args:
             device (torch.device, optional): The desired device of the
                 returned tensors. If None, use the current device.
                 (default: `None`)
             num_nodes (int, optional): The number of nodes.
-                If None, infer from edge_index.
+                If None, infer from destination node index of edge_index.
                 (default: `None`)
             share_memory (bool, optional): If set to `True`, will share memory
                 among returned tensors. This can accelerate process when using
