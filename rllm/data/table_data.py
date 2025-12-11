@@ -18,7 +18,6 @@ from warnings import warn
 import copy
 
 import numpy as np
-import pandas as pd
 from pandas import DataFrame
 
 import torch
@@ -682,9 +681,15 @@ class TableData(BaseTable):
             current_col_index = col_types_count[col_type]
             col_types_count[col_type] = col_types_count[col_type] + 1
             for stat_type in stats_to_compute:
-                sub_stats_list[stat_type] = StatType.compute(
-                    self.feat_dict[col_type][:, current_col_index], stat_type
-                )
+                # Uses df for `ColType.TIMESTAMP` as we can not
+                # stat on tensor timestamp feat.
+                if col_type == ColType.TIMESTAMP:
+                    ser = self.df[col_name]
+                    sub_stats_list[stat_type] = StatType.compute(ser, stat_type)
+                else:
+                    sub_stats_list[stat_type] = StatType.compute(
+                        self.feat_dict[col_type][:, current_col_index], stat_type
+                    )
 
             # 3. Update metadata
             sub_stats_list[StatType.COLNAME] = col_name
@@ -726,7 +731,10 @@ class TableData(BaseTable):
             else:
                 out.feat_dict[ctype] = feat_value[index]
 
-        out.y = self.y[index]
+        if hasattr(self, 'y') and self.y is not None:
+            out.y = self.y[index]
+        else:
+            out.y = None
 
         out.__dict__["_len"] = index.numel()
 

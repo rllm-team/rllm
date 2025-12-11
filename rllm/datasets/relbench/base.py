@@ -6,13 +6,12 @@ from dataclasses import dataclass
 import warnings
 from enum import Enum
 import tqdm
-from functools import lru_cache
 
 import torch
 import numpy as np
 import pandas as pd
 
-from rllm.types import ColType, TableType, StatType
+from rllm.types import ColType, StatType
 from rllm.data import TableData, HeteroGraphData
 from rllm.datasets.dataset import Dataset
 from rllm.utils import download_url, extract_zip, sort_edge_index
@@ -195,7 +194,7 @@ class RelBenchDataset(Dataset):
             osp.exists(osp.join(self.processed_dir, file))
             for file in self.processed_filenames
         )
-        return file_exist and not self.force_reload
+        return file_exist
 
     def download(self):
         """
@@ -429,23 +428,17 @@ class RelBenchDataset(Dataset):
     def _save_tabledata_stats_dict(self, table_stats: Dict[str, Any]):
         stats_path = osp.join(self.processed_dir, self.TABLEDATA_STATS_FILE)
         with open(stats_path, "w") as f:
-            json.dump(
-                {
-                    table_name: {
-                        coltype.value: [
-                            {
-                                stat_type.value: stat_value
-                            }
-                            for col_stats in stats_list
-                                for stat_type, stat_value in col_stats.items()
-                        ]
-                        for coltype, stats_list in stats_dict.items()
-                    }
-                    for table_name, stats_dict in table_stats.items()
-                },
-                f,
-                indent=2
-            )
+            res = {}
+            for table_name, stats_dict in table_stats.items():
+                res[table_name] = {}
+                for coltype, stats_list in stats_dict.items():
+                    res[table_name][coltype.value] = []
+                    for col_stats in stats_list:
+                        stat_entry = {}
+                        for stat_type, stat_value in col_stats.items():
+                            stat_entry[stat_type.value] = stat_value
+                        res[table_name][coltype.value].append(stat_entry)
+            json.dump(res, f, indent=2)
 
     def _try_load_tabledata_stats_dict(self) -> Dict[str, Any]:
         """Load cached tabledata_stats_dict from processed_dir."""

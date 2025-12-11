@@ -92,8 +92,13 @@ def df_to_tensor(
                 else:
                     # Embedded text: stack along dim=1
                     feat_dict[col_type] = torch.stack(xs, dim=1)
+            elif col_type == ColType.TIMESTAMP:
+                # As diff timestamp features represent different aspects,
+                # we keep them separate along dim=1
+                feat_dict[col_type] = torch.stack(xs, dim=1)  # [N, 1, 7]
             else:
                 feat_dict[col_type] = torch.cat(xs, dim=-1)
+
 
     if merged_token is not None:
         feat_dict[ColType.TEXT] = merged_token  # (ids [N,L], mask [N,L])
@@ -155,10 +160,9 @@ def _generate_column_tensor(
             return embed_text_column(col_copy, text_embedder_config)
 
     elif col_type == ColType.TIMESTAMP:
+        # [Batch, 7], (year, month, day, dayofweek, hour, minute, second)
         preprocessor = TimestampPreprocessor(format=None)
-        return preprocessor(col_copy).reshape(
-            -1, 1
-        )
+        return preprocessor(col_copy)
 
     else:
         raise NotImplementedError(

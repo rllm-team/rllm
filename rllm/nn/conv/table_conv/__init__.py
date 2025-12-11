@@ -4,6 +4,7 @@ from .excelformer_conv import ExcelFormerConv
 from .trompt_conv import TromptConv
 from .saint_conv import SAINTConv
 from .transtab_conv import TransTabConv
+from .resnet_conv import ResNetConv
 
 __all__ = [
     "FTTransformerConv",
@@ -12,4 +13,5 @@ __all__ = [
     "TromptConv",
     "SAINTConv",
     "TransTabConv",
+    "ResNetConv",
 ]

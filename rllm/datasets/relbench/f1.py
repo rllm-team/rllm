@@ -1,15 +1,13 @@
+from typing import Optional
 import os
 import os.path as osp
-from typing import Optional, Dict, Any
 import json
 
 import torch
 import pandas as pd
-import pyarrow as pa
 from pyarrow import parquet as pq
 
-from rllm.data.graph_data import HeteroGraphData
-from rllm.types import ColType, TableType
+from rllm.types import TableType
 from rllm.data.table_data import TableData
 from rllm.datasets.relbench.base import (
     RelBenchDataset,
@@ -19,7 +17,6 @@ from rllm.datasets.relbench.base import (
 )
 from rllm.utils.type_infer import TypeInferencer
 from rllm.datasets.relbench.utils import (
-    upto,
     load_task_data,
     GloveTextEmbedding
 )
@@ -58,11 +55,26 @@ class RelF1Dataset(RelBenchDataset):
     val_timestamp = pd.Timestamp("2005-01-01")
     test_timestamp = pd.Timestamp("2010-01-01")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    text_embedder_config = TextEmbedderConfig(
-        text_embedder=GloveTextEmbedding(device=device),
-        batch_size=256
-    )
+    def _get_device(self) -> torch.device:
+        # Lazily determine device when needed instead of at import time.
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    @property
+    def text_embedder_config(self) -> TextEmbedderConfig:
+        """
+        Lazily create the text embedder config the first time it is needed.
+
+        Previously this was constructed as a class attribute at import time,
+        which caused `from rllm.datasets.relbench.f1 import RelF1Dataset`
+        to download/load the sentence-transformers model and took a long time.
+        """
+        if not hasattr(self, "_text_embedder_config"):
+            device = self._get_device()
+            self._text_embedder_config = TextEmbedderConfig(
+                text_embedder=GloveTextEmbedding(device=device),
+                batch_size=256,
+            )
+        return self._text_embedder_config
 
     def __init__(
         self,

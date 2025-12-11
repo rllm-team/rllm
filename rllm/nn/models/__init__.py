@@ -17,6 +17,9 @@ from .tabnet import (
 from .bridge import BRIDGE, TableEncoder, GraphEncoder
 from .transtab import TransTab, TransTabClassifier, TransTabForCL
 from .base_model import LinearClassifier
+from .resnet import TableResNet
+from .heterosage import HeteroSAGE
+
 
 __all__ = [
     "RECT_L",
@@ -28,4 +31,6 @@ __all__ = [
     "TransTabClassifier",
     "TransTabForCL",
     "LinearClassifier",
+    "TableResNet",
+    "HeteroSAGE",
 ]

@@ -334,3 +334,23 @@ def _to_csc(
             perm.share_memory_()
 
     return col_ptr, row, perm
+
+
+def to_bidirectional(
+    row: Tensor,
+    col: Tensor,
+    rev_row: Tensor,
+    rev_col: Tensor,
+) -> Tuple[Tensor, Tensor]:
+    r"""Transfer the directed edge index to bidirectional edge index.
+    """
+    assert row.numel() == col.numel()
+    assert rev_row.numel() == rev_col.numel()
+
+    edge_index = row.new_empty(2, row.numel() + rev_row.numel())
+    edge_index[0, :row.numel()] = row
+    edge_index[1, :row.numel()] = col
+    edge_index[0, row.numel():] = rev_col
+    edge_index[1, row.numel():] = rev_row
+    edge_index = torch.unique(edge_index, dim=1)
+    return edge_index[0], edge_index[1]

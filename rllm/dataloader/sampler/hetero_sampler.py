@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Union, Dict, Tuple
+from typing import List, Optional, Dict, Tuple
 
 import torch
 from torch import Tensor
@@ -17,15 +17,31 @@ from rllm.dataloader.sampler.data_type import (
 class HeteroSampler:
     """
     Heterogeneous graph sampler.
+
+    Args:
+        hdata (HeteroGraphData): The heterogeneous graph data.
+        num_neighbors (List[int]): Number of neighbors to sample at each hop.
+        replace (bool): Whether to sample with replacement. Default is False.
+        temporal_strategy (str): Temporal sampling strategy.
+            Currently only 'uniform' is supported.
+        time_attr (Optional[str]): Node attribute name for time.
+            Required if temporal_strategy is 'uniform'.
+        device (Optional[torch.device]): Device to perform sampling on.
+            Currently only CPU is supported.
+        to_bidirectional (bool): Whether to convert the graph to bidirectional
+            by adding reverse edges. Default is False.
+        csc (bool): Whether to use CSC format for sampling. Default is False.
     """
     def __init__(
         self,
         hdata: HeteroGraphData,
-        num_neighbors: List[int],   # For now, equal number of neighbors per type
+        num_neighbors: List[int],
         replace: bool = False,
         temporal_strategy: str = 'uniform',
         time_attr: Optional[str] = None,
         device: Optional[torch.device] = None,
+        to_bidirectional: bool = False,
+        csc: bool = False,
     ):
 
         assert device is None or device.type == 'cpu', 'Device must be CPU-enabled or None.'
@@ -33,6 +49,7 @@ class HeteroSampler:
         if temporal_strategy == 'uniform' and time_attr is None:
             raise ValueError('Time attribute must be provided for uniform temporal strategy.')
 
+        self.csc = csc
         self.device = device or torch.device('cpu')
         self.node_types = hdata.node_types
         self.edge_types = hdata.edge_types
@@ -60,12 +77,17 @@ class HeteroSampler:
         self.num_neighbors_dict = self._get_num_neighbor_dict()
         self.replace = replace
         self.temporal_strategy = temporal_strategy
+        self.to_bidirectional = to_bidirectional
 
     def _get_num_neighbor_dict(self) -> Dict[Tuple[str, str, str], List[int]]:
         num_neighbors_dict = {}
         for etype in self.edge_types:
             num_neighbors_dict[etype] = self.num_neighbors
         return num_neighbors_dict
+
+    @property
+    def edge_permutation(self) -> Dict[Tuple[str, str, str], Tensor]:
+        return self.perm_dict
 
     def sample_neighbors(self, input: NodeSamplerInput) -> HeteroSamplerOutput:
         seed = {input.input_type: input.node}
@@ -76,6 +98,8 @@ class HeteroSampler:
         out: HeteroSamplerOutput = self._sample_neighbors(seed, seed_time)
         out.metadata = (input.input_id, input.time)
 
+        if self.to_bidirectional:
+            out = out.to_bidirectional()
         return out
 
     def _sample_neighbors(
@@ -87,16 +111,17 @@ class HeteroSampler:
         We do sample for each target node, i.e., for each column.
         So we use col_ptr_dict as rowptr.
 
-        The sampling is
-        directed,
-        temporal uniform,
-        disjoint per seed node and
-        not replaced.
+        The sampling is:
+        - directed,
+        - temporal uniform,
+        - disjoint per seed node and
+        - not replaced.
         """
         (
             row_dict,
             col_dict,
             node_id_dict,
+            batch_dict,
             _,
             num_sampled_nodes_per_hop,
             num_edges_per_hop
@@ -106,6 +131,7 @@ class HeteroSampler:
             seed_dict=seed,
             num_neighbors_dict=self.num_neighbors_dict,
             node_time_dict=self.node_time_dict,
+            edge_time_dict=self.edge_time_dict,
             seed_time_dict=seed_time,
             temporal_strategy=self.temporal_strategy,
             csc=True,
@@ -115,7 +141,7 @@ class HeteroSampler:
             node=node_id_dict,
             row=row_dict,
             col=col_dict,
-            batch=None,
+            batch=batch_dict,
             num_sampled_nodes=num_sampled_nodes_per_hop,
             num_sampled_edges=num_edges_per_hop,
             original_row=None,

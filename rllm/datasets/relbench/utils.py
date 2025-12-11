@@ -3,12 +3,10 @@ import json
 
 import torch
 import pandas as pd
-import pyarrow as pa
 from pyarrow import parquet as pq
 
 from rllm.data import TableData
-from rllm.datasets.relbench.base import RelBenchTask, RelBenchTableMeta
-from rllm.types import ColType, StatType
+from rllm.datasets.relbench.base import RelBenchTableMeta
 
 
 class GloveTextEmbedding:
@@ -65,12 +63,6 @@ def load_task_data(task_path: str) -> Dict[str, Tuple[pd.DataFrame, RelBenchTabl
             time_col=json.loads(metadata_bytes[b"time_col"].decode("utf-8")) if b"time_col" in metadata_bytes else None
         )
 
-        input_cols = [
-            metadata.time_col,
-            *metadata.fkey_col_to_pkey_table.keys(),
-        ]
-
-        df = df[input_cols]
         task_tables[split] = (df, metadata)
 
     return task_tables

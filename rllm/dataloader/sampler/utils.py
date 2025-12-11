@@ -100,6 +100,7 @@ def hetero_neighbor_sample_cpu(
     Dict[EdgeType, Tensor],
     Dict[EdgeType, Tensor],
     Dict[NodeType, Tensor],
+    Dict[NodeType, Tensor],
     Optional[Dict[EdgeType, Tensor]],
     Dict[NodeType, List[int]],
     Dict[EdgeType, List[int]],
@@ -356,12 +357,15 @@ def hetero_neighbor_sample_cpu(
     # Build output tensors
     # -------------------------------------------------------------------------
     node_id_dict: Dict[NodeType, Tensor] = {}
+    batch_dict: Dict[NodeType, Tensor] = {}
     for nt, nodes in sampled_nodes.items():
         if nodes:
-            _, ids = zip(*nodes)
+            batches, ids = zip(*nodes)
             node_id_dict[nt] = torch.tensor(ids, device=device, dtype=torch.long)
+            batch_dict[nt] = torch.tensor(batches, device=device, dtype=torch.long)
         else:
             node_id_dict[nt] = torch.empty(0, device=device, dtype=torch.long)
+            batch_dict[nt] = torch.empty(0, device=device, dtype=torch.long)
 
     row_dict_tensor: Dict[EdgeType, Tensor] = {}
     col_dict_tensor: Dict[EdgeType, Tensor] = {}
@@ -397,6 +401,7 @@ def hetero_neighbor_sample_cpu(
         row_dict_tensor,
         col_dict_tensor,
         node_id_dict,
+        batch_dict,
         edge_id_dict_tensor,
         num_sampled_nodes_per_hop,
         num_edges_per_hop,
