@@ -19,6 +19,8 @@ from .transtab import TransTab, TransTabClassifier, TransTabForCL
 from .base_model import LinearClassifier
 from .resnet import TableResNet
 from .heterosage import HeteroSAGE
+from .rdl import RDL
+from .relgnn import RelGNN, RelGNNModel
 
 
 __all__ = [
@@ -33,4 +35,7 @@ __all__ = [
     "LinearClassifier",
     "TableResNet",
     "HeteroSAGE",
+    "RDL",
+    "RelGNN",
+    "RelGNNModel",
 ]

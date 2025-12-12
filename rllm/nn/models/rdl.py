@@ -7,52 +7,32 @@ from torch.nn import ModuleDict
 from rllm.types import ColType, StatType
 from rllm.data import HeteroGraphData
 from rllm.nn.models import TableResNet, HeteroSAGE
-from rllm.nn.pre_encoder.positional_encoder import PositionalEncoder
+from rllm.nn.pre_encoder import HeteroTemporalEncoder
 
 
-class HeteroTemporalEncoder(torch.nn.Module):
-    r"""HeteroTemporalEncoder for RDL model.
+class RDL(torch.nn.Module):
+    r"""Relational Deep Learning (RDL) model from paper
+    `"RelBench: A Benchmark for Deep Learning on Relational Databases"
+    <https://arxiv.org/abs/2407.20060>`_ paper.
+    The RDL model combines Table Neural Networks (TNNs)
+    and Heterogeneous Graph Neural Networks (HGNNs)
+    to effectively learn from multi-table relational data.
+    We consistently use TableResNet as the TNN component
+    and HeteroSAGE as the HGNN component following the
+    original paper with temporal encoding module.
 
     Args:
-        node_types (List[str]): The list of node types.
-        channels (int): The number of channels.
+        data (HeteroGraphData): The heterogeneous graph data.
+        col_stats_dict (Dict[str, Dict[ColType, List[Dict[StatType, Any]]]]):
+            The column statistics dictionary for each table.
+        hidden_dim (int): The hidden dimension.
+        out_dim (int): The output dimension.
+        tnn_hidden_dim (int): The hidden dimension for TNN.
+        tnn_num_layers (int): The number of layers for TNN.
+        hgnn_aggr (str): The aggregation method for HGNN.
+        hgnn_num_layers (int): The number of layers for HGNN.
+        use_temporal_encoder (bool): Whether to use temporal encoder.
     """
-    def __init__(self, node_types: List[str], channels: int):
-        super().__init__()
-
-        self.encoder_dict = ModuleDict(
-            {node_type: PositionalEncoder(channels) for node_type in node_types}
-        )
-        self.lin_dict = ModuleDict(
-            {node_type: torch.nn.Linear(channels, channels) for node_type in node_types}
-        )
-
-    def reset_parameters(self):
-        for encoder in self.encoder_dict.values():
-            encoder.reset_parameters()
-        for lin in self.lin_dict.values():
-            lin.reset_parameters()
-
-    def forward(
-        self,
-        seed_time: Tensor,
-        time_dict: Dict[str, Tensor],
-        batch_dict: Dict[str, Tensor],
-    ) -> Dict[str, Tensor]:
-        out_dict: Dict[str, Tensor] = {}
-
-        for node_type, time in time_dict.items():
-            rel_time = seed_time[batch_dict[node_type]] - time
-            rel_time = rel_time / (60 * 60 * 24)  # Convert seconds to days.
-
-            x = self.encoder_dict[node_type](rel_time)
-            x = self.lin_dict[node_type](x)
-            out_dict[node_type] = x
-
-        return out_dict
-
-
-class RDLModel(torch.nn.Module):
 
     def __init__(
         self,
@@ -96,6 +76,10 @@ class RDLModel(torch.nn.Module):
                     if "time" in data[node_type]
                 ],
                 channels=hidden_dim,
+            )
+        else:
+            self.TEMPORAL_ENCODER = self.register_parameter(
+                "TEMPORAL_ENCODER", None
             )
 
         self.HGNN = HeteroSAGE(
