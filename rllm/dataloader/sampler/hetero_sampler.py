@@ -131,7 +131,7 @@ class HeteroSampler:
             seed_dict=seed,
             num_neighbors_dict=self.num_neighbors_dict,
             node_time_dict=self.node_time_dict,
-            edge_time_dict=self.edge_time_dict,
+            edge_time_dict=None,
             seed_time_dict=seed_time,
             temporal_strategy=self.temporal_strategy,
             csc=True,

@@ -84,7 +84,8 @@ def main(args):
         data=dataset.hdata,
         col_stats_dict=col_stats_dict,
         hidden_dim=args.hidden_dim,
-        out_dim=1,  # Binary classification
+        out_dim=1,  # Regression
+        use_temporal_encoder=True,
     ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     loss_fn = torch.nn.L1Loss()
