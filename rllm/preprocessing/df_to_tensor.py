@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import Optional, Union, Tuple
 from pandas import Series
 
 import torch
+from torch import Tensor
 
 from rllm.preprocessing._fillna import fillna_by_coltype
 from rllm.preprocessing._type_convert import (
@@ -115,7 +116,7 @@ def _generate_column_tensor(
     col_name: str,
     text_embedder_config: Optional[TextEmbedderConfig] = None,
     tokenizer_config: Optional[TokenizerConfig] = None,
-):
+) -> Union[Tensor, Tuple[Tensor, Tensor]]:
     col_copy = col.copy()
     if col_type == ColType.NUMERICAL:
         col_copy = fillna_by_coltype(col_copy, ColType.NUMERICAL)

@@ -686,6 +686,11 @@ class TableData(BaseTable):
                 if col_type == ColType.TIMESTAMP:
                     ser = self.df[col_name]
                     sub_stats_list[stat_type] = StatType.compute(ser, stat_type)
+                elif isinstance(self.feat_dict[col_type], tuple):
+                    # TODO (Feiyu Pan): The ColType.TEXT with tokenization case
+                    # will return a tuple, which can not be handled here.
+                    # Skip it for now.
+                    continue
                 else:
                     sub_stats_list[stat_type] = StatType.compute(
                         self.feat_dict[col_type][:, current_col_index], stat_type
