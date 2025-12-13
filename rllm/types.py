@@ -1,9 +1,11 @@
 from __future__ import annotations
 from collections import Counter
+from enum import Enum
 
 import torch
-from enum import Enum
 from torch import Tensor
+import pandas as pd
+from pandas import Series
 
 
 class TableType(Enum):
@@ -41,19 +43,21 @@ class ColType(Enum):
         col_type = ColType.CATEGORICAL  # Categorical columns
         col_type = ColType.BINARY  # Binary columns
         col_type = ColType.TEXT  # Text columns (embedding or tokenization)
-        ...
+        col_type = ColType.TIMESTAMP  # Timestamp columns
 
     Attributes:
         NUMERICAL: Numerical columns.
         CATEGORICAL: Categorical columns.
         BINARY: Binary columns.
         TEXT: Text columns (processed as embeddings or token sequences based on config).
+        TIMESTAMP: Timestamp columns.
     """
 
     NUMERICAL = "numerical"
     CATEGORICAL = "categorical"
     BINARY = "binary"
     TEXT = "text"
+    TIMESTAMP = "timestamp"
 
     def __lt__(self, other):
         return self.value < other.value
@@ -116,6 +120,10 @@ class StatType(Enum):
         COUNT: The unique category count of each category in a
             categorical column.
         MOST_FREQUENT: The most frequent catrgory in a categorical column.
+
+        YEAR_RANGE: The range of years in a timestamp column. Tuple[int, int].
+        MEDIAN_TIME: The median timestamp in a timestamp column. str.
+            median_time = pd.to_datetime(median_time)
     """
 
     # Column name
@@ -132,8 +140,15 @@ class StatType(Enum):
     COUNT = "COUNT"
     MOST_FREQUENT = "MOST_FREQUENT"
 
+    # timestamp:
+    YEAR_RANGE = "YEAR_RANGE"
+    MEDIAN_TIME = "MEDIAN_TIME"
+
+    # text:
+    EMB_DIM = "EMB_DIM"
+
     @staticmethod
-    def stats_for_col_type(col_type: ColType) -> list[ColType]:
+    def stats_for_col_type(col_type: ColType) -> list[StatType]:
         stats_type = {
             ColType.NUMERICAL: [
                 StatType.MEAN,
@@ -150,33 +165,56 @@ class StatType(Enum):
                 StatType.COUNT,
                 StatType.MOST_FREQUENT,
             ],
-            ColType.TEXT: [],
+            ColType.TEXT: [
+                StatType.EMB_DIM,
+            ],
+            ColType.TIMESTAMP: [
+                StatType.YEAR_RANGE,
+                StatType.MEDIAN_TIME,
+            ],
         }
         return stats_type.get(col_type, [])
 
     @staticmethod
-    def compute(tensor: Tensor, stat_type: StatType):
+    def compute(col: Tensor | Series, stat_type: StatType):
         # stat_type for numerical
         if stat_type == StatType.MEAN:
-            return torch.mean(tensor[~torch.isnan(tensor)]).item()
+            return torch.mean(col[~torch.isnan(col)]).item()
         if stat_type == StatType.MAX:
-            return torch.max(tensor[~torch.isnan(tensor)]).item()
+            return torch.max(col[~torch.isnan(col)]).item()
         if stat_type == StatType.MIN:
-            return torch.min(tensor[~torch.isnan(tensor)]).item()
+            return torch.min(col[~torch.isnan(col)]).item()
         if stat_type == StatType.STD:
-            return torch.std(tensor[~torch.isnan(tensor)]).item()
+            return torch.std(col[~torch.isnan(col)]).item()
         if stat_type == StatType.QUANTILES:
             return [
-                torch.quantile(tensor[~torch.isnan(tensor)], 0).item(),
-                torch.quantile(tensor[~torch.isnan(tensor)], 0.25).item(),
-                torch.quantile(tensor[~torch.isnan(tensor)], 0.5).item(),
-                torch.quantile(tensor[~torch.isnan(tensor)], 0.75).item(),
-                torch.quantile(tensor[~torch.isnan(tensor)], 1).item(),
+                torch.quantile(col[~torch.isnan(col)], 0).item(),
+                torch.quantile(col[~torch.isnan(col)], 0.25).item(),
+                torch.quantile(col[~torch.isnan(col)], 0.5).item(),
+                torch.quantile(col[~torch.isnan(col)], 0.75).item(),
+                torch.quantile(col[~torch.isnan(col)], 1).item(),
             ]
 
         # stat_type for categorical
         if stat_type == StatType.COUNT:
-            return int(torch.max(tensor[tensor != -1]).item() + 1)
+            return int(torch.max(col[col != -1]).item() + 1)
         if stat_type == StatType.MOST_FREQUENT:
-            counter = Counter(tensor[tensor != -1].tolist())
+            counter = Counter(col[col != -1].tolist())
             return int(max(counter, key=counter.get))
+
+        # stat_type for text
+        if stat_type == StatType.EMB_DIM:
+            # the input is a tensor of shape [N, D]
+            return int(col.size(1))
+
+        # stat_type for timestamp
+        # the input is a pd.Series
+        if stat_type in StatType.stats_for_col_type(ColType.TIMESTAMP):
+            assert isinstance(col, Series)
+            col = pd.to_datetime(col, format=None)
+            if stat_type == StatType.YEAR_RANGE:
+                year_range = col.dt.year.values
+                return [int(min(year_range)), int(max(year_range))]
+            if stat_type == StatType.MEDIAN_TIME:
+                col = col.sort_values()
+                return str(col.iloc[len(col) // 2])

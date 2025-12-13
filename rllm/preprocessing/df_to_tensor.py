@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import Optional, Union, Tuple
 from pandas import Series
 
 import torch
+from torch import Tensor
 
 from rllm.preprocessing._fillna import fillna_by_coltype
 from rllm.preprocessing._type_convert import (
@@ -17,6 +18,7 @@ from rllm.preprocessing._word_embedding import (
     TextEmbedderConfig,
     embed_text_column,
 )
+from rllm.preprocessing._timestamp import TimestampPreprocessor
 from rllm.types import ColType
 
 
@@ -91,8 +93,13 @@ def df_to_tensor(
                 else:
                     # Embedded text: stack along dim=1
                     feat_dict[col_type] = torch.stack(xs, dim=1)
+            elif col_type == ColType.TIMESTAMP:
+                # As diff timestamp features represent different aspects,
+                # we keep them separate along dim=1
+                feat_dict[col_type] = torch.stack(xs, dim=1)  # [N, 1, 7]
             else:
                 feat_dict[col_type] = torch.cat(xs, dim=-1)
+
 
     if merged_token is not None:
         feat_dict[ColType.TEXT] = merged_token  # (ids [N,L], mask [N,L])
@@ -109,7 +116,7 @@ def _generate_column_tensor(
     col_name: str,
     text_embedder_config: Optional[TextEmbedderConfig] = None,
     tokenizer_config: Optional[TokenizerConfig] = None,
-):
+) -> Union[Tensor, Tuple[Tensor, Tensor]]:
     col_copy = col.copy()
     if col_type == ColType.NUMERICAL:
         col_copy = fillna_by_coltype(col_copy, ColType.NUMERICAL)
@@ -131,6 +138,8 @@ def _generate_column_tensor(
             -1, 1
         )
 
+    # TODO: (Feiyu Pan) If table contains two text columns, which require different
+    # processing (one embedding, one tokenization), current design cannot handle it.
     elif col_type == ColType.TEXT:
         # Determine processing mode based on config
         if tokenizer_config is not None:
@@ -150,3 +159,13 @@ def _generate_column_tensor(
         else:
             # Embedding mode
             return embed_text_column(col_copy, text_embedder_config)
+
+    elif col_type == ColType.TIMESTAMP:
+        # [Batch, 7], (year, month, day, dayofweek, hour, minute, second)
+        preprocessor = TimestampPreprocessor(format=None)
+        return preprocessor(col_copy)
+
+    else:
+        raise NotImplementedError(
+            f"Column type {col_type} not implemented in _generate_column_tensor."
+        )

@@ -55,6 +55,7 @@ class TabTransformerConv(torch.nn.Module):
         # Define PreEncoder
         self.pre_encoder = None
         if use_pre_encoder:
+            assert metadata is not None, "Metadata is required for pre-encoder"
             self.pre_encoder = TabTransformerPreEncoder(
                 out_dim=conv_dim,
                 metadata=metadata,

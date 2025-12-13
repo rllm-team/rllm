@@ -21,6 +21,7 @@ from rllm.preprocessing._word_embedding import (
     TextEmbedderConfig,
     embed_text_column,
 )
+from rllm.preprocessing._timestamp import TimestampPreprocessor
 from rllm.preprocessing.df_to_tensor import df_to_tensor
 from rllm.preprocessing.transtab_preprocessing import TransTabDataExtractor
 
@@ -47,4 +48,6 @@ __all__ = [
     # word embedding
     "TextEmbedderConfig",
     "embed_text_column",
+    # timestamp
+    "TimestampPreprocessor",
 ]

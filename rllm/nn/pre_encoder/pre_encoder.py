@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Union
 from abc import ABC
 
 import torch
@@ -63,7 +63,7 @@ class PreEncoder(torch.nn.Module, ABC):
         self,
         feat_dict: Dict[ColType, Tensor],
         return_dict: bool = False,
-    ) -> Tuple[Tensor, List[str]]:
+    ) -> Union[Tensor, Dict[ColType, Tensor]]:
         feat_encoded = {}
         for col_type in feat_dict.keys():
             feat = feat_dict[col_type]
