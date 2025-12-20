@@ -4,6 +4,7 @@ import weakref
 from itertools import chain
 from typing import Any, Dict, Optional, Callable, Mapping, Sequence, Union, Tuple
 from collections.abc import MutableMapping
+from warnings import warn
 
 import torch
 from torch import Tensor
@@ -147,7 +148,7 @@ class NodeStorage(BaseStorage):
     Attributes:
         num_nodes (int): The number of nodes in the storage.
     """
-    NODE_KEYS = {"x", "pos", "batch", "n_id"}
+    NODE_KEYS = {"x", "pos", "batch", "n_id", "table", "time"}
 
     def __init__(self, initialdata: Optional[Dict[str, Any]] = None, **kwargs):
         super().__init__(initialdata, **kwargs)
@@ -177,7 +178,16 @@ class NodeStorage(BaseStorage):
             return True
 
         v = self[key]
-        if (isinstance(v, (list, tuple, 'TableData')) and  # avoid circular import
+
+        # lazy import to avoid circular import
+        try:
+            from rllm.data.table_data import TableData
+            node_attr_type = (list, tuple, TableData)
+        except Exception:
+            warn("TableData not found. Using list and tuple as node attribute type.")
+            node_attr_type = (list, tuple)
+
+        if (isinstance(v, node_attr_type) and  
                 len(v) == self.num_nodes):
             self._node_attr_cache.add(key)
             return True
@@ -267,13 +277,14 @@ class EdgeStorage(BaseStorage):
         edge_time: Optional[Union[str, Tensor]] = None,
     ) -> Tuple[Tensor, Tensor, Optional[Tensor]]:
         r"""Convert the edge storage to a CSC format.
+        This can be applied to both homogeneous and heterogeneous graphs.
 
         Args:
             device (torch.device, optional): The desired device of the
                 returned tensors. If None, use the current device.
                 (default: `None`)
             num_nodes (int, optional): The number of nodes.
-                If None, infer from edge_index.
+                If None, infer from destination node index of edge_index.
                 (default: `None`)
             share_memory (bool, optional): If set to `True`, will share memory
                 among returned tensors. This can accelerate process when using

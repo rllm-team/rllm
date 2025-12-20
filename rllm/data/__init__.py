@@ -1,4 +1,5 @@
-from ..datasets.dataset import Dataset  # noqa
+# BUG: This will occur circular import
+# from ..datasets.dataset import Dataset  # noqa
 from .graph_data import BaseGraph, GraphData, HeteroGraphData  # noqa
 from .table_data import BaseTable, TableData, TableDataset, TextEmbedderConfig  # noqa
 from .storage import BaseStorage, NodeStorage, EdgeStorage, recursive_apply  # noqa
@@ -7,7 +8,7 @@ from .view import MappingView, KeysView, ValuesView, ItemsView  # noqa
 
 __all__ = [
     # dataset_classes
-    "Dataset",
+    # "Dataset",
     # graph_data_classes
     "BaseGraph",
     "GraphData",

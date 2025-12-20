@@ -33,6 +33,10 @@ class SAGEConv(MessagePassing):
             sampled neighborhood during training. The default value is 0.0.
         bias (bool): If set to `False`, no bias terms are added into
             the final output.
+        dst_in_dim (Optional[int]): The input dimension of the destination nodes.
+            If None, the input dimension of the source nodes is used.
+            This is only used when considering heterogeneous graphs
+            and the source and destination nodes have different input dimensions.
     """
 
     def __init__(
@@ -43,6 +47,7 @@ class SAGEConv(MessagePassing):
         activation: Optional[Callable] = F.relu,
         dropout: float = 0.0,
         bias: bool = False,
+        dst_in_dim: Optional[int] = None,
         **kwargs
     ):
         self.in_dim = in_dim
@@ -67,7 +72,10 @@ class SAGEConv(MessagePassing):
         if aggr == 'gcn':
             self.register_module('self_lin', None)
         else:
-            self.self_lin = torch.nn.Linear(in_dim, out_dim, bias=False)
+            if dst_in_dim is not None:
+                self.self_lin = torch.nn.Linear(dst_in_dim, out_dim, bias=False)
+            else:
+                self.self_lin = torch.nn.Linear(in_dim, out_dim, bias=False)
 
         self.lin = torch.nn.Linear(in_dim, out_dim, bias=False)
 
