@@ -134,6 +134,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--hidden_dim", type=int, default=128)
     parser.add_argument("--task", type=str, default="driver-dnf")
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch_size", type=int, default=256)
