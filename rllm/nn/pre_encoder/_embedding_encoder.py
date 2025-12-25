@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import torch
 from torch import Tensor
@@ -27,9 +27,9 @@ class EmbeddingEncoder(ColEncoder):
 
     def __init__(
         self,
-        out_dim: int | None = None,
-        stats_list: List[Dict[StatType, Any]] | None = None,
-        post_module: torch.nn.Module | None = None,
+        out_dim: Optional[int] = None,
+        stats_list: Optional[List[Dict[StatType, Any]]] = None,
+        post_module: Optional[torch.nn.Module] = None,
     ) -> None:
         super().__init__(out_dim, stats_list, post_module)
 

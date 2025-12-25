@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any
+from typing import Any, Optional, Dict, List
 
 import pandas as pd
 import torch
@@ -36,9 +36,9 @@ class TimestampEncoder(ColEncoder):
 
     def __init__(
         self,
-        out_dim: int | None = None,
-        stats_list: list[dict[StatType, Any]] | None = None,
-        post_module: torch.nn.Module | None = None,
+        out_dim: Optional[int] = None,
+        stats_list: Optional[List[Dict[StatType, Any]]] = None,
+        post_module: Optional[torch.nn.Module] = None,
         out_size: int = 8,
         fill_nan: bool = False,
     ) -> None:

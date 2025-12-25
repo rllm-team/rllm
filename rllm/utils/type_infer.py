@@ -30,6 +30,8 @@ class TypeInferencer:
 
     # Categorical minimum counting threshold. If the count of the most minor
     # categories is larger than this value, we treat the column as categorical.
+    # This is the original setting in TorchFrame, I keep it for consistency
+    # with RelBench.
     cat_min_count_thresh = 4
 
     POSSIBLE_SEPS = ["|", ","]
