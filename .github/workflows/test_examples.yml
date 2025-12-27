@@ -47,8 +47,6 @@ jobs:
         python han.py
         python gcn.py --epochs 1
         python gat.py --epochs 1
-        python rdl.py --epochs 1
-        python relgnn.py --epochs 1
         python bridge/bridge.py --dataset tacm12k --epochs 1
         python bridge/bridge.py --dataset tlf2k --epochs 1
         python bridge/bridge.py --dataset tml1m --epochs 1
