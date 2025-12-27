@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import math
 
 import torch
@@ -28,10 +28,12 @@ class TransTabNumEmbeddingEncoder(ColEncoder):
     def __init__(
         self,
         hidden_dim: int,
-        stats_list: List[Dict[StatType, Any]] | None = None,
-        post_module: torch.nn.Module | None = None,
+        stats_list: Optional[List[Dict[StatType, Any]]] = None,
+        post_module: Optional[torch.nn.Module] = None,
     ) -> None:
-        super().__init__(out_dim=hidden_dim, stats_list=stats_list, post_module=post_module)
+        super().__init__(
+            out_dim=hidden_dim, stats_list=stats_list, post_module=post_module
+        )
         self.out_dim = hidden_dim
         self.num_bias = torch.nn.Parameter(torch.empty(1, 1, hidden_dim))
         self.reset_parameters()
@@ -47,10 +49,13 @@ class TransTabNumEmbeddingEncoder(ColEncoder):
 
     def encode_forward(
         self,
-        feat: torch.Tensor,         # [num_cols, hidden_dim]
-        col_names: List[str] | None,
-        raw_vals: torch.Tensor,     # [batch, num_cols]
+        feat: torch.Tensor,  # [num_cols, hidden_dim]
+        raw_vals: torch.Tensor,  # [batch, num_cols]
+        col_names: Optional[List[str]] = None,
     ) -> torch.Tensor:
+        # import IPython
+
+        # IPython.embed()
         num_col_emb = feat.unsqueeze(0).expand(raw_vals.shape[0], -1, -1)
         return num_col_emb * raw_vals.unsqueeze(-1).float() + self.num_bias
 
@@ -60,7 +65,7 @@ class TransTabNumEmbeddingEncoder(ColEncoder):
     def forward(
         self,
         feat: torch.Tensor,
-        col_names: List[str] | None = None,
-        raw_vals: torch.Tensor = None,
+        raw_vals: torch.Tensor,
+        col_names: Optional[List[str]] = None,
     ) -> torch.Tensor:
-        return self.encode_forward(feat, col_names, raw_vals)
+        return self.encode_forward(feat, raw_vals, col_names)

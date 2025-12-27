@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Union
 from enum import Enum
 import warnings
 import math
@@ -30,10 +30,12 @@ class TypeInferencer:
 
     # Categorical minimum counting threshold. If the count of the most minor
     # categories is larger than this value, we treat the column as categorical.
+    # This is the original setting in TorchFrame, I keep it for consistency
+    # with RelBench.
     cat_min_count_thresh = 4
 
     POSSIBLE_SEPS = ["|", ","]
-    POSSIBLE_TIME_FORMATS = [None, '%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%Y/%m/%d']
+    POSSIBLE_TIME_FORMATS = [None, "%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d"]
 
     @classmethod
     def _is_timestamp(cls, ser: Series) -> bool:
@@ -52,7 +54,7 @@ class TypeInferencer:
     def _lst_is_all_type(
         cls,
         lst: list[Any],
-        types: tuple[type, ...] | type,
+        types: Union[tuple[type, ...], type],
     ) -> bool:
         assert isinstance(lst, list)
         return all(isinstance(x, types) for x in lst)
@@ -67,7 +69,7 @@ class TypeInferencer:
         return ser.value_counts().min()
 
     @classmethod
-    def infer_series_coltype(cls, ser: Series) -> ColType | None:
+    def infer_series_coltype(cls, ser: Series) -> Optional[ColType]:
         """Infer :obj:`ColType` given :class:`Series` object.
 
         Args:
@@ -100,8 +102,11 @@ class TypeInferencer:
                 if not isinstance(lst, list):
                     return None
                 if cls._lst_is_all_type(lst, (int, float)):
-                    if not (length == len(lst) and cls._lst_is_all_type(lst, float)
-                            and cls._lst_is_free_of_nan_and_inf(lst)):
+                    if not (
+                        length == len(lst)
+                        and cls._lst_is_all_type(lst, float)
+                        and cls._lst_is_free_of_nan_and_inf(lst)
+                    ):
                         is_embedding = False
                 else:
                     is_all_numerical = False
@@ -126,8 +131,9 @@ class TypeInferencer:
                 if ptypes.is_bool_dtype(ser):
                     return ColType.BINARY
                 # Candidates: numerical, categorical
-                if ptypes.is_float_dtype(ser) and not (has_nan and
-                                                    (ser % 1 == 0).all()):
+                if ptypes.is_float_dtype(ser) and not (
+                    has_nan and (ser % 1 == 0).all()
+                ):
                     return ColType.NUMERICAL
                 else:
                     if cls._min_count(ser) > cls.cat_min_count_thresh:
@@ -156,8 +162,7 @@ class TypeInferencer:
                         return ColTypePlaceholder.EMBEDDING
 
                 # Try different possible seps and mick the largest min_count.
-                if isinstance(ser.iloc[0], list) or isinstance(
-                        ser.iloc[0], np.ndarray):
+                if isinstance(ser.iloc[0], list) or isinstance(ser.iloc[0], np.ndarray):
                     max_min_count = cls._min_count(ser.explode())
                 else:
                     min_count_list = []
@@ -168,7 +173,8 @@ class TypeInferencer:
                         except Exception as e:
                             warnings.warn(
                                 "Mapping series into multicategorical stype "
-                                f"with separator {sep} raised an exception {e}")
+                                f"with separator {sep} raised an exception {e}"
+                            )
                             continue
                     max_min_count = max(min_count_list or [0])
 

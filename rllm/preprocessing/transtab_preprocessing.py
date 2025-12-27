@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 import collections
 import json
 
@@ -48,11 +48,11 @@ class TransTabDataExtractor:
 
     def __init__(
         self,
-        categorical_columns: list[str] | None = None,
-        numerical_columns: list[str] | None = None,
-        binary_columns: list[str] | None = None,
+        categorical_columns: Optional[list[str]] = None,
+        numerical_columns: Optional[list[str]] = None,
+        binary_columns: Optional[list[str]] = None,
         tokenizer_dir: str = "./tokenizer",
-        tokenizer: BertTokenizerFast | None = None,
+        tokenizer: Optional[BertTokenizerFast] = None,
         disable_tokenizer_parallel: bool = True,
         ignore_duplicate_cols: bool = False,
     ) -> None:
@@ -81,9 +81,17 @@ class TransTabDataExtractor:
                     result.append(x)
             return result
 
-        self.categorical_columns = (deduplicate_preserve_order(categorical_columns) if categorical_columns else [])
-        self.numerical_columns = (deduplicate_preserve_order(numerical_columns) if numerical_columns else [])
-        self.binary_columns = (deduplicate_preserve_order(binary_columns) if binary_columns else [])
+        self.categorical_columns = (
+            deduplicate_preserve_order(categorical_columns)
+            if categorical_columns
+            else []
+        )
+        self.numerical_columns = (
+            deduplicate_preserve_order(numerical_columns) if numerical_columns else []
+        )
+        self.binary_columns = (
+            deduplicate_preserve_order(binary_columns) if binary_columns else []
+        )
         self.ignore_duplicate_cols = ignore_duplicate_cols
 
         # Check and handle duplicate column names
@@ -93,7 +101,9 @@ class TransTabDataExtractor:
         if not col_ok:
             if not self.ignore_duplicate_cols:
                 for c in dup:
-                    print(f"ERROR: Find duplicate cols named `{c}`; set ignore_duplicate_cols=True to auto-resolve.")
+                    print(
+                        f"ERROR: Find duplicate cols named `{c}`; set ignore_duplicate_cols=True to auto-resolve."
+                    )
                 raise ValueError("Column overlap detected; aborting.")
             else:
                 self._solve_duplicate_cols(dup)
@@ -134,7 +144,9 @@ class TransTabDataExtractor:
                 out["x_cat_input_ids"] = text_data[0].long()  # [B, L]
                 out["cat_att_mask"] = text_data[1].long()  # [B, L]
             else:
-                raise ValueError("TEXT features must be tokenized (tuple of ids and mask)")
+                raise ValueError(
+                    "TEXT features must be tokenized (tuple of ids and mask)"
+                )
 
         # Process NUMERICAL columns
         if ColType.NUMERICAL in feat_dict:
@@ -145,7 +157,9 @@ class TransTabDataExtractor:
             # to match the column order in feat_dict[ColType.NUMERICAL]
             if colname_token_ids is not None:
                 # Get numerical columns in the order they appear in colname_token_ids
-                num_cols = [c for c in colname_token_ids.keys() if c in self.numerical_columns]
+                num_cols = [
+                    c for c in colname_token_ids.keys() if c in self.numerical_columns
+                ]
 
                 if shuffle:
                     np.random.shuffle(num_cols)
@@ -162,7 +176,9 @@ class TransTabDataExtractor:
 
             # IMPORTANT: Use colname_token_ids order to match feat_dict column order
             if colname_token_ids is not None:
-                bin_cols = [c for c in colname_token_ids.keys() if c in self.binary_columns]
+                bin_cols = [
+                    c for c in colname_token_ids.keys() if c in self.binary_columns
+                ]
                 if shuffle:
                     np.random.shuffle(bin_cols)
 
@@ -175,7 +191,8 @@ class TransTabDataExtractor:
                     for i in range(batch_size):
                         # Get active columns for this row (value > 0.5, assuming 0/1 encoding)
                         active_cols = [
-                            col for j, col in enumerate(bin_cols)
+                            col
+                            for j, col in enumerate(bin_cols)
                             if j < x_bin.shape[1] and x_bin[i, j].item() > 0.5
                         ]
                         bin_texts.append(" ".join(active_cols))
@@ -256,9 +273,9 @@ class TransTabDataExtractor:
 
     def update(
         self,
-        cat: list[str] | None = None,
-        num: list[str] | None = None,
-        bin: list[str] | None = None,
+        cat: Optional[list[str]] = None,
+        num: Optional[list[str]] = None,
+        bin: Optional[list[str]] = None,
     ) -> None:
         r"""Dynamically extend column lists and recheck for duplicates.
 
@@ -287,16 +304,18 @@ class TransTabDataExtractor:
         if not col_ok:
             if not self.ignore_duplicate_cols:
                 for c in dup:
-                    print(f"ERROR: Find duplicate cols named `{c}`; set ignore_duplicate_cols=True to auto-resolve.")
+                    print(
+                        f"ERROR: Find duplicate cols named `{c}`; set ignore_duplicate_cols=True to auto-resolve."
+                    )
                 raise ValueError("Column overlap detected after update; aborting.")
             else:
                 self._solve_duplicate_cols(dup)
 
     def _check_column_overlap(
         self,
-        cat_cols: list[str] | None = None,
-        num_cols: list[str] | None = None,
-        bin_cols: list[str] | None = None,
+        cat_cols: Optional[list[str]] = None,
+        num_cols: Optional[list[str]] = None,
+        bin_cols: Optional[list[str]] = None,
     ) -> tuple[bool, list[str]]:
         """Check if the same column is categorized multiple times."""
         all_cols = []

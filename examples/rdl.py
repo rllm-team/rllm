@@ -91,14 +91,16 @@ def main(args):
         use_temporal_encoder=True,
     ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    loss_fn = torch.nn.BCEWithLogitsLoss() \
-        if args.task in ["driver-dnf", "driver-position"] \
+    loss_fn = (
+        torch.nn.BCEWithLogitsLoss()
+        if args.task in ["driver-dnf", "driver-position"]
         else torch.nn.L1Loss()
-    
+    )
+
     if args.task == "driver-position":
         clamp_min, clamp_max = np.percentile(
-        task.task_data_dict['train'][0][task.target_col].to_numpy(), [2, 98]
-    )
+            task.task_data_dict["train"][0][task.target_col].to_numpy(), [2, 98]
+        )
     else:
         clamp_min, clamp_max = None, None
 
@@ -145,9 +147,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    assert args.task in ["driver-dnf", "driver-top3", "driver-position"], \
-        "Only 'driver-dnf', 'driver-top3', and 'driver-position' tasks are supported."
+    assert args.task in [
+        "driver-dnf",
+        "driver-top3",
+        "driver-position",
+    ], "Only 'driver-dnf', 'driver-top3', and 'driver-position' tasks are supported."
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     main(args)

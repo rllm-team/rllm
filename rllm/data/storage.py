@@ -126,7 +126,7 @@ class BaseStorage(MutableMapping):
     def __contains__(self, key: str):
         return key in self._mapping
 
-    def __copy__(self) -> 'BaseStorage':
+    def __copy__(self) -> "BaseStorage":
         out = self.__class__.__new__(self.__class__)
         for k, v in self.__dict__.items():
             out.__dict__[k] = v
@@ -148,6 +148,7 @@ class NodeStorage(BaseStorage):
     Attributes:
         num_nodes (int): The number of nodes in the storage.
     """
+
     NODE_KEYS = {"x", "pos", "batch", "n_id", "table", "time"}
 
     def __init__(self, initialdata: Optional[Dict[str, Any]] = None, **kwargs):
@@ -171,7 +172,7 @@ class NodeStorage(BaseStorage):
         2. Tensor with the first dimension equal to the number of nodes.
         3. Numpy array with the first dimension equal to the number of nodes.
         """
-        if '_node_attr_cache' not in self.__dict__:
+        if "_node_attr_cache" not in self.__dict__:
             self._node_attr_cache = set()
 
         if key in self._node_attr_cache:
@@ -182,13 +183,13 @@ class NodeStorage(BaseStorage):
         # lazy import to avoid circular import
         try:
             from rllm.data.table_data import TableData
+
             node_attr_type = (list, tuple, TableData)
         except Exception:
             warn("TableData not found. Using list and tuple as node attribute type.")
             node_attr_type = (list, tuple)
 
-        if (isinstance(v, node_attr_type) and  
-                len(v) == self.num_nodes):
+        if isinstance(v, node_attr_type) and len(v) == self.num_nodes:
             self._node_attr_cache.add(key)
             return True
 
@@ -245,15 +246,17 @@ class EdgeStorage(BaseStorage):
         2. Tensor with the first dimension equal to the number of edges.
         3. Numpy array with the first dimension equal to the number of edges.
         """
-        if '_edge_attr_cache' not in self.__dict__:
-            self._edge_attr_cache = {'edge_index', 'adj', 'num_edges'}
+        if "_edge_attr_cache" not in self.__dict__:
+            self._edge_attr_cache = {"edge_index", "adj", "num_edges"}
 
         if key in self._edge_attr_cache:
             return True
 
         v = self[key]
-        if (isinstance(v, (list, tuple, 'TableData')) and  # avoid circular import
-                len(v) == self.num_edges):
+        if (
+            isinstance(v, (list, tuple, "TableData"))  # avoid circular import
+            and len(v) == self.num_edges
+        ):
             self._edge_attr_cache.add(key)
             return True
 
@@ -309,7 +312,9 @@ class EdgeStorage(BaseStorage):
         elif hasattr(self, "adj"):
             input = self["adj"]
         else:
-            raise ValueError("No edge found. Edge type should be either `adj` or `edge_index`.")
+            raise ValueError(
+                "No edge found. Edge type should be either `adj` or `edge_index`."
+            )
 
         if isinstance(edge_time, str):
             assert edge_time in self

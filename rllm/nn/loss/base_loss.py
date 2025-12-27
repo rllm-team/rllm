@@ -23,6 +23,4 @@ class BaseLoss(torch.nn.Module):
         super().__init__()
 
     def forward(self, *args, **kwargs) -> torch.Tensor:
-        raise NotImplementedError(
-            f"{self.__class__.__name__} must implement forward()"
-        )
+        raise NotImplementedError(f"{self.__class__.__name__} must implement forward()")

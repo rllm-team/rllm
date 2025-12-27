@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 import os
 
 import pandas as pd
@@ -37,7 +37,7 @@ class TransTabPreEncoder(PreEncoder):
         padding_idx: int = 0,
         hidden_dropout_prob: float = 0.0,
         layer_norm_eps: float = 1e-5,
-        extractor: TransTabDataExtractor | None = None,
+        extractor: Optional[TransTabDataExtractor] = None,
         use_align_layer: bool = True,
     ) -> None:
         # Build column-specific encoder mapping
@@ -116,7 +116,7 @@ class TransTabPreEncoder(PreEncoder):
         self,
         feat_dict: Dict[ColType, Tensor | Tuple[Tensor, ...]],
         emb_dict: Dict[ColType, Tensor],
-        df_masks: Dict[str, Tensor] | None = None,
+        df_masks: Optional[Dict[str, Tensor]],
     ) -> Dict[ColType, Tensor]:
         masks: Dict[ColType, Tensor] = {}
 
@@ -128,7 +128,9 @@ class TransTabPreEncoder(PreEncoder):
         # From DataFrame path
         if df_masks is not None:
             if "cat_att_mask" in df_masks and ColType.CATEGORICAL in emb_dict:
-                masks[ColType.CATEGORICAL] = df_masks["cat_att_mask"].to(self.device).float()
+                masks[ColType.CATEGORICAL] = (
+                    df_masks["cat_att_mask"].to(self.device).float()
+                )
             if "bin_att_mask" in df_masks and ColType.BINARY in emb_dict:
                 masks[ColType.BINARY] = df_masks["bin_att_mask"].to(self.device).float()
 
@@ -172,7 +174,9 @@ class TransTabPreEncoder(PreEncoder):
             mask_list.append(masks[ColType.BINARY])
 
         if len(emb_list) == 0:
-            raise ValueError("No features were encoded; check extractor/columns configuration.")
+            raise ValueError(
+                "No features were encoded; check extractor/columns configuration."
+            )
 
         all_emb = torch.cat(emb_list, dim=1)  # [B, total_seq_len, D]
         all_mask = torch.cat(mask_list, dim=1)  # [B, total_seq_len]
@@ -194,9 +198,13 @@ class TransTabPreEncoder(PreEncoder):
         )
         with grad_ctx():
             # Check if x is a TableData object or TableData-like object
-            if isinstance(x, TableData) or hasattr(x, 'feat_dict'):
+            if isinstance(x, TableData) or hasattr(x, "feat_dict"):
                 # Extract feat_dict and colname_token_ids from TableData
-                if hasattr(x, 'if_materialized') and callable(x.if_materialized) and not x.if_materialized():
+                if (
+                    hasattr(x, "if_materialized")
+                    and callable(x.if_materialized)
+                    and not x.if_materialized()
+                ):
                     raise ValueError(
                         "TableData must be materialized before passing to TransTabPreEncoder. "
                         "Call table_data.lazy_materialize() first."
@@ -206,7 +214,7 @@ class TransTabPreEncoder(PreEncoder):
                 data = self.extractor(
                     shuffle=shuffle,
                     feat_dict=x.feat_dict,
-                    colname_token_ids=getattr(x, 'colname_token_ids', None),
+                    colname_token_ids=getattr(x, "colname_token_ids", None),
                 )
 
                 feat_dict: Dict[ColType, Tensor | Tuple[Tensor, ...]] = {}
@@ -238,13 +246,25 @@ class TransTabPreEncoder(PreEncoder):
                     )
 
                 df_masks = {
-                    "cat_att_mask": (data["cat_att_mask"] if data["cat_att_mask"] is not None else None),
-                    "bin_att_mask": (data["bin_att_mask"] if data["bin_att_mask"] is not None else None),
+                    "cat_att_mask": (
+                        data["cat_att_mask"]
+                        if data["cat_att_mask"] is not None
+                        else None
+                    ),
+                    "bin_att_mask": (
+                        data["bin_att_mask"]
+                        if data["bin_att_mask"] is not None
+                        else None
+                    ),
                 }
-                masks = self._collect_masks_from_inputs(feat_dict, emb_dict, df_masks=df_masks)
+                masks = self._collect_masks_from_inputs(
+                    feat_dict, emb_dict, df_masks=df_masks
+                )
                 return self._align_and_concat(emb_dict, masks)
             else:
-                raise TypeError("TransTabPreEncoder.forward: x must be a pandas.DataFrame or a feat_dict mapping.")
+                raise TypeError(
+                    "TransTabPreEncoder.forward: x must be a pandas.DataFrame or a feat_dict mapping."
+                )
 
     def save(self, path: str) -> None:
         self.extractor.save(path)
@@ -257,9 +277,9 @@ class TransTabPreEncoder(PreEncoder):
         self.extractor.load(ckpt_dir)
         encoder_path = os.path.join(ckpt_dir, "input_encoder.bin")
         try:
-            state_dict = torch.load(encoder_path, map_location='cpu', weights_only=True)
+            state_dict = torch.load(encoder_path, map_location="cpu", weights_only=True)
         except TypeError:
-            state_dict = torch.load(encoder_path, map_location='cpu')
+            state_dict = torch.load(encoder_path, map_location="cpu")
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         print(f"Loaded pre_encoder (integrated) weights from {encoder_path}")
         print(f" Missing keys: {missing}")

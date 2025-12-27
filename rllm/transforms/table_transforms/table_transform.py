@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Optional
 
 import torch
 from torch import Tensor
@@ -52,11 +52,11 @@ class TableTransform(torch.nn.Module, ABC):
 
     def __init__(
         self,
-        out_dim: int | None = None,
-        col_type: ColType | None = None,
-        post_module: torch.nn.Module | None = None,
-        na_mode: Dict[StatType, NAMode] | None = None,
-        transforms: List[Callable] | None = None,
+        out_dim: Optional[int] = None,
+        col_type: Optional[ColType] = None,
+        post_module: Optional[torch.nn.Module] = None,
+        na_mode: Optional[Dict[StatType, NAMode]] = None,
+        transforms: Optional[List[Callable]] = None,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""

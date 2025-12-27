@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import torch
 from torch import Tensor
@@ -36,10 +36,10 @@ class LinearEncoder(ColEncoder):
     def __init__(
         self,
         in_dim: int = 1,
-        out_dim: int | None = None,
-        stats_list: List[Dict[StatType, Any]] | None = None,
-        post_module: torch.nn.Module | None = None,
-        activation: torch.nn.Module | None = None,
+        out_dim: Optional[int] = None,
+        stats_list: Optional[List[Dict[StatType, Any]]] = None,
+        post_module: Optional[torch.nn.Module] = None,
+        activation: Optional[torch.nn.Module] = None,
     ):
         super().__init__(out_dim, stats_list, post_module)
         self.in_dim = in_dim

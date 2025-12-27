@@ -25,6 +25,7 @@ class TableResNet(torch.nn.Module):
         normalization (str | None): The normalization method.
         dropout (float): The dropout rate.
     """
+
     def __init__(
         self,
         hidden_dim: int,
@@ -45,20 +46,20 @@ class TableResNet(torch.nn.Module):
         )
 
         # ConvLayers
-        n_cols = [
-            len(metadata[coltype])
-            for coltype in metadata.keys()
-        ]
+        n_cols = [len(metadata[coltype]) for coltype in metadata.keys()]
         n_cols = sum(n_cols)
         conv_in_dim = hidden_dim * n_cols
-        self.convs = Sequential(*[
-            ResNetConv(
-                in_dim = conv_in_dim if i == 0 else hidden_dim,
-                out_dim = hidden_dim,
-                normalization=normalization,
-                dropout=dropout,
-            ) for i in range(num_layers)
-        ])
+        self.convs = Sequential(
+            *[
+                ResNetConv(
+                    in_dim=conv_in_dim if i == 0 else hidden_dim,
+                    out_dim=hidden_dim,
+                    normalization=normalization,
+                    dropout=dropout,
+                )
+                for i in range(num_layers)
+            ]
+        )
 
         # Decoder
         self.decoder = Sequential(
@@ -73,15 +74,15 @@ class TableResNet(torch.nn.Module):
         for conv in self.convs:
             conv.reset_parameters()
         for layer in self.decoder:
-            if hasattr(layer, 'reset_parameters'):
+            if hasattr(layer, "reset_parameters"):
                 layer.reset_parameters()
 
     def forward(self, table: TableData) -> Tensor:
         x = table.feat_dict
 
-        x = self.pre_encoder(x) # (B, n_cols, hidden_dim)
+        x = self.pre_encoder(x)  # (B, n_cols, hidden_dim)
         # flatten the pre_encoder output
-        x = x.view(x.size(0), math.prod(x.shape[1:]))   # (B, n_cols * hidden_dim)
-        x = self.convs(x) # (B, hidden_dim)
-        x = self.decoder(x) # (B, hidden_dim)
+        x = x.view(x.size(0), math.prod(x.shape[1:]))  # (B, n_cols * hidden_dim)
+        x = self.convs(x)  # (B, hidden_dim)
+        x = self.decoder(x)  # (B, hidden_dim)
         return x
