@@ -3,9 +3,9 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 from torch.nn import (
-    Linear, 
-    LayerNorm, 
-    BatchNorm1d, 
+    Linear,
+    LayerNorm,
+    BatchNorm1d,
     Dropout,
     ReLU,
 )
@@ -16,6 +16,7 @@ class ResNetConv(torch.nn.Module):
     `"Revisiting Deep Learning Models for Tabular Data"
     <https://arxiv.org/abs/2106.11959>`_ paper.
     """
+
     def __init__(
         self,
         in_dim: int,
@@ -24,7 +25,7 @@ class ResNetConv(torch.nn.Module):
         dropout: float = 0.0,
     ):
         super().__init__()
-        
+
         self.lin1 = Linear(in_dim, out_dim)
         self.lin2 = Linear(out_dim, out_dim)
 
@@ -40,7 +41,7 @@ class ResNetConv(torch.nn.Module):
         else:
             self.norm1 = None
             self.norm2 = None
-        
+
         if in_dim != out_dim:
             self.short_cut = Linear(in_dim, out_dim)
         else:

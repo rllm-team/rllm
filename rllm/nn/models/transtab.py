@@ -32,7 +32,11 @@ class TransTabCLSToken(torch.nn.Module):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.weight = torch.nn.Parameter(Tensor(self.hidden_dim))
-        torch.nn.init.uniform_(self.weight, a=-1 / math.sqrt(self.hidden_dim), b=1 / math.sqrt(self.hidden_dim))
+        torch.nn.init.uniform_(
+            self.weight,
+            a=-1 / math.sqrt(self.hidden_dim),
+            b=1 / math.sqrt(self.hidden_dim),
+        )
 
     def expand(self, *leading_dimensions):
         new_dims = (1,) * (len(leading_dimensions) - 1)
@@ -40,11 +44,16 @@ class TransTabCLSToken(torch.nn.Module):
 
     def forward(self, embedding, attention_mask=None, **kwargs) -> Tensor:
         embedding = torch.cat([self.expand(len(embedding), 1), embedding], dim=1)
-        outputs = {'embedding': embedding}
+        outputs = {"embedding": embedding}
         if attention_mask is not None:
             attention_mask = torch.cat(
-                [torch.ones(attention_mask.shape[0], 1).to(attention_mask.device), attention_mask], 1)
-        outputs['attention_mask'] = attention_mask
+                [
+                    torch.ones(attention_mask.shape[0], 1).to(attention_mask.device),
+                    attention_mask,
+                ],
+                1,
+            )
+        outputs["attention_mask"] = attention_mask
         return outputs
 
 
@@ -98,7 +107,7 @@ class TransTab(torch.nn.Module):
         hidden_dropout_prob: float = 0.1,
         layer_norm_eps: float = 1e-5,
         ffn_dim: int = 256,
-        activation: str = 'relu',
+        activation: str = "relu",
         projection_dim: int = 128,
         overlap_ratio: float = 0.1,
         num_partition: int = 2,
@@ -202,20 +211,22 @@ class TransTab(torch.nn.Module):
         y: optional label (placeholder only, ignored by the base class)
         Return: final [CLS] vector, shape = (batch, hidden_dim)
         """
-        if isinstance(x, TableData) or hasattr(x, 'feat_dict'):
+        if isinstance(x, TableData) or hasattr(x, "feat_dict"):
             # Pass TableData or TableData-like object to pre_encoder
             proc_out = self.pre_encoder(x)
         else:
-            raise ValueError(f"Expected input type TableData or object with feat_dict, got {type(x)}")
+            raise ValueError(
+                f"Expected input type TableData or object with feat_dict, got {type(x)}"
+            )
 
         # 1) DataProcessor gets embedding + mask
-        emb = proc_out['embedding']       # (batch, seq_len, hidden_dim)
-        mask = proc_out['attention_mask']  # (batch, seq_len)
+        emb = proc_out["embedding"]  # (batch, seq_len, hidden_dim)
+        mask = proc_out["attention_mask"]  # (batch, seq_len)
 
         # 2) Add CLS token at the beginning
         cls_out = self.cls_token(emb, attention_mask=mask)
-        emb2 = cls_out['embedding']       # (batch, seq_len+1, hidden_dim)
-        mask2 = cls_out['attention_mask']  # (batch, seq_len+1)
+        emb2 = cls_out["embedding"]  # (batch, seq_len+1, hidden_dim)
+        mask2 = cls_out["attention_mask"]  # (batch, seq_len+1)
 
         # 3) Transformer Encoding
         for conv in self.convs:
@@ -223,7 +234,7 @@ class TransTab(torch.nn.Module):
             emb2 = enc_out
 
         # 4) Take the first position (CLS) as the sample representation
-        final_cls = enc_out[:, 0, :]       # (batch, hidden_dim)
+        final_cls = enc_out[:, 0, :]  # (batch, hidden_dim)
         return final_cls
 
     def save(self, ckpt_dir: str) -> None:
@@ -259,28 +270,26 @@ class TransTab(torch.nn.Module):
 
         # 3) Load model weights to CPU
         model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
-        state_dict = torch.load(model_path, map_location='cpu', weights_only=True)
+        state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         print(f"Loaded TransTab weights from {model_path}")
         print(f" Missing keys: {missing}")
         print(f" Unexpected keys: {unexpected}")
 
         # 4) Cache the pre-trained pre_encoder status, which will be used in the subsequent update
-        pe_path = os.path.join(ckpt_dir, 'input_encoder.bin')
+        pe_path = os.path.join(ckpt_dir, "input_encoder.bin")
         self._preencoder_state = torch.load(
-            pe_path,
-            map_location='cpu',
-            weights_only=True
+            pe_path, map_location="cpu", weights_only=True
         )
 
     def update(self, config: Dict[str, Any]) -> None:
-        col_map = {k: v for k, v in config.items() if k in ('cat', 'num', 'bin')}
+        col_map = {k: v for k, v in config.items() if k in ("cat", "num", "bin")}
         if col_map:
             ext = self.pre_encoder.extractor
             ext.update(
-                cat=col_map.get('cat', None),
-                num=col_map.get('num', None),
-                bin=col_map.get('bin', None),
+                cat=col_map.get("cat", None),
+                num=col_map.get("num", None),
+                bin=col_map.get("bin", None),
             )
             self.categorical_columns = ext.categorical_columns
             self.numerical_columns = ext.numerical_columns
@@ -288,25 +297,27 @@ class TransTab(torch.nn.Module):
 
             print("Extended column mappings in TransTab via extractor.update().")
 
-        if 'num_class' in config:
-            self._adapt_to_new_num_class(config['num_class'])
+        if "num_class" in config:
+            self._adapt_to_new_num_class(config["num_class"])
 
     def _adapt_to_new_num_class(self, num_class: int) -> None:
         """
         If this model (or a subclass) defines self.clf,
         rebuild the classification head and loss_fn when the number of classes changes.
         """
-        if not hasattr(self, 'clf') or num_class == getattr(self, 'num_class', None):
+        if not hasattr(self, "clf") or num_class == getattr(self, "num_class", None):
             return
         self.num_class = num_class
         # Rebuilding the classification header
-        self.clf = LinearClassifier(num_class=num_class, hidden_dim=self.cls_token.hidden_dim)
+        self.clf = LinearClassifier(
+            num_class=num_class, hidden_dim=self.cls_token.hidden_dim
+        )
         # Note: clf will be on the same device as the model after model.to(device) is called
         # Reconstruction loss
         if num_class > 2:
-            self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
+            self.loss_fn = torch.nn.CrossEntropyLoss(reduction="none")
         else:
-            self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
+            self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction="none")
         print(f"Rebuilt classifier for num_class={num_class}.")
 
 
@@ -345,7 +356,7 @@ class TransTabClassifier(TransTab):
         num_attention_head: int = 8,
         hidden_dropout_prob: float = 0.1,
         ffn_dim: int = 256,
-        activation: str = 'relu',
+        activation: str = "relu",
         tokenizer=None,
         **kwargs,
     ) -> None:
@@ -368,9 +379,9 @@ class TransTabClassifier(TransTab):
         self.clf = LinearClassifier(num_class=num_class, hidden_dim=hidden_dim)
 
         if num_class > 2:
-            self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
+            self.loss_fn = torch.nn.CrossEntropyLoss(reduction="none")
         else:
-            self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
+            self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction="none")
 
     def forward(
         self,
@@ -456,7 +467,7 @@ class TransTabForCL(TransTab):
         supervised=True,
         temperature=10,
         base_temperature=10,
-        activation='relu',
+        activation="relu",
         tokenizer=None,
         **kwargs,
     ) -> None:
@@ -473,9 +484,15 @@ class TransTabForCL(TransTab):
             tokenizer=tokenizer,
             **kwargs,
         )
-        assert num_partition > 0, f'number of contrastive subsets must be greater than 0, got {num_partition}'
-        assert isinstance(num_partition, int), f'number of constrative subsets must be int, got {type(num_partition)}'
-        assert overlap_ratio >= 0 and overlap_ratio < 1, f'overlap_ratio must be in [0, 1), got {overlap_ratio}'
+        assert (
+            num_partition > 0
+        ), f"number of contrastive subsets must be greater than 0, got {num_partition}"
+        assert isinstance(
+            num_partition, int
+        ), f"number of constrative subsets must be int, got {type(num_partition)}"
+        assert (
+            overlap_ratio >= 0 and overlap_ratio < 1
+        ), f"overlap_ratio must be in [0, 1), got {overlap_ratio}"
         self.projection_head = torch.nn.Linear(hidden_dim, projection_dim, bias=False)
         self.cross_entropy_loss = torch.nn.CrossEntropyLoss()
         self.temperature = temperature
@@ -486,7 +503,7 @@ class TransTabForCL(TransTab):
         self.self_sup_criterion = SelfSupervisedVPCL(
             temperature=self.temperature,
             base_temperature=self.base_temperature,
-            similarity="dot",   # "cosine"
+            similarity="dot",  # "cosine"
         )
 
         self.sup_criterion = SupervisedVPCL(
@@ -511,10 +528,12 @@ class TransTabForCL(TransTab):
         # Extract DataFrame from input
         if isinstance(x, pd.DataFrame):
             df = x
-        elif hasattr(x, 'df'):  # TableData
+        elif hasattr(x, "df"):  # TableData
             df = x.df
         else:
-            raise ValueError(f"Expected input type pd.DataFrame or TableData, got {type(x)}")
+            raise ValueError(
+                f"Expected input type pd.DataFrame or TableData, got {type(x)}"
+            )
 
         # Build positive pairs by splitting columns at DataFrame level
         sub_df_list = self._build_positive_pairs(df, self.num_partition)
@@ -532,8 +551,12 @@ class TransTabForCL(TransTab):
         feat_x_list = []
         for sub_df in sub_df_list:
             # Build col_types for this subset
-            if hasattr(x, 'col_types'):
-                sub_col_types = {col: x.col_types[col] for col in sub_df.columns if col in x.col_types}
+            if hasattr(x, "col_types"):
+                sub_col_types = {
+                    col: x.col_types[col]
+                    for col in sub_df.columns
+                    if col in x.col_types
+                }
             else:
                 # If no col_types available, use extractor's column info
                 sub_col_types = self._infer_col_types_from_extractor(sub_df.columns)
@@ -558,7 +581,7 @@ class TransTabForCL(TransTab):
                 emb = enc_out
 
             # Extract CLS representation and project
-            feat = enc_out[:, 0, :]      # [bs, hidden_dim]
+            feat = enc_out[:, 0, :]  # [bs, hidden_dim]
             feat_proj = self.projection_head(feat)  # [bs, proj_dim]
             feat_x_list.append(feat_proj)
 

@@ -102,7 +102,9 @@ class NAMode(Enum):
             ColType.NUMERICAL: [NAMode.MAX, NAMode.MIN, NAMode.MEAN, NAMode.ZERO],
             ColType.CATEGORICAL: [NAMode.MOST_FREQUENT, NAMode.ZERO],
             ColType.BINARY: [NAMode.MOST_FREQUENT, NAMode.ZERO],
-            ColType.TEXT: [NAMode.MOST_FREQUENT],  # Handled by embedder or tokenizer config
+            ColType.TEXT: [
+                NAMode.MOST_FREQUENT
+            ],  # Handled by embedder or tokenizer config
         }
         return namode_type.get(col_type, [])
 

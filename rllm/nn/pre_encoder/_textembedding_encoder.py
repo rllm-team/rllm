@@ -11,7 +11,7 @@ from ._col_encoder import ColEncoder
 
 class TextEmbeddingEncoder(ColEncoder):
     r"""A text embedding encoder for embedded text columns.
-    It applies a linear layer to each text column 
+    It applies a linear layer to each text column
     and concatenates the output embeddings.
 
     Args:
@@ -23,27 +23,27 @@ class TextEmbeddingEncoder(ColEncoder):
             preserve the shape of the output. If :obj:`None`, no module will
             be applied to the output (default: :obj:`None`).
     """
+
     supported_types = {ColType.TEXT}
 
     def __init__(
         self,
         out_dim: Optional[int] = None,
         stats_list: Optional[List[Dict[StatType, Any]]] = None,
-        post_module: Optional[torch.nn.Module] = None
+        post_module: Optional[torch.nn.Module] = None,
     ):
         super().__init__(out_dim, stats_list, post_module)
 
-
     def post_init(self):
         num_cols = len(self.stats_list)
-        self.emb_dim_list = [
-            stats[StatType.EMB_DIM] for stats in self.stats_list
-        ]
+        self.emb_dim_list = [stats[StatType.EMB_DIM] for stats in self.stats_list]
         # W list: [D, out_dim] * num_cols
-        self.weight_list = ParameterList([
-            Parameter(torch.empty(emb_dim, self.out_dim))
-            for emb_dim in self.emb_dim_list
-        ])
+        self.weight_list = ParameterList(
+            [
+                Parameter(torch.empty(emb_dim, self.out_dim))
+                for emb_dim in self.emb_dim_list
+            ]
+        )
         # B: [num_cols, out_dim]
         self.biases = Parameter(torch.empty(num_cols, self.out_dim))
         self.reset_parameters()

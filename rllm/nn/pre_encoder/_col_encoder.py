@@ -64,7 +64,7 @@ class ColEncoder(torch.nn.Module, ABC):
     def forward(
         self,
         feat: Tensor,
-        col_names: List[str] | None = None,
+        col_names: Optional[List[str]] = None,
     ) -> Tensor:
         if col_names is not None:
             num_cols = feat.shape[1]

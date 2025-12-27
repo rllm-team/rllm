@@ -115,11 +115,15 @@ class ContrastiveLoss(BaseLoss):
 
         # 6. For each anchor a, average log_prob over its positives
         pos_weight_sum = mask.sum(dim=1)  # [N]
-        mean_log_prob_pos = (mask * log_prob).sum(dim=1) / (pos_weight_sum + self.eps)  # [N]
+        mean_log_prob_pos = (mask * log_prob).sum(dim=1) / (
+            pos_weight_sum + self.eps
+        )  # [N]
 
         # 7. Final scaling (matches your TransTab code):
         # loss_a = - (T / T0) * mean_log_prob_pos[a]
-        loss_per_anchor = - (self.temperature / self.base_temperature) * mean_log_prob_pos  # [N]
+        loss_per_anchor = (
+            -(self.temperature / self.base_temperature) * mean_log_prob_pos
+        )  # [N]
 
         loss = loss_per_anchor.mean()
         return loss

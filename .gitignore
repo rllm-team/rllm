@@ -38,6 +38,7 @@ _self_test_util.py
 huggingface/
 trash/
 *.ipynb
+tokenizer/
 
 !rllm/data/
 !test/data/

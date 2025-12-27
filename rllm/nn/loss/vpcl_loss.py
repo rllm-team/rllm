@@ -96,7 +96,9 @@ class SelfSupervisedVPCL(ContrastiveLoss):
 
         # Assign each partition embedding an integer row id:
         # row_ids: [B*K], e.g. [0,0,...,0,1,1,...,1,...]
-        row_ids = torch.arange(batch_size, device=device).repeat_interleave(num_partitions)
+        row_ids = torch.arange(batch_size, device=device).repeat_interleave(
+            num_partitions
+        )
 
         # Build the positive-pair mask:
         # pos_mask[i, j] = 1 if feats[i] and feats[j] originate from the same row.
@@ -216,7 +218,9 @@ class SupervisedVPCL(ContrastiveLoss):
         # Build the positive-pair mask:
         # pos_mask[i, j] = 1 if feats[i] and feats[j] come from rows
         # with the same class label; else 0.
-        pos_mask = (labels_expanded.unsqueeze(0) == labels_expanded.unsqueeze(1)).float()  # [B*K, B*K]
+        pos_mask = (
+            labels_expanded.unsqueeze(0) == labels_expanded.unsqueeze(1)
+        ).float()  # [B*K, B*K]
 
         # BaseContrastiveLoss handles
         loss = super().forward(feats, pos_mask)

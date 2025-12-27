@@ -157,14 +157,14 @@ class TableData(BaseTable):
         time_col: Optional[str] = None,
         # lazy_feature
         lazy_feature: bool = False,
-        feat_dict: Dict[ColType, Tensor] | None = None,
-        metadata: Dict[ColType, List[dict[str, Any]]] | None = None,
+        feat_dict: Optional[Dict[ColType, Tensor]] = None,
+        metadata: Optional[Dict[ColType, List[dict[str, Any]]]] = None,
         # task table
         target_col: Optional[str] = None,
-        y: Tensor | None = None,
+        y: Optional[Tensor] = None,
         text_embedder_config: Optional[TextEmbedderConfig] = None,
         tokenizer_config: Optional[TokenizerConfig] = None,
-        convert_text_coltypes: Set[ColType] | None = None,
+        convert_text_coltypes: Optional[Set[ColType]] = None,
         **kwargs,
     ):
         self._mapping = BaseStorage()
@@ -561,6 +561,8 @@ class TableData(BaseTable):
             if isinstance(feat_value, tuple):
                 # Handle tokenized features (e.g., TEXT type as (input_ids, attention_mask))
                 self.feat_dict[col_type] = tuple(tensor[perm] for tensor in feat_value)
+            elif isinstance(feat_value, list):
+                self.feat_dict[col_type] = [feat[perm] for feat in feat_value]
             else:
                 self.feat_dict[col_type] = feat_value[perm]
         self.y = self.y[perm]
@@ -736,7 +738,7 @@ class TableData(BaseTable):
             else:
                 out.feat_dict[ctype] = feat_value[index]
 
-        if hasattr(self, 'y') and self.y is not None:
+        if hasattr(self, "y") and self.y is not None:
             out.y = self.y[index]
         else:
             out.y = None
