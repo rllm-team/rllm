@@ -2,11 +2,11 @@
 # ArXiv: https://arxiv.org/abs/2502.06784
 # Datasets          Rel-F1
 
-# Tasks       driver-dnf   driver-top3   driver-position
-# Metrics     ROC-AUC      ROC-AUC       MAE
-# Rept.       75.29        85.69         3.798
-# Ours        74.14        79.05         5.508
-# Time(s)     100.67       27.25         86.13
+# Tasks                 driver-dnf   driver-top3   driver-position
+# Metrics               ROC-AUC      ROC-AUC       MAE
+# Rept.                 75.29        85.69         3.798
+# Ours                  74.14        83.37         3.275
+# Time per epoch(s)     8.86         1.81          3.98
 
 import time
 import argparse
@@ -25,9 +25,10 @@ from rllm.nn.models import RelGNNModel
 from rllm.utils import get_atomic_routes
 
 
-def train(model, optimizer, loss_fn, train_loader, target_table):
+def train(model, optimizer, loss_fn, train_loader, target_table, max_steps_per_epoch):
     model.train()
     total_loss = total_cnt = 0
+    steps = 0
     for batch in train_loader:
         batch.to(device)
         optimizer.zero_grad()
@@ -39,6 +40,9 @@ def train(model, optimizer, loss_fn, train_loader, target_table):
         optimizer.step()
         total_loss += loss.item() * y.size(0)
         total_cnt += y.size(0)
+        steps += 1
+        if steps >= max_steps_per_epoch:
+            break
     return total_loss / total_cnt
 
 
@@ -113,6 +117,7 @@ def main(args):
         atomic_routes_edge_types=atomic_routes_edge_types,
         out_dim=1,  # Binary classification
         use_temporal_encoder=True,
+        reg_task=True if args.task == "driver-position" else False,
         **model_config,
     ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -130,10 +135,14 @@ def main(args):
     # Train and evaluate
     times = []
     metric = "ROC-AUC" if args.task in ["driver-dnf", "driver-top3"] else "MAE"
-    best_val_metric = test_metric_at_best_val = 0
+    if metric == "ROC-AUC":
+        best_val_metric = float("-inf")
+    else:  # MAE
+        best_val_metric = float("inf")
+    test_metric_at_best_val = best_val_metric
     for epoch in range(1, args.epochs + 1):
         start = time.time()
-        train_loss = train(model, optimizer, loss_fn, train_loader, target_table)
+        train_loss = train(model, optimizer, loss_fn, train_loader, target_table, args.max_steps_per_epoch)
         train_metric = test(model, train_loader, target_table, clamp_min, clamp_max)
         val_metric = test(model, val_loader, target_table, clamp_min, clamp_max)
         test_metric = test(model, test_loader, target_table, clamp_min, clamp_max)
@@ -166,6 +175,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_layers", type=int, default=2)
     parser.add_argument("--lr", type=float, default=0.005)
     parser.add_argument("--cache_dir", type=str, default="../data/")
+    parser.add_argument("--max_steps_per_epoch", type=int, default=2000)
 
     args = parser.parse_args()
 

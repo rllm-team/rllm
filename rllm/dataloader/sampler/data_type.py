@@ -157,3 +157,196 @@ class HeteroSamplerOutput(CastMixin):
                                   f"seem to have a reverse edge type")
 
         return out
+
+
+EdgeType = Tuple[str, str, str]
+
+
+class EdgeTypeStr(str):
+    r"""A helper class to construct serializable edge types by merging an edge
+    type tuple into a single string.
+    """
+    EDGE_TYPE_STR_SPLIT = '__'
+    DEFAULT_REL = 'to'
+    edge_type: tuple[str, str, str]
+
+    def __new__(cls, *args: Any) -> 'EdgeTypeStr':
+        if isinstance(args[0], (list, tuple)):
+            # Unwrap `EdgeType((src, rel, dst))` and `EdgeTypeStr((src, dst))`:
+            args = tuple(args[0])
+
+        if len(args) == 1 and isinstance(args[0], str):
+            arg = args[0]  # An edge type string was passed.
+            edge_type = tuple(arg.split(cls.EDGE_TYPE_STR_SPLIT))
+            if len(edge_type) != 3:
+                raise ValueError(f"Cannot convert the edge type '{arg}' to a "
+                                 f"tuple since it holds invalid characters")
+
+        elif len(args) == 2 and all(isinstance(arg, str) for arg in args):
+            # A `(src, dst)` edge type was passed - add `DEFAULT_REL`:
+            edge_type = (args[0], cls.DEFAULT_REL, args[1])
+            arg = cls.EDGE_TYPE_STR_SPLIT.join(edge_type)
+
+        elif len(args) == 3 and all(isinstance(arg, str) for arg in args):
+            # A `(src, rel, dst)` edge type was passed:
+            edge_type = tuple(args)
+            arg = cls.EDGE_TYPE_STR_SPLIT.join(args)
+
+        else:
+            raise ValueError(f"Encountered invalid edge type '{args}'")
+
+        out = str.__new__(cls, arg)
+        out.edge_type = edge_type  # type: ignore
+        return out
+
+    def to_tuple(self) -> EdgeType:
+        r"""Returns the original edge type."""
+        if len(self.edge_type) != 3:
+            raise ValueError(f"Cannot convert the edge type '{self}' to a "
+                             f"tuple since it holds invalid characters")
+        return self.edge_type
+
+    def __reduce__(self) -> tuple[Any, Any]:
+        return (self.__class__, (self.edge_type, ))
+
+
+@dataclass(frozen=True)
+class NumNeighbors:
+    r"""The number of neighbors to sample in a homogeneous or heterogeneous
+    graph. In heterogeneous graphs, may also take in a dictionary denoting
+    the amount of neighbors to sample for individual edge types.
+
+    Args:
+        values (List[int] or Dict[Tuple[str, str, str], List[int]]): The
+            number of neighbors to sample.
+            If an entry is set to :obj:`-1`, all neighbors will be included.
+            In heterogeneous graphs, may also take in a dictionary denoting
+            the amount of neighbors to sample for individual edge types.
+        default (List[int], optional): The default number of neighbors for edge
+            types not specified in :obj:`values`. (default: :obj:`None`)
+    """
+    values: Union[List[int], Dict[EdgeTypeStr, List[int]]]
+    default: Optional[List[int]] = None
+
+    def __init__(
+        self,
+        values: Union[List[int], Dict[EdgeType, List[int]]],
+        default: Optional[List[int]] = None,
+    ):
+        if isinstance(values, (tuple, list)) and default is not None:
+            raise ValueError(f"'default' must be set to 'None' in case a "
+                             f"single list is given as the number of "
+                             f"neighbors (got '{type(default)})'")
+
+        if isinstance(values, dict):
+            values = {EdgeTypeStr(key): value for key, value in values.items()}
+
+        # Write to `__dict__` since dataclass is annotated with `frozen=True`:
+        self.__dict__['values'] = values
+        self.__dict__['default'] = default
+
+    def _get_values(
+        self,
+        edge_types: Optional[List[EdgeType]] = None,
+        mapped: bool = False,
+    ) -> Union[List[int], Dict[Union[EdgeType, EdgeTypeStr], List[int]]]:
+
+        if edge_types is not None:
+            if isinstance(self.values, (tuple, list)):
+                default = self.values
+            elif isinstance(self.values, dict):
+                default = self.default
+            else:
+                raise AssertionError()
+
+            # Confirm that `values` only hold valid edge types:
+            if isinstance(self.values, dict):
+                edge_types_str = {EdgeTypeStr(key) for key in edge_types}
+                invalid_edge_types = set(self.values.keys()) - edge_types_str
+                if len(invalid_edge_types) > 0:
+                    raise ValueError("Not all edge types specified in "
+                                     "'num_neighbors' exist in the graph")
+
+            out = {}
+            for edge_type in edge_types:
+                edge_type_str = EdgeTypeStr(edge_type)
+                if edge_type_str in self.values:
+                    out[edge_type_str if mapped else edge_type] = (
+                        self.values[edge_type_str])
+                else:
+                    if default is None:
+                        raise ValueError(f"Missing number of neighbors for "
+                                         f"edge type '{edge_type}'")
+                    out[edge_type_str if mapped else edge_type] = default
+
+        elif isinstance(self.values, dict) and not mapped:
+            out = {key.to_tuple(): value for key, value in self.values.items()}
+
+        else:
+            out = copy.copy(self.values)
+
+        if isinstance(out, dict):
+            num_hops = {len(v) for v in out.values()}
+            if len(num_hops) > 1:
+                raise ValueError(f"Number of hops must be the same across all "
+                                 f"edge types (got {len(num_hops)} different "
+                                 f"number of hops)")
+
+        return out
+
+    def get_values(
+        self,
+        edge_types: Optional[List[EdgeType]] = None,
+    ) -> Union[List[int], Dict[EdgeType, List[int]]]:
+        r"""Returns the number of neighbors.
+
+        Args:
+            edge_types (List[Tuple[str, str, str]], optional): The edge types
+                to generate the number of neighbors for. (default: :obj:`None`)
+        """
+        if '_values' in self.__dict__:
+            return self.__dict__['_values']
+
+        values = self._get_values(edge_types, mapped=False)
+
+        self.__dict__['_values'] = values
+        return values
+
+    def get_mapped_values(
+        self,
+        edge_types: Optional[List[EdgeType]] = None,
+    ) -> Union[List[int], Dict[str, List[int]]]:
+        r"""Returns the number of neighbors.
+        For heterogeneous graphs, a dictionary is returned in which edge type
+        tuples are converted to strings.
+
+        Args:
+            edge_types (List[Tuple[str, str, str]], optional): The edge types
+                to generate the number of neighbors for. (default: :obj:`None`)
+        """
+        if '_mapped_values' in self.__dict__:
+            return self.__dict__['_mapped_values']
+
+        values = self._get_values(edge_types, mapped=True)
+
+        self.__dict__['_mapped_values'] = values
+        return values
+
+    @property
+    def num_hops(self) -> int:
+        r"""Returns the number of hops."""
+        if '_num_hops' in self.__dict__:
+            return self.__dict__['_num_hops']
+
+        if isinstance(self.values, (tuple, list)):
+            num_hops = max(len(self.values), len(self.default or []))
+        else:  # isinstance(self.values, dict):
+            num_hops = max([0] + [len(v) for v in self.values.values()])
+            num_hops = max(num_hops, len(self.default or []))
+
+        self.__dict__['_num_hops'] = num_hops
+        return num_hops
+
+    def __len__(self) -> int:
+        r"""Returns the number of hops."""
+        return self.num_hops

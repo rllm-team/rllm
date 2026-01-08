@@ -2,11 +2,11 @@
 # ArXiv: https://arxiv.org/abs/2407.20060
 # Datasets          Rel-F1
 
-# Tasks       driver-dnf   driver-top3   driver-position
-# Metrics     ROC-AUC      ROC-AUC       MAE
-# Rept.       72.62        75.54         4.022
-# Ours        74.14        75.79         4.001
-# Time(s)     106.78       29.09         86.13
+# Tasks                 driver-dnf   driver-top3   driver-position
+# Metrics               ROC-AUC      ROC-AUC       MAE
+# Rept.                 72.62        75.54         4.022
+# Ours                  74.14        75.79         3.150
+# Time per epoch(s)     10.16        1.87          4.78
 
 import time
 import argparse
@@ -24,9 +24,10 @@ from rllm.dataloader import RelbenchLoader
 from rllm.nn.models import RDL
 
 
-def train(model, optimizer, loss_fn, train_loader, target_table):
+def train(model, optimizer, loss_fn, train_loader, target_table, max_steps_per_epoch):
     model.train()
     total_loss = total_cnt = 0
+    steps = 0
     for batch in train_loader:
         batch.to(device)
         optimizer.zero_grad()
@@ -38,6 +39,9 @@ def train(model, optimizer, loss_fn, train_loader, target_table):
         optimizer.step()
         total_loss += loss.item() * y.size(0)
         total_cnt += y.size(0)
+        steps += 1
+        if steps >= max_steps_per_epoch:
+            break
     return total_loss / total_cnt
 
 
@@ -89,13 +93,15 @@ def main(args):
         out_dim=1,  # Regression
         hgnn_num_layers=args.num_layers,
         use_temporal_encoder=True,
+        reg_task=True if args.task == "driver-position" else False,
     ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    loss_fn = (
-        torch.nn.BCEWithLogitsLoss()
-        if args.task in ["driver-dnf", "driver-position"]
-        else torch.nn.L1Loss()
-    )
+    if args.task in ["driver-dnf", "driver-top3"]:
+        loss_fn = torch.nn.BCEWithLogitsLoss()
+    elif args.task == "driver-position":
+        loss_fn = torch.nn.L1Loss()
+    else:
+        raise ValueError(f"Unknown task: {args.task}")
 
     if args.task == "driver-position":
         clamp_min, clamp_max = np.percentile(
@@ -107,10 +113,14 @@ def main(args):
     # Train and evaluate
     times = []
     metric = "ROC-AUC" if args.task in ["driver-dnf", "driver-top3"] else "MAE"
-    best_val_metric = test_metric_at_best_val = 0
+    if metric == "ROC-AUC":
+        best_val_metric = float("-inf")
+    else:  # MAE
+        best_val_metric = float("inf")
+    test_metric_at_best_val = best_val_metric
     for epoch in range(1, args.epochs + 1):
         start = time.time()
-        train_loss = train(model, optimizer, loss_fn, train_loader, target_table)
+        train_loss = train(model, optimizer, loss_fn, train_loader, target_table, args.max_steps_per_epoch)
         train_metric = test(model, train_loader, target_table, clamp_min, clamp_max)
         val_metric = test(model, val_loader, target_table, clamp_min, clamp_max)
         test_metric = test(model, test_loader, target_table, clamp_min, clamp_max)
@@ -144,6 +154,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_layers", type=int, default=2)
     parser.add_argument("--lr", type=float, default=0.005)
     parser.add_argument("--cache_dir", type=str, default="../data/")
+    parser.add_argument("--max_steps_per_epoch", type=int, default=2000)
 
     args = parser.parse_args()
 

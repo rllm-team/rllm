@@ -7,6 +7,7 @@ import scipy.sparse as sp
 
 from rllm.utils._sort import lexsort
 from rllm.utils.sparse import is_torch_sparse_tensor, sparse_mx_to_torch_sparse_tensor
+import rllm.utils._pyglib
 
 # Filter the csr warning
 import warnings
@@ -308,7 +309,7 @@ def _to_csc(
                 col = col[perm]
                 row = row[perm]
             elif src_node_time is not None and edge_time is None:
-                perm = lexsort(keys=[src_node_time, col])
+                perm = lexsort(keys=[src_node_time[row], col])
                 col = col[perm]
                 row = row[perm]
             else:
@@ -352,5 +353,24 @@ def to_bidirectional(
     edge_index[1, :row.numel()] = col
     edge_index[0, row.numel():] = rev_col
     edge_index[1, row.numel():] = rev_row
+
+    # Fast path: use PyG's `coalesce` (C++/CUDA-backed via torch-sparse/pyg-lib)
+    # to de-duplicate edges. This is significantly faster than `torch.unique`
+    # on a 2xE tensor, especially when called repeatedly per edge type/batch.
+    if rllm.utils._pyglib.WITH_PYG_LIB:
+        try:
+            from torch_geometric.utils import coalesce  # type: ignore
+
+            (edge_index, _) = coalesce(
+                edge_index,
+                None,
+                sort_by_row=False,
+                reduce='any',
+            )
+            return edge_index[0], edge_index[1]
+        except Exception:
+            pass
+
+    # Fallback: pure PyTorch de-duplication.
     edge_index = torch.unique(edge_index, dim=1)
     return edge_index[0], edge_index[1]

@@ -164,8 +164,8 @@ class RelbenchLoader(torch.utils.data.DataLoader):
         }
 
         batch_hdata.batch_dict = {
-            node_type: out.batch[node_type]
-            for node_type, _ in batch_hdata.node_items()
+            node_type: batch
+            for node_type, batch in (out.batch or {}).items()
         }
 
         batch_hdata.edge_index_dict = {

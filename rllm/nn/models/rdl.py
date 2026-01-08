@@ -48,6 +48,8 @@ class RDL(torch.nn.Module):
         hgnn_num_layers: int = 2,
         # Temporal Encoder args
         use_temporal_encoder: bool = False,
+        # Output head args
+        reg_task: bool = False,
     ):
         super().__init__()
         # validate input
@@ -90,12 +92,19 @@ class RDL(torch.nn.Module):
             num_layers=hgnn_num_layers,
         )
 
-        self.OUTPUT_HEAD = torch.nn.Sequential(
-            torch.nn.Linear(hidden_dim, out_dim),
-            torch.nn.BatchNorm1d(out_dim),
-            torch.nn.ReLU(),
-            torch.nn.Linear(out_dim, out_dim),
-        )
+        if reg_task:
+            self.OUTPUT_HEAD = torch.nn.Sequential(
+                torch.nn.Linear(hidden_dim, out_dim),
+                torch.nn.GELU(),
+                torch.nn.Linear(out_dim, out_dim),
+            )
+        else:
+            self.OUTPUT_HEAD = torch.nn.Sequential(
+                torch.nn.Linear(hidden_dim, out_dim),
+                torch.nn.BatchNorm1d(out_dim),
+                torch.nn.ReLU(),
+                torch.nn.Linear(out_dim, out_dim),
+            )
 
         self.reset_parameters()
 
