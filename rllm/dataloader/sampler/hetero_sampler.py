@@ -104,7 +104,7 @@ class HeteroSampler:
     def _get_num_neighbor_dict(self) -> Dict[Tuple[str, str, str], List[int]]:
         num_neighbors_dict = {}
         for etype in self.edge_types:
-            num_neighbors_dict[etype] = self.num_neighbors
+            num_neighbors_dict[etype] = self.num_neighbors.get_values(etype)
         return num_neighbors_dict
     
     # is_temporal

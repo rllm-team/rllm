@@ -10,4 +10,4 @@ scipy
 tqdm
 transformers<=4.30.0
 pyarrow
-pyg-lib==0.5.0
+pyg-lib

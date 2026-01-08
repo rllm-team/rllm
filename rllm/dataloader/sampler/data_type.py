@@ -212,8 +212,8 @@ class EdgeTypeStr(str):
 
 @dataclass(frozen=True)
 class NumNeighbors:
-    r"""The number of neighbors to sample in a homogeneous or heterogeneous
-    graph. In heterogeneous graphs, may also take in a dictionary denoting
+    r"""The number of neighbors to sample in a heterogeneous graph. 
+    It may also take in a dictionary denoting
     the amount of neighbors to sample for individual edge types.
 
     Args:
