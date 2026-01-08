@@ -686,15 +686,16 @@ class HeteroGraphData(BaseGraph):
 
     def set_value_dict(
         self, key: str, value_d: Dict[Union[NodeType, EdgeType], Any]
-    ) -> None:
+    ) -> 'HeteroGraphData':
         r"""Set the attribute `key` for each node and edge type in value dict.
 
         Args:
             key (str): The attribute key to set.
             value (Dict[Union[NodeType, EdgeType], Any]): The attribute values.
         """
-        for type_, value in value_d.items():
+        for type_, value in (value_d or {}).items():
             self[type_][key] = value
+        return self
 
     # Dunder functions ########################################
 

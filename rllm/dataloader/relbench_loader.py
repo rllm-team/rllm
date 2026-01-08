@@ -51,6 +51,7 @@ class RelbenchLoader(torch.utils.data.DataLoader):
         batch_size: int = 512,
         num_neighbors: List[int] = [15, 10],
         to_bidirectional: bool = False,
+        use_pyg_lib: bool = True,
     ):
         dataset.load_all()  # make sure dataset is processed
 
@@ -76,6 +77,7 @@ class RelbenchLoader(torch.utils.data.DataLoader):
             time_attr="time",
             to_bidirectional=to_bidirectional,
             csc=True,
+            use_pyg_lib=use_pyg_lib,
         )
 
         # build sampler input
@@ -164,8 +166,8 @@ class RelbenchLoader(torch.utils.data.DataLoader):
         }
 
         batch_hdata.batch_dict = {
-            node_type: out.batch[node_type]
-            for node_type, _ in batch_hdata.node_items()
+            node_type: batch
+            for node_type, batch in (out.batch or {}).items()
         }
 
         batch_hdata.edge_index_dict = {

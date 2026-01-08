@@ -224,6 +224,8 @@ class RelGNNModel(torch.nn.Module):
         relgnn_simplified_MP: bool = True,
         # Temporal Encoder args
         use_temporal_encoder: bool = True,
+        # Output head args
+        reg_task: bool = False,
     ):
         super().__init__()
         # validate input
@@ -264,12 +266,19 @@ class RelGNNModel(torch.nn.Module):
             simplified_MP=relgnn_simplified_MP,
         )
 
-        self.OUTPUT_HEAD = torch.nn.Sequential(
-            torch.nn.Linear(hidden_dim, out_dim),
-            torch.nn.BatchNorm1d(out_dim),
-            torch.nn.ReLU(),
-            torch.nn.Linear(out_dim, out_dim),
-        )
+        if reg_task:
+            self.OUTPUT_HEAD = torch.nn.Sequential(
+                torch.nn.Linear(hidden_dim, out_dim),
+                torch.nn.GELU(),
+                torch.nn.Linear(out_dim, out_dim),
+            )
+        else:
+            self.OUTPUT_HEAD = torch.nn.Sequential(
+                torch.nn.Linear(hidden_dim, out_dim),
+                torch.nn.BatchNorm1d(out_dim),
+                torch.nn.ReLU(),
+                torch.nn.Linear(out_dim, out_dim),
+            )
 
         self.reset_parameters()
 
