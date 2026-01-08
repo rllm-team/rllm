@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict, Tuple
+import warnings
 
 import torch
 from torch import Tensor
@@ -13,8 +14,8 @@ from rllm.dataloader.sampler.data_type import (
     HeteroSamplerOutput,
     NumNeighbors,
 )
-import rllm.utils._pyglib
 from rllm.utils._remap_keys import remap_keys
+import rllm.utils._pyglib
 
 
 class HeteroSampler:
@@ -34,6 +35,7 @@ class HeteroSampler:
         to_bidirectional (bool): Whether to convert the graph to bidirectional
             by adding reverse edges. Default is False.
         csc (bool): Whether to use CSC format for sampling. Default is False.
+        use_pyg_lib (bool): Whether to use PyG-lib for sampling. Default is True.
     """
     def __init__(
         self,
@@ -45,12 +47,20 @@ class HeteroSampler:
         device: Optional[torch.device] = None,
         to_bidirectional: bool = False,
         csc: bool = False,
+        use_pyg_lib: bool = True,
     ):
 
         assert device is None or device.type == 'cpu', 'Device must be CPU-enabled or None.'
         assert temporal_strategy == 'uniform', 'Only uniform temporal strategy is supported for now.'
         if temporal_strategy == 'uniform' and time_attr is None:
             raise ValueError('Time attribute must be provided for uniform temporal strategy.')
+        
+        if use_pyg_lib and rllm.utils._pyglib.WITH_PYG_LIB:
+            self.use_pyglib = True
+        else:
+            if use_pyg_lib:
+                warnings.warn("PyG-lib is not installed. Falling back to pure Python sampler.")
+            self.use_pyglib = False
 
         self.csc = csc
         self.device = device or torch.device('cpu')
@@ -76,7 +86,10 @@ class HeteroSampler:
             edge_time_dict=None,
         )
 
-        if rllm.utils._pyglib.WITH_PYG_LIB:
+        # Only convert edge type keys to strings when we actually use pyg-lib.
+        # The pure Python sampler (`hetero_neighbor_sample_cpu`) expects
+        # edge type keys to be tuples of (src, rel, dst).
+        if self.use_pyglib:
             # Pyg_lib sampler requires the edge types to be a string.
             # Convert the edge types from tuple to string.
             self.to_rel_type = {k: '__'.join(k) for k in self.edge_types}
@@ -86,11 +99,13 @@ class HeteroSampler:
             self.col_ptr_dict = remap_keys(self.col_ptr_dict, self.to_rel_type)
 
         self.num_neighbors = num_neighbors
-        self.num_neighbors_dict = self._get_num_neighbor_dict()
         self.replace = replace
         self.temporal_strategy = temporal_strategy
         self.disjoint = True
         self.to_bidirectional = to_bidirectional
+
+        if not self.use_pyglib:
+            self.num_neighbors_dict = self._get_num_neighbor_dict()
     
     # num_neighbors
     @property
@@ -102,9 +117,7 @@ class HeteroSampler:
         self._num_neighbors = NumNeighbors(num_neighbors)
 
     def _get_num_neighbor_dict(self) -> Dict[Tuple[str, str, str], List[int]]:
-        num_neighbors_dict = {}
-        for etype in self.edge_types:
-            num_neighbors_dict[etype] = self.num_neighbors.get_values(etype)
+        num_neighbors_dict = self.num_neighbors.get_values(self.edge_types)
         return num_neighbors_dict
     
     # is_temporal
@@ -145,7 +158,7 @@ class HeteroSampler:
         seed_time: Optional[Dict[str, Tensor]]
     ) -> HeteroSamplerOutput:
 
-        if rllm.utils._pyglib.WITH_PYG_LIB:
+        if self.use_pyglib:
             colptrs = list(self.col_ptr_dict.values())
             dtype = colptrs[0].dtype if len(colptrs) > 0 else torch.int64
             seed = {k: v.to(dtype) for k, v in seed.items()}
