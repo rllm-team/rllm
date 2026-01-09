@@ -1,6 +1,5 @@
 from typing import Any, Dict, List, Tuple, Optional
 from collections import defaultdict
-import warnings
 
 import torch
 from torch import Tensor
@@ -10,7 +9,7 @@ from rllm.types import ColType, StatType
 from rllm.data import HeteroGraphData
 from rllm.nn.models import TableResNet
 from rllm.nn.conv.graph_conv.relgnn_conv import RelGNNConv
-from rllm.nn.pre_encoder import HeteroTemporalEncoder
+from rllm.nn.common import HeteroTemporalEncoder
 
 
 class RelGNN(torch.nn.Module):
@@ -321,3 +320,34 @@ class RelGNNModel(torch.nn.Module):
 
         # 4. apply OUTPUT_HEAD to target table
         return self.OUTPUT_HEAD(x_dict[target_table][: seed_time.size(0)])
+
+
+# Helper function
+def get_atomic_routes(edge_type_list):
+    """Generate atomic routes from edge type list."""
+    src_to_tuples = defaultdict(list)
+    for src, rel, dst in edge_type_list:
+        if rel.startswith('f2p'):
+            if src == dst:
+                src = src + '--' + rel
+            src_to_tuples[src].append((src, rel, dst))
+
+    atomic_routes_list = []
+    get_rev_edge = lambda edge: (edge[2], 'rev_' + edge[1], edge[0])
+    for src, tuples in src_to_tuples.items():
+        if '--' in src:
+            src = src.split('--')[0]
+        if len(tuples) == 1:
+            _, rel, dst = tuples[0]
+            edge = (src, rel, dst)
+            atomic_routes_list.append(('dim-dim',) + edge)
+            atomic_routes_list.append(('dim-dim',) + get_rev_edge(edge))
+        else:
+            for _, rel_q, dst_q in tuples:
+                for _, rel_v, dst_v in tuples:
+                    if rel_q != rel_v:
+                        edge_q = (src, rel_q, dst_q)
+                        edge_v = (src, rel_v, dst_v)
+                        atomic_routes_list.append(('dim-fact-dim',) + edge_q + get_rev_edge(edge_v))
+
+    return atomic_routes_list

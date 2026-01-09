@@ -22,7 +22,7 @@ sys.path.append("../../")
 from rllm.datasets import RelF1Dataset
 from rllm.dataloader import RelbenchLoader
 from rllm.nn.models import RelGNNModel
-from rllm.utils import get_atomic_routes
+from rllm.nn.models.relgnn import get_atomic_routes
 
 
 def train(model, optimizer, loss_fn, train_loader, target_table, max_steps_per_epoch):
@@ -124,7 +124,7 @@ def main(args):
     loss_fn = torch.nn.BCEWithLogitsLoss() \
         if args.task in ["driver-dnf", "driver-top3"] \
         else torch.nn.L1Loss()
-    
+
     if args.task == "driver-position":
         clamp_min, clamp_max = np.percentile(
         task.task_data_dict['train'][0][task.target_col].to_numpy(), [2, 98]

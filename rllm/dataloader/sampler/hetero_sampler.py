@@ -14,7 +14,7 @@ from rllm.dataloader.sampler.data_type import (
     HeteroSamplerOutput,
     NumNeighbors,
 )
-from rllm.utils._remap_keys import remap_keys
+from rllm.utils import remap_dict_keys
 import rllm.utils._pyglib
 
 
@@ -54,7 +54,7 @@ class HeteroSampler:
         assert temporal_strategy == 'uniform', 'Only uniform temporal strategy is supported for now.'
         if temporal_strategy == 'uniform' and time_attr is None:
             raise ValueError('Time attribute must be provided for uniform temporal strategy.')
-        
+
         if use_pyg_lib and rllm.utils._pyglib.WITH_PYG_LIB:
             self.use_pyglib = True
         else:
@@ -95,8 +95,8 @@ class HeteroSampler:
             self.to_rel_type = {k: '__'.join(k) for k in self.edge_types}
             self.to_edge_type = {v: k for k, v in self.to_rel_type.items()}
 
-            self.row_dict = remap_keys(self.row_dict, self.to_rel_type)
-            self.col_ptr_dict = remap_keys(self.col_ptr_dict, self.to_rel_type)
+            self.row_dict = remap_dict_keys(self.row_dict, self.to_rel_type)
+            self.col_ptr_dict = remap_dict_keys(self.col_ptr_dict, self.to_rel_type)
 
         self.num_neighbors = num_neighbors
         self.replace = replace
@@ -106,7 +106,7 @@ class HeteroSampler:
 
         if not self.use_pyglib:
             self.num_neighbors_dict = self._get_num_neighbor_dict()
-    
+
     # num_neighbors
     @property
     def num_neighbors(self) -> NumNeighbors:
@@ -119,7 +119,7 @@ class HeteroSampler:
     def _get_num_neighbor_dict(self) -> Dict[Tuple[str, str, str], List[int]]:
         num_neighbors_dict = self.num_neighbors.get_values(self.edge_types)
         return num_neighbors_dict
-    
+
     # is_temporal
     @property
     def is_temporal(self) -> bool:
@@ -191,19 +191,19 @@ class HeteroSampler:
             num_sampled_nodes = num_sampled_edges = None
             if len(out) >= 6:
                 num_sampled_nodes, num_sampled_edges = out[4:6]
-            
+
             if self.disjoint:
                 node = {k: v.t().contiguous() for k, v in node.items()}
                 batch = {k: v[0] for k, v in node.items()}
                 node = {k: v[1] for k, v in node.items()}
-            
+
             # remap the edge type
-            row = remap_keys(row, self.to_edge_type)
-            col = remap_keys(col, self.to_edge_type)
+            row = remap_dict_keys(row, self.to_edge_type)
+            col = remap_dict_keys(col, self.to_edge_type)
             # edge = remap_keys(edge, self.to_edge_type)
 
             if num_sampled_edges is not None:
-                num_sampled_edges = remap_keys(
+                num_sampled_edges = remap_dict_keys(
                     num_sampled_edges,
                     self.to_edge_type,
                 )

@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 from torch.nn import ModuleDict
 
-from .positional_encoder import PositionalEncoder
+from ..pre_encoder.positional_encoder import PositionalEncoder
 
 
 class HeteroTemporalEncoder(torch.nn.Module):

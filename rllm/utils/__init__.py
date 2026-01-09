@@ -23,7 +23,9 @@ from .graph_utils import (
 from ._sort import lexsort
 from ._remap import remap_keys
 from ._mixin import CastMixin
-from .atomic_routes import get_atomic_routes
+from ._remap_keys import remap_dict_keys
+from ._pyglib import WITH_PYG_LIB
+
 
 __all__ = [
     'download_url',
@@ -45,5 +47,6 @@ __all__ = [
     "lexsort",
     "remap_keys",
     "CastMixin",
-    "get_atomic_routes",
+    "remap_dict_keys",
+    "WITH_PYG_LIB",
 ]

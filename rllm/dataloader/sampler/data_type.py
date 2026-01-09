@@ -162,7 +162,7 @@ class HeteroSamplerOutput(CastMixin):
 EdgeType = Tuple[str, str, str]
 
 
-class EdgeTypeStr(str):
+class StrEdgeType(str):
     r"""A helper class to construct serializable edge types by merging an edge
     type tuple into a single string.
     """
@@ -170,7 +170,7 @@ class EdgeTypeStr(str):
     DEFAULT_REL = 'to'
     edge_type: tuple[str, str, str]
 
-    def __new__(cls, *args: Any) -> 'EdgeTypeStr':
+    def __new__(cls, *args: Any) -> 'StrEdgeType':
         if isinstance(args[0], (list, tuple)):
             # Unwrap `EdgeType((src, rel, dst))` and `EdgeTypeStr((src, dst))`:
             args = tuple(args[0])
@@ -212,7 +212,7 @@ class EdgeTypeStr(str):
 
 @dataclass(frozen=True)
 class NumNeighbors:
-    r"""The number of neighbors to sample in a heterogeneous graph. 
+    r"""The number of neighbors to sample in a heterogeneous graph.
     It may also take in a dictionary denoting
     the amount of neighbors to sample for individual edge types.
 
@@ -225,7 +225,7 @@ class NumNeighbors:
         default (List[int], optional): The default number of neighbors for edge
             types not specified in :obj:`values`. (default: :obj:`None`)
     """
-    values: Union[List[int], Dict[EdgeTypeStr, List[int]]]
+    values: Union[List[int], Dict[StrEdgeType, List[int]]]
     default: Optional[List[int]] = None
 
     def __init__(
@@ -239,7 +239,7 @@ class NumNeighbors:
                              f"neighbors (got '{type(default)})'")
 
         if isinstance(values, dict):
-            values = {EdgeTypeStr(key): value for key, value in values.items()}
+            values = {StrEdgeType(key): value for key, value in values.items()}
 
         # Write to `__dict__` since dataclass is annotated with `frozen=True`:
         self.__dict__['values'] = values
@@ -249,7 +249,7 @@ class NumNeighbors:
         self,
         edge_types: Optional[List[EdgeType]] = None,
         mapped: bool = False,
-    ) -> Union[List[int], Dict[Union[EdgeType, EdgeTypeStr], List[int]]]:
+    ) -> Union[List[int], Dict[Union[EdgeType, StrEdgeType], List[int]]]:
 
         if edge_types is not None:
             if isinstance(self.values, (tuple, list)):
@@ -261,7 +261,7 @@ class NumNeighbors:
 
             # Confirm that `values` only hold valid edge types:
             if isinstance(self.values, dict):
-                edge_types_str = {EdgeTypeStr(key) for key in edge_types}
+                edge_types_str = {StrEdgeType(key) for key in edge_types}
                 invalid_edge_types = set(self.values.keys()) - edge_types_str
                 if len(invalid_edge_types) > 0:
                     raise ValueError("Not all edge types specified in "
@@ -269,7 +269,7 @@ class NumNeighbors:
 
             out = {}
             for edge_type in edge_types:
-                edge_type_str = EdgeTypeStr(edge_type)
+                edge_type_str = StrEdgeType(edge_type)
                 if edge_type_str in self.values:
                     out[edge_type_str if mapped else edge_type] = (
                         self.values[edge_type_str])

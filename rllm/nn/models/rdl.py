@@ -7,7 +7,7 @@ from torch.nn import ModuleDict
 from rllm.types import ColType, StatType
 from rllm.data import HeteroGraphData
 from rllm.nn.models import TableResNet, HeteroSAGE
-from rllm.nn.pre_encoder import HeteroTemporalEncoder
+from rllm.nn.common import HeteroTemporalEncoder
 
 
 class RDL(torch.nn.Module):
