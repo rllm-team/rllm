@@ -27,6 +27,7 @@ from rllm.types import ColType
 from rllm.datasets import Jannis, Titanic
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import ExcelFormerConv
+from rllm.utils import data_aug
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -39,6 +40,17 @@ parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--lr", type=float, default=1e-3)
 parser.add_argument("--wd", type=float, default=5e-4)
 parser.add_argument("--seed", type=int, default=0)
+parser.add_argument(
+    "--mix_type",
+    type=str,
+    default="none",
+    choices=["none", "feat_mix", "hidden_mix", "niave_mix"],
+)
+parser.add_argument("--beta", type=float, default=0.5, help="Beta parameter for mixup")
+parser.add_argument("--warm_up", type=int, default=0, help="Number of warmup epochs")
+parser.add_argument(
+    "--early_stop", type=int, default=20, help="Early stopping patience"
+)
 args = parser.parse_args()
 
 # Set random seed and device
@@ -93,10 +105,43 @@ class ExcelFormer(torch.nn.Module):
             torch.nn.Linear(hidden_dim, out_dim),
         )
 
-    def forward(self, x) -> Tensor:
+    def forward(self, x, mixup=False):
+        # Apply mixup at feature level if needed
+        feat_masks = None
+        shuffled_ids = None
+
+        # Get device from x (handle both dict and tensor)
+        x_device = x[list(x.keys())[0]].device if isinstance(x, dict) else x.device
+
+        if mixup and args.mix_type == "niave_mix":
+            # Naive mixup at input level
+            x, feat_masks, shuffled_ids = data_aug.mixup_data(x, beta=args.beta)
+            if not isinstance(feat_masks, torch.Tensor):
+                feat_masks = torch.tensor(feat_masks).to(x_device)
+            shuffled_ids = torch.tensor(shuffled_ids).to(x_device)
+        elif mixup and args.mix_type == "feat_mix":
+            # Feature-level mixup
+            x, feat_masks, shuffled_ids = data_aug.batch_feat_shuffle(x, beta=args.beta)
+            shuffled_ids = torch.tensor(shuffled_ids).to(x_device)
+
         for conv in self.convs:
             x = conv(x)
-        out = self.fc(x.mean(dim=1))
+
+        # Hidden-level mixup after convolutions
+        if mixup and args.mix_type == "hidden_mix":
+            x, feat_masks, shuffled_ids = data_aug.batch_dim_shuffle(x, beta=args.beta)
+            shuffled_ids = torch.tensor(shuffled_ids).to(x_device)
+
+        # Handle mean operation for both dict and tensor
+        if isinstance(x, dict):
+            # Concatenate all tensors in dict along feature dimension, then take mean
+            x_concat = torch.cat([x[key] for key in sorted(x.keys())], dim=1)
+            out = self.fc(x_concat.mean(dim=1))
+        else:
+            out = self.fc(x.mean(dim=1))
+
+        if mixup and args.mix_type != "none":
+            return out, feat_masks, shuffled_ids
         return out
 
 
@@ -110,22 +155,67 @@ model = ExcelFormer(
 optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=args.lr,
-    # weight_decay=args.wd,
+    weight_decay=args.wd,
 )
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.5)
 
 
 def train(epoch: int) -> float:
     model.train()
     loss_accum = total_count = 0
+
+    # Warmup learning rate
+    if args.warm_up > 0 and epoch <= args.warm_up:
+        lr = args.lr * epoch / args.warm_up
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = lr
+
     for batch in tqdm(train_loader, desc=f"Epoch: {epoch}"):
         x, y = batch
-        pred = model.forward(x)
-        loss = F.cross_entropy(pred, y.long())
         optimizer.zero_grad()
+
+        if args.mix_type == "none":
+            # No mixup
+            pred = model.forward(x, mixup=False)
+            loss = F.cross_entropy(pred, y.long())
+        else:
+            # Apply mixup
+            pred, feat_masks, shuffled_ids = model.forward(x, mixup=True)
+
+            # Calculate lambdas based on mixup type
+            if args.mix_type == "feat_mix":
+                # Convert boolean mask to float and average across features
+                lambdas = feat_masks.float().mean(dim=1)  # Average across features
+                lambdas2 = 1 - lambdas
+            else:  # hidden_mix or niave_mix
+                lambdas = (
+                    feat_masks
+                    if isinstance(feat_masks, torch.Tensor)
+                    else torch.tensor(feat_masks).to(pred.device)
+                )
+                lambdas2 = 1 - lambdas
+
+            # Compute mixup loss
+            if data.num_classes == 2:  # Binary classification
+                loss = lambdas * F.cross_entropy(
+                    pred, y.long(), reduction="none"
+                ) + lambdas2 * F.cross_entropy(
+                    pred, y[shuffled_ids].long(), reduction="none"
+                )
+                loss = loss.mean()
+            else:  # Multi-class classification
+                loss = lambdas * F.cross_entropy(
+                    pred, y.long(), reduction="none"
+                ) + lambdas2 * F.cross_entropy(
+                    pred, y[shuffled_ids].long(), reduction="none"
+                )
+                loss = loss.mean()
+
         loss.backward()
+        optimizer.step()
         loss_accum += float(loss) * y.size(0)
         total_count += y.size(0)
-        optimizer.step()
+
     return loss_accum / total_count
 
 
@@ -136,7 +226,7 @@ def test(loader: DataLoader, model, metric: str = "auc") -> float:
     all_labels = []
 
     for x, y in loader:
-        pred = model(x)
+        pred = model(x, mixup=False)
         probs = torch.softmax(pred, dim=1)
         all_labels.append(y.cpu())
         all_preds.append(probs.detach().cpu())
@@ -158,7 +248,10 @@ def test(loader: DataLoader, model, metric: str = "auc") -> float:
 
 
 best_val_metric = test_metric = 0
+best_test_metric = 0
+no_improvement = 0
 times = []
+
 for epoch in range(1, args.epochs + 1):
     start = time.time()
 
@@ -170,13 +263,34 @@ for epoch in range(1, args.epochs + 1):
     if val_metric > best_val_metric:
         best_val_metric = val_metric
         test_metric = tmp_test_metric
+        no_improvement = 0
+        print(
+            f"Epoch {epoch:03d} | Train Loss: {train_loss:.4f}, Train {metric}: {train_metric:.4f}, "
+            f"Val {metric}: {val_metric:.4f}, Test {metric}: {tmp_test_metric:.4f} <<< BEST VALIDATION EPOCH"
+        )
+    else:
+        no_improvement += 1
+        print(
+            f"Epoch {epoch:03d} | Train Loss: {train_loss:.4f}, Train {metric}: {train_metric:.4f}, "
+            f"Val {metric}: {val_metric:.4f}, Test {metric}: {tmp_test_metric:.4f}"
+        )
+
+    if tmp_test_metric > best_test_metric:
+        best_test_metric = tmp_test_metric
 
     times.append(time.time() - start)
-    print(
-        f"Train Loss: {train_loss:.4f}, Train {metric}: {train_metric:.4f}, "
-        f"Val {metric}: {val_metric:.4f}, Test {metric}: {tmp_test_metric:.4f}"
-    )
 
-print(f"Mean time per epoch: {torch.tensor(times).mean():.4f}s")
+    # Learning rate scheduling (after warmup)
+    if args.warm_up == 0 or epoch > args.warm_up:
+        scheduler.step()
+
+    # Early stopping
+    if no_improvement >= args.early_stop:
+        print(f"Early stopping triggered after {epoch} epochs")
+        break
+
+print(f"\nMean time per epoch: {torch.tensor(times).mean():.4f}s")
 print(f"Total time: {sum(times):.4f}s")
+print(f"Best Val {metric}: {best_val_metric:.4f}")
 print(f"Test {metric} at best Val: {test_metric:.4f}")
+print(f"Best Test {metric}: {best_test_metric:.4f}")
