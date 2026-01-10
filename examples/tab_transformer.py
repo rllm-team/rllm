@@ -4,9 +4,10 @@
 
 # Datasets      Titanic    Adult
 # Metrics       Acc        AUC
-# Rept.         -          0.737
+# Rept.         -          0.907
 # Ours          0.831      0.890
 # Time          5.26s      251.1s
+# Note: Adult dataset in "TabTransformer" paper is named as "1995_income" dataset.
 
 import argparse
 import sys
