@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import torch
 from torch import Tensor
@@ -41,8 +41,8 @@ class TransTabWordEmbeddingEncoder(ColEncoder):
         padding_idx: int = 0,
         hidden_dropout_prob: float = 0.0,
         layer_norm_eps: float = 1e-5,
-        stats_list: List[Dict[StatType, Any]] | None = None,
-        post_module: torch.nn.Module | None = None,
+        stats_list: Optional[List[Dict[StatType, Any]]] = None,
+        post_module: Optional[torch.nn.Module] = None,
     ) -> None:
         super().__init__(out_dim, stats_list, post_module)
         self.vocab_size = vocab_size
@@ -71,7 +71,7 @@ class TransTabWordEmbeddingEncoder(ColEncoder):
     def encode_forward(
         self,
         feat: Tensor,
-        col_names: List[str] | None = None,
+        col_names: Optional[list[str]] = None,
     ) -> Tensor:
         """
         The core embedding logic is exactly the same as the original forward:
@@ -92,7 +92,7 @@ class TransTabWordEmbeddingEncoder(ColEncoder):
     def forward(
         self,
         feat: Tensor,
-        col_names: List[str] | None = None,
+        col_names: Optional[list[str]] = None,
     ) -> Tensor:
         # Directly mirror original TransTabWordEmbedding.forward
         # lookup -> norm -> dropout

@@ -5,7 +5,8 @@ from .han_conv import HANConv
 from .hgt_conv import HGTConv
 from .sage_conv import SAGEConv
 from .lgc_conv import LGCConv
-
+from .transformer_conv import GTransformerConv
+from .relgnn_conv import RelGNNConv
 
 from .aggrs import (
     Aggregator,
@@ -31,6 +32,8 @@ __all__ = [
     "HGTConv",
     "SAGEConv",
     "LGCConv",
+    "GTransformerConv",
+    "RelGNNConv",
 
     # Aggregators
     "Aggregator",

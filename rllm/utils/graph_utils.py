@@ -7,6 +7,7 @@ import scipy.sparse as sp
 
 from rllm.utils._sort import lexsort
 from rllm.utils.sparse import is_torch_sparse_tensor, sparse_mx_to_torch_sparse_tensor
+import rllm.utils._pyglib
 
 # Filter the csr warning
 import warnings
@@ -276,6 +277,7 @@ def _to_csc(
             row indices, and the permutation index.
     """
     device = input.device if device is None else device
+    # sparse adj
     if isinstance(input, Tensor) and input.is_sparse:
         adj = input
         if is_torch_sparse_tensor(adj):
@@ -287,11 +289,15 @@ def _to_csc(
             col_ptr = csc_t.ccol_indices()
             row = csc_t.row_indices()
             perm = None
+    # edge index
     elif isinstance(input, Tensor) and input.dim() == 2 and input.size(0) == 2:
         row, col = input[0, :], input[1, :]
 
         if num_nodes is None:
-            num_nodes = max(row.max(), col.max()) + 1
+            # If not provided, use max destination node index + 1
+            # as the node number.
+            # This is used to build col_ptr.
+            num_nodes = col.max() + 1
 
         if not is_sorted:
             if src_node_time is None and edge_time is None:
@@ -303,7 +309,7 @@ def _to_csc(
                 col = col[perm]
                 row = row[perm]
             elif src_node_time is not None and edge_time is None:
-                perm = lexsort(keys=[src_node_time, col])
+                perm = lexsort(keys=[src_node_time[row], col])
                 col = col[perm]
                 row = row[perm]
             else:
@@ -329,3 +335,42 @@ def _to_csc(
             perm.share_memory_()
 
     return col_ptr, row, perm
+
+
+def to_bidirectional(
+    row: Tensor,
+    col: Tensor,
+    rev_row: Tensor,
+    rev_col: Tensor,
+) -> Tuple[Tensor, Tensor]:
+    r"""Transfer the directed edge index to bidirectional edge index.
+    """
+    assert row.numel() == col.numel()
+    assert rev_row.numel() == rev_col.numel()
+
+    edge_index = row.new_empty(2, row.numel() + rev_row.numel())
+    edge_index[0, :row.numel()] = row
+    edge_index[1, :row.numel()] = col
+    edge_index[0, row.numel():] = rev_col
+    edge_index[1, row.numel():] = rev_row
+
+    # Fast path: use PyG's `coalesce` (C++/CUDA-backed via torch-sparse/pyg-lib)
+    # to de-duplicate edges. This is significantly faster than `torch.unique`
+    # on a 2xE tensor, especially when called repeatedly per edge type/batch.
+    if rllm.utils._pyglib.WITH_PYG_LIB:
+        try:
+            from torch_geometric.utils import coalesce  # type: ignore
+
+            (edge_index, _) = coalesce(
+                edge_index,
+                None,
+                sort_by_row=False,
+                reduce='any',
+            )
+            return edge_index[0], edge_index[1]
+        except Exception:
+            pass
+
+    # Fallback: pure PyTorch de-duplication.
+    edge_index = torch.unique(edge_index, dim=1)
+    return edge_index[0], edge_index[1]

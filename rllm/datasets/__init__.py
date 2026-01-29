@@ -11,6 +11,13 @@ from .sjtutables.tacm12k import TACM12KDataset
 from .tape import TAPEDataset
 from .titanic import Titanic
 from .tagdataset import TAGDataset
+from .relbench.base import (
+    RelBenchDataset,
+    RelBenchTask,
+    RelBenchTaskType,
+    RelBenchTableMeta
+)
+from .relbench.f1 import RelF1Dataset
 
 __all__ = [
     "Adult",
@@ -26,4 +33,9 @@ __all__ = [
     "TAGDataset",
     "TLF2KDataset",
     "TACM12KDataset",
+    "RelBenchDataset",
+    "RelF1Dataset",
+    "RelBenchTask",
+    "RelBenchTaskType",
+    "RelBenchTableMeta",
 ]

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import torch
 from torch import Tensor
@@ -22,29 +22,35 @@ class ReshapeEncoder(ColEncoder):
             to the output, such as activation function and normalization. Must
             preserve the shape of the output. If :obj:`None`, no module will
             be applied to the output (default: :obj:`None`).
+        need_layer_norm (bool, optional): Whether to apply LayerNorm to the input.
     """
 
     supported_types = {ColType.CATEGORICAL, ColType.NUMERICAL}
 
     def __init__(
         self,
-        out_dim: int | None = 1,
-        stats_list: List[Dict[StatType, Any]] | None = None,
-        post_module: torch.nn.Module | None = None,
+        out_dim: int = 1,
+        stats_list: List[Dict[StatType, Any]] = None,
+        post_module: torch.nn.Module = None,
+        need_layer_norm: bool = True,
     ) -> None:
+        self.need_layer_norm = need_layer_norm
         super().__init__(out_dim, stats_list, post_module)
 
     def post_init(self) -> None:
-        pass
+        if self.need_layer_norm:
+            self.layernorm = torch.nn.LayerNorm(len(self.stats_list))
 
     def reset_parameters(self) -> None:
-        pass
+        self.layernorm.reset_parameters()
 
     def encode_forward(
         self,
         feat: Tensor,
     ) -> Tensor:
         # feat: [batch_size, num_cols]
+        if self.need_layer_norm:
+            feat = self.layernorm(feat)
         if feat.dim() != 3:
             feat = feat.unsqueeze(2)
 
