@@ -270,7 +270,7 @@ class TransTab(torch.nn.Module):
 
         # 3) Load model weights to CPU
         model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
-        state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
+        state_dict = torch.load(model_path, map_location='cpu', weights_only=True)
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         print(f"Loaded TransTab weights from {model_path}")
         print(f" Missing keys: {missing}")

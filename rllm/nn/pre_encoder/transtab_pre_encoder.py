@@ -277,9 +277,9 @@ class TransTabPreEncoder(PreEncoder):
         self.extractor.load(ckpt_dir)
         encoder_path = os.path.join(ckpt_dir, "input_encoder.bin")
         try:
-            state_dict = torch.load(encoder_path, map_location="cpu", weights_only=True)
+            state_dict = torch.load(encoder_path, map_location='cpu', weights_only=True)
         except TypeError:
-            state_dict = torch.load(encoder_path, map_location="cpu")
+            state_dict = torch.load(encoder_path, map_location='cpu')
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         print(f"Loaded pre_encoder (integrated) weights from {encoder_path}")
         print(f" Missing keys: {missing}")
