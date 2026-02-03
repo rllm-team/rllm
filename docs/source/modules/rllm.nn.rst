@@ -38,6 +38,7 @@ Table Conv
    TabTransformerConv
    TromptConv
    TransTabConv
+   ResNetConv
 
 Pre-Encoder
 ----------------

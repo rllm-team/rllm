@@ -313,47 +313,58 @@ class HeteroGraphData(BaseGraph):
     Methods of initialization:
         1) Assign attributes,
 
-        data = HeteroGraphData()
-        data['paper']['x'] = x_paper
-        data['paper'].x = x_paper
+        .. code-block:: python
+
+            data = HeteroGraphData()
+            data['paper']['x'] = x_paper
+            data['paper'].x = x_paper
 
         Tips:
             Though name of node attribute can be arbitrary, `x` is prefered.
 
         2) pass them as keyword arguments,
 
-        data = HeteroGraphData(
-            'paper' = {'x': x_paper, 'y': labels},
-            'writer' = {'x': x_writer},
-            'writer__of__paper' = {'adj' = adj}
-        )
+        .. code-block:: python
+
+            data = HeteroGraphData(
+                'paper' = {'x': x_paper, 'y': labels},
+                'writer' = {'x': x_writer},
+                'writer__of__paper' = {'adj' = adj}
+            )
 
         3) pass them as dictionaries,
 
-        data = HeteroGraphData(
-            {
-                'paper' = {'x': x_paper, 'y': labels},
-                'writer' = {'x': x_writer},
-                ('writer', 'of', 'paper') = {'adj' = adj}
-            }
-        )
+        .. code-block:: python
 
-    Save some attributes like train_mask:
+            data = HeteroGraphData(
+                {
+                    'paper' = {'x': x_paper, 'y': labels},
+                    'writer' = {'x': x_writer},
+                    ('writer', 'of', 'paper') = {'adj' = adj}
+                }
+            )
 
-        data.train_mask = train_mask
+        Save some attributes like train_mask:
+
+        .. code-block:: python
+
+            data.train_mask = train_mask
 
         Save more edges and nodes:
-        data[edge_type|node_type] = {
-            ...
-        }
 
-        Key of edge type:
-        data['src__tgt'] =  {'adj': adj}
-        data[src, tgt] = {'adj': adj}
-        data[src, rel, tgt] = {'adj': adj}
+        .. code-block:: python
 
-        Key of node type:
-        data['node type'] = {'x': x}
+            data[edge_type|node_type] = {
+                ...
+            }
+
+            Key of edge type:
+            data['src__tgt'] =  {'adj': adj}
+            data[src, tgt] = {'adj': adj}
+            data[src, rel, tgt] = {'adj': adj}
+
+            Key of node type:
+            data['node type'] = {'x': x}
     """
 
     def __init__(self, mapping: Optional[Mapping[str, Any]] = None, **kwargs):
