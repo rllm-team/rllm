@@ -30,6 +30,7 @@ class AttachTargetTransform:
 
 class RelbenchLoader(torch.utils.data.DataLoader):
     r"""DataLoader for RelBench dataset with heterogeneous neighbor sampling.
+
     Args:
         dataset (RelBenchDataset): The RelBench dataset.
         task (Union[RelBenchTask, str]): The task to load.

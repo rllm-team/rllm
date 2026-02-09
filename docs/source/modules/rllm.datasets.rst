@@ -63,7 +63,11 @@ Multi-Table Datasets
    TACM12KDataset
    TLF2KDataset
    TML1MDataset
-
+   RelBenchDataset
+   RelF1Dataset
+   RelBenchTask
+   RelBenchTaskType
+   RelBenchTableMeta
 
 
 

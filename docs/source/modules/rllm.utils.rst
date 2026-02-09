@@ -18,5 +18,11 @@ Utils
     get_indices
     is_undirected
     to_undirected
-
-
+    adj2edge_index
+    seg_sum
+    seg_softmax
+    sort_edge_index
+    index2ptr
+    lexsort
+    remap_keys
+    CastMixin
