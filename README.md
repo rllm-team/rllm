@@ -10,8 +10,9 @@
 
 ----
 
-*Latest News* 🔥  
-- [2025.10] Our students won **🏆 1st Prize** in the **China Open Source Security Incentive Program**.
+*Latest News* 🔥
+- [2026.01] We released **TLSQL**, a SQL-like API for table learning. See our paper and code: [arXiv](https://arxiv.org/abs/2601.14109) · [GitHub](https://github.com/rllm-project/tlsql).
+- [2025.10] Our students won **1st Prize** in the **China Open Source Security Incentive Program**.
 - [2025.08] At the **CCF–Huawei Populus Grove Fund** midterm report, we showed how to use rLLM in a **"SQL-like"** way with MySQL. Watch the video on Huawei’s official account: [📺 Bilibili](https://www.bilibili.com/video/BV1TQeFz7Eaj/?t=1114).
 - [2025.04] Released the course videos "Special Topic on Table Learning (Spring 2025, SJTU)". Check out the [course page](https://zhengwang100.github.io/course/table-learning-2025/) or visit our [YouTube channel](https://www.youtube.com/watch?v=aebkqnSghTw&list=PLtbYCaVzygjLZrYCuoz6nTJdUzMzIUohh).
 - [2025.01] We’ve updated to **rLLM v0.1.1** for improved uniformity between Transform and Convolution operations. See our [blog](https://rllm-project.github.io/2025-01-10-rLLM-v0.1.1-Achieving-Greater-Uniformity-Between-Transform-and-Convolution/).
