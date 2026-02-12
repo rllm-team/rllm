@@ -10,3 +10,4 @@ rllm.dataloader
 
    NeighborLoader
    BRIDGELoader
+   RelbenchLoader

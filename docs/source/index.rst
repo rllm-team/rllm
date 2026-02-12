@@ -45,10 +45,11 @@ Highlight Features:
    :caption: API REFERENCE
 
    modules/rllm.data
+   modules/rllm.dataloader
    modules/rllm.datasets
    modules/rllm.llm
    modules/rllm.nn
-   modules/rllm.dataloader
+   modules/rllm.preprocessing
    modules/rllm.transforms
    modules/rllm.utils
 

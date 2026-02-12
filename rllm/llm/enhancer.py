@@ -35,7 +35,9 @@ class Enhancer:
             Task type, default type is 'explanation|embedding'.
 
     Explanation|Embedding:
+
     .. code-block:: python
+
         import pandas as pd
         from langchain_openai import OpenAI, OpenAIEmbeddings
         from rllm.llm import LangChainLLM, Enhancer
@@ -53,7 +55,9 @@ class Enhancer:
         outputs = enhancer(data.head(10), scenario=scenario)
 
     Explanation:
+
     .. code-block:: python
+
         import pandas as pd
         from langchain_openai import OpenAI
         from rllm.llm import LangChainLLM, Enhancer
@@ -66,7 +70,9 @@ class Enhancer:
         outputs = enhancer(data.head(10), scenario=scenario)
 
     Embedding:
+
     .. code-block:: python
+
         import pandas as pd
         from langchain.embeddings import OpenAIEmbeddings
         from rllm.llm import LangChainLLM, Enhancer
