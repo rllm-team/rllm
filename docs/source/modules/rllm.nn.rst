@@ -65,6 +65,7 @@ Models
 .. autosummary::
    :nosignatures:
    :toctree: ../generated
+   :template: autosummary/class.rst
 
    RECT_L
    TabNet
