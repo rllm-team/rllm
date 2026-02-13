@@ -12,6 +12,47 @@ from rllm.utils.extract import extract_zip
 
 
 class DSMusicDataset(Dataset):
+    r"""DSMusicDataset is a tabular dataset designed for weakly related (Join-based)
+    table scenarios in Data Lake(House) settings, as collected in the `LakeMLB: Data Lake
+    Machine Learning Benchmark <https://arxiv.org/abs/2602.10441>`__ paper.
+
+    The dataset focuses on music tracks and comprises two weakly related tables:
+    a task table (Discogs database) and an auxiliary table (Spotify tracks).
+    The task table contains music track records from the publicly archived Discogs database.
+    The auxiliary table contains music track records from the Spotify music platform.
+    The two tables exhibit a weak association (Join relationship), where information
+    from the auxiliary table can be leveraged to enhance machine learning performance
+    on the task table. The default task is to predict music genres (a single-label
+    multi-class classification task).
+
+    Args:
+        cached_dir (str): Root directory where dataset should be saved.
+        csv_name (str): Name of the CSV file to use. Default is "discogs.csv".
+        mask_name (str): Name of the mask file. Default is "mask.pt".
+        force_reload (bool): If set to `True`, this dataset will be re-process again.
+        transform: Optional transform to be applied on the data.
+        device: Optional device to move the transformed data to.
+
+    .. parsed-literal::
+
+        Table1: discogs
+        ---------------
+            Statics:
+            Name        Records     Features
+            Size        11,000      5
+
+        Table2: spotify
+        ------------------
+            Statics:
+            Name        Records     Features
+            Size        11,000      21
+
+    Note:
+        The columns commented out in col_types (under ``# aux table cols``) belong to
+        the auxiliary table. They are commented here for convenience when running
+        merged tables.
+    """
+
     url = "https://github.com/FeiyuPan/LakeMLB_datasets/raw/refs/heads/main/datasets/dsmusic.zip"
 
     def __init__(self, cached_dir: str, csv_name: str = "discogs.csv", mask_name: str = "mask.pt",

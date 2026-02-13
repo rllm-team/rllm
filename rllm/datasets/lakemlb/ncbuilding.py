@@ -12,6 +12,48 @@ from rllm.utils.extract import extract_zip
 
 
 class NCBuildingDataset(Dataset):
+    r"""NCBuildingDataset is a tabular dataset designed for weakly related (Union-based)
+    table scenarios in Data Lake(House) settings, as collected in the `LakeMLB: Data Lake
+    Machine Learning Benchmark <https://arxiv.org/abs/2602.10441>`__ paper.
+
+    The dataset focuses on building violation complaint incidents and comprises two weakly
+    related tables: a task table (New York complaint reports) and an auxiliary table
+    (Chicago complaint reports). The task table contains building violation complaint
+    records from January 2023 to December 2024. The auxiliary table contains building
+    violation complaint records from January 2023 to December 2024. The two tables exhibit
+    a weak association (Union relationship), where information from the auxiliary table
+    can be leveraged to enhance machine learning performance on the task table. The default
+    task is to predict the type of building violation being complained about (a classification
+    task).
+
+    Args:
+        cached_dir (str): Root directory where dataset should be saved.
+        csv_name (str): Name of the CSV file to use. Default is "newyork.csv".
+        mask_name (str): Name of the mask file. Default is "mask_newyork.pt".
+        force_reload (bool): If set to `True`, this dataset will be re-process again.
+        transform: Optional transform to be applied on the data.
+        device: Optional device to move the transformed data to.
+
+    .. parsed-literal::
+
+        Table1: newyork
+        ---------------
+            Statics:
+            Name        Records     Features
+            Size        30,000      40
+
+        Table2: chicago
+        ------------------
+            Statics:
+            Name        Records     Features
+            Size        37,000      23
+
+    Note:
+        The columns commented out in col_types (under ``# aux table cols``) belong to
+        the auxiliary table. They are commented here for convenience when running
+        merged tables.
+    """
+
     url = "https://github.com/FeiyuPan/LakeMLB_datasets/raw/refs/heads/main/datasets/ncbuilding.zip"
 
     def __init__(self, cached_dir: str, csv_name: str = "newyork.csv", mask_name: str = "mask_newyork.pt",

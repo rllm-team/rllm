@@ -12,6 +12,47 @@ from rllm.utils.extract import extract_zip
 
 
 class GACarsDataset(Dataset):
+    r"""GACarsDataset is a tabular dataset designed for weakly related (Union-based)
+    table scenarios in Data Lake(House) settings, as collected in the `LakeMLB: Data Lake
+    Machine Learning Benchmark <https://arxiv.org/abs/2602.10441>`__ paper.
+
+    The dataset focuses on used car sales transactions and comprises two weakly related
+    tables: a task table (German used car listings) and an auxiliary table (Australian
+    used car listings). The task table contains used car listing records collected in 2023.
+    The auxiliary table contains used car listing records collected in 2023.
+    The two tables exhibit a weak association (Union relationship), where information
+    from the auxiliary table can be leveraged to enhance machine learning performance
+    on the task table. The default task is to predict the price range of used car sales
+    (a classification task).
+
+    Args:
+        cached_dir (str): Root directory where dataset should be saved.
+        csv_name (str): Name of the CSV file to use. Default is "german.csv".
+        mask_name (str): Name of the mask file. Default is "mask_german.pt".
+        force_reload (bool): If set to `True`, this dataset will be re-process again.
+        transform: Optional transform to be applied on the data.
+        device: Optional device to move the transformed data to.
+
+    .. parsed-literal::
+
+        Table1: german
+        ---------------
+            Statics:
+            Name        Records     Features
+            Size        13,000      15
+
+        Table2: australian
+        ------------------
+            Statics:
+            Name        Records     Features
+            Size        3,600       19
+
+    Note:
+        The columns commented out in col_types (under ``# aux table cols``) belong to
+        the auxiliary table. They are commented here for convenience when running
+        merged tables.
+    """
+
     url = "https://github.com/FeiyuPan/LakeMLB_datasets/raw/refs/heads/main/datasets/gacars.zip"
 
     def __init__(self, cached_dir: str, csv_name: str = "german.csv", mask_name: str = "mask_german.pt",

@@ -12,6 +12,47 @@ from rllm.utils.extract import extract_zip
 
 
 class MSTrafficDataset(Dataset):
+    r"""MSTrafficDataset is a tabular dataset designed for weakly related (Union-based)
+    table scenarios in Data Lake(House) settings, as collected in the `LakeMLB: Data Lake
+    Machine Learning Benchmark <https://arxiv.org/abs/2602.10441>`__ paper.
+
+    The dataset focuses on traffic collision incidents and comprises two weakly related
+    tables: a task table (Maryland collision reports) and an auxiliary table (Seattle
+    collision reports). The task table contains traffic collision records from January
+    2017 to December 2023. The auxiliary table contains traffic collision records from
+    January 2014 to December 2023. The two tables exhibit a weak association (Union
+    relationship), where information from the auxiliary table can be leveraged to enhance
+    machine learning performance on the task table. The default task is to predict the
+    collision type of traffic incidents (a classification task).
+
+    Args:
+        cached_dir (str): Root directory where dataset should be saved.
+        csv_name (str): Name of the CSV file to use. Default is "maryland.csv".
+        mask_name (str): Name of the mask file. Default is "maryland_mask.pt".
+        force_reload (bool): If set to `True`, this dataset will be re-process again.
+        transform: Optional transform to be applied on the data.
+        device: Optional device to move the transformed data to.
+
+    .. parsed-literal::
+
+        Table1: maryland
+        ---------------
+            Statics:
+            Name        Records     Features
+            Size        10,800      37
+
+        Table2: seattle
+        ------------------
+            Statics:
+            Name        Records     Features
+            Size        10,800      50
+
+    Note:
+        The columns commented out in col_types (under ``# aux table cols``) belong to
+        the auxiliary table. They are commented here for convenience when running
+        merged tables.
+    """
+
     url = "https://github.com/FeiyuPan/LakeMLB_datasets/raw/refs/heads/main/datasets/mstraffic.zip"
 
     def __init__(self, cached_dir: str, csv_name: str = "maryland.csv", mask_name: str = "maryland_mask.pt",
