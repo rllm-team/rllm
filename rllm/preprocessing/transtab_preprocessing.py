@@ -15,7 +15,7 @@ from rllm.types import ColType
 class TransTabDataExtractor:
     r"""TransTabDataExtractor: Transform TableData feat_dict into token IDs and value tensors,
     matching original TransTabFeatureExtractor behavior as proposed in
-    `"TransTab: Learning Transferable Tabular Transformers Across Tables"`
+    `"TransTab: Learning Transferable Tabular Transformers Across Tables"
     <https://arxiv.org/abs/2205.09328>`_ paper.
 
     This class converts columns of a pandas.DataFrame—divided by type

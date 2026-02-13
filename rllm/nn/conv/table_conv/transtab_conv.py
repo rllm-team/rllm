@@ -21,7 +21,7 @@ def _get_activation_fn(activation):
 
 class TransTabConv(torch.nn.Module):
     r"""The TransTabConv module introduced in
-    `"TransTab: Learning Transferable Tabular Transformers Across Tables"`
+    `"TransTab: Learning Transferable Tabular Transformers Across Tables"
     <https://arxiv.org/abs/2205.09328>`_ paper.
 
     This layer implements a single Transformer encoder block customized for
