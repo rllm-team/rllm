@@ -13,7 +13,7 @@ from rllm.nn.pre_encoder import HeteroTemporalEncoder
 class RDL(torch.nn.Module):
     r"""Relational Deep Learning (RDL) model from paper
     `"RelBench: A Benchmark for Deep Learning on Relational Databases"
-    <https://arxiv.org/abs/2407.20060>`_ paper.
+    <https://arxiv.org/abs/2407.20060>`_.
     The RDL model combines Table Neural Networks (TNNs)
     and Heterogeneous Graph Neural Networks (HGNNs)
     to effectively learn from multi-table relational data.

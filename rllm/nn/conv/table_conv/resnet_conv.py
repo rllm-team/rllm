@@ -14,7 +14,7 @@ from torch.nn import (
 class ResNetConv(torch.nn.Module):
     r"""The ResNet-like TNN LayerConv introduced in the
     `"Revisiting Deep Learning Models for Tabular Data"
-    <https://arxiv.org/abs/2106.11959>`_ paper.
+    <https://arxiv.org/abs/2106.11959>` _ paper.
     """
 
     def __init__(

@@ -7,10 +7,11 @@ class GCNTransform(GT.GraphTransform):
     <https://arxiv.org/abs/1609.02907>`__ paper.
     GCNTransform applies a series of transformations to a graph,
     including:
-        1. Feature Normalization
-        2. Adjacency Matrix Normalization
-            a. Adding Self-Loops
-            b. Symmetric Normalization
+
+    1. Feature Normalization
+    2. Adjacency Matrix Normalization
+        a. Adding Self-Loops
+        b. Symmetric Normalization
 
     Args:
         normalize_features (str):
