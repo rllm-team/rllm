@@ -50,7 +50,6 @@ Text Tokenize
    standardize_tokenizer_output
    tokenize_merged_cols
    save_column_name_tokens
-   TransTabDataExtractor
 
 Word Embedding
 ------------------
