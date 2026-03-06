@@ -111,10 +111,7 @@ class TransTabPreEncoder(PreEncoder):
             else torch.nn.Identity()
         )
 
-    # ------------------------------------------------------------------
     # Tokenizer management
-    # ------------------------------------------------------------------
-
     def _init_tokenizer(
         self,
         tokenizer: Optional[BertTokenizerFast],
@@ -132,10 +129,7 @@ class TransTabPreEncoder(PreEncoder):
         if disable_tokenizer_parallel:
             os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-    # ------------------------------------------------------------------
     # Column-name management
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _deduplicate_preserve_order(seq: List[str]) -> List[str]:
         seen: set[str] = set()
@@ -258,10 +252,7 @@ class TransTabPreEncoder(PreEncoder):
                 self.binary_columns.remove(col)
                 self.binary_columns.append(f"[bin]{col}")
 
-    # ------------------------------------------------------------------
     # feat_dict adaptation (convert TableData feat_dict → TransTab layout)
-    # ------------------------------------------------------------------
-
     def _adapt_feat_dict(
         self,
         feat_dict: Dict[ColType, Tensor | Tuple[Tensor, Tensor]],
@@ -296,7 +287,7 @@ class TransTabPreEncoder(PreEncoder):
             "bin_att_mask": None,
         }
 
-        # --- TEXT (mapped to TransTab categorical) ---
+        # TEXT (mapped to TransTab categorical)
         if ColType.TEXT in feat_dict:
             text_data = feat_dict[ColType.TEXT]
             if isinstance(text_data, tuple):
@@ -307,7 +298,6 @@ class TransTabPreEncoder(PreEncoder):
                     "TEXT features must be tokenized (tuple of ids and mask)"
                 )
 
-        # --- NUMERICAL ---
         if ColType.NUMERICAL in feat_dict:
             out["x_num"] = feat_dict[ColType.NUMERICAL].float()
             if colname_token_ids is not None:
@@ -326,7 +316,6 @@ class TransTabPreEncoder(PreEncoder):
                     ).long()
                     out["num_att_mask"] = torch.stack(num_mask_list, dim=0).long()
 
-        # --- BINARY ---
         if ColType.BINARY in feat_dict:
             x_bin = feat_dict[ColType.BINARY]
             if colname_token_ids is not None:
@@ -360,10 +349,7 @@ class TransTabPreEncoder(PreEncoder):
 
         return out
 
-    # ------------------------------------------------------------------
     # Encoding helpers
-    # ------------------------------------------------------------------
-
     @property
     def device(self) -> torch.device:
         return next(self.parameters()).device
@@ -454,10 +440,6 @@ class TransTabPreEncoder(PreEncoder):
         all_mask = torch.cat(mask_list, dim=1)  # [B, total_seq_len]
         return {"embedding": all_emb, "attention_mask": all_mask}
 
-    # ------------------------------------------------------------------
-    # Forward
-    # ------------------------------------------------------------------
-
     def forward(
         self,
         x: Union[pd.DataFrame, Dict[ColType, Tensor | Tuple[Tensor, ...]], TableData],
@@ -529,10 +511,6 @@ class TransTabPreEncoder(PreEncoder):
                     "TransTabPreEncoder.forward: x must be a TableData or an "
                     "object with a feat_dict attribute."
                 )
-
-    # ------------------------------------------------------------------
-    # Serialization
-    # ------------------------------------------------------------------
 
     def save(self, path: str) -> None:
         r"""Save tokenizer, column configuration, and encoder weights.
