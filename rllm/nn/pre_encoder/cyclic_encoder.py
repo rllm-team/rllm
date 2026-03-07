@@ -6,8 +6,11 @@ from torch.nn import Module
 
 
 class CyclicEncoder(Module):
-    r"""Cyclic encoding for input data containing values between 0 and 1.
-    This function maps each value in the input using sine and cosine
+    r"""Cyclic encoding from paper 
+    `"Fourier Features Let Networks Learn High Frequency Functions in Low Dimensional Domains"
+    <https://arxiv.org/abs/2006.10739>`_. 
+    For input data containing values between 0 and 1,
+    this function maps each value in the input using sine and cosine
     functions of different wavelengths to preserve the cyclical nature. This
     is particularly useful for encoding cyclical features like hours of a
     day, days of the week, etc. Given an input tensor of shape

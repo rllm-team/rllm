@@ -16,11 +16,11 @@ warnings.filterwarnings(
     "ignore",
     message="Sparse CSR tensor support is in beta state.",
     category=UserWarning,
-    module=r".*graph_utils",  # 只屏蔽特定模块的警告
+    module=r".*graph_utils",  # discard specific module warning
 )
 
 
-def adj2edge_index(adj: Tensor) -> Union[Tensor, Optional[Tensor]]:
+def adj_to_edge_index(adj: Tensor) -> Union[Tensor, Optional[Tensor]]:
     r"""Transfer sparse adj to edge_index."""
     if adj.is_sparse:
         coo_adj = adj.to_sparse_coo().coalesce()
@@ -219,7 +219,7 @@ def sort_edge_index(
     return edge_index
 
 
-def index2ptr(index: Tensor, num_nodes: Optional[int] = None) -> Tensor:
+def index_to_ptr(index: Tensor, num_nodes: Optional[int] = None) -> Tensor:
     r"""Convert the sorted index tensor to the pointer tensor.
 
     Args:
@@ -317,7 +317,7 @@ def _to_csc(
                     "Only support one temporal sort for now."
                     "But both `src_node_time` and `edge_time` are not `None`."
                 )
-        col_ptr = index2ptr(col, num_nodes)
+        col_ptr = index_to_ptr(col, num_nodes)
 
     else:
         raise ValueError(

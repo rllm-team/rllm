@@ -14,9 +14,9 @@ from .seg_reduce import (
 )
 
 from .graph_utils import (
-    adj2edge_index,
+    adj_to_edge_index,
     sort_edge_index,
-    index2ptr,
+    index_to_ptr,
     _to_csc
 )
 
@@ -35,13 +35,13 @@ __all__ = [
     'is_undirected',
     'to_undirected',
     'set_values',
-    "adj2edge_index",
+    "adj_to_edge_index",
     "_to_csc",
     "seg_sum",
     'seg_softmax',
     'seg_softmax_',
     "sort_edge_index",
-    "index2ptr",
+    "index_to_ptr",
     "lexsort",
     "remap_keys",
     "CastMixin",

@@ -1,10 +1,4 @@
-from typing import Optional, Callable, Union, Tuple, Dict
-
-import torch
-from torch import Tensor
 from torch.nn import Linear
-from torch.sparse import Tensor as SparseTensor
-import torch.nn.functional as F
 
 from .transformer_conv import GTransformerConv
 from .sage_conv import SAGEConv
