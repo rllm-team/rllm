@@ -191,17 +191,17 @@ class MessagePassing(torch.nn.Module, ABC):
     def __unify_edgeindex__(self, edge_index: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
         r"""Unify the edge index to a 2D tensor."""
         if edge_index.is_sparse:
-            return self.__adj2edges__(edge_index)
+            return self.__adj_to_edges__(edge_index)
         elif edge_index.size(0) != 2:
             try:
-                return self.__adj2edges__(edge_index)
+                return self.__adj_to_edges__(edge_index)
             except ValueError:
                 raise ValueError(f"Expect edge_index to be a 2D tensor, got {edge_index.size()}.")
         else:
             return edge_index, None
 
     @lru_cache
-    def __adj2edges__(self, adj: SparseTensor) -> Tuple[Tensor, Tensor]:
+    def __adj_to_edges__(self, adj: SparseTensor) -> Tuple[Tensor, Tensor]:
         r"""Converts a sparse adjacency matrix to edge indices."""
         if adj.is_sparse:
             coo_adj = adj.to_sparse_coo().coalesce()

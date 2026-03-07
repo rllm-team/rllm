@@ -20,7 +20,7 @@ def test_sort_edge_index():
                                            [1]]))
 
 
-def test_index2ptr():
+def test_index_to_ptr():
     index = torch.tensor([0, 1, 1, 2, 2, 3])
     r = index_to_ptr(index)
     assert torch.equal(r, torch.tensor([0, 1, 3, 5, 6]))

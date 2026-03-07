@@ -18,7 +18,7 @@ from rllm.datasets.dataset import Dataset
 from rllm.data.graph_data import GraphData
 from rllm.utils.sparse import sparse_mx_to_torch_sparse_tensor
 from rllm.utils.extract import extract_zip
-from rllm.datasets.utils import index2mask, sanitize_name
+from rllm.datasets.utils import index_to_mask, sanitize_name
 from rllm.utils.download import download_url
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -114,9 +114,9 @@ class TAPEDataset(Dataset):
         val_id = np.sort(node_id[int(num_nodes * 0.6) : int(num_nodes * 0.8)])
         test_id = np.sort(node_id[int(num_nodes * 0.8) :])
 
-        data.train_mask = index2mask(train_id, num_nodes)
-        data.val_mask = index2mask(val_id, num_nodes)
-        data.test_mask = index2mask(test_id, num_nodes)
+        data.train_mask = index_to_mask(train_id, num_nodes)
+        data.val_mask = index_to_mask(val_id, num_nodes)
+        data.test_mask = index_to_mask(test_id, num_nodes)
 
     @property
     def raw_filenames(self):
