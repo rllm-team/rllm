@@ -10,21 +10,28 @@ from rllm.types import ColType
 def encode_categorical(col_series: Series) -> tuple[Series, LabelEncoder]:
     """
     Encode categorical column using LabelEncoder.
-    Missing values should be marked as -1 and will be preserved.
+    Missing values are preserved as -1 in output.
 
     Args:
-        col_series: pandas Series with categorical data (missing values as -1)
+        col_series: pandas Series with categorical data.
+            NaN, -1 and "-1" are treated as missing sentinels.
 
     Returns:
-        Tuple of (encoded Series, LabelEncoder instance)
+        Tuple of (encoded Series[int64], LabelEncoder instance).
     """
     col_copy = col_series.copy()
-    # Encode non-missing values
-    col_fit = col_copy[col_copy != -1]
+    # Treat NaN, numeric -1, and string "-1" (with optional surrounding spaces)
+    # as missing sentinels.
+    col_as_str = col_copy.astype("string").str.strip()
+    missing_mask = col_copy.isna() | col_copy.eq(-1) | col_as_str.eq("-1")
+    # Encode non-missing values (cast to str to avoid mixed dtype issues).
+    col_fit = col_copy[~missing_mask].astype(str)
     encoder = LabelEncoder()
-    labels = encoder.fit_transform(col_fit)
-    col_copy[col_copy != -1] = labels
-    return col_copy, encoder
+    encoded = pandas.Series(-1, index=col_copy.index, dtype="int64", name=col_copy.name)
+    if len(col_fit) > 0:
+        labels = encoder.fit_transform(col_fit).astype("int64")
+        encoded.loc[~missing_mask] = labels
+    return encoded, encoder
 
 
 def convert_binary(
