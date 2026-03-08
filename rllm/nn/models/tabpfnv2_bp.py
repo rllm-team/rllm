@@ -34,10 +34,10 @@ from .encoders import (
     LinearInputEncoderStep,
     MulticlassClassificationTargetEncoder,
 )
-from .preprocessing import (
+from rllm.data_augment.ensemble_preprocessing import (
     EnsembleConfig,
-    PreprocessorConfig,
-    default_classifier_preprocessor_configs,
+    AugmentorConfig,
+    default_classifier_augmentor_configs,
 )
 from .config import ModelInterfaceConfig
 
@@ -46,7 +46,6 @@ from torch import nn
 from torch.nn.modules.transformer import Module, Tensor
 
 HIDDEN_SIZE_LIMIT = 512
-MLP_SAVE_PEAK_MEM_FACTOR = 32
 MAXINT_RANDOM_SEED = int(np.iinfo(np.int32).max)
 
 
@@ -455,7 +454,6 @@ class TabPFN(torch.nn.Module):
         self.n_classes_ = 2
         self.byte_size = 4
         self.n_jobs = 1
-        self.memory_saving_mode = "auto"
         self.forced_inference_dtype_ = None
         self.use_autocast_ = False
 
@@ -474,7 +472,6 @@ class TabPFN(torch.nn.Module):
             n_jobs=self.n_jobs,
             byte_size=self.byte_size,
             forced_inference_dtype_=self.forced_inference_dtype_,
-            memory_saving_mode=self.memory_saving_mode,
             use_autocast_=self.use_autocast_,
             inference_mode=not self.differentiable_input,
         )
@@ -494,12 +491,12 @@ class TabPFN(torch.nn.Module):
             feature_shift_decoder=self.interface_config_.FEATURE_SHIFT_METHOD,
             polynomial_features=self.interface_config_.POLYNOMIAL_FEATURES,
             max_index=len(X),
-            preprocessor_configs=typing.cast(
-                "Sequence[PreprocessorConfig]",
+            augmentor_configs=typing.cast(
+                "Sequence[AugmentorConfig]",
                 (
                     preprocess_transforms
                     if preprocess_transforms is not None
-                    else default_classifier_preprocessor_configs()
+                    else default_classifier_augmentor_configs()
                 ),
             ),
             class_shift_method=(

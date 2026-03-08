@@ -17,8 +17,8 @@ import numpy as np
 from packaging import version
 
 if TYPE_CHECKING:
-    from .preprocessing import (
-        PreprocessorConfig,
+    from rllm.data_augment.ensemble_preprocessing import (
+        AugmentorConfig,
     )
 
 TaskType: TypeAlias = Literal["multiclass", "regression"]
@@ -100,9 +100,7 @@ class ModelInterfaceConfig:
         - If an int, determines the maximal number of polynomial features to add to the
          original data.
     """
-    SUBSAMPLE_SAMPLES: (
-        int | float | None  # (0,1) percentage, (1+) n samples
-    ) = None
+    SUBSAMPLE_SAMPLES: int | float | None = None  # (0,1) percentage, (1+) n samples
     """Subsample the input data sample/row-wise before performing any preprocessing
     and the TabPFN forward pass.
         - If None, no subsampling is done.
@@ -111,9 +109,9 @@ class ModelInterfaceConfig:
         - If a float, the percentage of samples to subsample.
     """
 
-    PREPROCESS_TRANSFORMS: list[PreprocessorConfig] | None = None
+    PREPROCESS_TRANSFORMS: list[AugmentorConfig] | None = None
     """The preprocessing applied to the data before passing it to TabPFN. See
-    `PreprocessorConfig` for options and more details. If a list of `PreprocessorConfig`
+    `AugmentorConfig` for options and more details. If a list of `AugmentorConfig`
     is provided, the preprocessors are (repeatedly) applied across different estimators.
 
     By default, for classification, two preprocessors are applied:
@@ -179,36 +177,6 @@ class ModelInterfaceConfig:
 
     _REGRESSION_DEFAULT_OUTLIER_REMOVAL_STD: None = None
     _CLASSIFICATION_DEFAULT_OUTLIER_REMOVAL_STD: float = 12.0
-
-    @staticmethod
-    def from_user_input(
-        *,
-        inference_config: dict | ModelInterfaceConfig | None,
-    ) -> ModelInterfaceConfig:
-        """Converts the user input to a `ModelInterfaceConfig` object.
-
-        The input inference_config can be a dictionary, a `ModelInterfaceConfig` object,
-        or None. If a dictionary is passed, the keys must match the attributes of
-        `ModelInterfaceConfig`. If a `ModelInterfaceConfig` object is passed, it is
-        returned as is. If None is passed, a new `ModelInterfaceConfig` object is
-        created with default values.
-        """
-        if inference_config is None:
-            interface_config_ = ModelInterfaceConfig()
-        elif isinstance(inference_config, ModelInterfaceConfig):
-            interface_config_ = deepcopy(inference_config)
-        elif isinstance(inference_config, dict):
-            interface_config_ = ModelInterfaceConfig()
-            for key, value in inference_config.items():
-                if not hasattr(interface_config_, key):
-                    raise ValueError(
-                        f"Unknown kwarg passed to model construction: {key}",
-                    )
-                setattr(interface_config_, key, value)
-        else:
-            raise ValueError(f"Unknown {inference_config=} passed to model.")
-
-        return interface_config_
 
 
 SKLEARN_16_DECIMAL_PRECISION = 16

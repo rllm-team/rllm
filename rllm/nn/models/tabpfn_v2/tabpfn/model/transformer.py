@@ -20,7 +20,7 @@ from .encoders import (
     NanHandlingEncoderStep,
     SequentialEncoder,
 )
-from .layer import PerFeatureEncoderLayer
+from rllm.nn.transformer_encoder import PerFeatureEncoderLayer
 
 DEFAULT_EMSIZE = 128
 
@@ -56,9 +56,6 @@ class LayerStack(nn.Module):
         **kwargs: Any,
     ) -> torch.Tensor:
         if half_layers:
-            assert (
-                self.min_num_layers_layer_dropout == self.num_layers
-            ), "half_layers only works without layer dropout"
             n_layers = self.num_layers // 2
         else:
             n_layers = torch.randint(
@@ -181,7 +178,11 @@ class PerFeatureTransformer(nn.Module):
             decoder_dict = {"standard": (None, 1)}
 
         super().__init__()
-
+        # print("Initializing PerFeatureTransformer")
+        # print(
+        #     f"{ninp=}, {nhead=}, {nhid=}, {nlayers=}, {activation=}, {recompute_layer=}, {min_num_layers_layer_dropout=}, {repeat_same_layer=}, {features_per_group=}, {feature_positional_embedding=}, {zero_init=}, {use_separate_decoder=}, {nlayers_decoder=}, {use_encoder_compression_layer=}"
+        # )
+        # exit()
         if encoder is None:
             encoder = SequentialEncoder(
                 LinearInputEncoderStep(
@@ -243,18 +244,15 @@ class PerFeatureTransformer(nn.Module):
             recompute_each_layer=recompute_layer,
             min_num_layers_layer_dropout=min_num_layers_layer_dropout,
         )
-
         self.transformer_decoder = None
-        if use_separate_decoder:
-            assert nlayers_decoder is not None
+        if use_separate_decoder and nlayers_decoder is not None:
             self.transformer_decoder = LayerStack(
                 layer_creator=layer_creator,
                 num_layers=nlayers_decoder,
             )
 
         self.global_att_embeddings_for_compression = None
-        if use_encoder_compression_layer:
-            assert use_separate_decoder
+        if use_encoder_compression_layer and use_separate_decoder:
             num_global_att_tokens_for_compression = 512
 
             self.global_att_embeddings_for_compression = nn.Embedding(
@@ -307,33 +305,6 @@ class PerFeatureTransformer(nn.Module):
         if self.seed:  # This can be none if set outside of the model.
             self.generator.manual_seed(self.seed)
 
-    def reset_save_peak_mem_factor(self, factor: int | None = None) -> None:
-        """Sets the save_peak_mem_factor for all layers.
-
-        This factor controls how much memory is saved during the forward pass
-        in inference mode.
-
-        Setting this factor > 1 will cause the model to save more memory during
-        the forward pass in inference mode.
-
-        A value of 8 is good for a 4x larger width in the fully-connected layers.
-        and yields a situation were we need around
-        `2*num_features*num_items*emsize*2` bytes of memory
-
-        for a forward pass (using mixed precision).
-
-        WARNING: It should only be used with post-norm.
-
-        Args:
-            factor: The save_peak_mem_factor to set. Recommended value is 8.
-        """
-        for layer in self.transformer_encoder.layers:
-            assert hasattr(
-                layer,
-                "save_peak_mem_factor",
-            ), "Layer does not have save_peak_mem_factor"
-            layer.save_peak_mem_factor = factor  # type: ignore
-
     def __setstate__(self, state: dict[str, Any]) -> None:
         state.setdefault("features_per_group", 1)
         state.setdefault("feature_positional_embedding", None)
@@ -383,24 +354,8 @@ class PerFeatureTransformer(nn.Module):
         """
         self._init_rnd()
         half_layers = kwargs.pop("half_layers", False)
-        assert half_layers is False
-
-        supported_kwargs = {
-            "only_return_standard_out",
-            "style",
-            "data_dags",
-            "categorical_inds",
-            "freeze_kv",
-            "train_x",
-            "train_y",
-            "test_x",
-            "single_eval_pos",
-        }
-        spurious_kwargs = set(kwargs.keys()) - supported_kwargs
-        assert not spurious_kwargs, spurious_kwargs
 
         if args == () and all(k in kwargs for k in ("train_x", "train_y", "test_x")):
-            assert "single_eval_pos" not in kwargs
             x = kwargs.pop("train_x")
             train_y = kwargs.pop("train_y")
             test_x = kwargs.pop("test_x")
@@ -416,7 +371,9 @@ class PerFeatureTransformer(nn.Module):
             style, x, y = args
             return self._forward(x, y, style=style, **kwargs)
 
-        raise ValueError("Unrecognized input. Please follow the doc string.")
+        raise ValueError(
+            "Unrecognized input. Use (style, x, y), (x, y), or train_x/train_y/test_x kwargs."
+        )
 
     def _forward(  # noqa: PLR0912, C901
         self,
@@ -448,19 +405,11 @@ class PerFeatureTransformer(nn.Module):
         Returns:
             A dictionary of output tensors.
         """
-        assert style is None
-        if self.cache_trainset_representation:
-            if not single_eval_pos:  # none or 0
-                assert y is None
-        else:
-            assert y is not None
-            assert single_eval_pos
-
         single_eval_pos_ = single_eval_pos or 0
-        if isinstance(x, dict):
-            assert "main" in set(x.keys()), f"Main must be in input keys: {x.keys()}."
-        else:
+        if not isinstance(x, dict):
             x = {"main": x}
+        elif "main" not in x:
+            x = {"main": next(iter(x.values()))}
         seq_len, batch_size, num_features = x["main"].shape
 
         if y is None:
@@ -472,10 +421,10 @@ class PerFeatureTransformer(nn.Module):
                 dtype=x["main"].dtype,
             )
 
-        if isinstance(y, dict):
-            assert "main" in set(y.keys()), f"Main must be in input keys: {y.keys()}."
-        else:
+        if not isinstance(y, dict):
             y = {"main": y}
+        elif "main" not in y:
+            y = {"main": next(iter(y.values()))}
 
         for k in x:
             num_features_ = x[k].shape[2]
@@ -535,14 +484,6 @@ class PerFeatureTransformer(nn.Module):
             y[k] = y[k].transpose(0, 1)  # s b 1 -> b s 1
 
             if y[k].shape[1] < x["main"].shape[1]:
-                assert (
-                    y[k].shape[1] == single_eval_pos_
-                    or y[k].shape[1] == x["main"].shape[1]
-                )
-                assert k != "main" or y[k].shape[1] == single_eval_pos_, (
-                    "For main y, y must not be given for target"
-                    " time steps (Otherwise the solution is leaked)."
-                )
                 if y[k].shape[1] == single_eval_pos_:
                     y[k] = torch.cat(
                         (
@@ -569,13 +510,7 @@ class PerFeatureTransformer(nn.Module):
             single_eval_pos=single_eval_pos_,
             cache_trainset_representation=self.cache_trainset_representation,
         ).transpose(0, 1)
-
         del y
-        if torch.isnan(embedded_y).any():
-            raise ValueError(
-                f"{torch.isnan(embedded_y).any()=}, make sure to add nan handlers"
-                " to the ys that are not fully provided (test set missing)",
-            )
 
         extra_encoders_args = {}
         if categorical_inds_to_use is not None and isinstance(
@@ -617,13 +552,6 @@ class PerFeatureTransformer(nn.Module):
         # b s f e + b s 1 e -> b s f+1 e
         embedded_input = torch.cat((embedded_x, embedded_y.unsqueeze(2)), dim=2)
 
-        if torch.isnan(embedded_input).any():
-            raise ValueError(
-                f"There should be no NaNs in the encoded x and y."
-                "Check that you do not feed NaNs or use a NaN-handling enocder."
-                "Your embedded x and y returned the following:"
-                f"{torch.isnan(embedded_x).any()=} | {torch.isnan(embedded_y).any()=}",
-            )
         del embedded_y, embedded_x
 
         encoder_out = self.transformer_encoder(
@@ -639,9 +567,6 @@ class PerFeatureTransformer(nn.Module):
 
         # If we are using a decoder
         if self.transformer_decoder:
-            assert not half_layers
-            assert encoder_out.shape[1] == single_eval_pos_
-
             if self.global_att_embeddings_for_compression is not None:
                 # TODO: fixed number of compression tokens
                 train_encoder_out = self.encoder_compression_layer(
@@ -664,7 +589,6 @@ class PerFeatureTransformer(nn.Module):
         test_encoder_out = encoder_out[:, single_eval_pos_:, -1].transpose(0, 1)
 
         if only_return_standard_out:
-            assert self.decoder_dict is not None
             output_decoded = self.decoder_dict["standard"](test_encoder_out)
         else:
             output_decoded = (
@@ -692,9 +616,6 @@ class PerFeatureTransformer(nn.Module):
         use_cached_embeddings: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if use_cached_embeddings and self.cached_embeddings is not None:
-            assert (
-                data_dags is None
-            ), "Caching embeddings is not supported with data_dags at this point."
             x += self.cached_embeddings[None, None]
             return x, y
 
@@ -752,9 +673,6 @@ class PerFeatureTransformer(nn.Module):
 
         self.cached_embeddings = None
         if cache_embeddings and embs is not None:
-            assert (
-                data_dags is None
-            ), "Caching embeddings is not supported with data_dags at this point."
             self.cached_embeddings = embs
 
         # TODO(old) should this go into encoder?
@@ -775,8 +693,8 @@ class PerFeatureTransformer(nn.Module):
                     ],
                 )
                 k = self.dag_pos_enc_dim
-                assert k > 0
-                _add_pos_emb(subgraph, k=k)
+                if k > 0:
+                    _add_pos_emb(subgraph, k=k)
 
                 graph_pos_embs_features = torch.zeros((num_features, k))
                 graph_pos_embs_targets = torch.zeros((1, k))  # shape: (num_targets, k)
@@ -805,14 +723,8 @@ class PerFeatureTransformer(nn.Module):
                     graph_pos_embs_targets[None].expand(seq_len, -1, -1).squeeze(-2)
                 )
                 y[b_i, :, :k] += graph_pos_embs_targets.to(y.device, y.dtype)
-        else:
-            assert not hasattr(self, "dag_pos_enc_dim") or not self.dag_pos_enc_dim
 
         return x, y
-
-    def empty_trainset_representation_cache(self) -> None:
-        for layer in (self.transformer_decoder or self.transformer_encoder).layers:
-            layer.empty_trainset_representation_cache()
 
 
 def _networkx_add_direct_connections(graph: nx.DiGraph) -> bool:

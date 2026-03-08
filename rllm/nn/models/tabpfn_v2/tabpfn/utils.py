@@ -324,7 +324,6 @@ def load_model_criterion_config(
     model_seed: int,
 ) -> tuple[
     PerFeatureTransformer,
-    nn.BCEWithLogitsLoss | nn.CrossEntropyLoss | FullSupportBarDistribution,
     InferenceConfig,
 ]:
     """Load the model, criterion, and config from the given path.
@@ -356,18 +355,9 @@ def load_model_criterion_config(
             model_name=model_name,
             download_path=model_dir,
         )
-    loaded_model, criterion, config = load_model(path=model_path, model_seed=model_seed)
+    loaded_model, config = load_model(path=model_path, model_seed=model_seed)
     loaded_model.cache_trainset_representation = cache_trainset_representation
-    if check_bar_distribution_criterion and not isinstance(
-        criterion,
-        FullSupportBarDistribution,
-    ):
-        raise ValueError(
-            f"The model loaded, '{model_path}', was expected to have a"
-            " FullSupportBarDistribution criterion, but instead "
-            f" had a {type(criterion).__name__} criterion.",
-        )
-    return loaded_model, criterion, config
+    return loaded_model, config
 
 
 # https://numpy.org/doc/2.1/reference/arrays.dtypes.html#checking-the-data-type

@@ -9,23 +9,11 @@ from typing_extensions import override
 import torch
 from torch.utils.checkpoint import checkpoint
 
-from .memory import support_save_peak_mem_factor
 
-try:
-    from flash_attn.flash_attn_interface import (
-        flash_attn_unpadded_func,
-        flash_attn_unpadded_kvpacked_func,
-        flash_attn_unpadded_qkvpacked_func,
-    )
-    print("Using FlashAttention.")
-    HAVE_FLASH_ATTN = True
-except (ModuleNotFoundError, ImportError):
-    HAVE_FLASH_ATTN = False
-# from flash_attn.flash_attn_interface import (
-#         flash_attn_unpadded_func,
-#         flash_attn_unpadded_kvpacked_func,
-#         flash_attn_unpadded_qkvpacked_func,
-#     )
+def support_save_peak_mem_factor(method):
+    """Backward-compatible no-op decorator after memory optimization removal."""
+    return method
+
 
 class MultiHeadAttention(torch.nn.Module):
     _input_size: int
@@ -73,10 +61,6 @@ class MultiHeadAttention(torch.nn.Module):
 
     @property
     def has_cached_kv(self) -> bool:
-        assert (self._k_cache is None) == (self._v_cache is None)
-        assert self._kv_cache is None or (
-            self._k_cache is None and self._v_cache is None
-        )
         return (
             self._k_cache is not None and self._v_cache is not None
         ) or self._kv_cache is not None
@@ -98,47 +82,6 @@ class MultiHeadAttention(torch.nn.Module):
         precomputed_v: torch.Tensor | None = None,
         precomputed_kv: torch.Tensor | None = None,
     ):
-        assert (precomputed_k is None) == (precomputed_v is None)
-        assert (precomputed_kv is None) or (precomputed_k is None)
-        assert (precomputed_kv is None and precomputed_k is None) != (
-            w_qkv is None and w_kv is None and w_k is None and w_v is None
-        )
-        assert (w_qkv is None) != (w_q is None)
-        assert (w_qkv is None) or (w_kv is None and w_k is None and w_v is None)
-        assert w_kv is None or (w_k is None and w_v is None)
-        assert (w_k is None) == (w_v is None)
-
-        def assert_tensor_shape(
-            tensor: torch.Tensor | None,
-            expected_shape: list[int | None],
-        ):
-            if tensor is None:
-                return
-            actual_shape = tensor.size()
-            err = f"Tensor {actual_shape=} does not match {expected_shape=}."
-            assert len(actual_shape) == len(expected_shape), err
-            for actual_dim, expected_dim in zip(actual_shape, expected_shape):
-                if expected_dim is not None:
-                    assert actual_dim == expected_dim, err
-
-        assert_tensor_shape(precomputed_k, [None, None, self._nhead_kv, self._d_k])
-        assert_tensor_shape(precomputed_v, [None, None, self._nhead_kv, self._d_v])
-        assert_tensor_shape(precomputed_kv, [None, None, 2, self._nhead_kv, self._d_k])
-        assert_tensor_shape(
-            w_q,
-            [
-                1 + int(bool(self.two_sets_of_queries)),
-                self._nhead,
-                self._d_k,
-                self._input_size,
-            ],
-        )
-        assert_tensor_shape(w_k, [self._nhead_kv, self._d_k, self._input_size])
-        assert_tensor_shape(w_v, [self._nhead_kv, self._d_v, self._input_size])
-        assert_tensor_shape(w_kv, [2, self._nhead_kv, self._d_k, self._input_size])
-        assert_tensor_shape(w_qkv, [3, self._nhead, self._d_k, self._input_size])
-        assert_tensor_shape(w_out, [self._nhead, self._d_k, self._output_size])
-
         self.register_parameter("_w_out", w_out)
         self.register_parameter("_w_q", w_q)
         self.register_parameter("_w_k", w_k)
@@ -157,7 +100,6 @@ class MultiHeadAttention(torch.nn.Module):
         device: torch.device | None,
         dtype: torch.dtype | None,
     ) -> torch.nn.Parameter:
-        assert 3 <= len(dims) <= 4  # ([stack,] nhead_, d, input_size)
         w = torch.nn.Parameter(torch.empty(*dims, device=device, dtype=dtype))
         d, input_size = dims[-2:]
         std = math.sqrt(2.0 / float(nhead * d + input_size)) * self.init_gain
@@ -187,7 +129,6 @@ class MultiHeadAttention(torch.nn.Module):
         two_sets_of_queries: bool = False,
     ):
         super().__init__()
-        assert nhead % share_kv_across_n_heads == 0
         self._input_size = input_size
         self._output_size = output_size
         self._d_k = d_k
@@ -210,7 +151,6 @@ class MultiHeadAttention(torch.nn.Module):
         else:
             torch.nn.init.xavier_uniform_(w_out)
 
-        assert precomputed_k is None == precomputed_v is None
         has_precomputed_kv = precomputed_kv is not None or precomputed_k is not None
         w_q = None
         w_k = None
@@ -303,17 +243,6 @@ class MultiHeadAttention(torch.nn.Module):
         Else, keys and values are attained by applying the respective linear
         transformations to 'x' (self attention).
         """
-        assert not (
-            cache_kv and use_cached_kv
-        ), "Cannot cache and use cached keys and values at the same time."
-        if use_second_set_of_queries:
-            assert self.two_sets_of_queries, (
-                "Two sets of queries are not supported."
-                "Please set 'two_sets_of_queries' to True."
-            )
-        assert not x.requires_grad or (
-            not self.has_cached_kv and not cache_kv
-        ), "Saving keys and values is only supported during inference."
         x, x_kv, x_shape_after_transpose = self._rearrange_inputs_to_flat_batch(x, x_kv)
 
         nhead_kv = 1 if reuse_first_head_kv else self._nhead_kv
@@ -391,33 +320,14 @@ class MultiHeadAttention(torch.nn.Module):
         torch.Tensor | None,
         torch.Tensor | None,
     ]:
-        assert not (
-            cache_kv and use_cached_kv
-        ), "You cannot both cache new KV and use the cached KV at once."
-        if reuse_first_head_kv:
-            assert x is not x_kv, (
-                "x and x_kv must be different tensors. That means reuse_first_head_kv"
-                "is not compatible with self attention only cross attention."
-            )
         if x_kv is None:
             x_kv = x
 
         k = v = kv = None
         if use_cached_kv:
-            assert (
-                self.has_cached_kv
-            ), "You try to use cached keys and values but the cache is empty."
             k = k_cache
             v = v_cache
             kv = kv_cache
-
-        assert (k is None) == (v is None)
-
-        if use_second_set_of_queries:
-            assert self._w_qkv is None, (
-                "Two sets of queries are not supported with custom q weights,"
-                " set two_sets_of_queries to True."
-            )
 
         if self._w_qkv is None:
             w_q, w_kv = self._w_q[int(bool(use_second_set_of_queries))], self._w_kv
@@ -528,8 +438,6 @@ class MultiHeadAttention(torch.nn.Module):
         # TODO: This presumably creates potential memory overhead not captured
         # by save_peak_mem_factor.
         x_shape_after_transpose = x.shape
-        if x_kv is not None:
-            assert x.shape[:-2] == x_kv.shape[:-2]
         x = x.reshape(-1, *x.shape[-2:])
         if x_kv is not None:
             x_kv = x_kv.reshape(-1, *x_kv.shape[-2:])
@@ -558,18 +466,13 @@ class MultiHeadAttention(torch.nn.Module):
         dropout_p: float | None = None,
         softmax_scale: float | None = None,
     ) -> torch.Tensor:
-        assert (k is None) == (v is None)
-        assert sum([qkv is None, kv is None, k is None and v is None]) == 2
-        assert (qkv is None) != (q is None)
-
         if qkv is not None:
             q, k, v = qkv.unbind(dim=-3)
         elif kv is not None:
             k, v = kv.unbind(dim=-3)
 
-        assert q is not None
-        assert k is not None
-        assert v is not None
+        if q is None or k is None or v is None:
+            raise ValueError("q, k, v must be provided via qkv or (q and (kv or k,v)).")
 
         batch_size, seqlen_q, nhead, d_k = q.shape
         _, seqlen_kv, nhead_kv, d_v = v.shape
@@ -577,22 +480,11 @@ class MultiHeadAttention(torch.nn.Module):
         if dropout_p is None:
             dropout_p = 0.0  # TODO: necessary?
 
-        use_flash_attention = (
-            HAVE_FLASH_ATTN
-            and torch.cuda.is_available()
-            and q.dtype == k.dtype == v.dtype == torch.float16
-        )
-
-        # this string comparison is reliable, as it does not compare to a subversion
         TORCH_2_ATTENTION_POSSIBLE = (
             torch.__version__ >= "2" and torch.cuda.is_available()
         )
         USE_TORCH_2_GQA = False
         if TORCH_2_ATTENTION_POSSIBLE:
-            # check whether torch.nn.functional.scaled_dot_product_attention has a
-            # kwarg enable_gqa
-            # Check if enable_gqa is supported by trying to call the function with
-            # the parameter
             try:
                 _ = torch.nn.functional.scaled_dot_product_attention(
                     torch.empty(1, 1, 1, 1),
@@ -612,89 +504,7 @@ class MultiHeadAttention(torch.nn.Module):
                 nvidia_compute_capability = None
             USE_TORCH_2_GQA = nvidia_compute_capability >= "8" and TORCH_2_SUPPORTS_GQ
 
-            # TODO: add logging for something like this
-            # if use_flash_attention and USE_TORCH_2_GQA:
-            # print("Using FlashAttention might be slower than torch's implementation,
-            # try setting `tabpfn.model.multi_head_attention.HAVE_FLASH_ATTN=False`.")
-
-            # print(f"USE_TORCH_2_GQA: {USE_TORCH_2_GQA}, nvidia_compute_capability:
-            # {nvidia_compute_capability}, TORCH_2_SUPPORTS_GQ: {TORCH_2_SUPPORTS_GQ}")
-
-        if use_flash_attention:
-
-            def get_seqlen_cumsums(
-                batch_size: int,
-                seqlen: int,
-                device: torch.device,
-            ) -> torch.Tensor:
-                return torch.arange(
-                    0,
-                    (batch_size + 1) * seqlen,
-                    step=seqlen,
-                    dtype=torch.int32,
-                    device=device,
-                )
-
-            if qkv is not None:
-                attention_head_outputs = flash_attn_unpadded_qkvpacked_func(  # type: ignore
-                    qkv.reshape(batch_size * seqlen_q, 3, nhead, d_k),
-                    get_seqlen_cumsums(batch_size, seqlen_q, qkv.device),
-                    seqlen_q,
-                    dropout_p=dropout_p,
-                    softmax_scale=softmax_scale,  # defaults to 1/sqrt(d_k) if None
-                    causal=False,
-                    return_attn_probs=False,
-                    deterministic=False,
-                )
-            elif kv is not None:
-                kv = MultiHeadAttention.broadcast_kv_across_heads(
-                    kv,
-                    share_kv_across_n_heads,
-                )
-                attention_head_outputs = flash_attn_unpadded_kvpacked_func(  # type: ignore
-                    q.reshape(batch_size * seqlen_q, nhead, d_k),
-                    kv.reshape(batch_size * seqlen_kv, 2, nhead, d_k),
-                    get_seqlen_cumsums(batch_size, seqlen_q, q.device),
-                    get_seqlen_cumsums(batch_size, seqlen_kv, kv.device),
-                    seqlen_q,
-                    seqlen_kv,
-                    dropout_p=dropout_p,
-                    causal=False,
-                    return_attn_probs=False,
-                    deterministic=False,
-                )
-            else:
-                assert d_k <= d_v, (
-                    "This requirement is here for safety but not strictly necessary."
-                    "Needs testing/coding to remove."
-                )
-                if d_k < d_v:
-                    k = torch.nn.functional.pad(k, d_v - d_k)
-                    q = torch.nn.functional.pad(v, d_v - d_k)
-                    d_k_ = d_v
-                k = MultiHeadAttention.broadcast_kv_across_heads(
-                    k,
-                    share_kv_across_n_heads,
-                )
-                v = MultiHeadAttention.broadcast_kv_across_heads(
-                    v,
-                    share_kv_across_n_heads,
-                )
-                attention_head_outputs = flash_attn_unpadded_func(  # type: ignore
-                    q.reshape(batch_size * seqlen_q, nhead, d_k_),  # type: ignore
-                    k.reshape(batch_size * seqlen_kv, nhead, d_k_),  # type: ignore
-                    v.reshape(batch_size * seqlen_kv, nhead, d_v),
-                    get_seqlen_cumsums(batch_size, seqlen_q, q.device),
-                    get_seqlen_cumsums(batch_size, seqlen_kv, k.device),
-                    seqlen_q,
-                    seqlen_kv,
-                    dropout_p=dropout_p,
-                    softmax_scale=softmax_scale,
-                    causal=False,
-                    return_attn_probs=False,
-                    deterministic=False,
-                )
-        elif TORCH_2_ATTENTION_POSSIBLE:
+        if TORCH_2_ATTENTION_POSSIBLE:
             extra_inputs = {}
             if softmax_scale is not None:
                 extra_inputs["scale"] = (
@@ -750,9 +560,6 @@ class MultiHeadAttention(torch.nn.Module):
         out_proj_weight = state_dict["out_proj.weight"]
 
         embed_dim = in_proj_weight.shape[1]
-        assert embed_dim % nhead == 0
-        assert in_proj_weight.shape[0] == 3 * embed_dim
-        assert out_proj_weight.shape == (embed_dim, embed_dim)
         in_proj_weight = in_proj_weight.reshape(3, nhead, -1, embed_dim)
 
         state_dict = {}

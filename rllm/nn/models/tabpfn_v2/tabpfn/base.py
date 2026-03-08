@@ -15,8 +15,6 @@ from .constants import (
 )
 from .inference import (
     InferenceEngine,
-    InferenceEngineCacheKV,
-    InferenceEngineCachePreprocessing,
     InferenceEngineOnDemand,
 )
 from .utils import (
@@ -37,7 +35,7 @@ def initialize_tabpfn_model(
     model_type: str,
     model_id: int,
     static_seed: int,
-) -> tuple[PerFeatureTransformer, InferenceConfig, FullSupportBarDistribution | None]:
+) -> tuple[PerFeatureTransformer, InferenceConfig]:
     """Common logic to load the TabPFN model, set up the random state,
     and optionally download the model.
 
@@ -50,14 +48,13 @@ def initialize_tabpfn_model(
     Returns:
         model: The loaded TabPFN model.
         config: The configuration object associated with the loaded model.
-        bar_distribution: The BarDistribution for regression (`None` if classifier).
     """
 
     # Load model with potential caching
     if model_type == "clf":
         # The classifier's bar distribution is not used;
         # pass check_bar_distribution_criterion=False
-        model, _, config_ = load_model_criterion_config(
+        model, config_ = load_model_criterion_config(
             model_dir=model_dir,
             model_type=model_type,
             model_id=model_id,
@@ -65,10 +62,9 @@ def initialize_tabpfn_model(
             cache_trainset_representation=False,
             model_seed=static_seed,
         )
-        bar_distribution = None
     else:
         # The regressor's bar distribution is required
-        model, bardist, config_ = load_model_criterion_config(
+        model, config_ = load_model_criterion_config(
             model_dir=model_dir,
             model_type=model_type,
             model_id=model_id,
@@ -76,9 +72,8 @@ def initialize_tabpfn_model(
             cache_trainset_representation=False,
             model_seed=static_seed,
         )
-        bar_distribution = bardist
 
-    return model, config_, bar_distribution
+    return model, config_
 
 
 def determine_precision(
@@ -136,7 +131,6 @@ def create_inference_engine(  # noqa: PLR0913
     n_jobs: int,
     byte_size: int,
     forced_inference_dtype_: torch.dtype | None,
-    memory_saving_mode: bool | Literal["auto"] | float | int,
     use_autocast_: bool,
 ) -> InferenceEngine:
     """Creates the appropriate TabPFN inference engine based on `fit_mode`.
@@ -158,56 +152,19 @@ def create_inference_engine(  # noqa: PLR0913
         n_jobs: Number of parallel CPU workers.
         byte_size: Byte size for the chosen inference precision.
         forced_inference_dtype_: If not None, the forced dtype for inference.
-        memory_saving_mode: GPU/CPU memory saving settings.
         use_autocast_: Whether we use torch.autocast for inference.
     """
-    engine: (
-        InferenceEngineOnDemand
-        | InferenceEngineCachePreprocessing
-        | InferenceEngineCacheKV
+    # We now support a single, unified inference mode which always runs in
+    # low‑memory / on‑demand fashion. The `fit_mode` argument is kept for
+    # backwards compatibility but is ignored here.
+    return InferenceEngineOnDemand.prepare(
+        X_train=X_train,
+        y_train=y_train,
+        cat_ix=cat_ix,
+        ensemble_configs=ensemble_configs,
+        rng=rng,
+        model=model,
+        n_workers=n_jobs,
+        dtype_byte_size=byte_size,
+        force_inference_dtype=forced_inference_dtype_,
     )
-    if fit_mode == "low_memory":
-        engine = InferenceEngineOnDemand.prepare(
-            X_train=X_train,
-            y_train=y_train,
-            cat_ix=cat_ix,
-            ensemble_configs=ensemble_configs,
-            rng=rng,
-            model=model,
-            n_workers=n_jobs,
-            dtype_byte_size=byte_size,
-            force_inference_dtype=forced_inference_dtype_,
-            save_peak_mem=memory_saving_mode,
-        )
-    elif fit_mode == "fit_preprocessors":
-        engine = InferenceEngineCachePreprocessing.prepare(
-            X_train=X_train,
-            y_train=y_train,
-            cat_ix=cat_ix,
-            ensemble_configs=ensemble_configs,
-            n_workers=n_jobs,
-            model=model,
-            rng=rng,
-            dtype_byte_size=byte_size,
-            force_inference_dtype=forced_inference_dtype_,
-            save_peak_mem=memory_saving_mode,
-        )
-    elif fit_mode == "fit_with_cache":
-        engine = InferenceEngineCacheKV.prepare(
-            X_train=X_train,
-            y_train=y_train,
-            cat_ix=cat_ix,
-            model=model,
-            ensemble_configs=ensemble_configs,
-            n_workers=n_jobs,
-            device=device_,
-            dtype_byte_size=byte_size,
-            rng=rng,
-            force_inference_dtype=forced_inference_dtype_,
-            save_peak_mem=memory_saving_mode,
-            autocast=use_autocast_,
-        )
-    else:
-        raise ValueError(f"Invalid fit_mode: {fit_mode}")
-
-    return engine

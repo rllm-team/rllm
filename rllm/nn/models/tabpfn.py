@@ -23,14 +23,15 @@ from .tabpfn_v2.tabpfn.constants import (
     XType,
     YType,
 )
-from .tabpfn_v2.tabpfn.preprocessing import (
+from rllm.data_augment.ensemble_preprocessing import (
     EnsembleConfig,
     ClassifierEnsembleConfig,
-    default_classifier_preprocessor_configs,
+    default_classifier_augmentor_configs,
+    default_regressor_augmentor_configs,
 )
 from .tabpfn_v2.tabpfn.model.bar_distribution import FullSupportBarDistribution
-from .tabpfn_v2.tabpfn.model.preprocessing import (
-    ReshapeFeatureDistributionsStep,
+from rllm.data_augment import (
+    ReshapeFeatureDistributionsAugmentor,
 )
 from .tabpfn_v2.tabpfn.utils import (
     _fix_dtypes,
@@ -123,7 +124,6 @@ class TabPFNClassifier(ClassifierMixin, BaseEstimator):
         average_before_softmax: bool = False,
         ignore_pretraining_limits: bool = False,
         inference_precision: _dtype | Literal["autocast", "auto"] = "auto",
-        memory_saving_mode: bool | Literal["auto"] | float | int = "auto",
         random_state: int | np.random.RandomState | np.random.Generator | None = 0,
         n_jobs: int = -1,
         inference_config: dict | ModelInterfaceConfig | None = None,
@@ -142,9 +142,6 @@ class TabPFNClassifier(ClassifierMixin, BaseEstimator):
         self.fit_mode: Literal["low_memory", "fit_preprocessors", "fit_with_cache"] = (
             "fit_preprocessors"
         )
-        self.memory_saving_mode: bool | Literal["auto"] | float | int = (
-            memory_saving_mode
-        )
         self.random_state = random_state
         self.n_jobs = n_jobs
         self.inference_config = inference_config
@@ -156,9 +153,11 @@ class TabPFNClassifier(ClassifierMixin, BaseEstimator):
 
     def fit(self, X: XType, y: YType, sample_size: int = 10000) -> Self:
         static_seed, rng = infer_random_state(self.random_state)
-
+        print(
+            f"Fitting TabPFN model with {self.n_estimators} estimators. {self.fit_mode=}, {self.inference_precision=}, {self.device_=}"
+        )
         # Load the model and config
-        self.model_, self.config_, _ = initialize_tabpfn_model(
+        self.model_, self.config_ = initialize_tabpfn_model(
             model_dir=self.model_path,
             model_type="clf",
             model_id=0,
@@ -166,9 +165,7 @@ class TabPFNClassifier(ClassifierMixin, BaseEstimator):
         )
 
         # Build the interface_config
-        self.interface_config_ = ModelInterfaceConfig.from_user_input(
-            inference_config=self.inference_config,
-        )
+        self.interface_config_ = ModelInterfaceConfig()
         n_features_in = X.shape[1]
 
         print(type(X), X.shape)
@@ -226,10 +223,10 @@ class TabPFNClassifier(ClassifierMixin, BaseEstimator):
             feature_shift_decoder=self.interface_config_.FEATURE_SHIFT_METHOD,
             polynomial_features=self.interface_config_.POLYNOMIAL_FEATURES,
             max_index=len(X),
-            preprocessor_configs=(
+            augmentor_configs=(
                 preprocess_transforms
                 if preprocess_transforms is not None
-                else default_classifier_preprocessor_configs()
+                else default_classifier_augmentor_configs()
             ),
             class_shift_method=self.interface_config_.CLASS_SHIFT_METHOD,
             n_classes=self.n_classes_,
@@ -250,7 +247,6 @@ class TabPFNClassifier(ClassifierMixin, BaseEstimator):
             n_jobs=self.n_jobs,
             byte_size=self.byte_size,
             forced_inference_dtype_=self.forced_inference_dtype_,
-            memory_saving_mode=self.memory_saving_mode,
             use_autocast_=self.use_autocast_,
         )
 
@@ -265,11 +261,6 @@ class TabPFNClassifier(ClassifierMixin, BaseEstimator):
         Returns:
             The predicted probabilities of the classes.
         """
-        # check_is_fitted(self)
-
-        # X = validate_X_predict(X, self)
-        # X = _fix_dtypes(X, cat_indices=self.categorical_features_indices)
-        # X = self.preprocessor_.transform(X)
         outputs: list[torch.Tensor] = []
 
         for output, config in self.executor_.iter_outputs(
@@ -291,7 +282,9 @@ class TabPFNClassifier(ClassifierMixin, BaseEstimator):
                 output = output[..., config.class_permutation]  # noqa: PLW2901
 
             outputs.append(output)
-
+            print(output.shape)
+        print(len(outputs))
+        exit()
         if self.average_before_softmax:
             output = torch.stack(outputs).mean(dim=0)
             output = torch.nn.functional.softmax(output, dim=1)
@@ -399,7 +392,6 @@ class TabPFNRegressor(RegressorMixin, BaseEstimator):
             "fit_preprocessors",
             "fit_with_cache",
         ] = "fit_preprocessors",
-        memory_saving_mode: bool | Literal["auto"] | float | int = "auto",
         random_state: int | np.random.RandomState | np.random.Generator | None = 0,
         n_jobs: int = -1,
         inference_config: dict | ModelInterfaceConfig | None = None,
@@ -519,32 +511,6 @@ class TabPFNRegressor(RegressorMixin, BaseEstimator):
                   Ideal with very high GPU memory and multiple calls to `.predict()`
                   with the same training data.
 
-            memory_saving_mode:
-                Enable GPU/CPU memory saving mode. This can help to prevent
-                out-of-memory errors that result from computations that would consume
-                more memory than available on the current device. We save memory by
-                automatically batching certain model computations within TabPFN to
-                reduce the total required memory. The options are:
-
-                - If `bool`, enable/disable memory saving mode.
-                - If `"auto"`, we will estimate the amount of memory required for the
-                  forward pass and apply memory saving if it is more than the
-                  available GPU/CPU memory. This is the recommended setting as it
-                  allows for speed-ups and prevents memory errors depending on
-                  the input data.
-                - If `float` or `int`, we treat this value as the maximum amount of
-                  available GPU/CPU memory (in GB). We will estimate the amount
-                  of memory required for the forward pass and apply memory saving
-                  if it is more than this value. Passing a float or int value for
-                  this parameter is the same as setting it to True and explicitly
-                  specifying the maximum free available memory
-
-                !!! warning
-                    This does not batch the original input data. We still recommend to
-                    batch this as necessary if you run into memory errors! For example,
-                    if the entire input data does not fit into memory, even the memory
-                    save mode will not prevent memory errors.
-
             random_state:
                 Controls the randomness of the model. Pass an int for reproducible
                 results and see the scikit-learn glossary for more information.
@@ -594,9 +560,6 @@ class TabPFNRegressor(RegressorMixin, BaseEstimator):
         )
         self.fit_mode: Literal["low_memory", "fit_preprocessors", "fit_with_cache"] = (
             fit_mode
-        )
-        self.memory_saving_mode: bool | Literal["auto"] | float | int = (
-            memory_saving_mode
         )
         self.random_state = random_state
         self.n_jobs = n_jobs
@@ -690,7 +653,7 @@ class TabPFNRegressor(RegressorMixin, BaseEstimator):
         )
 
         possible_target_transforms = (
-            ReshapeFeatureDistributionsStep.get_all_preprocessors(
+            ReshapeFeatureDistributionsAugmentor.get_all_preprocessors(
                 num_examples=y.shape[0],
                 random_state=static_seed,
             )
@@ -714,10 +677,10 @@ class TabPFNRegressor(RegressorMixin, BaseEstimator):
             feature_shift_decoder=self.interface_config_.FEATURE_SHIFT_METHOD,
             polynomial_features=self.interface_config_.POLYNOMIAL_FEATURES,
             max_index=len(X),
-            preprocessor_configs=(
+            augmentor_configs=(
                 preprocess_transforms
                 if preprocess_transforms is not None
-                else default_regressor_preprocessor_configs()
+                else default_regressor_augmentor_configs()
             ),
             target_transforms=target_preprocessors,
             random_state=rng,
@@ -747,7 +710,6 @@ class TabPFNRegressor(RegressorMixin, BaseEstimator):
             n_jobs=self.n_jobs,
             byte_size=byte_size,
             forced_inference_dtype_=self.forced_inference_dtype_,
-            memory_saving_mode=self.memory_saving_mode,
             use_autocast_=self.use_autocast_,
         )
 

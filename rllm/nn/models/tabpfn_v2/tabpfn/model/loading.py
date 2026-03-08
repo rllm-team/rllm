@@ -404,7 +404,6 @@ def load_model(
     model_seed: int,
 ) -> tuple[
     PerFeatureTransformer,
-    nn.BCEWithLogitsLoss | nn.CrossEntropyLoss | FullSupportBarDistribution,
     InferenceConfig,
 ]:
     """Loads a model from a given path.
@@ -422,9 +421,6 @@ def load_model(
         warnings.simplefilter("ignore", category=FutureWarning)
         checkpoint = torch.load(path, map_location="cpu", weights_only=None)
 
-    assert "state_dict" in checkpoint
-    assert "config" in checkpoint
-
     state_dict = checkpoint["state_dict"]
     config = _preprocess_config(checkpoint["config"])
 
@@ -439,28 +435,12 @@ def load_model(
     else:
         assert len(criterion_state_keys) == 0, criterion_state_keys
 
-    # Old decision tree for n_out, made equivalent:
-    # > if config.max_num_classes == 2:
-    # >   loss = Losses.bce           (n_out -> 1)
-    # > elif config.max_num_classes > 2:
-    # >   loss = Losses.ce            (n_out -> config.max_num_classes)
-    # > else:
-    # >   create_bar_distribution ... (n_out -> loss.num_bars)
-    #
-    # > if loss is bardist:
-    # >   n_out = loss.num_bars
-    # > elif loss is CrossEntropyLoss:
-    # >   n_out = config.max_num_classes
-    # > else:
-    # >  n_out = 1
     n_out: int
     if config.max_num_classes == 2:
         n_out = 1
     elif config.max_num_classes > 2:
         n_out = config.max_num_classes
-    else:
-        assert config.max_num_classes == 0
-        assert isinstance(loss_criterion, FullSupportBarDistribution)
+    elif config.max_num_classes == 0:
         n_out = loss_criterion.num_bars
 
     model = PerFeatureTransformer(
@@ -531,4 +511,4 @@ def load_model(
     )
     model.load_state_dict(state_dict)
     model.eval()
-    return model, loss_criterion, config
+    return model, config

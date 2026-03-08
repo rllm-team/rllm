@@ -1,4 +1,4 @@
-"""Defines the preprocessing configurations that define the ensembling of
+﻿"""Defines the augmentation configurations that define the ensembling of
 different members.
 """
 
@@ -14,24 +14,40 @@ from typing import TYPE_CHECKING, Literal, TypeVar
 from typing_extensions import override
 
 import numpy as np
+from packaging import version
 from sklearn.utils.validation import joblib
 
-from .constants import (
-    CLASS_SHUFFLE_OVERESTIMATE_FACTOR,
-    MAXIMUM_FEATURE_SHIFT,
-    PARALLEL_MODE_TO_RETURN_AS,
+from rllm.data_augment import (
+    AddFingerprintFeaturesAugmentor,
+    AugmentorPipeline,
+    DataAugmentor,
+    EncodeCategoricalFeaturesAugmentor,
+    NanHandlingPolynomialFeaturesAugmentor,
+    RemoveConstantFeaturesAugmentor,
+    ReshapeFeatureDistributionsAugmentor,
+    ShuffleFeaturesAugmentor,
 )
-from .model.preprocessing import (
-    AddFingerprintFeaturesStep,
-    EncodeCategoricalFeaturesStep,
-    FeaturePreprocessingTransformerStep,
-    NanHandlingPolynomialFeaturesStep,
-    RemoveConstantFeaturesStep,
-    ReshapeFeatureDistributionsStep,
-    SequentialFeatureTransformer,
-    ShuffleFeaturesStep,
+from rllm.data_augment.utils import infer_random_state
+
+
+MAXIMUM_FEATURE_SHIFT = 1_000
+CLASS_SHUFFLE_OVERESTIMATE_FACTOR = 3
+
+SUPPORTS_GENERATOR_UNORDERED = version.parse(joblib.__version__) >= version.parse(
+    "1.4.0",
 )
-from .utils import infer_random_state
+if SUPPORTS_GENERATOR_UNORDERED:
+    PARALLEL_MODE_TO_RETURN_AS = {
+        "block": "list",
+        "in-order": "generator",
+        "as-ready": "generator_unordered",
+    }
+else:
+    PARALLEL_MODE_TO_RETURN_AS = {
+        "block": "list",
+        "in-order": "generator",
+        "as-ready": "generator",
+    }
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -47,11 +63,11 @@ def balance(x: Iterable[T], n: int) -> list[T]:
 
 
 @dataclass
-class PreprocessorConfig:
-    """Configuration for data preprocessors.
+class AugmentorConfig:
+    """Configuration for data augmentors.
 
     Attributes:
-        name: Name of the preprocessor.
+        name: Name of the augmentor.
         categorical_name:
             Name of the categorical encoding method.
             Options: "none", "numeric", "onehot", "ordinal", "ordinal_shuffled", "none".
@@ -138,17 +154,17 @@ class PreprocessorConfig:
         )
 
 
-def default_classifier_preprocessor_configs() -> list[PreprocessorConfig]:
-    """Default preprocessor configurations for classification."""
+def default_classifier_augmentor_configs() -> list[AugmentorConfig]:
+    """Default augmentor configurations for classification."""
     return [
-        PreprocessorConfig(
+        AugmentorConfig(
             "quantile_uni_coarse",
             append_original=True,
             categorical_name="ordinal_very_common_categories_shuffled",
             global_transformer_name="svd",
             subsample_features=-1,
         ),
-        PreprocessorConfig(
+        AugmentorConfig(
             "none",
             categorical_name="numeric",
             subsample_features=-1,
@@ -156,16 +172,16 @@ def default_classifier_preprocessor_configs() -> list[PreprocessorConfig]:
     ]
 
 
-def default_regressor_preprocessor_configs() -> list[PreprocessorConfig]:
-    """Default preprocessor configurations for regression."""
+def default_regressor_augmentor_configs() -> list[AugmentorConfig]:
+    """Default augmentor configurations for regression."""
     return [
-        PreprocessorConfig(
+        AugmentorConfig(
             "quantile_uni",
             append_original=True,
             categorical_name="ordinal_very_common_categories_shuffled",
             global_transformer_name="svd",
         ),
-        PreprocessorConfig("safepower", categorical_name="onehot"),
+        AugmentorConfig("safepower", categorical_name="onehot"),
     ]
 
 
@@ -213,12 +229,12 @@ class EnsembleConfig:
     Attributes:
         feature_shift_count: How much to shift the features columns.
         class_permutation: Permutation to apply to classes
-        preprocess_config: Preprocessor configuration to use.
+        preprocess_config: Augmentor configuration to use.
         subsample_ix: Indices of samples to use for this ensemble member.
             If `None`, no subsampling is done.
     """
 
-    preprocess_config: PreprocessorConfig
+    preprocess_config: AugmentorConfig
     add_fingerprint_feature: bool
     polynomial_features: Literal["no", "all"] | int
     feature_shift_count: int
@@ -235,7 +251,7 @@ class EnsembleConfig:
         add_fingerprint_feature: bool,
         polynomial_features: Literal["no", "all"] | int,
         feature_shift_decoder: Literal["shuffle", "rotate"] | None,
-        preprocessor_configs: Sequence[PreprocessorConfig],
+        augmentor_configs: Sequence[AugmentorConfig],
         class_shift_method: Literal["rotate", "shuffle"] | None,
         n_classes: int,
         random_state: int | np.random.Generator | None,
@@ -252,7 +268,7 @@ class EnsembleConfig:
             add_fingerprint_feature: Whether to add fingerprint features.
             polynomial_features: Maximum number of polynomial features to add, if any.
             feature_shift_decoder: How shift features
-            preprocessor_configs: Preprocessor configurations to use on the data.
+            augmentor_configs: Augmentor configurations to use on the data.
             class_shift_method: How to shift classes for classpermutation.
             n_classes: Number of classes.
             random_state: Random number generator.
@@ -303,18 +319,18 @@ class EnsembleConfig:
                 f"Invalid subsample_samples: {subsample_size}",
             )
 
-        balance_count = n // len(preprocessor_configs)
+        balance_count = n // len(augmentor_configs)
 
         # Replicate each config balance_count times
-        configs_ = balance(preprocessor_configs, balance_count)
+        configs_ = balance(augmentor_configs, balance_count)
 
         # Number still needed to reach n
         leftover = n - len(configs_)
 
         if leftover > 0:
-            # Randomly pick leftover items from *all* preprocessor configs
-            picks = rng.choice(len(preprocessor_configs), size=leftover, replace=True)
-            configs_.extend(preprocessor_configs[i] for i in picks)
+            # Randomly pick leftover items from *all* augmentor configs
+            picks = rng.choice(len(augmentor_configs), size=leftover, replace=True)
+            configs_.extend(augmentor_configs[i] for i in picks)
 
         return [
             ClassifierEnsembleConfig(
@@ -344,7 +360,7 @@ class EnsembleConfig:
         add_fingerprint_feature: bool,
         polynomial_features: Literal["no", "all"] | int,
         feature_shift_decoder: Literal["shuffle", "rotate"] | None,
-        preprocessor_configs: Sequence[PreprocessorConfig],
+        augmentor_configs: Sequence[AugmentorConfig],
         target_transforms: Sequence[TransformerMixin | Pipeline | None],
         random_state: int | np.random.Generator | None,
     ) -> list[RegressorEnsembleConfig]:
@@ -360,7 +376,7 @@ class EnsembleConfig:
             add_fingerprint_feature: Whether to add fingerprint features.
             polynomial_features: Maximum number of polynomial features to add, if any.
             feature_shift_decoder: How shift features
-            preprocessor_configs: Preprocessor configurations to use on the data.
+            augmentor_configs: Augmentor configurations to use on the data.
             target_transforms: Target transformations to apply.
             random_state: Random number generator.
 
@@ -387,8 +403,8 @@ class EnsembleConfig:
                 f"Invalid subsample_samples: {subsample_size}",
             )
 
-        # Get equal representation of all preprocessor configs
-        combos = list(product(preprocessor_configs, target_transforms))
+        # Get equal representation of all augmentor configs
+        combos = list(product(augmentor_configs, target_transforms))
         balance_count = n // len(combos)
         configs_ = balance(combos, balance_count)
 
@@ -419,9 +435,9 @@ class EnsembleConfig:
         self,
         *,
         random_state: int | np.random.Generator | None,
-    ) -> SequentialFeatureTransformer:
+    ) -> AugmentorPipeline:
         """Convert the ensemble configuration to a preprocessing pipeline."""
-        steps: list[FeaturePreprocessingTransformerStep] = []
+        steps: list[DataAugmentor] = []
 
         if isinstance(self.polynomial_features, int):
             assert self.polynomial_features > 0, "Poly. features to add must be >0!"
@@ -439,7 +455,7 @@ class EnsembleConfig:
             )
         if use_poly_features:
             steps.append(
-                NanHandlingPolynomialFeaturesStep(
+                NanHandlingPolynomialFeaturesAugmentor(
                     max_features=max_poly_features,
                     random_state=random_state,
                 ),
@@ -447,8 +463,8 @@ class EnsembleConfig:
 
         steps.extend(
             [
-                RemoveConstantFeaturesStep(),
-                ReshapeFeatureDistributionsStep(
+                RemoveConstantFeaturesAugmentor(),
+                ReshapeFeatureDistributionsAugmentor(
                     transform_name=self.preprocess_config.name,
                     append_to_original=self.preprocess_config.append_original,
                     subsample_features=self.preprocess_config.subsample_features,
@@ -458,7 +474,7 @@ class EnsembleConfig:
                     ),
                     random_state=random_state,
                 ),
-                EncodeCategoricalFeaturesStep(
+                EncodeCategoricalFeaturesAugmentor(
                     self.preprocess_config.categorical_name,
                     random_state=random_state,
                 ),
@@ -466,16 +482,16 @@ class EnsembleConfig:
         )
 
         if self.add_fingerprint_feature:
-            steps.append(AddFingerprintFeaturesStep(random_state=random_state))
+            steps.append(AddFingerprintFeaturesAugmentor(random_state=random_state))
 
         steps.append(
-            ShuffleFeaturesStep(
+            ShuffleFeaturesAugmentor(
                 shuffle_method=self.feature_shift_decoder,
                 shuffle_index=self.feature_shift_count,
                 random_state=random_state,
             ),
         )
-        return SequentialFeatureTransformer(steps)
+        return AugmentorPipeline(steps)
 
 
 @dataclass
@@ -507,12 +523,12 @@ def fit_preprocessing_one(
     cat_ix: list[int],
 ) -> tuple[
     EnsembleConfig,
-    SequentialFeatureTransformer,
+    AugmentorPipeline,
     np.ndarray,
     np.ndarray,
     list[int],
 ]:
-    """Fit preprocessing pipeline for a single ensemble configuration.
+    """Fit augmentation pipeline for a single ensemble configuration.
 
     Args:
         config: Ensemble configuration.
@@ -522,7 +538,7 @@ def fit_preprocessing_one(
         cat_ix: Indices of categorical features.
 
     Returns:
-        Tuple containing the ensemble configuration, the fitted preprocessing pipeline,
+        Tuple containing the ensemble configuration, the fitted augmentation pipeline,
         the transformed training data, the transformed target, and the indices of
         categorical features.
     """
@@ -539,8 +555,8 @@ def fit_preprocessing_one(
         config.preprocess_config.append_original,
         config.preprocess_config.categorical_name,
     )
-    preprocessor = config.to_pipeline(random_state=static_seed)
-    res = preprocessor.fit_transform(X_train, cat_ix)
+    augmentor = config.to_pipeline(random_state=static_seed)
+    res = augmentor.fit_transform(X_train, cat_ix)
     # TODO(eddiebergman): Not a fan of this, wish it was more transparent, but we want
     # to distuinguish what to do with the `ys` based on the ensemble config type
     if isinstance(config, RegressorEnsembleConfig):
@@ -557,7 +573,7 @@ def fit_preprocessing_one(
     else:
         raise ValueError(f"Invalid ensemble config type: {type(config)}")
     print(1111111, res.X.shape)
-    return (config, preprocessor, res.X, y_train, res.categorical_features)
+    return (config, augmentor, res.X, y_train, res.categorical_features)
 
 
 def fit_preprocessing(
@@ -572,13 +588,13 @@ def fit_preprocessing(
 ) -> Iterator[
     tuple[
         EnsembleConfig,
-        SequentialFeatureTransformer,
+        AugmentorPipeline,
         np.ndarray,
         np.ndarray,
         list[int],
     ]
 ]:
-    """Fit preprocessing pipelines in parallel.
+    """Fit augmentation pipelines in parallel.
 
     Args:
         configs: List of ensemble configurations.
@@ -597,7 +613,7 @@ def fit_preprocessing(
 
     Returns:
         Iterator of tuples containing the ensemble configuration, the fitted
-        preprocessing pipeline, the transformed training data, the transformed target,
+        augmentation pipeline, the transformed training data, the transformed target,
         and the indices of categorical features.
     """
     _, rng = infer_random_state(random_state)
