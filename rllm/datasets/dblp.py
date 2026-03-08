@@ -12,7 +12,7 @@ from rllm.data.graph_data import HeteroGraphData
 from rllm.utils.graph_utils import sparse_mx_to_torch_sparse_tensor
 from rllm.utils.download import download_url
 from rllm.utils.extract import extract_zip
-from rllm.datasets.utils import index2mask
+from rllm.datasets.utils import index_to_mask
 
 
 class DBLP(Dataset):
@@ -97,13 +97,13 @@ class DBLP(Dataset):
         data["author"].y = data.y = torch.from_numpy(y).to(torch.long)
 
         split = np.load(osp.join(self.raw_dir, "train_val_test_idx.npz"))
-        data.train_mask = index2mask(
+        data.train_mask = index_to_mask(
             torch.from_numpy(split["train_idx"]).to(torch.long), len(y)
         )
-        data.val_mask = index2mask(
+        data.val_mask = index_to_mask(
             torch.from_numpy(split["val_idx"]).to(torch.long), len(y)
         )
-        data.test_mask = index2mask(
+        data.test_mask = index_to_mask(
             torch.from_numpy(split["test_idx"]).to(torch.long), len(y)
         )
 

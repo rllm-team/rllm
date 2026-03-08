@@ -14,7 +14,9 @@ from .cyclic_encoder import CyclicEncoder
 
 
 class TimestampEncoder(ColEncoder):
-    r"""TimestampEncoder for TIMESTAMP ColType.
+    r"""TimestampEncoder for TIMESTAMP ColType from paper
+    `"RelBench: A Benchmark for Deep Learning on Relational Databases"
+    <https://arxiv.org/abs/2407.20060>`_.
     The NA value will be fulfilled by MEDIAN_TIMESTAMP.
 
     Args:

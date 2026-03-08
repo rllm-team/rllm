@@ -8,7 +8,9 @@ from .positional_encoder import PositionalEncoder
 
 
 class HeteroTemporalEncoder(torch.nn.Module):
-    r"""HeteroTemporalEncoder for RDL model.
+    r"""HeteroTemporalEncoder for RDL model from paper
+    `"RelBench: A Benchmark for Deep Learning on Relational Databases"
+    <https://arxiv.org/abs/2407.20060>`_.
 
     Args:
         node_types (List[str]): The list of node types.
