@@ -78,7 +78,7 @@ class MSTrafficDataset(Dataset):
             "seattle.csv",
             "mstraffic_da.csv",
             "mstraffic_fa.csv",
-            "maryland_mask.pt",
+            "mask_maryland.pt",
             "mask_da.pt",
         ]
 

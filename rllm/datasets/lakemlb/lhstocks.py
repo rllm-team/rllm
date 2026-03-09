@@ -76,7 +76,7 @@ class LHStocksDataset(Dataset):
             "lhwiki.csv",
             "lhstocks_da.csv",
             "lhstocks_fa.csv",
-            "mask.pt",
+            "mask_lhlist.pt",
             "mask_da.pt",
         ]
 

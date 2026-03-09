@@ -76,7 +76,7 @@ class DSMusicDataset(Dataset):
             "spotify.csv",
             "dsmusic_da.csv",
             "dsmusic_fa.csv",
-            "mask.pt",
+            "mask_discogs.pt",
             "mask_da.pt",
         ]
 

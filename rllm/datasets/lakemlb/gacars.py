@@ -9,7 +9,6 @@ from rllm.data.table_data import TableData
 from rllm.datasets.dataset import Dataset
 from rllm.utils.download import download_url
 from rllm.utils.extract import extract_zip
-from rllm.utils.csv_utils import read_csv_with_fallback_encodings, clean_df_by_col_types
 
 
 class GACarsDataset(Dataset):
@@ -112,8 +111,6 @@ class GACarsDataset(Dataset):
             "offer_description": ColType.CATEGORICAL,
         }
         german_df = pd.read_csv(csv_path, low_memory=False)
-        # german_df = read_csv_with_fallback_encodings(csv_path, encodings=("latin1",), low_memory=False)
-        # german_df = clean_df_by_col_types(german_df, col_types)
         masks_path = osp.join(self.raw_dir, self.raw_filenames[4])
         masks = torch.load(masks_path, weights_only=False)
         TableData(

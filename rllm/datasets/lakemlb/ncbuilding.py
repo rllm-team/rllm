@@ -9,7 +9,6 @@ from rllm.data.table_data import TableData
 from rllm.datasets.dataset import Dataset
 from rllm.utils.download import download_url
 from rllm.utils.extract import extract_zip
-from rllm.utils.csv_utils import read_csv_with_fallback_encodings
 
 
 class NCBuildingDataset(Dataset):

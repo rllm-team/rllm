@@ -76,7 +76,7 @@ class NNStocksDataset(Dataset):
             "nnwiki.csv",
             "nnstocks_da.csv",
             "nnstocks_fa.csv",
-            "mask.pt",
+            "mask_nnlist.pt",
             "mask_da.pt",
         ]
 
