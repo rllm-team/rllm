@@ -26,6 +26,7 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import TabTransformerTransform
+from rllm.nn.encoder import TabTransformerEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -77,17 +78,12 @@ class TabTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-
-        self.convs = torch.nn.ModuleList()
-        self.convs.append(
-            TabTransformerConv(
-                conv_dim=hidden_dim,
-                num_heads=num_heads,
-                use_pre_encoder=True,
-                metadata=metadata,
-            )
+        self.encoder = TabTransformerEncoder(
+            out_dim=hidden_dim,
+            metadata=metadata,
         )
-        for _ in range(num_layers - 1):
+        self.convs = torch.nn.ModuleList()
+        for _ in range(num_layers):
             self.convs.append(
                 TabTransformerConv(conv_dim=hidden_dim, num_heads=num_heads)
             )
@@ -99,6 +95,7 @@ class TabTransformer(torch.nn.Module):
         )
 
     def forward(self, x):
+        x = self.encoder(x, return_dict=True)
         for conv in self.convs:
             x = conv(x)
         x[ColType.CATEGORICAL] = x[ColType.CATEGORICAL].flatten(1)

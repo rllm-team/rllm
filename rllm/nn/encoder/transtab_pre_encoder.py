@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from torch import Tensor
 
-from .pre_encoder import PreEncoder
+from .table_encoder import TableEncoder
 from ._transtab_word_embedding_encoder import TransTabWordEmbeddingEncoder
 from ._transtab_num_embedding_encoder import TransTabNumEmbeddingEncoder
 from rllm.types import ColType
@@ -14,9 +14,9 @@ from rllm.preprocessing import TransTabDataExtractor
 from rllm.data.table_data import TableData
 
 
-class TransTabPreEncoder(PreEncoder):
+class TransTabEncoder(TableEncoder):
     """
-    A specialized PreEncoder for the TransTab model.
+    A specialized TableEncoder for the TransTab model.
     Uses word-based embedding for categorical and binary features,
     and numeric embedding for numerical features.
 
@@ -206,7 +206,7 @@ class TransTabPreEncoder(PreEncoder):
                     and not x.if_materialized()
                 ):
                     raise ValueError(
-                        "TableData must be materialized before passing to TransTabPreEncoder. "
+                        "TableData must be materialized before passing to TransTabEncoder. "
                         "Call table_data.lazy_materialize() first."
                     )
 
@@ -263,7 +263,7 @@ class TransTabPreEncoder(PreEncoder):
                 return self._align_and_concat(emb_dict, masks)
             else:
                 raise TypeError(
-                    "TransTabPreEncoder.forward: x must be a pandas.DataFrame or a feat_dict mapping."
+                    "TransTabEncoder.forward: x must be a pandas.DataFrame or a feat_dict mapping."
                 )
 
     def save(self, path: str) -> None:
@@ -277,9 +277,9 @@ class TransTabPreEncoder(PreEncoder):
         self.extractor.load(ckpt_dir)
         encoder_path = os.path.join(ckpt_dir, "input_encoder.bin")
         try:
-            state_dict = torch.load(encoder_path, map_location='cpu', weights_only=True)
+            state_dict = torch.load(encoder_path, map_location="cpu", weights_only=True)
         except TypeError:
-            state_dict = torch.load(encoder_path, map_location='cpu')
+            state_dict = torch.load(encoder_path, map_location="cpu")
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         print(f"Loaded pre_encoder (integrated) weights from {encoder_path}")
         print(f" Missing keys: {missing}")

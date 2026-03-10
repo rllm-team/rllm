@@ -12,7 +12,7 @@ from rllm.types import ColType
 from rllm.preprocessing import TokenizerConfig, TransTabDataExtractor
 from rllm.data.table_data import TableData
 from rllm.nn.loss import SupervisedVPCL, SelfSupervisedVPCL
-from rllm.nn.pre_encoder import TransTabPreEncoder
+from rllm.nn.encoder import TransTabEncoder
 from rllm.nn.conv.table_conv import TransTabConv
 from rllm.nn.models.base_model import LinearClassifier
 
@@ -149,13 +149,13 @@ class TransTab(torch.nn.Module):
             **kwargs,
         )
 
-        # 3) Initialize PreEncoder (for DataProcessor), metadata provides an empty list mapping
+        # 3) Initialize TableEncoder (for DataProcessor), metadata provides an empty list mapping
         metadata = {
             ColType.CATEGORICAL: [],
             ColType.BINARY: [],
             ColType.NUMERICAL: [],
         }
-        self.pre_encoder = TransTabPreEncoder(
+        self.pre_encoder = TransTabEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
             vocab_size=self.extractor.tokenizer.vocab_size,
@@ -270,7 +270,7 @@ class TransTab(torch.nn.Module):
 
         # 3) Load model weights to CPU
         model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
-        state_dict = torch.load(model_path, map_location='cpu', weights_only=True)
+        state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         print(f"Loaded TransTab weights from {model_path}")
         print(f" Missing keys: {missing}")
@@ -278,7 +278,7 @@ class TransTab(torch.nn.Module):
 
         # 4) Cache the pre-trained pre_encoder status, which will be used in the subsequent update
         pe_path = os.path.join(ckpt_dir, "input_encoder.bin")
-        self._preencoder_state = torch.load(
+        self._TableEncoder_state = torch.load(
             pe_path, map_location="cpu", weights_only=True
         )
 

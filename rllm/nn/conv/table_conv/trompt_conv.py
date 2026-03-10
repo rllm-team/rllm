@@ -5,8 +5,9 @@ import torch
 from torch import Tensor
 import torch.nn.functional as F
 
+from rllm.nn.encoder.embedding_encoder import EmbeddingEncoder
 from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerPreEncoder
+from rllm.nn.encoder import FTTransformerEncoder
 
 
 class TromptConv(torch.nn.Module):
@@ -57,14 +58,6 @@ class TromptConv(torch.nn.Module):
             num_channels=num_prompts,
         )
 
-        # Define PreEncoder
-        self.pre_encoder = None
-        if use_pre_encoder:
-            self.pre_encoder = FTTransformerPreEncoder(
-                out_dim=out_dim,
-                metadata=metadata,
-            )
-
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -73,12 +66,8 @@ class TromptConv(torch.nn.Module):
         torch.nn.init.xavier_uniform_(self.linear.weight)
         torch.nn.init.zeros_(self.linear.bias)
         torch.nn.init.uniform_(self.expand_weight)
-        if self.pre_encoder is not None:
-            self.pre_encoder.reset_parameters()
 
-    def forward(self, x: Union[Dict, Tensor], x_prompt: Tensor) -> Tensor:
-        if self.pre_encoder is not None:
-            x = self.pre_encoder(x)
+    def forward(self, x: Tensor, x_prompt: Tensor) -> Tensor:
 
         emb_column = self.ln_column(self.emb_column)
         emb_prompt = self.ln_prompt(self.emb_prompt)

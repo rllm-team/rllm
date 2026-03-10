@@ -3,9 +3,9 @@
 # as expected.
 
 # The following pre-encoders are tested:
-# 1. TabTransformerPreEncoder: Tests the encoding of numerical and categorical
+# 1. TabTransformerEncoder: Tests the encoding of numerical and categorical
 #    features for the TabTransformer model.
-# 2. FTTransformerPreEncoder: Tests the encoding of numerical and categorical
+# 2. FTTransformerEncoder: Tests the encoding of numerical and categorical
 #    features for the FTTransformer model.
 
 # Each test function creates a sample DataFrame, initializes the corresponding
@@ -16,8 +16,8 @@ import pandas as pd
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData
-from rllm.nn.pre_encoder import TabTransformerPreEncoder
-from rllm.nn.pre_encoder import FTTransformerPreEncoder
+from rllm.nn.encoder import TabTransformerEncoder
+from rllm.nn.encoder import FTTransformerEncoder
 
 
 def test_tab_transformer_pre_encoder():
@@ -41,8 +41,8 @@ def test_tab_transformer_pre_encoder():
     }
     dataset = TableData(df, col_types, target_col="cat_2")
 
-    # Create and initialize TabTransformerPreEncoder
-    pre_encoder = TabTransformerPreEncoder(
+    # Create and initialize TabTransformerEncoder
+    pre_encoder = TabTransformerEncoder(
         out_dim=1,
         metadata=dataset.metadata,
     )
@@ -80,8 +80,8 @@ def test_ft_transformer_pre_encoder():
     }
     dataset = TableData(df, col_types, target_col="cat_2")
 
-    # Create and initialize FTTransformerPreEncoder
-    pre_encoder = FTTransformerPreEncoder(
+    # Create and initialize FTTransformerEncoder
+    pre_encoder = FTTransformerEncoder(
         out_dim=1,
         metadata=dataset.metadata,
     )

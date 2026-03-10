@@ -5,7 +5,6 @@ import torch
 from torch import Tensor
 
 from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
 class SAINTConv(torch.nn.Module):
@@ -75,23 +74,7 @@ class SAINTConv(torch.nn.Module):
             norm=row_encoder_norm,
         )
 
-        # Define PreEncoder
-        self.pre_encoder = None
-        if use_pre_encoder:
-            self.pre_encoder = FTTransformerPreEncoder(
-                out_dim=conv_dim,
-                metadata=metadata,
-            )
-
-        self.reset_parameters()
-
-    def reset_parameters(self) -> None:
-        if self.pre_encoder is not None:
-            self.pre_encoder.reset_parameters()
-
     def forward(self, x: Union[Dict, Tensor]):
-        if self.pre_encoder is not None:
-            x = self.pre_encoder(x)
         x = self.col_transformer(x)
         shape = x.shape
         x = x.reshape(1, x.shape[0], -1)

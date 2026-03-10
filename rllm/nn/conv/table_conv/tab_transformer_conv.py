@@ -5,7 +5,6 @@ import torch
 from torch import Tensor
 
 from rllm.types import ColType
-from rllm.nn.pre_encoder import TabTransformerPreEncoder
 
 
 class TabTransformerConv(torch.nn.Module):
@@ -52,25 +51,6 @@ class TabTransformerConv(torch.nn.Module):
             norm=encoder_norm,
         )
 
-        # Define PreEncoder
-        self.pre_encoder = None
-        if use_pre_encoder:
-            assert metadata is not None, "Metadata is required for pre-encoder"
-            self.pre_encoder = TabTransformerPreEncoder(
-                out_dim=conv_dim,
-                metadata=metadata,
-            )
-
-        self.reset_parameters()
-
-    def reset_parameters(self) -> None:
-        if self.pre_encoder is not None:
-            self.pre_encoder.reset_parameters()
-
     def forward(self, x: Union[Dict, Tensor]):
-        if self.pre_encoder is not None:
-            x = self.pre_encoder(x, return_dict=True)
-
         x[ColType.CATEGORICAL] = self.transformer(x[ColType.CATEGORICAL])
-
         return x

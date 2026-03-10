@@ -50,10 +50,10 @@ Pre-Encoder
    :toctree: ../generated
    :template: autosummary/class.rst
 
-   FTTransformerPreEncoder
-   TabTransformerPreEncoder
-   TransTabPreEncoder
-   ResNetPreEncoder
+   FTTransformerEncoder
+   TabTransformerEncoder
+   TransTabEncoder
+   ResNetEncoder
    HeteroTemporalEncoder
 
 
@@ -68,7 +68,6 @@ Models
    :template: autosummary/class.rst
 
    RECT_L
-   TabNet
    BRIDGE
    TransTab
    TableResNet

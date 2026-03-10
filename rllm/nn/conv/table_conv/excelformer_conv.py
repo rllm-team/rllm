@@ -5,7 +5,6 @@ import torch
 from torch import Tensor
 
 from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
 class GLULayer(torch.nn.Module):
@@ -131,14 +130,6 @@ class ExcelFormerConv(torch.nn.Module):
         )
         self.glu_layer = GLULayer(in_dim=conv_dim, out_dim=conv_dim)
 
-        # Define PreEncoder
-        self.pre_encoder = None
-        if use_pre_encoder:
-            self.pre_encoder = FTTransformerPreEncoder(
-                out_dim=conv_dim,
-                metadata=metadata,
-            )
-
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
@@ -146,12 +137,8 @@ class ExcelFormerConv(torch.nn.Module):
         self.glu_norm.reset_parameters()
         self.sp_attention.reset_parameters()
         self.glu_layer.reset_parameters()
-        if self.pre_encoder:
-            self.pre_encoder.reset_parameters()
 
     def forward(self, x: Union[Dict, Tensor]) -> Tensor:
-        if self.pre_encoder:
-            x = self.pre_encoder(x)
         x = x + self.sp_attention(self.layer_norm(x))
         x = x + self.glu_layer(self.glu_norm(x))
         return x

@@ -1,14 +1,14 @@
 from typing import Any, Dict, List
 
 from rllm.types import ColType
-from .pre_encoder import PreEncoder
-from ._embedding_encoder import EmbeddingEncoder
+from .table_encoder import TableEncoder
+from .embedding_encoder import EmbeddingEncoder
 from ._linear_encoder import LinearEncoder
 from ._timestamp_encoder import TimestampEncoder
 from ._textembedding_encoder import TextEmbeddingEncoder
 
 
-class ResNetPreEncoder(PreEncoder):
+class ResNetEncoder(TableEncoder):
     r"""The pre-encoder for ResNet TNN.
 
     Args:
@@ -17,6 +17,7 @@ class ResNetPreEncoder(PreEncoder):
             Metadata for each column type, specifying the statistics and
             properties of the columns.
     """
+
     def __init__(
         self,
         out_dim: int,

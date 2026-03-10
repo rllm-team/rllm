@@ -6,7 +6,6 @@ from torch import Tensor
 from torch.nn import Parameter
 
 from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
 class FTTransformerConv(torch.nn.Module):
@@ -65,14 +64,6 @@ class FTTransformerConv(torch.nn.Module):
         )
         self.cls_embedding = Parameter(torch.empty(conv_dim))
 
-        # Define PreEncoder
-        self.pre_encoder = None
-        if use_pre_encoder:
-            self.pre_encoder = FTTransformerPreEncoder(
-                out_dim=conv_dim,
-                metadata=self.metadata,
-            )
-
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -80,8 +71,6 @@ class FTTransformerConv(torch.nn.Module):
         for p in self.transformer.parameters():
             if p.dim() > 1:
                 torch.nn.init.xavier_uniform_(p)
-        if self.pre_encoder:
-            self.pre_encoder.reset_parameters()
 
     def forward(self, x: Union[Dict, Tensor]) -> Tensor:
         r"""CLS-token augmented Transformer convolution.
@@ -95,8 +84,6 @@ class FTTransformerConv(torch.nn.Module):
             [batch_size, num_cols + 1, dim], corresponding to the
             added CLS token column.
         """
-        if self.pre_encoder is not None:
-            x = self.pre_encoder(x)
 
         B, _, _ = x.shape
         # [batch_size, num_cols, dim]

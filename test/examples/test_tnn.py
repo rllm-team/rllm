@@ -5,12 +5,11 @@
 # The following example scripts are tested:
 # 1. ft_transformer.py: Tests the FT-Transformer model.
 # 2. tab_transformer.py: Tests the Tab-Transformer model.
-# 3. tabnet.py: Tests the TabNet model.
-# 4. excelformer.py: Tests the ExcelFormer model.
-# 5. trompt.py: Tests the Trompt model.
-# 6. saint.py: Tests the SAINT model.
-# 7. transtab.py: Tests the TransTab model.
-# 8. transtab_transfer.py: Tests the TransTab model with transfer learning.
+# 3. excelformer.py: Tests the ExcelFormer model.
+# 4. trompt.py: Tests the Trompt model.
+# 5. saint.py: Tests the SAINT model.
+# 6. transtab.py: Tests the TransTab model.
+# 7. transtab_transfer.py: Tests the TransTab model with transfer learning.
 
 # Each test function runs the corresponding example script and verifies the
 # output to ensure it meets the expected criteria.
@@ -44,16 +43,6 @@ def test_tab_transformer():
     ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
     stdout = out.stdout.decode("utf-8")
     assert float(stdout[-8:]) > 0.80
-
-
-def test_tabnet():
-    script = os.path.join(EXAMPLE_ROOT, "tabnet.py")
-    out = subprocess.run(["python", str(script)], capture_output=True)
-    assert (
-        out.returncode == 0
-    ), f"stdout: {out.stdout.decode('utf-8')}\nstderr: {out.stderr.decode('utf-8')}"
-    stdout = out.stdout.decode("utf-8")
-    assert float(stdout[-8:]) > 0.74
 
 
 def test_excel_former():
@@ -100,11 +89,14 @@ def test_transtab_transfer():
     script = os.path.join(EXAMPLE_ROOT, "./transtab/transtab_transfer.py")
     out = subprocess.run(
         [
-            "python", str(script),
-            "--pre_epochs", "1",
-            "--finetune_epochs", "1",
+            "python",
+            str(script),
+            "--pre_epochs",
+            "1",
+            "--finetune_epochs",
+            "1",
         ],
-        capture_output=True
+        capture_output=True,
     )
     assert (
         out.returncode == 0

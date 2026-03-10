@@ -9,8 +9,8 @@ from ._col_encoder import ColEncoder
 from rllm.types import ColType
 
 
-class PreEncoder(torch.nn.Module, ABC):
-    r"""The PreEncoder class is designed to transform table data by encoding
+class TableEncoder(torch.nn.Module, ABC):
+    r"""The TableEncoder class is designed to transform table data by encoding
     each column type tensor into embeddings and performing the final
     concatenation. It supports different types of column encoders for
     categorical and numerical features, allowing for flexible and
@@ -20,7 +20,7 @@ class PreEncoder(torch.nn.Module, ABC):
         out_dim (int): Output dimensionality.
         metadata(Dict[ColType, List[Dict[str, Any]]]):Metadata for each column
             type, specifying the statistics and properties of the columns.
-        col_pre_encoder_dict
+        col_encoder_dict
             (Dict[:class:`rllm.types.ColType`,
             :class:`rllm.nn.encoder.ColEncoder]):
             A dictionary that maps :class:`rllm.types.ColType` into
@@ -33,31 +33,31 @@ class PreEncoder(torch.nn.Module, ABC):
         self,
         out_dim: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
-        col_pre_encoder_dict: Dict[ColType, ColEncoder],
+        col_encoder_dict: Dict[ColType, ColEncoder],
     ) -> None:
         super().__init__()
 
         self.metadata = metadata
-        self.pre_encoder_dict = torch.nn.ModuleDict()
+        self.col_encoder_dict = torch.nn.ModuleDict()
 
-        for col_type, col_pre_encoder in col_pre_encoder_dict.items():
-            if col_type not in col_pre_encoder.supported_types:
+        for col_type, col_encoder in col_encoder_dict.items():
+            if col_type not in col_encoder.supported_types:
                 raise ValueError(
-                    f"{col_pre_encoder} does not " f"support encoding {col_type}."
+                    f"{col_encoder} does not " f"support encoding {col_type}."
                 )
             # Set attributes
-            if col_pre_encoder.out_dim is None:
-                col_pre_encoder.out_dim = out_dim
+            if col_encoder.out_dim is None:
+                col_encoder.out_dim = out_dim
             if col_type in metadata.keys():
-                col_pre_encoder.stats_list = metadata[col_type]
-                self.pre_encoder_dict[col_type.value] = col_pre_encoder
-                col_pre_encoder.post_init()
+                col_encoder.stats_list = metadata[col_type]
+                self.col_encoder_dict[col_type.value] = col_encoder
+                col_encoder.post_init()
         self.reset_parameters()
 
     def reset_parameters(self):
         """Reset parameters for all encoders in the encoder_dict."""
-        for pre_encoder in self.pre_encoder_dict.values():
-            pre_encoder.reset_parameters()
+        for col_encoder in self.col_encoder_dict.values():
+            col_encoder.reset_parameters()
 
     def forward(
         self,
@@ -67,8 +67,8 @@ class PreEncoder(torch.nn.Module, ABC):
         feat_encoded = {}
         for col_type in feat_dict.keys():
             feat = feat_dict[col_type]
-            if col_type.value in self.pre_encoder_dict.keys():
-                x = self.pre_encoder_dict[col_type.value](feat)
+            if col_type.value in self.col_encoder_dict.keys():
+                x = self.col_encoder_dict[col_type.value](feat)
                 feat_encoded[col_type] = x
             else:
                 feat_encoded[col_type] = feat
