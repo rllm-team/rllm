@@ -6,15 +6,16 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from rllm.data_augment.ensemble_preprocessing import (
+from rllm.data_augment.ensemble_augmentors import (
     EnsembleConfig,
     default_classifier_augmentor_configs,
+    fit_augmentation,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from rllm.data_augment.ensemble_preprocessing import (
+    from rllm.data_augment.ensemble_augmentors import (
         EnsembleConfig,
         AugmentorConfig,
     )
@@ -84,17 +85,12 @@ def prepare_classification_ensemble(
         random_state=random_state,
     )
 
-    # Fit preprocessing for the ensemble
-    from rllm.data_augment.ensemble_preprocessing import fit_preprocessing
-
-    preprocess_iter = fit_preprocessing(
+    augmentors = fit_augmentation(
         configs=ensemble_configs,
         X_train=X_train,
         y_train=y_train,
         random_state=random_state,
         cat_ix=cat_ix,
-        n_workers=n_workers,
-        parallel_mode=parallel_mode,
     )
 
-    return preprocess_iter
+    return augmentors

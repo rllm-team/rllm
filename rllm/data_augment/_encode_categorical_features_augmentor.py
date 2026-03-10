@@ -11,7 +11,6 @@ from typing_extensions import override
 
 from rllm.data_augment.data_augmentor import (
     DataAugmentor,
-    _TransformResult,
 )
 from rllm.data_augment.utils import infer_random_state
 
@@ -204,13 +203,10 @@ class EncodeCategoricalFeaturesAugmentor(DataAugmentor):
         self,
         X: np.ndarray,
         categorical_features: list[int],
-    ) -> _TransformResult:
+    ) -> tuple[np.ndarray, list[int]]:
         Xt, cat_ix = self._fit_transform(X, categorical_features)
         self.categorical_features_after_transform_ = cat_ix
-        print(
-            f"EncodeCategoricalFeaturesAugmentor: transformed from{X.shape} to {Xt.shape}"
-        )
-        return _TransformResult(Xt, cat_ix)
+        return (Xt, cat_ix)
 
     @override
     def _transform(self, X: np.ndarray, *, is_test: bool = False) -> np.ndarray:

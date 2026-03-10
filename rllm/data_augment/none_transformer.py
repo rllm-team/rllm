@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from sklearn.preprocessing import FunctionTransformer
 
-from rllm.data_augment.preprocessing_utils import _identity
+from rllm.data_augment.utils import _identity
 
 
 class NoneTransformer(FunctionTransformer):

@@ -54,11 +54,4 @@ class ShuffleFeaturesAugmentor(DataAugmentor):
 
     @override
     def _transform(self, X: np.ndarray, *, is_test: bool = False) -> np.ndarray:
-        assert self.index_permutation_ is not None, "You must call fit first"
-        assert (
-            len(self.index_permutation_) == X.shape[1]
-        ), "The number of features must not change after fit"
-        print(
-            f"Shuffling features using method {self.shuffle_method,self.index_permutation_,X[:, self.index_permutation_].shape}"
-        )
         return X[:, self.index_permutation_]

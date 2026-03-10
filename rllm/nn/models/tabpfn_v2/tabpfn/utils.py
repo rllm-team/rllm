@@ -196,54 +196,6 @@ def infer_fp16_inference_mode(device: torch.device, *, enable: bool | None) -> b
     raise ValueError(f"Unrecognized argument '{enable}'")
 
 
-def _user_cache_dir(platform: str, appname: str = "tabpfn") -> Path:
-    use_instead_path = (Path.cwd() / ".tabpfn_models").resolve()
-
-    # https://docs.python.org/3/library/sys.html#sys.platform
-    if platform == "win32":
-        # Honestly, I don't want to do what `platformdirs` does:
-        # https://github.com/tox-dev/platformdirs/blob/b769439b2a3b70769a93905944a71b3e63ef4823/src/platformdirs/windows.py#L252-L265
-        APPDATA_PATH = os.environ.get("APPDATA", "")
-        if APPDATA_PATH.strip() != "":
-            return Path(APPDATA_PATH) / appname
-
-        warnings.warn(
-            "Could not find APPDATA environment variable to get user cache dir,"
-            " but detected platform 'win32'."
-            f" Defaulting to a path '{use_instead_path}'."
-            " If you would prefer, please specify a directory when creating"
-            " the model.",
-            UserWarning,
-            stacklevel=2,
-        )
-        return use_instead_path
-
-    if platform == "darwin":
-        return Path.home() / "Library" / "Caches" / appname
-
-    # TODO: Not entirely sure here, Python doesn't explicitly list
-    # all of these and defaults to the underlying operating system
-    # if not sure.
-    linux_likes = ("freebsd", "linux", "netbsd", "openbsd")
-    if any(platform.startswith(linux) for linux in linux_likes):
-        # The reason to use "" as default is that the env var could exist but be empty.
-        # We catch all this with the `.strip() != ""` below
-        XDG_CACHE_HOME = os.environ.get("XDG_CACHE_HOME", "")
-        if XDG_CACHE_HOME.strip() != "":
-            return Path(XDG_CACHE_HOME) / appname
-        return Path.home() / ".cache" / appname
-
-    warnings.warn(
-        f"Unknown platform '{platform}' to get user cache dir."
-        f" Defaulting to a path at the execution site '{use_instead_path}'."
-        " If you would prefer, please specify a directory when creating"
-        " the model.",
-        UserWarning,
-        stacklevel=2,
-    )
-    return use_instead_path
-
-
 def download_model(model_type, model_name, download_path):
     """
     Downloads a model file from two possible URLs, trying the second if the first fails.

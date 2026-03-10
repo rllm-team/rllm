@@ -5,20 +5,10 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import NamedTuple
 
 import numpy as np
-from typing_extensions import Self, override
 
 
-class _TransformResult(NamedTuple):
-    """Result of a transformation containing the transformed data and categorical features."""
-
-    X: np.ndarray
-    categorical_features: list[int]
-
-
-# TODO(eddiebergman): I'm sure there's a way to handle this when using dataframes.
 class DataAugmentor:
     """Base class for data augmentation components.
 
@@ -32,12 +22,12 @@ class DataAugmentor:
         self,
         X: np.ndarray,
         categorical_features: list[int],
-    ) -> _TransformResult:
+    ) -> tuple[np.ndarray, list[int]]:
         self.fit(X, categorical_features)
         # TODO(eddiebergman): If we could get rid of this... anywho, needed for
         # the AddFingerPrint
         result = self._transform(X, is_test=False)
-        return _TransformResult(result, self.categorical_features_after_transform_)
+        return (result, self.categorical_features_after_transform_)
 
     @abstractmethod
     def _fit(self, X: np.ndarray, categorical_features: list[int]) -> list[int]:
@@ -52,7 +42,7 @@ class DataAugmentor:
         """
         raise NotImplementedError
 
-    def fit(self, X: np.ndarray, categorical_features: list[int]) -> Self:
+    def fit(self, X: np.ndarray, categorical_features: list[int]) -> None:
         """Fits the augmentor.
 
         Args:
@@ -60,11 +50,6 @@ class DataAugmentor:
             categorical_features: list of indices of categorical feature.
         """
         self.categorical_features_after_transform_ = self._fit(X, categorical_features)
-        assert self.categorical_features_after_transform_ is not None, (
-            "_fit should have returned a list of the indexes of the categorical"
-            "features after the transform."
-        )
-        return self
 
     @abstractmethod
     def _transform(self, X: np.ndarray, *, is_test: bool = False) -> np.ndarray:
@@ -79,7 +64,7 @@ class DataAugmentor:
         """
         raise NotImplementedError
 
-    def transform(self, X: np.ndarray) -> _TransformResult:
+    def transform(self, X: np.ndarray) -> tuple[np.ndarray, list[int]]:
         """Transforms the data.
 
         Args:
@@ -87,4 +72,4 @@ class DataAugmentor:
         """
         # TODO: Get rid of this, it's always test in `transform`
         result = self._transform(X, is_test=True)
-        return _TransformResult(result, self.categorical_features_after_transform_)
+        return (result, self.categorical_features_after_transform_)

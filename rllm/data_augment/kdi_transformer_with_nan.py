@@ -82,7 +82,7 @@ class KDITransformerWithNaN(KDITransformer):
 def get_all_kdi_transformers() -> dict[str, KDITransformerWithNaN]:
     """Get all KDI transformers with different alpha values."""
     try:
-        all_preprocessors = {
+        all_augmentors = {
             "kdi": KDITransformerWithNaN(alpha=1.0, output_distribution="normal"),
             "kdi_uni": KDITransformerWithNaN(
                 alpha=1.0,
@@ -90,14 +90,14 @@ def get_all_kdi_transformers() -> dict[str, KDITransformerWithNaN]:
             ),
         }
         for alpha in ALPHAS:
-            all_preprocessors[f"kdi_alpha_{alpha}"] = KDITransformerWithNaN(
+            all_augmentors[f"kdi_alpha_{alpha}"] = KDITransformerWithNaN(
                 alpha=alpha,
                 output_distribution="normal",
             )
-            all_preprocessors[f"kdi_alpha_{alpha}_uni"] = KDITransformerWithNaN(
+            all_augmentors[f"kdi_alpha_{alpha}_uni"] = KDITransformerWithNaN(
                 alpha=alpha,
                 output_distribution="uniform",
             )
-        return all_preprocessors
+        return all_augmentors
     except Exception:  # noqa: BLE001
         return {}

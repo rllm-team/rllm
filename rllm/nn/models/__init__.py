@@ -16,7 +16,9 @@ from .tabnet import (
 )
 from .bridge import BRIDGE, TableEncoder, GraphEncoder
 from .transtab import TransTab, TransTabClassifier, TransTabForCL
-from .tabpfn import TabPFNClassifier, TabPFNRegressor
+
+# from .tabpfn import TabPFNClassifier, TabPFNRegressor
+from .tabpfnv2 import TabPFNv2
 
 __all__ = [
     "RECT_L",
@@ -27,6 +29,7 @@ __all__ = [
     "TransTab",
     "TransTabClassifier",
     "TransTabForCL",
-    "TabPFNClassifier",
-    "TabPFNRegressor",
+    # "TabPFNClassifier",
+    # "TabPFNRegressor",
+    "TabPFNv2",
 ]

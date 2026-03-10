@@ -17,7 +17,7 @@ import numpy as np
 from packaging import version
 
 if TYPE_CHECKING:
-    from rllm.data_augment.ensemble_preprocessing import (
+    from rllm.data_augment.ensemble_augmentors import (
         AugmentorConfig,
     )
 

@@ -30,7 +30,7 @@ from rllm.data_augment.ensemble_preprocessing import (
     default_regressor_augmentor_configs,
 )
 from .tabpfn_v2.tabpfn.model.bar_distribution import FullSupportBarDistribution
-from rllm.data_augment import (
+from rllm.data_augment._reshape_feature_distributions_augmentor import (
     ReshapeFeatureDistributionsAugmentor,
 )
 from .tabpfn_v2.tabpfn.utils import (
@@ -653,7 +653,7 @@ class TabPFNRegressor(RegressorMixin, BaseEstimator):
         )
 
         possible_target_transforms = (
-            ReshapeFeatureDistributionsAugmentor.get_all_preprocessors(
+            ReshapeFeatureDistributionsAugmentor.get_all_augmentors(
                 num_examples=y.shape[0],
                 random_state=static_seed,
             )

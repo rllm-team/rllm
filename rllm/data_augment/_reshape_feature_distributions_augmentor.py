@@ -23,23 +23,22 @@ from typing_extensions import override
 
 from rllm.data_augment.data_augmentor import (
     DataAugmentor,
-    _TransformResult,
 )
 from rllm.data_augment.kdi_transformer_with_nan import (
     KDITransformerWithNaN,
     get_all_kdi_transformers,
 )
 from rllm.data_augment.none_transformer import NoneTransformer
-from rllm.data_augment.preprocessing_utils import (
+from rllm.data_augment.utils import (
     _exp_minus_1,
     _identity,
     add_safe_standard_to_safe_power_without_standard,
+    infer_random_state,
     make_box_cox_safe,
     make_standard_scaler_safe,
     skew,
 )
 from rllm.data_augment.safe_power_transformer import SafePowerTransformer
-from rllm.data_augment.utils import infer_random_state
 
 if TYPE_CHECKING:
     from sklearn.base import TransformerMixin
@@ -75,15 +74,15 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
         return column_types
 
     @staticmethod
-    def get_adaptive_preprocessors(
+    def get_adaptive_augmentors(
         num_examples: int = 100,
         random_state: int | None = None,
     ) -> dict[str, ColumnTransformer]:
         """Returns a dictionary of adaptive column transformers that can be used to
-        preprocess the data. Adaptive column transformers are used to preprocess the
+        augment the data. Adaptive column transformers are used to augment the
         data based on the column type, they receive a pandas dataframe with column
         names, that indicate the column type. Column types are not datatypes,
-        but rather a string that indicates how the data should be preprocessed.
+        but rather a string that indicates how the data should be augmented.
 
         Args:
             num_examples: The number of examples in the dataset.
@@ -150,11 +149,11 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
         }
 
     @staticmethod
-    def get_all_preprocessors(
+    def get_all_augmentors(
         num_examples: int,
         random_state: int | None = None,
     ) -> dict[str, TransformerMixin | Pipeline]:
-        all_preprocessors = {
+        all_augmentors = {
             "power": add_safe_standard_to_safe_power_without_standard(
                 PowerTransformer(standardize=False),
             ),
@@ -222,7 +221,7 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
         }
 
         with contextlib.suppress(Exception):
-            all_preprocessors["norm_and_kdi"] = FeatureUnion(
+            all_augmentors["norm_and_kdi"] = FeatureUnion(
                 [
                     (
                         "norm",
@@ -239,14 +238,14 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
                 ],
             )
 
-        all_preprocessors.update(
-            ReshapeFeatureDistributionsAugmentor.get_adaptive_preprocessors(
+        all_augmentors.update(
+            ReshapeFeatureDistributionsAugmentor.get_adaptive_augmentors(
                 num_examples,
                 random_state=random_state,
             ),
         )
 
-        return all_preprocessors
+        return all_augmentors
 
     def get_all_global_transformers(
         self,
@@ -333,7 +332,7 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
         else:
             global_transformer_ = None
 
-        all_preprocessors = self.get_all_preprocessors(
+        all_augmentors = self.get_all_augmentors(
             n_samples,
             random_state=static_seed,
         )
@@ -395,13 +394,13 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
 
         # NOTE: No need to keep track of categoricals here, already done above
         if self.transform_name != "per_feature":
-            _transformer = all_preprocessors[self.transform_name]
+            _transformer = all_augmentors[self.transform_name]
             transformers.append(("feat_transform", _transformer, trans_ixs))
         else:
-            preprocessors = list(all_preprocessors.values())
+            augmentors = list(all_augmentors.values())
             transformers.extend(
                 [
-                    (f"transformer_{i}", rng.choice(preprocessors), [i])  # type: ignore
+                    (f"transformer_{i}", rng.choice(augmentors), [i])  # type: ignore
                     for i in trans_ixs
                 ],
             )
@@ -446,7 +445,7 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
         self,
         X: np.ndarray,
         categorical_features: list[int],
-    ) -> _TransformResult:
+    ) -> tuple[np.ndarray, list[int]]:
         n_samples, n_features = X.shape
         transformer, cat_ix = self._set_transformer_and_cat_ix(
             n_samples,
@@ -456,10 +455,7 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
         Xt = transformer.fit_transform(X[:, self.subsampled_features_])
         self.categorical_features_after_transform_ = cat_ix
         self.transformer_ = transformer
-        print(
-            f"ReshapeFeatureDistributionsAugmentor: transformed from{X.shape} to {Xt.shape}"
-        )
-        return _TransformResult(Xt, cat_ix)  # type: ignore
+        return (Xt, cat_ix)  # type: ignore
 
     @override
     def _transform(self, X: np.ndarray, *, is_test: bool = False) -> np.ndarray:

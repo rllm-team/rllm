@@ -6,60 +6,37 @@ different members.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from functools import partial
-from itertools import chain, product, repeat
-from typing import TYPE_CHECKING, Literal, TypeVar
+from itertools import product
+from typing import TYPE_CHECKING, Literal
 from typing_extensions import override
 
 import numpy as np
-from packaging import version
-from sklearn.utils.validation import joblib
 
-from rllm.data_augment import (
+from rllm.data_augment import AugmentorPipeline, DataAugmentor
+from rllm.data_augment._add_fingerprint_features_augmentor import (
     AddFingerprintFeaturesAugmentor,
-    AugmentorPipeline,
-    DataAugmentor,
+)
+from rllm.data_augment._encode_categorical_features_augmentor import (
     EncodeCategoricalFeaturesAugmentor,
+)
+from rllm.data_augment._nan_handling_polynomial_features_augmentor import (
     NanHandlingPolynomialFeaturesAugmentor,
+)
+from rllm.data_augment._remove_constant_features_augmentor import (
     RemoveConstantFeaturesAugmentor,
+)
+from rllm.data_augment._reshape_feature_distributions_augmentor import (
     ReshapeFeatureDistributionsAugmentor,
-    ShuffleFeaturesAugmentor,
 )
-from rllm.data_augment.utils import infer_random_state
-
-
-MAXIMUM_FEATURE_SHIFT = 1_000
-CLASS_SHUFFLE_OVERESTIMATE_FACTOR = 3
-
-SUPPORTS_GENERATOR_UNORDERED = version.parse(joblib.__version__) >= version.parse(
-    "1.4.0",
-)
-if SUPPORTS_GENERATOR_UNORDERED:
-    PARALLEL_MODE_TO_RETURN_AS = {
-        "block": "list",
-        "in-order": "generator",
-        "as-ready": "generator_unordered",
-    }
-else:
-    PARALLEL_MODE_TO_RETURN_AS = {
-        "block": "list",
-        "in-order": "generator",
-        "as-ready": "generator",
-    }
+from rllm.data_augment._shuffle_features_augmentor import ShuffleFeaturesAugmentor
+from rllm.data_augment.utils import balance, infer_random_state
 
 if TYPE_CHECKING:
     import numpy.typing as npt
     from sklearn.base import TransformerMixin
     from sklearn.pipeline import Pipeline
-
-T = TypeVar("T")
-
-
-def balance(x: Iterable[T], n: int) -> list[T]:
-    """Take a list of elements and make a new list where each appears `n` times."""
-    return list(chain.from_iterable(repeat(elem, n) for elem in x))
 
 
 @dataclass
@@ -229,12 +206,12 @@ class EnsembleConfig:
     Attributes:
         feature_shift_count: How much to shift the features columns.
         class_permutation: Permutation to apply to classes
-        preprocess_config: Augmentor configuration to use.
+        augment_config: Augmentor configuration to use.
         subsample_ix: Indices of samples to use for this ensemble member.
             If `None`, no subsampling is done.
     """
 
-    preprocess_config: AugmentorConfig
+    augment_config: AugmentorConfig
     add_fingerprint_feature: bool
     polynomial_features: Literal["no", "all"] | int
     feature_shift_count: int
@@ -277,7 +254,8 @@ class EnsembleConfig:
             List of ensemble configurations.
         """
         static_seed, rng = infer_random_state(random_state)
-        start = rng.integers(0, MAXIMUM_FEATURE_SHIFT)
+        # 1000 is MAXIMUM_FEATURE_SHIFT
+        start = rng.integers(0, 1000)
         featshifts = np.arange(start, start + n)
         featshifts = rng.choice(featshifts, size=n, replace=False)  # type: ignore
 
@@ -289,7 +267,8 @@ class EnsembleConfig:
                 class_permutations[c] for c in rng.choice(n_classes, n)
             ]
         elif class_shift_method == "shuffle":
-            noise = rng.random((n * CLASS_SHUFFLE_OVERESTIMATE_FACTOR, n_classes))
+            # 3 is CLASS_SHUFFLE_OVERESTIMATE_FACTOR to increase the chance of getting unique shufflings
+            noise = rng.random((n * 3, n_classes))
             shufflings = np.argsort(noise, axis=1)
             uniqs = np.unique(shufflings, axis=0)
             balance_count = n // len(uniqs)
@@ -334,7 +313,7 @@ class EnsembleConfig:
 
         return [
             ClassifierEnsembleConfig(
-                preprocess_config=preprocess_config,
+                augment_config=augment_config,
                 feature_shift_count=featshift,
                 add_fingerprint_feature=add_fingerprint_feature,
                 polynomial_features=polynomial_features,
@@ -342,7 +321,7 @@ class EnsembleConfig:
                 subsample_ix=subsample_ix,
                 class_permutation=class_perm,
             )
-            for featshift, preprocess_config, subsample_ix, class_perm in zip(
+            for featshift, augment_config, subsample_ix, class_perm in zip(
                 featshifts,
                 configs_,
                 subsamples,
@@ -384,7 +363,8 @@ class EnsembleConfig:
             List of ensemble configurations.
         """
         static_seed, rng = infer_random_state(random_state)
-        start = rng.integers(0, MAXIMUM_FEATURE_SHIFT)
+        # 1000 is MAXIMUM_FEATURE_SHIFT
+        start = rng.integers(0, 1000)
         featshifts = np.arange(start, start + n)
         featshifts = rng.choice(featshifts, size=n, replace=False)  # type: ignore
 
@@ -415,7 +395,7 @@ class EnsembleConfig:
 
         return [
             RegressorEnsembleConfig(
-                preprocess_config=preprocess_config,
+                augment_config=augment_config,
                 feature_shift_count=featshift,
                 add_fingerprint_feature=add_fingerprint_feature,
                 polynomial_features=polynomial_features,
@@ -423,21 +403,20 @@ class EnsembleConfig:
                 subsample_ix=subsample_ix,
                 target_transform=target_transform,
             )
-            for featshift, subsample_ix, (preprocess_config, target_transform) in zip(
+            for featshift, subsample_ix, (augment_config, target_transform) in zip(
                 featshifts,
                 subsamples,
                 configs_,
             )
         ]
 
-    # TODO(eddiebergman): Make this sklearn pipeline
     def to_pipeline(
         self,
         *,
         random_state: int | np.random.Generator | None,
     ) -> AugmentorPipeline:
-        """Convert the ensemble configuration to a preprocessing pipeline."""
-        steps: list[DataAugmentor] = []
+        """Convert the ensemble configuration to a augmenting pipeline."""
+        augmentors: list[DataAugmentor] = []
 
         if isinstance(self.polynomial_features, int):
             assert self.polynomial_features > 0, "Poly. features to add must be >0!"
@@ -454,51 +433,53 @@ class EnsembleConfig:
                 f"Invalid polynomial_features value: {self.polynomial_features}",
             )
         if use_poly_features:
-            steps.append(
+            augmentors.append(
                 NanHandlingPolynomialFeaturesAugmentor(
                     max_features=max_poly_features,
                     random_state=random_state,
                 ),
             )
 
-        steps.extend(
+        augmentors.extend(
             [
                 RemoveConstantFeaturesAugmentor(),
                 ReshapeFeatureDistributionsAugmentor(
-                    transform_name=self.preprocess_config.name,
-                    append_to_original=self.preprocess_config.append_original,
-                    subsample_features=self.preprocess_config.subsample_features,
-                    global_transformer_name=self.preprocess_config.global_transformer_name,
+                    transform_name=self.augment_config.name,
+                    append_to_original=self.augment_config.append_original,
+                    subsample_features=self.augment_config.subsample_features,
+                    global_transformer_name=self.augment_config.global_transformer_name,
                     apply_to_categorical=(
-                        self.preprocess_config.categorical_name == "numeric"
+                        self.augment_config.categorical_name == "numeric"
                     ),
                     random_state=random_state,
                 ),
                 EncodeCategoricalFeaturesAugmentor(
-                    self.preprocess_config.categorical_name,
+                    self.augment_config.categorical_name,
                     random_state=random_state,
                 ),
             ],
         )
 
         if self.add_fingerprint_feature:
-            steps.append(AddFingerprintFeaturesAugmentor(random_state=random_state))
+            augmentors.append(
+                AddFingerprintFeaturesAugmentor(random_state=random_state)
+            )
 
-        steps.append(
+        augmentors.append(
             ShuffleFeaturesAugmentor(
                 shuffle_method=self.feature_shift_decoder,
                 shuffle_index=self.feature_shift_count,
                 random_state=random_state,
             ),
         )
-        return AugmentorPipeline(steps)
+        return AugmentorPipeline(augmentors)
 
 
 @dataclass
 class ClassifierEnsembleConfig(EnsembleConfig):
     """Configuration for a classifier ensemble member.
 
-    See [EnsembleConfig][tabpfn.preprocessing.EnsembleConfig] for more details.
+    See [EnsembleConfig][tabpfn.augmenting.EnsembleConfig] for more details.
     """
 
     class_permutation: np.ndarray | None
@@ -508,13 +489,13 @@ class ClassifierEnsembleConfig(EnsembleConfig):
 class RegressorEnsembleConfig(EnsembleConfig):
     """Configuration for a regression ensemble member.
 
-    See [EnsembleConfig][tabpfn.preprocessing.EnsembleConfig] for more details.
+    See [EnsembleConfig][tabpfn.augmenting.EnsembleConfig] for more details.
     """
 
     target_transform: TransformerMixin | Pipeline | None
 
 
-def fit_preprocessing_one(
+def fit_single_augmentation(
     config: EnsembleConfig,
     X_train: np.ndarray,
     y_train: np.ndarray,
@@ -549,21 +530,11 @@ def fit_preprocessing_one(
     else:
         X_train = X_train.copy()
         y_train = y_train.copy()
-    print(
-        config.add_fingerprint_feature,
-        config.polynomial_features,
-        config.preprocess_config.append_original,
-        config.preprocess_config.categorical_name,
-    )
     augmentor = config.to_pipeline(random_state=static_seed)
-    res = augmentor.fit_transform(X_train, cat_ix)
-    # TODO(eddiebergman): Not a fan of this, wish it was more transparent, but we want
-    # to distuinguish what to do with the `ys` based on the ensemble config type
+    X_train_aug, cat_features = augmentor.fit_transform(X_train, cat_ix)
+
     if isinstance(config, RegressorEnsembleConfig):
         if config.target_transform is not None:
-            # TODO(eddiebergman): Verify this transformer is fitted back in the main
-            # process context, otherwise we need some way to return it, possibly
-            # by just returning the config
             y_train = config.target_transform.fit_transform(
                 y_train.reshape(-1, 1),
             ).ravel()
@@ -572,19 +543,16 @@ def fit_preprocessing_one(
             y_train = config.class_permutation[y_train]
     else:
         raise ValueError(f"Invalid ensemble config type: {type(config)}")
-    print(1111111, res.X.shape)
-    return (config, augmentor, res.X, y_train, res.categorical_features)
+    return (config, augmentor, X_train_aug, y_train, cat_features)
 
 
-def fit_preprocessing(
+def fit_augmentation(
     configs: Sequence[EnsembleConfig],
     X_train: np.ndarray,
     y_train: np.ndarray,
     *,
     random_state: int | np.random.Generator | None,
     cat_ix: list[int],
-    n_workers: int,  # noqa: ARG001
-    parallel_mode: Literal["block", "as-ready", "in-order"],
 ) -> Iterator[
     tuple[
         EnsembleConfig,
@@ -594,7 +562,7 @@ def fit_preprocessing(
         list[int],
     ]
 ]:
-    """Fit augmentation pipelines in parallel.
+    """Fit augmentation pipelines.
 
     Args:
         configs: List of ensemble configurations.
@@ -602,14 +570,6 @@ def fit_preprocessing(
         y_train: Training target.
         random_state: Random number generator.
         cat_ix: Indices of categorical features.
-        n_workers: Number of workers to use.
-        parallel_mode:
-            Parallel mode to use.
-
-            * `"block"`: Blocks until all workers are done. Returns in order.
-            * `"as-ready"`: Returns results as they are ready. Any order.
-            * `"in-order"`: Returns results in order, blocking only in the order that
-                needs to be returned in.
 
     Returns:
         Iterator of tuples containing the ensemble configuration, the fitted
@@ -617,34 +577,6 @@ def fit_preprocessing(
         and the indices of categorical features.
     """
     _, rng = infer_random_state(random_state)
-    return_as = PARALLEL_MODE_TO_RETURN_AS[parallel_mode]
-
-    # TODO: It seems like we really don't benefit from much more than 1,2,4 workers,
-    # even for the largest datasets from AutoMLBenchmark. Even then, the benefit is
-    # marginal. For now, we stick with single worker.
-    #
-    # The parameters worth tuning are `batch_size` and `n_jobs`
-    # * `n_jobs` - how many workers to spawn.
-    # * `batch_size` - how many tasks to send to a worker at once.
-    #
-    # For small datasets (for which this model is built for), it's quite hard to tune
-    # for increased performance and staying at 1 worker seems ideal. However for larger
-    # datasets, at the limit of what we support, having `len(configs) // 2` workers
-    # seemed good, with a `batch_size` of 2.
-    # NOTE: By setting `n_jobs` = 1, it effectively doesn't spawn anything and runs
-    # in-process
-    executor = joblib.Parallel(
-        n_jobs=1,
-        return_as=return_as,
-        batch_size="auto",  # type: ignore
-    )
-    func = partial(fit_preprocessing_one, cat_ix=cat_ix)
-    worker_func = joblib.delayed(func)
-
     seeds = rng.integers(0, np.iinfo(np.int32).max, len(configs))
-    yield from executor(  # type: ignore
-        [
-            worker_func(config, X_train, y_train, seed)
-            for config, seed in zip(configs, seeds)
-        ],
-    )
+    for config, seed in zip(configs, seeds):
+        yield fit_single_augmentation(config, X_train, y_train, seed, cat_ix=cat_ix)

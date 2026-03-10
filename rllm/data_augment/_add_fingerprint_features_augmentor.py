@@ -8,8 +8,7 @@ import numpy as np
 from typing_extensions import override
 
 from rllm.data_augment.data_augmentor import DataAugmentor
-from rllm.data_augment.preprocessing_utils import float_hash_arr
-from rllm.data_augment.utils import infer_random_state
+from rllm.data_augment.utils import float_hash_arr, infer_random_state
 
 
 class AddFingerprintFeaturesAugmentor(DataAugmentor):
@@ -52,7 +51,4 @@ class AddFingerprintFeaturesAugmentor(DataAugmentor):
                     h = float_hash_arr(row + add_to_hash)
                 X_h[i] = h
                 seen_hashes.add(h)
-        print(
-            f"Added fingerprint feature with {len(set(X_h)),X_h.shape} unique values.{np.concatenate([X, X_h.reshape(-1, 1)], axis=1).shape}"
-        )
         return np.concatenate([X, X_h.reshape(-1, 1)], axis=1)

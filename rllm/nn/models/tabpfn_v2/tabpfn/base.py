@@ -13,10 +13,11 @@ from .constants import (
     AUTOCAST_DTYPE_BYTE_SIZE,
     DEFAULT_DTYPE_BYTE_SIZE,
 )
-from .inference import (
-    InferenceEngine,
-    InferenceEngineOnDemand,
-)
+
+# from .inference import (
+#     InferenceEngine,
+#     InferenceEngineOnDemand,
+# )
 from .utils import (
     infer_fp16_inference_mode,
     load_model_criterion_config,
@@ -118,53 +119,53 @@ def determine_precision(
     return use_autocast_, forced_inference_dtype_, byte_size
 
 
-def create_inference_engine(  # noqa: PLR0913
-    *,
-    X_train: np.ndarray,
-    y_train: np.ndarray,
-    model: PerFeatureTransformer,
-    ensemble_configs: Any,
-    cat_ix: list[int],
-    fit_mode: Literal["low_memory", "fit_preprocessors", "fit_with_cache"],
-    device_: torch.device,
-    rng: np.random.Generator,
-    n_jobs: int,
-    byte_size: int,
-    forced_inference_dtype_: torch.dtype | None,
-    use_autocast_: bool,
-) -> InferenceEngine:
-    """Creates the appropriate TabPFN inference engine based on `fit_mode`.
+# def create_inference_engine(  # noqa: PLR0913
+#     *,
+#     X_train: np.ndarray,
+#     y_train: np.ndarray,
+#     model: PerFeatureTransformer,
+#     ensemble_configs: Any,
+#     cat_ix: list[int],
+#     fit_mode: Literal["low_memory", "fit_preprocessors", "fit_with_cache"],
+#     device_: torch.device,
+#     rng: np.random.Generator,
+#     n_jobs: int,
+#     byte_size: int,
+#     forced_inference_dtype_: torch.dtype | None,
+#     use_autocast_: bool,
+# ) -> InferenceEngine:
+#     """Creates the appropriate TabPFN inference engine based on `fit_mode`.
 
-    Each execution mode will perform slightly different operations based on the mode
-    specified by the user. In the case where preprocessors will be fit after `prepare`,
-    we will use them to further transform the associated borders with each ensemble
-    config member.
+#     Each execution mode will perform slightly different operations based on the mode
+#     specified by the user. In the case where preprocessors will be fit after `prepare`,
+#     we will use them to further transform the associated borders with each ensemble
+#     config member.
 
-    Args:
-        X_train: Training features
-        y_train: Training target
-        model: The loaded TabPFN model.
-        ensemble_configs: The ensemble configurations to create multiple "prompts".
-        cat_ix: Indices of inferred categorical features.
-        fit_mode: Determines how we prepare inference (pre-cache or not).
-        device_: The device for inference.
-        rng: Numpy random generator.
-        n_jobs: Number of parallel CPU workers.
-        byte_size: Byte size for the chosen inference precision.
-        forced_inference_dtype_: If not None, the forced dtype for inference.
-        use_autocast_: Whether we use torch.autocast for inference.
-    """
-    # We now support a single, unified inference mode which always runs in
-    # low‑memory / on‑demand fashion. The `fit_mode` argument is kept for
-    # backwards compatibility but is ignored here.
-    return InferenceEngineOnDemand.prepare(
-        X_train=X_train,
-        y_train=y_train,
-        cat_ix=cat_ix,
-        ensemble_configs=ensemble_configs,
-        rng=rng,
-        model=model,
-        n_workers=n_jobs,
-        dtype_byte_size=byte_size,
-        force_inference_dtype=forced_inference_dtype_,
-    )
+#     Args:
+#         X_train: Training features
+#         y_train: Training target
+#         model: The loaded TabPFN model.
+#         ensemble_configs: The ensemble configurations to create multiple "prompts".
+#         cat_ix: Indices of inferred categorical features.
+#         fit_mode: Determines how we prepare inference (pre-cache or not).
+#         device_: The device for inference.
+#         rng: Numpy random generator.
+#         n_jobs: Number of parallel CPU workers.
+#         byte_size: Byte size for the chosen inference precision.
+#         forced_inference_dtype_: If not None, the forced dtype for inference.
+#         use_autocast_: Whether we use torch.autocast for inference.
+#     """
+#     # We now support a single, unified inference mode which always runs in
+#     # low‑memory / on‑demand fashion. The `fit_mode` argument is kept for
+#     # backwards compatibility but is ignored here.
+#     return InferenceEngineOnDemand.prepare(
+#         X_train=X_train,
+#         y_train=y_train,
+#         cat_ix=cat_ix,
+#         ensemble_configs=ensemble_configs,
+#         rng=rng,
+#         model=model,
+#         n_workers=n_jobs,
+#         dtype_byte_size=byte_size,
+#         force_inference_dtype=forced_inference_dtype_,
+#     )
