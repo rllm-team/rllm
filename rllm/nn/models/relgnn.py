@@ -18,7 +18,7 @@ class RelGNN(torch.nn.Module):
     to leverage the unique structural characteristics of the graphs
     built from relational databases from paper
     `"RelGNN: Composite Message Passing for Relational Deep Learning"
-    <https://arxiv.org/abs/2502.06784>`_ paper.
+    <https://arxiv.org/abs/2502.06784>`_.
 
     Args:
         node_types (List[str]): The list of node types.
@@ -183,9 +183,8 @@ class RelGNN(torch.nn.Module):
 
 class RelGNNModel(torch.nn.Module):
     r"""The relational table learning model with RelGNN as the HGNN
-    backbone from paper
-    `"RelGNN: Composite Message Passing for Relational Deep Learning"
-    <https://arxiv.org/abs/2502.06784>`_ paper.
+    backbone from paper `"RelGNN: Composite Message Passing for
+    Relational Deep Learning" <https://arxiv.org/abs/2502.06784>` _.
     The replementation includes Table ResNet as TNN and
     RelGNN as the HGNN following
     the original paper with temporal encoding module.

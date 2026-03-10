@@ -59,8 +59,8 @@ class TransTabCLSToken(torch.nn.Module):
 
 class TransTab(torch.nn.Module):
     r"""TransTab: End-to-end TransTab model for downstream prediction tasks,
-    `"TransTab: Learning Transferable Tabular Transformers Across Tables"`
-    <https://arxiv.org/abs/2205.09328>`_ paper.
+    `"TransTab: Learning Transferable Tabular Transformers Across Tables"
+    <https://arxiv.org/abs/2205.09328>` _ paper.
 
     This model implements the full TransTab pipeline:
       1) Convert ``feat_dict`` into token IDs and value tensors via the

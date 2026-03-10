@@ -17,23 +17,25 @@ class ContrastiveLoss(BaseLoss):
     (via `pos_mask`); all numerical and normalization steps are handled here.
 
     Per-anchor loss:
-    \[
+
+    .. math::
+
         \ell_i = -\frac{1}{|P(i)|}
         \sum_{p \in P(i)} \log
         \frac{\exp(s_{ip} / \tau)}
              {\sum_{a \neq i} \exp(s_{ia} / \tau)}
-    \]
 
-    Batch loss (with scaling factor \(\frac{\tau}{\tau_0}\)):
-    \[
+    Batch loss (with scaling factor :math:`\frac{\tau}{\tau_0}`):
+
+    .. math::
+
         \mathcal{L} =
         \frac{\tau}{\tau_0} \cdot
         \frac{1}{N} \sum_{i=1}^{N} \ell_i
-    \]
 
     Args:
-        temperature (float): Temperature \(\tau\) scaling the logits.
-        base_temperature (float): Reference temperature \(\tau_0\) for scaling.
+        temperature (float): Temperature :math:`\tau` scaling the logits.
+        base_temperature (float): Reference temperature :math:`\tau_0` for scaling.
         similarity (str): Similarity metric, "dot" or "cosine".
         eps (float): Numerical stability constant.
     """

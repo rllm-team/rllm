@@ -27,37 +27,40 @@ class SelfSupervisedVPCL(ContrastiveLoss):
 
     The self-supervised VPCL loss is defined as:
 
-    \[
-    \ell(X) =
-    - \sum_{i=1}^{B} \sum_{k=1}^{K} \sum_{k' \neq k}^{K}
-    \log
-    \frac{
-        \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_i^{k'})\big)
-    }{
-        \sum_{j=1}^{B}\sum_{k^{\dagger}=1}^{K}
-        \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_j^{k^{\dagger}})\big)
-    } .
-    \]
+    .. math::
+
+        \ell(X) =
+        - \sum_{i=1}^{B} \sum_{k=1}^{K} \sum_{k' \neq k}^{K}
+        \log
+        \frac{
+            \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_i^{k'})\big)
+        }{
+            \sum_{j=1}^{B}\sum_{k^{\dagger}=1}^{K}
+            \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_j^{k^{\dagger}})\big)
+        } .
 
     where:
-    - \( B \): batch size
-    - \( K \): number of column partitions per sample
-    - \( \mathbf{v}_i^{k} \): embedding of the \(k\)-th partition of the \(i\)-th row
-    - \( \psi(\cdot, \cdot) \): similarity function (e.g., cosine or dot-product similarity)
+
+    - :math:`B`: batch size
+    - :math:`K`: number of column partitions per sample
+    - :math:`\mathbf{v}_i^{k}`: embedding of the :math:`k`-th partition of the :math:`i`-th row
+    - :math:`\psi(\cdot, \cdot)`: similarity function (e.g., cosine or dot-product similarity)
 
     This objective maximizes the agreement between partition embeddings of the same
     record, while distinguishing them from embeddings belonging to other rows.
 
     Input Shapes
-    - features: torch.Tensor of shape [B, K, D]
-        - \( B \): batch size
-        - \( K \): number of partitions per row
-        - \( D \): projection dimension
 
-    Arguments
-    - temperature (float): Temperature \( \tau \) scaling the logits.
-    - base_temperature (float): Reference temperature \( \tau_0 \) used for final scaling \( \tau / \tau_0 \).
-    - similarity (str): Similarity metric; `"dot"` for raw dot product, `"cosine"` for L2-normalized cosine similarity.
+    - features: torch.Tensor of shape [B, K, D]
+        - :math:`B`: batch size
+        - :math:`K`: number of partitions per row
+        - :math:`D`: projection dimension
+
+    Args
+
+    - temperature (float): Temperature :math:`\tau` scaling the logits.
+    - base_temperature (float): Reference temperature :math:`\tau_0` used for final scaling :math:`\tau / \tau_0`.
+    - similarity (str): Similarity metric; "dot" for raw dot product, "cosine" for L2-normalized cosine similarity.
     - eps (float): Numerical stability constant.
     """
 
@@ -131,43 +134,47 @@ class SupervisedVPCL(ContrastiveLoss):
 
     The supervised VPCL loss is defined as:
 
-    \[
-    \ell(X, y) =
-    - \sum_{i=1}^{B} \sum_{j=1}^{B} \sum_{k=1}^{K} \sum_{k'=1}^{K}
-    \mathbf{1}\{y_j = y_i\}
-    \log
-    \frac{
-        \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_j^{k'})\big)
-    }{
-        \sum_{j^{\dagger}=1}^{B}\sum_{k^{\dagger}=1}^{K}
-        \mathbf{1}\{y_{j^{\dagger}} \neq y_i\}
-        \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_{j^{\dagger}}^{k^{\dagger}})\big)
-    } .
-    \]
+    .. math::
+
+        \ell(X, y) =
+        - \sum_{i=1}^{B} \sum_{j=1}^{B} \sum_{k=1}^{K} \sum_{k'=1}^{K}
+        \mathbf{1}\{y_j = y_i\}
+        \log
+        \frac{
+            \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_j^{k'})\big)
+        }{
+            \sum_{j^{\dagger}=1}^{B}\sum_{k^{\dagger}=1}^{K}
+            \mathbf{1}\{y_{j^{\dagger}} \neq y_i\}
+            \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_{j^{\dagger}}^{k^{\dagger}})\big)
+        } .
 
     where:
-    - \( B \): batch size
-    - \( K \): number of column partitions per sample
-    - \( \mathbf{v}_i^{k} \): embedding of the \(k\)-th partition of the \(i\)-th row
-    - \( \psi(\cdot, \cdot) \): similarity function (dot product or cosine similarity)
-    - \( \mathbf{1}\{\cdot\} \): indicator function
-    - \( y_i \): class label for the \(i\)-th sample
+
+    - :math:`B`: batch size
+    - :math:`K`: number of column partitions per sample
+    - :math:`\mathbf{v}_i^{k}`: embedding of the :math:`k`-th partition of the :math:`i`-th row
+    - :math:`\psi(\cdot, \cdot)`: similarity function (dot product or cosine similarity)
+    - :math:`\mathbf{1}\{\cdot\}`: indicator function
+    - :math:`y_i`: class label for the :math:`i`-th sample
 
     The objective encourages alignment among embeddings belonging to the same class
     while ensuring separability between embeddings of different classes.
 
     Input Shapes:
+
     - features: torch.Tensor of shape [B, K, D]
-        - \( B \): batch size
-        - \( K \): number of partitions per row
-        - \( D \): projection dimension
+        - :math:`B`: batch size
+        - :math:`K`: number of partitions per row
+        - :math:`D`: projection dimension
     - labels: torch.Tensor of shape [B]
         - Integer class label for each sample
 
-    Arguments:
-    - temperature (float): Temperature \( \tau \) scaling the logits.
-    - base_temperature (float): Reference temperature \( \tau_0 \) used for final scaling \( \tau / \tau_0 \).
-    - similarity (str): Similarity metric; `"dot"` for raw dot product,
+    Args:
+
+    - temperature (float): Temperature :math:`\tau` scaling the logits.
+    - base_temperature (float): Reference temperature :math:`\tau_0`
+      used for final scaling :math:`\tau / \tau_0`.
+    - similarity (str): Similarity metric; "dot" for raw dot product,
       "cosine" for L2-normalized cosine similarity.
     - eps (float): Numerical stability constant.
     """
