@@ -28,8 +28,6 @@ class NCBuildingDataset(Dataset):
 
     Args:
         cached_dir (str): Root directory where dataset should be saved.
-        csv_name (str): Name of the CSV file to use. Default is "newyork.csv".
-        mask_name (str): Name of the mask file. Default is "mask_newyork.pt".
         force_reload (bool): If set to `True`, this dataset will be re-process again.
         transform: Optional transform to be applied on the data.
         device: Optional device to move the transformed data to.
@@ -48,73 +46,144 @@ class NCBuildingDataset(Dataset):
             Name        Records     Features
             Size        37,000      23
 
-    Note:
-        The columns commented out in col_types (under ``# aux table cols``) belong to
-        the auxiliary table. They are commented here for convenience when running
-        merged tables.
     """
 
-    url = "https://github.com/FeiyuPan/LakeMLB_datasets/raw/refs/heads/main/datasets/ncbuilding.zip"
+    url = "https://raw.githubusercontent.com/zhengwang100/LakeMLB/main/benckmark/union_based/ncbuilding.zip"
 
-    def __init__(self, cached_dir: str, csv_name: str = "newyork.csv", mask_name: str = "mask_newyork.pt",
-                 force_reload: Optional[bool] = False, transform=None, device=None) -> None:
+    def __init__(self, cached_dir: str, force_reload: Optional[bool] = False, transform=None, device=None
+    ) -> None:
         self.name = "table_ncbuilding"
-        self.csv_name = csv_name
-        self.mask_name = mask_name
         root = os.path.join(cached_dir, self.name)
         super().__init__(root, force_reload=force_reload)
 
         self.data_list: List[TableData] = [
-            TableData.load(self.processed_paths[0])
+            TableData.load(self.processed_paths[0]),
+            TableData.load(self.processed_paths[1]),
+            TableData.load(self.processed_paths[2]),
+            TableData.load(self.processed_paths[3]),
         ]
         self.transform = transform
         if self.transform is not None:
-            if device is not None:
-                self.data_list[0] = self.transform(self.data_list[0]).to(device)
-            else:
-                self.data_list[0] = self.transform(self.data_list[0])
+            for i, data in enumerate(self.data_list):
+                self.data_list[i] = (
+                    self.transform(data).to(device) if device is not None
+                    else self.transform(data)
+                )
 
     @property
     def raw_filenames(self):
         return [
-            "chicago_25pct.csv",
-            "chicago_50pct.csv",
-            "chicago_75pct.csv",
+            "newyork.csv",
             "chicago.csv",
-            "mask_chicago_25pct.pt",
-            "mask_chicago_50pct.pt",
-            "mask_chicago_75pct.pt",
-            "mask_chicago.pt",
-            "mask_da.pt",
-            "mask_newyork.pt",
             "ncbuilding_da.csv",
             "ncbuilding_fa.csv",
-            "newyork.csv",
+            "mask_newyork.pt",
+            "mask_da.pt",
         ]
 
     @property
     def processed_filenames(self):
-        base = osp.splitext(self.csv_name)[0]
-        return [f"ncbuilding_{base}_data.pt"]
+        return [
+            "newyork_data.pt",
+            "chicago_data.pt",
+            "ncbuilding_da_data.pt",
+            "ncbuilding_fa_data.pt",
+        ]
 
     def process(self):
         os.makedirs(self.processed_dir, exist_ok=True)
-        csv_path = osp.join(self.raw_dir, self.csv_name)
-        masks_path = osp.join(self.raw_dir, self.mask_name)
-        df = None
-        for encoding in ['utf-8', 'utf-8-sig', 'gbk', 'gb18030', 'latin1']:
-            try:
-                df = pd.read_csv(csv_path, encoding=encoding)
-                print(f"Successfully loaded CSV with encoding: {encoding}")
-                print(f"Columns found: {list(df.columns[:5])}...")
-                break
-            except (UnicodeDecodeError, Exception) as e:
-                print(f"Failed to load with encoding {encoding}: {e}")
-                continue
+        # New York Data
+        csv_path = osp.join(self.raw_dir, self.raw_filenames[0])
+        col_types = {
+            "ViolationID": ColType.NUMERICAL,
+            "BuildingID": ColType.NUMERICAL,
+            "RegistrationID": ColType.NUMERICAL,
+            "BoroID": ColType.CATEGORICAL,
+            "Borough": ColType.CATEGORICAL,
+            "HouseNumber": ColType.CATEGORICAL,
+            "LowHouseNumber": ColType.CATEGORICAL,
+            "HighHouseNumber": ColType.CATEGORICAL,
+            "StreetName": ColType.CATEGORICAL,
+            "StreetCode": ColType.CATEGORICAL,
+            "Postcode": ColType.CATEGORICAL,
+            "Apartment": ColType.CATEGORICAL,
+            "Story": ColType.CATEGORICAL,
+            "Block": ColType.CATEGORICAL,
+            "Lot": ColType.CATEGORICAL,
+            "Class": ColType.CATEGORICAL,
+            "InspectionDate": ColType.CATEGORICAL,
+            "ApprovedDate": ColType.CATEGORICAL,
+            "OriginalCertifyByDate": ColType.CATEGORICAL,
+            "OriginalCorrectByDate": ColType.CATEGORICAL,
+            "NewCertifyByDate": ColType.CATEGORICAL,
+            "NewCorrectByDate": ColType.CATEGORICAL,
+            "CertifiedDate": ColType.CATEGORICAL,
+            "NOVID": ColType.NUMERICAL,
+            "StatuteCodes": ColType.CATEGORICAL,
+            "NOVIssuedDate": ColType.CATEGORICAL,
+            "CurrentStatusID": ColType.CATEGORICAL,
+            "CurrentStatus": ColType.CATEGORICAL,
+            "CurrentStatusDate": ColType.CATEGORICAL,
+            "NovType": ColType.CATEGORICAL,
+            "ViolationStatus": ColType.CATEGORICAL,
+            "RentImpairing": ColType.CATEGORICAL,
+            "Latitude": ColType.NUMERICAL,
+            "Longitude": ColType.NUMERICAL,
+            "CommunityBoard": ColType.CATEGORICAL,
+            "CouncilDistrict": ColType.CATEGORICAL,
+            "CensusTract": ColType.CATEGORICAL,
+            "BIN": ColType.NUMERICAL,
+            "BBL": ColType.NUMERICAL,
+            "NTA": ColType.CATEGORICAL,
+        }
+        newyork_df = pd.read_csv(csv_path, low_memory=False)
+        masks_path = osp.join(self.raw_dir, self.raw_filenames[4])
+        masks = torch.load(masks_path, weights_only=False)
+        TableData(
+            df=newyork_df,
+            col_types=col_types,
+            target_col="StatuteCodes",
+            train_mask=masks["train_mask"],
+            val_mask=masks["val_mask"],
+            test_mask=masks["test_mask"],
+        ).save(self.processed_paths[0])
 
-        if df is None:
-            raise ValueError("Failed to load CSV with any supported encoding")
+        # Chicago Data
+        csv_path = osp.join(self.raw_dir, self.raw_filenames[1])
+        col_types = {
+            "ID": ColType.NUMERICAL,
+            "VIOLATION LAST MODIFIED DATE": ColType.CATEGORICAL,
+            "VIOLATION DATE": ColType.CATEGORICAL,
+            "VIOLATION STATUS":  ColType.CATEGORICAL,
+            "VIOLATION STATUS DATE": ColType.CATEGORICAL,
+            "VIOLATION DESCRIPTION":  ColType.CATEGORICAL,
+            "VIOLATION LOCATION": ColType.CATEGORICAL,
+            "VIOLATION INSPECTOR COMMENTS": ColType.CATEGORICAL,
+            "INSPECTOR ID": ColType.NUMERICAL,
+            "INSPECTION NUMBER": ColType.NUMERICAL,
+            "INSPECTION STATUS": ColType.CATEGORICAL,
+            "INSPECTION WAIVED": ColType.CATEGORICAL,
+            "INSPECTION CATEGORY": ColType.CATEGORICAL,
+            "ADDRESS": ColType.CATEGORICAL,
+            "STREET NUMBER": ColType.NUMERICAL,
+            "STREET DIRECTION": ColType.CATEGORICAL,
+            "STREET NAME": ColType.CATEGORICAL,
+            "STREET TYPE": ColType.CATEGORICAL,
+            "PROPERTY GROUP": ColType.NUMERICAL,
+            "SSA": ColType.NUMERICAL,
+            "LATITUDE": ColType.NUMERICAL,
+            "LONGITUDE": ColType.NUMERICAL,
+            "LOCATION": ColType.CATEGORICAL,
+        }
+        chicago_df = pd.read_csv(csv_path, low_memory=False)
+        TableData(
+            df=chicago_df,
+            col_types=col_types,
+            target_col="VIOLATION DESCRIPTION",
+        ).save(self.processed_paths[1])
 
+        # Merged Data(DA)
+        csv_path = osp.join(self.raw_dir, self.raw_filenames[2])
         col_types = {
             "ViolationID": ColType.NUMERICAL,
             "BuildingID": ColType.NUMERICAL,
@@ -157,41 +226,121 @@ class NCBuildingDataset(Dataset):
             "BBL": ColType.NUMERICAL,
             "NTA": ColType.CATEGORICAL,
             # aux table cols
-            # "ID": ColType.NUMERICAL,
-            # "VIOLATION LAST MODIFIED DATE": ColType.CATEGORICAL,
-            # "VIOLATION DATE": ColType.CATEGORICAL,
-            # # "VIOLATION STATUS":  ColType.CATEGORICAL, #da
-            # "VIOLATION STATUS DATE": ColType.CATEGORICAL,
-            # # "VIOLATION DESCRIPTION":  ColType.CATEGORICAL, #da
-            # "VIOLATION LOCATION": ColType.CATEGORICAL,
-            # "VIOLATION INSPECTOR COMMENTS": ColType.CATEGORICAL,
-            # "INSPECTOR ID": ColType.NUMERICAL,
-            # "INSPECTION NUMBER": ColType.NUMERICAL,
-            # "INSPECTION STATUS": ColType.CATEGORICAL,
-            # "INSPECTION WAIVED": ColType.CATEGORICAL,
-            # "INSPECTION CATEGORY": ColType.CATEGORICAL,
-            # "ADDRESS": ColType.CATEGORICAL,
-            # "STREET NUMBER": ColType.NUMERICAL,
-            # "STREET DIRECTION": ColType.CATEGORICAL,
-            # # "STREET NAME": ColType.CATEGORICAL, #da
-            # "STREET TYPE": ColType.CATEGORICAL,
-            # "PROPERTY GROUP": ColType.NUMERICAL,
-            # "SSA": ColType.NUMERICAL,
-            # # "LATITUDE": ColType.NUMERICAL, #da
-            # # "LONGITUDE": ColType.NUMERICAL, #da
-            # "LOCATION": ColType.CATEGORICAL,
+            "ID": ColType.NUMERICAL,
+            "VIOLATION LAST MODIFIED DATE": ColType.CATEGORICAL,
+            "VIOLATION DATE": ColType.CATEGORICAL,
+            # "VIOLATION STATUS":  ColType.CATEGORICAL, #da
+            "VIOLATION STATUS DATE": ColType.CATEGORICAL,
+            # "VIOLATION DESCRIPTION":  ColType.CATEGORICAL, #da
+            "VIOLATION LOCATION": ColType.CATEGORICAL,
+            "VIOLATION INSPECTOR COMMENTS": ColType.CATEGORICAL,
+            "INSPECTOR ID": ColType.NUMERICAL,
+            "INSPECTION NUMBER": ColType.NUMERICAL,
+            "INSPECTION STATUS": ColType.CATEGORICAL,
+            "INSPECTION WAIVED": ColType.CATEGORICAL,
+            "INSPECTION CATEGORY": ColType.CATEGORICAL,
+            "ADDRESS": ColType.CATEGORICAL,
+            "STREET NUMBER": ColType.NUMERICAL,
+            "STREET DIRECTION": ColType.CATEGORICAL,
+            # "STREET NAME": ColType.CATEGORICAL, #da
+            "STREET TYPE": ColType.CATEGORICAL,
+            "PROPERTY GROUP": ColType.NUMERICAL,
+            "SSA": ColType.NUMERICAL,
+            # "LATITUDE": ColType.NUMERICAL, #da
+            # "LONGITUDE": ColType.NUMERICAL, #da
+            "LOCATION": ColType.CATEGORICAL,
         }
-
+        ncbuilding_da_df = pd.read_csv(csv_path, low_memory=False)
+        masks_path = osp.join(self.raw_dir, self.raw_filenames[5])
         masks = torch.load(masks_path, weights_only=False)
-        data = TableData(
-            df=df,
+        TableData(
+            df=ncbuilding_da_df,
             col_types=col_types,
             target_col="StatuteCodes",
             train_mask=masks["train_mask"],
             val_mask=masks["val_mask"],
             test_mask=masks["test_mask"],
-        )
-        data.save(self.processed_paths[0])
+        ).save(self.processed_paths[2])
+
+        # Merged Data(FA)
+        csv_path = osp.join(self.raw_dir, self.raw_filenames[3])
+        col_types = {
+            "ViolationID": ColType.NUMERICAL,
+            "BuildingID": ColType.NUMERICAL,
+            "RegistrationID": ColType.NUMERICAL,
+            "BoroID": ColType.CATEGORICAL,
+            "Borough": ColType.CATEGORICAL,
+            "HouseNumber": ColType.CATEGORICAL,
+            "LowHouseNumber": ColType.CATEGORICAL,
+            "HighHouseNumber": ColType.CATEGORICAL,
+            "StreetName": ColType.CATEGORICAL,
+            "StreetCode": ColType.CATEGORICAL,
+            "Postcode": ColType.CATEGORICAL,
+            "Apartment": ColType.CATEGORICAL,
+            "Story": ColType.CATEGORICAL,
+            "Block": ColType.CATEGORICAL,
+            "Lot": ColType.CATEGORICAL,
+            "Class": ColType.CATEGORICAL,
+            "InspectionDate": ColType.CATEGORICAL,
+            "ApprovedDate": ColType.CATEGORICAL,
+            "OriginalCertifyByDate": ColType.CATEGORICAL,
+            "OriginalCorrectByDate": ColType.CATEGORICAL,
+            "NewCertifyByDate": ColType.CATEGORICAL,
+            "NewCorrectByDate": ColType.CATEGORICAL,
+            "CertifiedDate": ColType.CATEGORICAL,
+            "NOVID": ColType.NUMERICAL,
+            "StatuteCodes": ColType.CATEGORICAL,
+            "NOVIssuedDate": ColType.CATEGORICAL,
+            "CurrentStatusID": ColType.CATEGORICAL,
+            "CurrentStatus": ColType.CATEGORICAL,
+            "CurrentStatusDate": ColType.CATEGORICAL,
+            "NovType": ColType.CATEGORICAL,
+            "ViolationStatus": ColType.CATEGORICAL,
+            "RentImpairing": ColType.CATEGORICAL,
+            "Latitude": ColType.NUMERICAL,
+            "Longitude": ColType.NUMERICAL,
+            "CommunityBoard": ColType.CATEGORICAL,
+            "CouncilDistrict": ColType.CATEGORICAL,
+            "CensusTract": ColType.CATEGORICAL,
+            "BIN": ColType.NUMERICAL,
+            "BBL": ColType.NUMERICAL,
+            "NTA": ColType.CATEGORICAL,
+            # aux table cols
+            "ID": ColType.NUMERICAL,
+            "VIOLATION LAST MODIFIED DATE": ColType.CATEGORICAL,
+            "VIOLATION DATE": ColType.CATEGORICAL,
+            "VIOLATION STATUS":  ColType.CATEGORICAL,
+            "VIOLATION STATUS DATE": ColType.CATEGORICAL,
+            "VIOLATION DESCRIPTION":  ColType.CATEGORICAL,
+            "VIOLATION LOCATION": ColType.CATEGORICAL,
+            "VIOLATION INSPECTOR COMMENTS": ColType.CATEGORICAL,
+            "INSPECTOR ID": ColType.NUMERICAL,
+            "INSPECTION NUMBER": ColType.NUMERICAL,
+            "INSPECTION STATUS": ColType.CATEGORICAL,
+            "INSPECTION WAIVED": ColType.CATEGORICAL,
+            "INSPECTION CATEGORY": ColType.CATEGORICAL,
+            "ADDRESS": ColType.CATEGORICAL,
+            "STREET NUMBER": ColType.NUMERICAL,
+            "STREET DIRECTION": ColType.CATEGORICAL,
+            "STREET NAME": ColType.CATEGORICAL,
+            "STREET TYPE": ColType.CATEGORICAL,
+            "PROPERTY GROUP": ColType.NUMERICAL,
+            "SSA": ColType.NUMERICAL,
+            "LATITUDE": ColType.NUMERICAL,
+            "LONGITUDE": ColType.NUMERICAL,
+            "LOCATION": ColType.CATEGORICAL,
+        }
+        ncbuilding_fa_df = pd.read_csv(csv_path, low_memory=False)
+        masks_path = osp.join(self.raw_dir, self.raw_filenames[4])
+        masks = torch.load(masks_path, weights_only=False)
+        TableData(
+            df=ncbuilding_fa_df,
+            col_types=col_types,
+            target_col="StatuteCodes",
+            train_mask=masks["train_mask"],
+            val_mask=masks["val_mask"],
+            test_mask=masks["test_mask"],
+        ).save(self.processed_paths[3])
 
     def download(self):
         os.makedirs(self.raw_dir, exist_ok=True)
@@ -200,9 +349,9 @@ class NCBuildingDataset(Dataset):
         os.remove(path)
 
     def __len__(self):
-        return 1
+        return 4
 
     def __getitem__(self, index: int):
-        if index != 0:
+        if index < 0 or index >= len(self.data_list):
             raise IndexError
-        return self.data_list[0]
+        return self.data_list[index]
