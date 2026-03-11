@@ -155,7 +155,7 @@ class TransTab(torch.nn.Module):
             ColType.BINARY: [],
             ColType.NUMERICAL: [],
         }
-        self.pre_encoder = TransTabEncoder(
+        self.table_encoder = TransTabEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
             vocab_size=self.extractor.tokenizer.vocab_size,
@@ -213,7 +213,7 @@ class TransTab(torch.nn.Module):
         """
         if isinstance(x, TableData) or hasattr(x, "feat_dict"):
             # Pass TableData or TableData-like object to pre_encoder
-            proc_out = self.pre_encoder(x)
+            proc_out = self.table_encoder(x)
         else:
             raise ValueError(
                 f"Expected input type TableData or object with feat_dict, got {type(x)}"
@@ -244,7 +244,7 @@ class TransTab(torch.nn.Module):
         2) Save the state_dict of this model (conv + cls_token)
         """
         # 1) save extractor + pre_encoder
-        self.pre_encoder.save(ckpt_dir)
+        self.table_encoder.save(ckpt_dir)
 
         # 2) Save model weights
         os.makedirs(ckpt_dir, exist_ok=True)
@@ -261,12 +261,12 @@ class TransTab(torch.nn.Module):
         4) Move the model to self.device
         """
         # 1) Restore extractor + pre_encoder
-        self.pre_encoder.load(ckpt_dir)
+        self.table_encoder.load(ckpt_dir)
 
         # 2) Synchronous column mapping
-        self.categorical_columns = self.pre_encoder.extractor.categorical_columns
-        self.numerical_columns = self.pre_encoder.extractor.numerical_columns
-        self.binary_columns = self.pre_encoder.extractor.binary_columns
+        self.categorical_columns = self.table_encoder.extractor.categorical_columns
+        self.numerical_columns = self.table_encoder.extractor.numerical_columns
+        self.binary_columns = self.table_encoder.extractor.binary_columns
 
         # 3) Load model weights to CPU
         model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
@@ -285,7 +285,7 @@ class TransTab(torch.nn.Module):
     def update(self, config: Dict[str, Any]) -> None:
         col_map = {k: v for k, v in config.items() if k in ("cat", "num", "bin")}
         if col_map:
-            ext = self.pre_encoder.extractor
+            ext = self.table_encoder.extractor
             ext.update(
                 cat=col_map.get("cat", None),
                 num=col_map.get("num", None),
@@ -568,7 +568,7 @@ class TransTabForCL(TransTab):
                 tokenizer_config=tokenizer_config,
             )
             # Process through pre_encoder
-            proc = self.pre_encoder(sub_table)
+            proc = self.table_encoder(sub_table)
             emb = proc["embedding"]
             mask = proc["attention_mask"]
             # Add CLS token

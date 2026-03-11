@@ -78,7 +78,7 @@ class TabTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.encoder = TabTransformerEncoder(
+        self.table_encoder = TabTransformerEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
         )
@@ -95,7 +95,7 @@ class TabTransformer(torch.nn.Module):
         )
 
     def forward(self, x):
-        x = self.encoder(x, return_dict=True)
+        x = self.table_encoder(x, return_dict=True)
         for conv in self.convs:
             x = conv(x)
         x[ColType.CATEGORICAL] = x[ColType.CATEGORICAL].flatten(1)

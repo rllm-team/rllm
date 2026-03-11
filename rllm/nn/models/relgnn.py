@@ -1,6 +1,5 @@
 from typing import Any, Dict, List, Tuple, Optional
 from collections import defaultdict
-import warnings
 
 import torch
 from torch import Tensor

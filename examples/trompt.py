@@ -79,7 +79,7 @@ class Trompt(torch.nn.Module):
         self.out_dim = out_dim
         self.x_prompt = torch.nn.Parameter(torch.empty(num_prompts, hidden_dim))
 
-        self.encoders = torch.nn.ModuleList()
+        self.table_encoders = torch.nn.ModuleList()
         self.convs = torch.nn.ModuleList()
         for _ in range(num_layers):
             self.convs.append(
@@ -91,7 +91,7 @@ class Trompt(torch.nn.Module):
                     metadata=metadata,
                 )
             )
-            self.encoders.append(
+            self.table_encoders.append(
                 TromptEncoder(
                     out_dim=hidden_dim,
                     metadata=metadata,
@@ -122,7 +122,7 @@ class Trompt(torch.nn.Module):
         outs = []
         batch_size = x[list(x.keys())[0]].size(0)
         x_prompt = self.x_prompt.unsqueeze(0).repeat(batch_size, 1, 1)
-        for encoder, conv in zip(self.encoders, self.convs):
+        for encoder, conv in zip(self.table_encoders, self.convs):
             x_encoded = encoder(x)
             x_prompt = conv(x_encoded, x_prompt)
             w_prompt = F.softmax(self.linear(x_prompt), dim=1)

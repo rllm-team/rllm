@@ -74,7 +74,7 @@ class FTTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.encoder = FTTransformerEncoder(
+        self.table_encoder = FTTransformerEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
         )
@@ -89,7 +89,7 @@ class FTTransformer(torch.nn.Module):
         )
 
     def forward(self, x) -> Tensor:
-        x = self.encoder(x)
+        x = self.table_encoder(x)
         for conv in self.convs:
             x = conv(x)
         out = self.fc(x[:, 0, :])

@@ -72,18 +72,18 @@ class SAINT(torch.nn.Module):
         self,
         hidden_dim: int,
         out_dim: int,
-        num_feats: int,
+        num_cols: int,
         num_layers: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.encoder = FTTransformerEncoder(
+        self.table_encoder = FTTransformerEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
         )
         self.convs = torch.nn.ModuleList()
         for _ in range(num_layers):
-            self.convs.append(SAINTConv(conv_dim=hidden_dim, num_feats=num_feats))
+            self.convs.append(SAINTConv(conv_dim=hidden_dim, num_cols=num_cols))
 
         self.fc = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
@@ -92,7 +92,7 @@ class SAINT(torch.nn.Module):
         )
 
     def forward(self, x) -> Tensor:
-        x = self.encoder(x)
+        x = self.table_encoder(x)
         for conv in self.convs:
             x = conv(x)
         out = self.fc(x.mean(dim=1))
@@ -104,7 +104,7 @@ model = SAINT(
     hidden_dim=args.emb_dim,
     out_dim=data.num_classes,
     num_layers=args.num_layers,
-    num_feats=data.num_cols,
+    num_cols=data.num_cols,
     metadata=data.metadata,
 ).to(device)
 optimizer = torch.optim.AdamW(
