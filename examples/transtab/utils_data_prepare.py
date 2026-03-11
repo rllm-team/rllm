@@ -97,7 +97,7 @@ def create_subtable(base_table, keep_cols: List[str], target_col: str, tokenizer
         col_types=sub_col_types,
         target_col=target_col,
         tokenizer_config=tokenizer_config,
-        categorical_as_text=(tokenizer_config is not None),
+        convert_text_coltypes={ColType.CATEGORICAL} if tokenizer_config is not None else None,
     )
     if hasattr(base_table, 'train_mask'):
         subtable.train_mask = base_table.train_mask
