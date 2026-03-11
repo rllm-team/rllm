@@ -25,7 +25,7 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import DefaultTableTransform
-from rllm.nn.encoder import TromptEncoder
+from rllm.nn.encoder import TromptTableEncoder
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
@@ -92,7 +92,7 @@ class Trompt(torch.nn.Module):
                 )
             )
             self.table_encoders.append(
-                TromptEncoder(
+                TromptTableEncoder(
                     out_dim=hidden_dim,
                     metadata=metadata,
                 )

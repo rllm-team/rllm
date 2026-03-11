@@ -28,7 +28,7 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic, BankMarketing
 from rllm.transforms.table_transforms import DefaultTableTransform
-from rllm.nn.encoder import FTTransformerEncoder
+from rllm.nn.encoder import FTTransformerTableEncoder
 from rllm.nn.conv.table_conv.saint_conv import SAINTConv
 
 parser = argparse.ArgumentParser()
@@ -77,7 +77,7 @@ class SAINT(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.table_encoder = FTTransformerEncoder(
+        self.table_encoder = FTTransformerTableEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
         )

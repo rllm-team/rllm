@@ -14,7 +14,7 @@ from rllm.preprocessing import TransTabDataExtractor
 from rllm.data.table_data import TableData
 
 
-class TransTabEncoder(TableEncoder):
+class TransTabTableEncoder(TableEncoder):
     """
     A specialized TableEncoder for the TransTab model.
     Uses word-based embedding for categorical and binary features,

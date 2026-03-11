@@ -7,9 +7,9 @@ from ._linear_encoder import LinearEncoder
 from rllm.types import ColType
 
 
-class FTTransformerEncoder(TableEncoder):
+class FTTransformerTableEncoder(TableEncoder):
     r"""
-    The FTTransformerEncoder class is a specialized pre-encoder for the
+    The FTTransformerTableEncoder class is a specialized pre-encoder for the
     FTTransformer model. It initializes a column-specific encoder dict for
     categorical and numerical features based on the provided metadata.
     Specifically, it uses `EmbeddingEncoder` for categorical features and

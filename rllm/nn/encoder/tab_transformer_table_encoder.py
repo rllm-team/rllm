@@ -1,15 +1,18 @@
+from __future__ import annotations
 from typing import Any, Dict, List
 
-from rllm.types import ColType
 from .table_encoder import TableEncoder
 from .embedding_encoder import EmbeddingEncoder
-from ._linear_encoder import LinearEncoder
-from ._timestamp_encoder import TimestampEncoder
-from ._textembedding_encoder import TextEmbeddingEncoder
+from ._reshape_encoder import ReshapeEncoder
+from rllm.types import ColType
 
 
-class ResNetEncoder(TableEncoder):
-    r"""The pre-encoder for ResNet TNN.
+class TabTransformerTableEncoder(TableEncoder):
+    r"""The TabTransformerEncoder class is a specialized pre-encoder for the
+    TabTransformer model. It initializes a column-specific encoder dict for
+    categorical and numerical features based on the provided metadata.
+    Specifically, it uses `EmbeddingEncoder` for categorical features and
+    `ReshapeEncoder` for numerical features.
 
     Args:
         out_dim (int): The output dimensionality.
@@ -25,9 +28,6 @@ class ResNetEncoder(TableEncoder):
     ) -> None:
         col_pre_encoder_dict = {
             ColType.CATEGORICAL: EmbeddingEncoder(),
-            ColType.NUMERICAL: LinearEncoder(),
-            ColType.TIMESTAMP: TimestampEncoder(),
-            ColType.TEXT: TextEmbeddingEncoder(),
+            ColType.NUMERICAL: ReshapeEncoder(),
         }
-
         super().__init__(out_dim, metadata, col_pre_encoder_dict)

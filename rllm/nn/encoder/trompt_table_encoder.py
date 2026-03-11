@@ -9,9 +9,9 @@ from ._linear_encoder import LinearEncoder
 from rllm.types import ColType
 
 
-class TromptEncoder(TableEncoder):
+class TromptTableEncoder(TableEncoder):
     r"""
-    The TromptEncoder class is a specialized pre-encoder for the
+    The TromptTableEncoder class is a specialized pre-encoder for the
     Trompt model. It initializes a column-specific encoder dict for
     categorical and numerical features based on the provided metadata.
     Specifically, it uses `EmbeddingEncoder` for categorical features and

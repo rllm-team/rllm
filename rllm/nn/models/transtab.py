@@ -12,7 +12,7 @@ from rllm.types import ColType
 from rllm.preprocessing import TokenizerConfig, TransTabDataExtractor
 from rllm.data.table_data import TableData
 from rllm.nn.loss import SupervisedVPCL, SelfSupervisedVPCL
-from rllm.nn.encoder import TransTabEncoder
+from rllm.nn.encoder import TransTabTableEncoder
 from rllm.nn.conv.table_conv import TransTabConv
 from rllm.nn.models.base_model import LinearClassifier
 
@@ -155,7 +155,7 @@ class TransTab(torch.nn.Module):
             ColType.BINARY: [],
             ColType.NUMERICAL: [],
         }
-        self.table_encoder = TransTabEncoder(
+        self.table_encoder = TransTabTableEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
             vocab_size=self.extractor.tokenizer.vocab_size,

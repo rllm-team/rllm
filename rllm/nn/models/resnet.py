@@ -8,7 +8,7 @@ from torch.nn import Sequential
 
 from rllm.types import ColType
 from rllm.data import TableData
-from rllm.nn.encoder import ResNetEncoder
+from rllm.nn.encoder import ResNetTableEncoder
 from rllm.nn.conv.table_conv import ResNetConv
 
 
@@ -40,7 +40,7 @@ class TableResNet(torch.nn.Module):
         self.dropout = dropout
 
         # TableEncoder
-        self.pre_encoder = ResNetEncoder(
+        self.pre_encoder = ResNetTableEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
         )
