@@ -354,11 +354,11 @@ class TransTabTableEncoder(TableEncoder):
         for col_type, feat in feat_dict.items():
             if col_type == ColType.NUMERICAL:
                 col_ids, col_mask, raw_vals = feat
-                token_emb = self.encoder_dict[ColType.CATEGORICAL.value](col_ids)
+                token_emb = self.col_encoder_dict[ColType.CATEGORICAL.value](col_ids)
                 mask = col_mask.unsqueeze(-1)
                 token_emb = token_emb * mask
                 col_emb = token_emb.sum(1) / mask.sum(1)
-                num_emb = self.encoder_dict[ColType.NUMERICAL.value](
+                num_emb = self.col_encoder_dict[ColType.NUMERICAL.value](
                     col_emb, raw_vals=raw_vals
                 )
                 feat_encoded[col_type] = num_emb
@@ -367,7 +367,9 @@ class TransTabTableEncoder(TableEncoder):
                     input_ids = feat[0]
                 else:
                     input_ids = feat
-                feat_encoded[col_type] = self.encoder_dict[col_type.value](input_ids)
+                feat_encoded[col_type] = self.col_encoder_dict[col_type.value](
+                    input_ids
+                )
         return feat_encoded
 
     def _collect_masks(
