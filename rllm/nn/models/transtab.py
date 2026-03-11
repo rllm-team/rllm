@@ -64,7 +64,7 @@ class TransTab(torch.nn.Module):
 
     This model implements the full TransTab pipeline:
       1) Convert ``feat_dict`` into token IDs and value tensors via the
-         integrated :class:`TransTabPreEncoder`.
+         integrated :class:`TransTabTableEncoder`.
       2) Encode tokens/values into feature embeddings and attention masks.
       3) Prepend a learnable [CLS] token and encode the sequence via a
          multi-layer Transformer stack (TransTabCLSToken + TransTabConv).
@@ -90,9 +90,9 @@ class TransTab(torch.nn.Module):
         temperature (float): Temperature parameter for contrastive loss.
         base_temperature (float): Base temperature for stability scaling.
         tokenizer: Optional pretrained tokenizer instance (e.g., BertTokenizerFast).
-            If provided, will be used by :class:`TransTabPreEncoder`; otherwise
+            If provided, will be used by :class:`TransTabTableEncoder`; otherwise
             one is created automatically. (default: None)
-        **kwargs: Additional keyword arguments passed to :class:`TransTabPreEncoder`.
+        **kwargs: Additional keyword arguments passed to :class:`TransTabTableEncoder`.
     """
 
     def __init__(
@@ -233,7 +233,7 @@ class TransTab(torch.nn.Module):
 
         # Cache the pre-trained table_encoder state for subsequent update calls
         pe_path = os.path.join(ckpt_dir, "input_encoder.bin")
-        self._TableEncoder_state = torch.load(
+        self._table_encoder_state = torch.load(
             pe_path, map_location="cpu", weights_only=True
         )
 
@@ -291,7 +291,7 @@ class TransTabClassifier(TransTab):
         ffn_dim (int): Inner dimension of Transformer feedforward networks.
         activation (str): Activation function for feedforward layers ("relu", etc.).
         tokenizer: Optional pretrained tokenizer instance. If provided, will be
-            used by the underlying :class:`TransTabPreEncoder`. (default: None)
+            used by the underlying :class:`TransTabTableEncoder`. (default: None)
         **kwargs: Additional keyword arguments passed to :class:`TransTab`.
     """
 
@@ -397,7 +397,7 @@ class TransTabForCL(TransTab):
         base_temperature (float): Base temperature for loss normalization.
         activation (str): Activation function for feedforward layers.
         tokenizer: Optional pretrained tokenizer instance. If provided, will be
-            used by the underlying :class:`TransTabPreEncoder`. (default: None)
+            used by the underlying :class:`TransTabTableEncoder`. (default: None)
         **kwargs: Additional keyword arguments passed to :class:`TransTab`.
     """
 

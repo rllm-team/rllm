@@ -25,13 +25,13 @@ class ResNetTableEncoder(TableEncoder):
         Encoded outputs are produced when inherited ``forward`` is called.
 
     Example:
-        >>> from rllm.nn.encoder.resnet_table_encoder import ResNetEncoder
+        >>> from rllm.nn.encoder import ResNetTableEncoder
         >>> from rllm.types import ColType
         >>> metadata = {
         ...     ColType.CATEGORICAL: [{"num_classes": 100}],
         ...     ColType.NUMERICAL: [{"mean": 0.0, "std": 1.0}],
         ... }
-        >>> encoder = ResNetEncoder(out_dim=32, metadata=metadata)
+        >>> encoder = ResNetTableEncoder(out_dim=32, metadata=metadata)
     """
 
     def __init__(
@@ -39,7 +39,7 @@ class ResNetTableEncoder(TableEncoder):
         out_dim: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ) -> None:
-        # Select one pre-encoder per column type.
+        # Select one col-encoder per column type.
         col_encoder_dict = {
             ColType.CATEGORICAL: EmbeddingEncoder(),
             ColType.NUMERICAL: LinearEncoder(),

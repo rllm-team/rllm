@@ -451,7 +451,7 @@ class TransTabTableEncoder(TableEncoder):
                 ):
                     raise ValueError(
                         "TableData must be materialized before passing to "
-                        "TransTabPreEncoder. Call table_data.lazy_materialize() first."
+                        "TransTabTableEncoder. Call table_data.lazy_materialize() first."
                     )
 
                 data = self._adapt_feat_dict(
@@ -496,7 +496,7 @@ class TransTabTableEncoder(TableEncoder):
                 return self._align_and_concat(emb_dict, masks)
             else:
                 raise TypeError(
-                    "TransTabPreEncoder.forward: x must be a TableData or an "
+                    "TransTabTableEncoder.forward: x must be a TableData or an "
                     "object with a feat_dict attribute."
                 )
 
@@ -530,7 +530,7 @@ class TransTabTableEncoder(TableEncoder):
         os.makedirs(path, exist_ok=True)
         encoder_path = os.path.join(path, "input_encoder.bin")
         torch.save(self.state_dict(), encoder_path)
-        print(f"Saved TransTabPreEncoder weights to {encoder_path}")
+        print(f"Saved TransTabTableEncoder weights to {encoder_path}")
 
     def load(self, ckpt_dir: str) -> None:
         r"""Load tokenizer, column configuration, and encoder weights.
@@ -555,6 +555,6 @@ class TransTabTableEncoder(TableEncoder):
         except TypeError:
             state_dict = torch.load(encoder_path, map_location="cpu")
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
-        print(f"Loaded TransTabPreEncoder weights from {encoder_path}")
+        print(f"Loaded TransTabTableEncoder weights from {encoder_path}")
         print(f"  Missing keys: {missing}")
         print(f"  Unexpected keys: {unexpected}")
