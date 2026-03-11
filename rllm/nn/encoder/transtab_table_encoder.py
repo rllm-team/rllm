@@ -17,7 +17,7 @@ from rllm.types import ColType
 from rllm.data.table_data import TableData
 
 
-class TransTabPreEncoder(PreEncoder):
+class TransTabTableEncoder(TableEncoder):
     r"""Pre-encoder for the TransTab model as proposed in
     `"TransTab: Learning Transferable Tabular Transformers Across Tables"
     <https://arxiv.org/abs/2205.09328>`_ paper.
@@ -86,7 +86,7 @@ class TransTabPreEncoder(PreEncoder):
             ignore_duplicate_cols,
         )
 
-        col_pre_encoder_dict = {
+        col_encoder_dict = {
             ColType.CATEGORICAL: TransTabWordEmbeddingEncoder(
                 vocab_size=self.tokenizer.vocab_size,
                 out_dim=out_dim,
@@ -103,7 +103,7 @@ class TransTabPreEncoder(PreEncoder):
             ),
             ColType.NUMERICAL: TransTabNumEmbeddingEncoder(hidden_dim=out_dim),
         }
-        super().__init__(out_dim, metadata, col_pre_encoder_dict)
+        super().__init__(out_dim, metadata, col_encoder_dict)
 
         self.align_layer = (
             torch.nn.Linear(out_dim, out_dim, bias=False)
@@ -354,11 +354,11 @@ class TransTabPreEncoder(PreEncoder):
         for col_type, feat in feat_dict.items():
             if col_type == ColType.NUMERICAL:
                 col_ids, col_mask, raw_vals = feat
-                token_emb = self.pre_encoder_dict[ColType.CATEGORICAL.value](col_ids)
+                token_emb = self.encoder_dict[ColType.CATEGORICAL.value](col_ids)
                 mask = col_mask.unsqueeze(-1)
                 token_emb = token_emb * mask
                 col_emb = token_emb.sum(1) / mask.sum(1)
-                num_emb = self.pre_encoder_dict[ColType.NUMERICAL.value](
+                num_emb = self.encoder_dict[ColType.NUMERICAL.value](
                     col_emb, raw_vals=raw_vals
                 )
                 feat_encoded[col_type] = num_emb
@@ -367,9 +367,7 @@ class TransTabPreEncoder(PreEncoder):
                     input_ids = feat[0]
                 else:
                     input_ids = feat
-                feat_encoded[col_type] = self.pre_encoder_dict[col_type.value](
-                    input_ids
-                )
+                feat_encoded[col_type] = self.encoder_dict[col_type.value](input_ids)
         return feat_encoded
 
     def _collect_masks(

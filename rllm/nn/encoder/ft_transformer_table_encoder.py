@@ -30,8 +30,8 @@ class FTTransformerTableEncoder(TableEncoder):
         metadata: Dict[ColType, List[Dict[str, Any]]],
         in_dim: int = 1,
     ) -> None:
-        col_pre_encoder_dict = {
+        col_encoder_dict = {
             ColType.CATEGORICAL: EmbeddingEncoder(),
             ColType.NUMERICAL: LinearEncoder(in_dim=in_dim),
         }
-        super().__init__(out_dim, metadata, col_pre_encoder_dict)
+        super().__init__(out_dim, metadata, col_encoder_dict)

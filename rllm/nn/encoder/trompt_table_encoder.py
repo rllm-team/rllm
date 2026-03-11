@@ -32,7 +32,7 @@ class TromptTableEncoder(TableEncoder):
         metadata: Dict[ColType, List[Dict[str, Any]]],
         in_dim: int = 1,
     ) -> None:
-        col_pre_encoder_dict = {
+        col_encoder_dict = {
             ColType.CATEGORICAL: EmbeddingEncoder(
                 post_module=torch.nn.LayerNorm(out_dim)
             ),
@@ -43,4 +43,4 @@ class TromptTableEncoder(TableEncoder):
                 ),
             ),
         }
-        super().__init__(out_dim, metadata, col_pre_encoder_dict)
+        super().__init__(out_dim, metadata, col_encoder_dict)

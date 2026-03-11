@@ -61,17 +61,22 @@ class HGT(torch.nn.Module):
         metadata: Dict[str, List[str]] = None,
     ):
         super().__init__()
+        self.encoder = torch.nn.ModuleDict()
+        for node_type, node_in_dim in in_dim.items():
+            self.encoder[node_type] = torch.nn.Linear(node_in_dim, hidden_dim)
         self.hgt_conv = HGTConv(
-            in_dim=in_dim,
+            in_dim=hidden_dim,
             out_dim=hidden_dim,
             num_heads=num_heads,
             dropout=dropout,
             metadata=metadata,
-            use_pre_encoder=True,
         )
         self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x_dict, adj_dict):
+        x_dict = {
+            node_type: self.encoder[node_type](x) for node_type, x in x_dict.items()
+        }
         out = self.hgt_conv(x_dict, adj_dict)
         out = self.lin(out[target_node_type])
         return out

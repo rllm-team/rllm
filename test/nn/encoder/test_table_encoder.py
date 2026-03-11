@@ -20,7 +20,7 @@ from rllm.nn.encoder import TabTransformerTableEncoder
 from rllm.nn.encoder import FTTransformerTableEncoder
 
 
-def test_tab_transformer_pre_encoder():
+def test_tab_transformer_table_encoder():
     nodes = 10
 
     # Create a DataFrame
@@ -42,14 +42,14 @@ def test_tab_transformer_pre_encoder():
     dataset = TableData(df, col_types, target_col="cat_2")
 
     # Create and initialize TabTransformerEncoder
-    pre_encoder = TabTransformerTableEncoder(
+    table_encoder = TabTransformerTableEncoder(
         out_dim=1,
         metadata=dataset.metadata,
     )
 
     # Encode numerical and categorical features
     feat_dict = dataset.get_feat_dict()
-    x_emb = pre_encoder(dataset.get_feat_dict())
+    x_emb = table_encoder(dataset.get_feat_dict())
 
     # Check the shape of the encoded features
     assert x_emb.shape == (
@@ -59,7 +59,7 @@ def test_tab_transformer_pre_encoder():
     )
 
 
-def test_ft_transformer_pre_encoder():
+def test_ft_transformer_table_encoder():
     nodes = 10
 
     # Create a DataFrame
@@ -81,14 +81,14 @@ def test_ft_transformer_pre_encoder():
     dataset = TableData(df, col_types, target_col="cat_2")
 
     # Create and initialize FTTransformerEncoder
-    pre_encoder = FTTransformerTableEncoder(
+    table_encoder = FTTransformerTableEncoder(
         out_dim=1,
         metadata=dataset.metadata,
     )
 
     # Encode numerical and categorical features
     feat_dict = dataset.get_feat_dict()
-    x_emb = pre_encoder(dataset.get_feat_dict())
+    x_emb = table_encoder(dataset.get_feat_dict())
 
     # Check the shape of the encoded features
     assert x_emb.shape == (
