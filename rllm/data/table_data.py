@@ -628,7 +628,9 @@ class TableData(BaseTable):
         elif col_types == ColType.BINARY:
             if col_copy.isnull().any():
                 col_copy.fillna(col_copy.mode()[0], inplace=True)
-            indicators = getattr(self, "binary_indicator", ["1", "yes", "true", "t", "y"])
+            indicators = getattr(
+                self, "binary_indicator", ["1", "yes", "true", "t", "y"]
+            )
             col_copy = col_copy.astype(str).map(
                 lambda x: 1 if x.lower() in indicators else 0
             )
@@ -647,9 +649,11 @@ class TableData(BaseTable):
                 embeddings = embedder(col_list)
             else:
                 emb_list = []
-                for i in tqdm(range(0, len(col_list), batch_size),
-                              desc="Embedding raw data in mini-batch"):
-                    emb = embedder(col_list[i:i + batch_size])
+                for i in tqdm(
+                    range(0, len(col_list), batch_size),
+                    desc="Embedding raw data in mini-batch",
+                ):
+                    emb = embedder(col_list[i : i + batch_size])
                     emb_list.append(emb)
                 embeddings = torch.cat(emb_list, dim=0)
             return embeddings.float()
@@ -727,9 +731,7 @@ class TableData(BaseTable):
 
     @after_materialize
     def get_label_ids(
-        self,
-        indices: Sequence[int],
-        device: Optional[torch.device] = None
+        self, indices: Sequence[int], device: Optional[torch.device] = None
     ) -> torch.Tensor:
         r"""Returns the label id Tensor (long) for the given row number.
         Make sure to only do fit/transform once, then index y directly."""

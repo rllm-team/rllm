@@ -8,13 +8,6 @@ from dataclasses import dataclass
 from typing import Literal
 
 
-# TODO(eddiebergman):
-# * Some parameters effect model architecture which only makes sense when training
-# * Some parameters are used for training such as `epochs` (`batch_size`?)
-# TODO(eddiebergman): Remove inheritance from `MutableMapping` once problems fixed
-# TODO(eddiebergman): Anything with a default value basically has every config have it
-#   to the same value, could consider removing those. In some cases, the code asserts
-#   that it should be that value.
 @dataclass
 class InferenceConfig:
     """Configuration for the TabPFN model."""

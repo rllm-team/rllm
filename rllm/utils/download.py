@@ -25,21 +25,21 @@ def download_url(
         path (str): Path of the contents downloaded.
     """
     if filename is None:
-        filename = url.rpartition('/')[2]
-        filename = filename if filename[0] == '?' else filename.split('?')[0]
+        filename = url.rpartition("/")[2]
+        filename = filename if filename[0] == "?" else filename.split("?")[0]
 
     path = osp.join(folder, filename)
     os.makedirs(folder, exist_ok=True)
     # context = ssl._create_unverified_context()
     context = ssl.create_default_context()
     # safe check:
-    assert url[:4].lower() == "http", 'Only HTTP or HTTPS is supported.'
+    assert url[:4].lower() == "http", "Only HTTP or HTTPS is supported."
     data = urllib.request.urlopen(url, context=context)
 
-    with open(path, 'wb') as f, tqdm(
-        desc=f'Downloading {url}',
-        total=int(data.info().get('Content-Length', -1)),
-        unit='B',
+    with open(path, "wb") as f, tqdm(
+        desc=f"Downloading {url}",
+        total=int(data.info().get("Content-Length", -1)),
+        unit="B",
         unit_scale=True,
         unit_divisor=1024,
     ) as bar:
@@ -66,5 +66,28 @@ def download_google_url(
         filename (str): The filename of the downloaded file.
 
     """
-    url = f'https://drive.usercontent.google.com/download?id={id}&confirm=t'
+    url = f"https://drive.usercontent.google.com/download?id={id}&confirm=t"
     return download_url(url, folder, filename)
+
+
+def download_model_from_huggingface(
+    repo: str,
+    model_name: str,
+    download_path: str,
+) -> bool:
+    """Download a model checkpoint from primary/fallback mirrors."""
+    urls = [
+        f"https://huggingface.co/{repo}/resolve/main/{model_name}?download=true",
+        f"https://hf-mirror.com/{repo}/resolve/main/{model_name}?download=true",
+    ]
+    os.makedirs(download_path, exist_ok=True)
+    for url in urls:
+        try:
+            download_url(url=url, folder=download_path, filename=model_name)
+            print(f"Downloaded successfully from {url}")
+            return True
+        except Exception as e:  # noqa: BLE001
+            print(f"Failed to download from {url}: {e}")
+
+    print("Download failed from both URLs.")
+    return False

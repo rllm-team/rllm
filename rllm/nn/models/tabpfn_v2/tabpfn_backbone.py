@@ -178,11 +178,7 @@ class PerFeatureTransformer(nn.Module):
             decoder_dict = {"standard": (None, 1)}
 
         super().__init__()
-        # print("Initializing PerFeatureTransformer")
-        # print(
-        #     f"{ninp=}, {nhead=}, {nhid=}, {nlayers=}, {activation=}, {recompute_layer=}, {min_num_layers_layer_dropout=}, {repeat_same_layer=}, {features_per_group=}, {feature_positional_embedding=}, {zero_init=}, {use_separate_decoder=}, {nlayers_decoder=}, {use_encoder_compression_layer=}"
-        # )
-        # exit()
+
         if encoder is None:
             encoder = SequentialEncoder(
                 LinearInputEncoderStep(

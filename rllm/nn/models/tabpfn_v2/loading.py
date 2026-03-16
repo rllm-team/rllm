@@ -28,226 +28,9 @@ from .encoders import (
     SequentialEncoder,
     VariableNumFeaturesEncoderStep,
 )
-from .transformer import PerFeatureTransformer
+from .tabpfn_backbone import PerFeatureTransformer
 
 logger = logging.getLogger(__name__)
-
-
-class ModelType(str, Enum):
-    CLASSIFIER = "classifier"
-    REGRESSOR = "regressor"
-
-
-class ModelVersion(str, Enum):
-    V2 = "v2"
-
-
-@dataclass
-class ModelSource:
-    repo_id: str
-    default_filename: str
-    filenames: list[str]
-
-    @classmethod
-    def get_classifier_v2(cls) -> ModelSource:
-        filenames = [
-            "tabpfn-v2-classifier.ckpt",
-            "tabpfn-v2-classifier-gn2p4bpt.ckpt",
-            "tabpfn-v2-classifier-llderlii.ckpt",
-            "tabpfn-v2-classifier-od3j1g5m.ckpt",
-            "tabpfn-v2-classifier-vutqq28w.ckpt",
-            "tabpfn-v2-classifier-znskzxi4.ckpt",
-        ]
-        return cls(
-            repo_id="Prior-Labs/TabPFN-v2-clf",
-            default_filename="tabpfn-v2-classifier.ckpt",
-            filenames=filenames,
-        )
-
-    @classmethod
-    def get_regressor_v2(cls) -> ModelSource:
-        filenames = [
-            "tabpfn-v2-regressor.ckpt",
-            "tabpfn-v2-regressor-09gpqh39.ckpt",
-            "tabpfn-v2-regressor-2noar4o2.ckpt",
-            "tabpfn-v2-regressor-5wof9ojf.ckpt",
-        ]
-        return cls(
-            repo_id="Prior-Labs/TabPFN-v2-reg",
-            default_filename="tabpfn-v2-regressor.ckpt",
-            filenames=filenames,
-        )
-
-    def get_fallback_urls(self) -> list[str]:
-        return [
-            f"https://huggingface.co/{self.repo_id}/resolve/main/{filename}?download=true"
-            for filename in self.filenames
-        ]
-
-
-def _get_model_source(version: ModelVersion, model_type: ModelType) -> ModelSource:
-    if version == ModelVersion.V2:
-        if model_type == ModelType.CLASSIFIER:
-            return ModelSource.get_classifier_v2()
-        if model_type == ModelType.REGRESSOR:
-            return ModelSource.get_regressor_v2()
-
-    raise ValueError(
-        f"Unsupported version/model combination: {version.value}/{model_type.value}",
-    )
-
-
-def _try_huggingface_downloads(
-    base_path: Path,
-    source: ModelSource,
-    model_name: str | None = None,
-) -> None:
-    """Try to download models and config using the HuggingFace Hub API."""
-    try:
-        from huggingface_hub import hf_hub_download
-    except ImportError as e:
-        raise ImportError(
-            "Please install huggingface_hub: pip install huggingface-hub",
-        ) from e
-
-    if model_name:
-        if model_name not in source.filenames:
-            raise ValueError(
-                f"Model {model_name} not found in available models: {source.filenames}",
-            )
-        filename = model_name
-    else:
-        filename = source.default_filename
-        if filename not in source.filenames:
-            source.filenames.append(filename)
-
-    logger.info(f"Attempting HuggingFace download: {filename}")
-
-    # Create parent directory if it doesn't exist
-    base_path.parent.mkdir(parents=True, exist_ok=True)
-
-    try:
-        # Download model checkpoint
-        local_path = hf_hub_download(
-            repo_id=source.repo_id,
-            filename=filename,
-            local_dir=base_path.parent,
-        )
-        # Move model file to desired location
-        Path(local_path).rename(base_path)
-
-        # Download config.json
-        try:
-            config_path = base_path.parent / "config.json"
-            config_local_path = hf_hub_download(
-                repo_id=source.repo_id,
-                filename="config.json",
-                local_dir=base_path.parent,
-            )
-            if Path(config_local_path) != config_path:
-                Path(config_local_path).rename(config_path)
-            config_path.unlink()
-        except Exception as e:
-            logger.warning(f"Failed to download config.json: {e!s}")
-            # Continue even if config.json download fails
-
-        logger.info(f"Successfully downloaded to {base_path}")
-    except Exception as e:
-        raise Exception("HuggingFace download failed!") from e
-
-
-def _try_direct_downloads(
-    base_path: Path,
-    source: ModelSource,
-    model_name: str | None = None,
-) -> None:
-    """Try to download models and config using direct URLs."""
-    if model_name:
-        if model_name not in source.filenames:
-            raise ValueError(
-                f"Model {model_name} not found in available models: {source.filenames}",
-            )
-        filename = model_name
-    else:
-        filename = source.default_filename
-        if filename not in source.filenames:
-            source.filenames.append(filename)
-
-    model_url = (
-        f"https://huggingface.co/{source.repo_id}/resolve/main/{filename}?download=true"
-    )
-    config_url = f"https://huggingface.co/{source.repo_id}/resolve/main/config.json?download=true"
-
-    # Create parent directory if it doesn't exist
-    base_path.parent.mkdir(parents=True, exist_ok=True)
-
-    logger.info(f"Attempting download from {model_url}")
-
-    try:
-        # Download model checkpoint
-        with urllib.request.urlopen(model_url) as response:  # noqa: S310
-            if response.status != 200:
-                raise URLError(
-                    f"HTTP {response.status} when downloading from {model_url}",
-                )
-            base_path.write_bytes(response.read())
-
-        # Try to download config.json
-        config_path = base_path.parent / "config.json"
-        try:
-            with urllib.request.urlopen(config_url) as response:  # noqa: S310
-                if response.status == 200:
-                    config_path.write_bytes(response.read())
-        except Exception:  # noqa: BLE001
-            logger.warning("Failed to download config.json!")
-            # Continue even if config.json download fails
-
-        logger.info(f"Successfully downloaded to {base_path}")
-    except Exception as e:
-        raise Exception("Direct download failed!") from e
-
-
-def download_model(
-    to: Path,
-    *,
-    version: Literal["v2"],
-    which: Literal["classifier", "regressor"],
-    model_name: str | None = None,
-) -> Literal["ok"] | list[Exception]:
-    """Download a TabPFN model, trying all available sources.
-
-    Args:
-        to: The directory to download the model to.
-        version: The version of the model to download.
-        which: The type of model to download.
-        model_name: Optional specific model name to download.
-
-    Returns:
-        "ok" if the model was downloaded successfully, otherwise a list of
-        exceptions that occurred that can be handled as desired.
-    """
-    errors: list[Exception] = []
-
-    try:
-        model_source = _get_model_source(ModelVersion(version), ModelType(which))
-    except ValueError as e:
-        return [e]
-
-    try:
-        _try_huggingface_downloads(to, model_source, model_name)
-        return "ok"
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"HuggingFace downloads failed: {e!s}")
-        errors.append(e)
-
-    try:
-        _try_direct_downloads(to, model_source, model_name)
-        return "ok"
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"Direct URL downloads failed: {e!s}")
-        errors.append(e)
-
-    return errors
 
 
 def get_loss_criterion(
@@ -405,12 +188,17 @@ def load_model(
 ) -> tuple[
     PerFeatureTransformer,
     InferenceConfig,
+    object,
 ]:
     """Loads a model from a given path.
 
     Args:
         path: Path to the checkpoint
         model_seed: The seed to use for the model
+
+    Returns:
+        Tuple of (model, config, loss_criterion). loss_criterion is a
+        FullSupportBarDistribution for regression models, or None for classifiers.
     """
     # Catch the `FutureWarning` that torch raises. This should be dealt with!
     # The warning is raised due to `torch.load`, which advises against ckpt
@@ -511,4 +299,9 @@ def load_model(
     )
     model.load_state_dict(state_dict)
     model.eval()
-    return model, config
+    criterion_to_return = (
+        loss_criterion
+        if isinstance(loss_criterion, FullSupportBarDistribution)
+        else None
+    )
+    return model, config, criterion_to_return

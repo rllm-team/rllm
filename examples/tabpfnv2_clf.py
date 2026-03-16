@@ -46,7 +46,8 @@ y_train = train_dataset.y
 y_test = test_dataset.y
 
 # Initialize and load the model
-model_path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "models", "tabpfn_v2")
+model_path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "checkpoint", "tabpfn")
+print(model_path)
 model = TabPFNv2(
     model_dir=model_path,
     model_type="clf",
