@@ -29,6 +29,21 @@ class LinearEncoder(ColEncoder):
         activation (torch.nn.Module, optional): The activation function
             applied after the linear transformation. If :obj:`None`,
             no activation function will be applied (default: :obj:`None`).
+
+    Returns:
+        This class does not return a tensor in ``__init__``.
+        The ``forward`` method returns embeddings of shape
+        ``[batch_size, num_cols, out_dim]``.
+
+    Example:
+        >>> import torch
+        >>> from rllm.types import StatType
+        >>> stats = [{StatType.MEAN: 0.0, StatType.STD: 1.0} for _ in range(3)]
+        >>> enc = LinearEncoder(in_dim=1, out_dim=8, stats_list=stats)
+        >>> enc.post_init()
+        >>> x = torch.randn(5, 3)
+        >>> enc(x).shape
+        torch.Size([5, 3, 8])
     """
 
     supported_types = {ColType.NUMERICAL}

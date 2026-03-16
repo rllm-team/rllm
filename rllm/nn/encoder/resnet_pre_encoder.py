@@ -1,18 +1,18 @@
 from typing import Any, Dict, List
 
 from rllm.types import ColType
-from .table_encoder import TableEncoder
+from .pre_encoder import PreEncoder
 from .embedding_encoder import EmbeddingEncoder
 from ._linear_encoder import LinearEncoder
 from ._timestamp_encoder import TimestampEncoder
 from ._textembedding_encoder import TextEmbeddingEncoder
 
 
-class ResNetTableEncoder(TableEncoder):
-    r"""The table encoder for ResNet TNN.
+class ResNetPreEncoder(PreEncoder):
+    r"""The pre-encoder for ResNet TNN.
 
     This encoder builds column-type-specific pre-encoders, then delegates the
-    shared table encoding pipeline to :class:`TableEncoder`.
+    shared table encoding pipeline to :class:`PreEncoder`.
 
     Args:
         out_dim (int): The output dimensionality.
@@ -25,13 +25,13 @@ class ResNetTableEncoder(TableEncoder):
         Encoded outputs are produced when inherited ``forward`` is called.
 
     Example:
-        >>> from rllm.nn.encoder import ResNetTableEncoder
+        >>> from rllm.nn.encoder import ResNetPreEncoder
         >>> from rllm.types import ColType
         >>> metadata = {
         ...     ColType.CATEGORICAL: [{"num_classes": 100}],
         ...     ColType.NUMERICAL: [{"mean": 0.0, "std": 1.0}],
         ... }
-        >>> encoder = ResNetTableEncoder(out_dim=32, metadata=metadata)
+        >>> encoder = ResNetPreEncoder(out_dim=32, metadata=metadata)
     """
 
     def __init__(

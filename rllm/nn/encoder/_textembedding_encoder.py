@@ -22,6 +22,21 @@ class TextEmbeddingEncoder(ColEncoder):
             output, such as activation function and normalization. Must
             preserve the shape of the output. If :obj:`None`, no module will
             be applied to the output (default: :obj:`None`).
+
+    Returns:
+        This class does not return a tensor in ``__init__``.
+        The ``forward`` method returns text column embeddings with shape
+        ``[batch_size, num_text_cols, out_dim]``.
+
+    Example:
+        >>> import torch
+        >>> from rllm.types import StatType
+        >>> stats = [{StatType.EMB_DIM: 6}, {StatType.EMB_DIM: 6}]
+        >>> enc = TextEmbeddingEncoder(out_dim=4, stats_list=stats)
+        >>> enc.post_init()
+        >>> x = torch.randn(3, 2, 6)
+        >>> enc(x).shape
+        torch.Size([3, 2, 4])
     """
 
     supported_types = {ColType.TEXT}

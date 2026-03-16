@@ -32,6 +32,14 @@ class RDL(torch.nn.Module):
         hgnn_aggr (str): The aggregation method for HGNN.
         hgnn_num_layers (int): The number of layers for HGNN.
         use_temporal_encoder (bool): Whether to use temporal encoder.
+
+    Returns:
+        This class does not return tensors in ``__init__``.
+        The ``forward`` method returns predictions for the target table.
+
+    Example:
+        >>> # RDL is typically instantiated with a prepared HeteroGraphData object.
+        >>> from rllm.nn.models import RDL
     """
 
     def __init__(
@@ -123,6 +131,15 @@ class RDL(torch.nn.Module):
         batch: HeteroGraphData,
         target_table: str,
     ) -> Tensor:
+        """Run table encoding, optional temporal encoding, HGNN propagation, and output head.
+
+        Args:
+            batch (HeteroGraphData): Batched heterogeneous relational graph data.
+            target_table (str): Node type to predict.
+
+        Returns:
+            Tensor: Output predictions for rows in the target table.
+        """
         seed_time = batch[target_table].seed_time
         # 1. apply TNN to each node type (table)
         x_dict = {}

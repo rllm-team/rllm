@@ -1,17 +1,17 @@
-from .tab_transformer_table_encoder import TabTransformerTableEncoder
-from .ft_transformer_table_encoder import FTTransformerTableEncoder
-from .transtab_table_encoder import TransTabTableEncoder
-from .resnet_table_encoder import ResNetTableEncoder
+from .tab_transformer_pre_encoder import TabTransformerPreEncoder
+from .ft_transformer_pre_encoder import FTTransformerPreEncoder
+from .transtab_pre_encoder import TransTabPreEncoder
+from .resnet_pre_encoder import ResNetPreEncoder
 from .heterotemporal_encoder import HeteroTemporalEncoder
-from .trompt_table_encoder import TromptTableEncoder
+from .trompt_pre_encoder import TromptPreEncoder
 
 __all__ = [
     # TNN Model Encoder
-    "TabTransformerTableEncoder",
-    "FTTransformerTableEncoder",
-    "TransTabTableEncoder",
-    "ResNetTableEncoder",
-    "TromptTableEncoder",
+    "TabTransformerPreEncoder",
+    "FTTransformerPreEncoder",
+    "TransTabPreEncoder",
+    "ResNetPreEncoder",
+    "TromptPreEncoder",
     # Additional Encoders
     "HeteroTemporalEncoder",
 ]

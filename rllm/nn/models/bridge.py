@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from rllm.types import ColType
 from rllm.data import TableData
-from rllm.nn.encoder import TabTransformerTableEncoder
+from rllm.nn.encoder import TabTransformerPreEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 
@@ -30,6 +30,14 @@ class TableBackbone(torch.nn.Module):
         table_conv (Type[torch.nn.Module], optional):
             The convolution module to be used for encoding the table data
             (default: :obj:`rllm.nn.conv.table_conv.TabTransformerConv`).
+
+    Returns:
+        This class does not return tensors in ``__init__``.
+        The ``forward`` method returns pooled table embeddings.
+
+    Example:
+        >>> from rllm.nn.models.bridge import TableBackbone
+        >>> backbone = TableBackbone(in_dim=16, out_dim=32, metadata={})
     """
 
     def __init__(
@@ -44,11 +52,19 @@ class TableBackbone(torch.nn.Module):
         super().__init__()
 
         self.convs = torch.nn.ModuleList()
-        self.encoder = TabTransformerTableEncoder(out_dim=out_dim, metadata=metadata)
+        self.encoder = TabTransformerPreEncoder(out_dim=out_dim, metadata=metadata)
         for _ in range(num_layers):
             self.convs.append(table_conv(conv_dim=out_dim))
 
     def forward(self, table: TableData) -> Tensor:
+        """Encode a table into a pooled feature representation.
+
+        Args:
+            table (TableData): Input table data object.
+
+        Returns:
+            Tensor: Encoded tensor of shape ``[batch_size, out_dim]``.
+        """
         x = table.feat_dict
         x = self.encoder(x, return_dict=True)
         for conv in self.convs:
@@ -74,6 +90,14 @@ class GraphBackbone(torch.nn.Module):
         graph_conv (Type[torch.nn.Module], optional):
             The convolution module to be used for encoding the graph data
             (default: :obj:`rllm.nn.conv.graph_conv.GCNConv`).
+
+    Returns:
+        This class does not return tensors in ``__init__``.
+        The ``forward`` method returns graph node embeddings.
+
+    Example:
+        >>> from rllm.nn.models.bridge import GraphBackbone
+        >>> backbone = GraphBackbone(in_dim=16, out_dim=8)
     """
 
     def __init__(
@@ -98,6 +122,16 @@ class GraphBackbone(torch.nn.Module):
         x: Tensor,
         adj: Union[Tensor, List[Tensor]],
     ) -> Tensor:
+        """Apply stacked graph convolutions to node features.
+
+        Args:
+            x (Tensor): Node features.
+            adj (Union[Tensor, List[Tensor]]): Full-batch adjacency tensor or
+                sampled adjacency tensors for mini-batch training.
+
+        Returns:
+            Tensor: Output node embeddings.
+        """
         # Full batch training or full test
         if isinstance(adj, Tensor):
             for conv in self.convs[:-1]:
@@ -128,6 +162,14 @@ class BRIDGE(torch.nn.Module):
     Args:
         table_backbone (TableBackbone): Backbones for tabular data.
         graph_backbone (GraphBackbone): Backbones for graph data.
+
+    Returns:
+        This class does not return tensors in ``__init__``.
+        The ``forward`` method returns node representations for table rows.
+
+    Example:
+        >>> from rllm.nn.models.bridge import BRIDGE, TableBackbone, GraphBackbone
+        >>> model = BRIDGE(TableBackbone(16, 32, metadata={}), GraphBackbone(32, 8))
     """
 
     def __init__(

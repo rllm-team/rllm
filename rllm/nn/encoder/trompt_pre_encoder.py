@@ -3,15 +3,15 @@ from typing import Any, Dict, List
 
 import torch
 
-from .table_encoder import TableEncoder
+from .pre_encoder import PreEncoder
 from .embedding_encoder import EmbeddingEncoder
 from ._linear_encoder import LinearEncoder
 from rllm.types import ColType
 
 
-class TromptTableEncoder(TableEncoder):
+class TromptPreEncoder(PreEncoder):
     r"""
-    The TromptTableEncoder class is a specialized pre-encoder for the
+    The TromptPreEncoder class is a specialized pre-encoder for the
     Trompt model. It initializes a column-specific encoder dict for
     categorical and numerical features based on the provided metadata.
     Specifically, it uses `EmbeddingEncoder` for categorical features and
@@ -24,6 +24,10 @@ class TromptTableEncoder(TableEncoder):
             properties of the columns.
         in_dim (int, optional): The input dimensionality for numerical features
             (default: :obj:`1`).
+
+    Returns:
+        This class does not return a tensor in ``__init__``.
+        Encoded outputs are produced by inherited ``forward``.
     """
 
     def __init__(

@@ -32,6 +32,15 @@ class TimestampEncoder(ColEncoder):
         fill_nan (bool, optional): Whether to fill NaN values with the median timestamp.
             If True, the median timestamp will be used to fill in the NaN values.
             (default: :obj:`False`).
+
+    Returns:
+        This class does not return a tensor in ``__init__``.
+        The ``forward`` method returns timestamp embeddings with shape
+        ``[batch_size, num_timestamp_cols, out_dim]``.
+
+    Example:
+        >>> from rllm.nn.encoder import TimestampEncoder
+        >>> enc = TimestampEncoder(out_dim=16, stats_list=[])
     """
 
     supported_types = {ColType.TIMESTAMP}

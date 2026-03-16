@@ -11,6 +11,18 @@ class PositionalEncoder(Module):
 
     Args:
         out_size (int): The output dimension size.
+
+    Returns:
+        This class does not return a tensor in ``__init__``.
+        The ``forward`` method returns encoded tensor with shape
+        ``input_tensor.shape + (out_size,)``.
+
+    Example:
+        >>> import torch
+        >>> enc = PositionalEncoder(out_size=8)
+        >>> x = torch.rand(2, 3)
+        >>> enc(x).shape
+        torch.Size([2, 3, 8])
     """
     def __init__(self, out_size: int) -> None:
         super().__init__()

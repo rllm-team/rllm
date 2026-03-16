@@ -10,7 +10,22 @@ from rllm.types import ColType, StatType
 
 
 def _reset_parameters_soft(module: torch.nn.Module):
-    r"""Call reset_parameters() only when it exists. Skip activation module."""
+    r"""Safely reset parameters for a module if supported.
+
+    This helper checks whether ``module`` exposes a callable
+    ``reset_parameters`` method and invokes it when available.
+
+    Args:
+        module (torch.nn.Module): Module to reset.
+
+    Returns:
+        None: The module is updated in place.
+
+    Example:
+        >>> import torch
+        >>> layer = torch.nn.Linear(4, 8)
+        >>> _reset_parameters_soft(layer)
+    """
     if hasattr(module, "reset_parameters") and callable(module.reset_parameters):
         module.reset_parameters()
 

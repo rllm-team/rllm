@@ -38,6 +38,18 @@ class ContrastiveLoss(BaseLoss):
         base_temperature (float): Reference temperature :math:`\tau_0` for scaling.
         similarity (str): Similarity metric, "dot" or "cosine".
         eps (float): Numerical stability constant.
+
+    Returns:
+        This class does not return tensors in ``__init__``.
+        The ``forward`` method returns a scalar contrastive loss.
+
+    Example:
+        >>> import torch
+        >>> loss_fn = ContrastiveLoss(temperature=1.0, similarity="dot")
+        >>> feats = torch.randn(4, 8)
+        >>> pos_mask = torch.eye(4)
+        >>> loss_fn(feats, pos_mask).ndim
+        0
     """
 
     def __init__(
@@ -88,6 +100,14 @@ class ContrastiveLoss(BaseLoss):
 
         Returns:
             loss (Tensor): scalar contrastive loss.
+
+        Example:
+            >>> import torch
+            >>> loss_fn = ContrastiveLoss()
+            >>> feats = torch.randn(3, 5)
+            >>> pos_mask = torch.tensor([[0, 1, 0], [1, 0, 0], [0, 0, 0]], dtype=torch.float32)
+            >>> loss_fn(feats, pos_mask).ndim
+            0
         """
         device = feats.device
         N = feats.shape[0]
