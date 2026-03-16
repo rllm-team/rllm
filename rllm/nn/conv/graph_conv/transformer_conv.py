@@ -1,5 +1,4 @@
 import math
-import typing
 from typing import Optional, Tuple, Union
 
 import torch
@@ -49,13 +48,13 @@ class GTransformerConv(MessagePassing):
         num_heads: int = 1,
         concat: bool = True,
         beta: bool = False,
-        dropout: float = 0.,
+        dropout: float = 0.0,
         edge_dim: Optional[int] = None,
         bias: bool = True,
         root_weight: bool = True,
         **kwargs,
     ):
-        kwargs.setdefault('aggr', 'add')
+        kwargs.setdefault("aggr", "add")
         super().__init__(**kwargs)
 
         self.in_dim = in_dim
@@ -77,21 +76,20 @@ class GTransformerConv(MessagePassing):
         if edge_dim is not None:
             self.lin_edge = Linear(edge_dim, num_heads * out_dim, bias=False)
         else:
-            self.lin_edge = self.register_parameter('lin_edge', None)
+            self.lin_edge = self.register_parameter("lin_edge", None)
 
         if concat:
-            self.lin_skip = Linear(in_dim[1], num_heads * out_dim,
-                                   bias=bias)
+            self.lin_skip = Linear(in_dim[1], num_heads * out_dim, bias=bias)
             if self.beta:
                 self.lin_beta = Linear(3 * num_heads * out_dim, 1, bias=False)
             else:
-                self.lin_beta = self.register_parameter('lin_beta', None)
+                self.lin_beta = self.register_parameter("lin_beta", None)
         else:
             self.lin_skip = Linear(in_dim[1], out_dim, bias=bias)
             if self.beta:
                 self.lin_beta = Linear(3 * out_dim, 1, bias=False)
             else:
-                self.lin_beta = self.register_parameter('lin_beta', None)
+                self.lin_beta = self.register_parameter("lin_beta", None)
 
     def reset_parameters(self):
         self.lin_key.reset_parameters()
@@ -170,8 +168,7 @@ class GTransformerConv(MessagePassing):
         edge_attr = None
         if self.lin_edge is not None:
             assert edge_weight is not None
-            edge_attr = self.lin_edge(edge_weight).view(-1, self.heads,
-                                                      self.out_dim)
+            edge_attr = self.lin_edge(edge_weight).view(-1, self.heads, self.out_dim)
             key_j = key_j + edge_attr
 
         alpha = (query_i * key_j).sum(dim=-1) / math.sqrt(self.out_dim)
@@ -185,10 +182,7 @@ class GTransformerConv(MessagePassing):
 
         out = out * alpha.view(-1, self.heads, 1)
         return self.aggr_module(
-            out,
-            edge_index[1],
-            dim=self._node_dim,
-            dim_size=dim_size
+            out, edge_index[1], dim=self._node_dim, dim_size=dim_size
         )
 
     def __repr__(self) -> str:

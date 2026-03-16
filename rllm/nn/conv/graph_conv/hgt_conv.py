@@ -27,8 +27,6 @@ class HGTConv(MessagePassing):
         dropout (float, optional): Dropout probability of the normalized
             attention coefficients which exposes each node to a stochastically
             sampled neighborhood during training (default: :obj:`0.0`).
-        use_pre_encoder (bool, optional):
-            Whether to use pre-encoder (default: :obj:`False`).
         aggr (str): The aggregation method to use.
             Defaults: 'sum'.
         **kwargs (optional): Additional arguments of :class:`MessagePassing`.
@@ -43,10 +41,9 @@ class HGTConv(MessagePassing):
         metadata: Tuple[List[str], List[Tuple[str, str]]],
         num_heads: int = 1,
         dropout: float = 0.0,
-        use_pre_encoder: bool = False,
         *,
         aggr: str = "sum",
-        **kwargs
+        **kwargs,
     ):
         # default use 'sum' aggregator
         super().__init__(aggr=aggr, aggr_kwargs=kwargs)
@@ -58,17 +55,9 @@ class HGTConv(MessagePassing):
             in_dim = {node_type: in_dim for node_type in node_types}
 
         # params init
-        self.in_dim = in_dim
+        self.in_dim = dict(in_dim)
         self.out_dim = out_dim
         self.num_heads = num_heads
-
-        # node feats pre_encoder
-        self.lin_dict = None
-        if use_pre_encoder:
-            self.lin_dict = torch.nn.ModuleDict()
-            for node_type, in_dim in self.in_dim.items():
-                self.lin_dict[node_type] = torch.nn.Linear(in_dim, out_dim, bias=True)
-                self.in_dim[node_type] = out_dim
 
         # multi-head node attention
         self.q_lin = torch.nn.ModuleDict()
@@ -123,11 +112,10 @@ class HGTConv(MessagePassing):
 
         # Linear projection, q, k, v
         for node_type, x in x_dict.items():
-            if self.lin_dict is not None:
-                x = self.lin_dict[node_type](x)
-
             out_node_dict[node_type] = x
-            k_dict[node_type] = self.k_lin[node_type](x).view(-1, H, D)  # (N, F_in) -> (N, H, D)
+            k_dict[node_type] = self.k_lin[node_type](x).view(
+                -1, H, D
+            )  # (N, F_in) -> (N, H, D)
             q_dict[node_type] = self.q_lin[node_type](x).view(-1, H, D)
             v_dict[node_type] = self.v_lin[node_type](x).view(-1, H, D)
 
@@ -141,11 +129,15 @@ class HGTConv(MessagePassing):
             # multi-head node attention
             # (H, N, D) @ (H, D, D) -> (H, N, D) -> (N, H, D)
             a_rel = self.a_rel[edge_type + "a"]
-            k = (k_dict[src_node_type].transpose(1, 0) @ a_rel).transpose(1, 0)  # (N, H, D)
+            k = (k_dict[src_node_type].transpose(1, 0) @ a_rel).transpose(
+                1, 0
+            )  # (N, H, D)
 
             # (H, N, D) @ (H, D, D) -> (H, N, D) -> (N, H, D)
             m_rel = self.m_rel[edge_type + "m"]
-            v = (v_dict[src_node_type].transpose(1, 0) @ m_rel).transpose(1, 0)  # (N, H, D)
+            v = (v_dict[src_node_type].transpose(1, 0) @ m_rel).transpose(
+                1, 0
+            )  # (N, H, D)
 
             # meta-relation attention
             edge_index, _ = self.__unify_edgeindex__(edge_index)
@@ -165,7 +157,7 @@ class HGTConv(MessagePassing):
                 k_src=k_src,
                 v_src=v_src,
                 rel=rel,
-                dim_size=x_dict[dst_node_type].size(0)
+                dim_size=x_dict[dst_node_type].size(0),
             )
 
             out_dict[dst_node_type].append(out)
@@ -191,14 +183,20 @@ class HGTConv(MessagePassing):
         # alpha: (E, H)
         alpha = (k_src * q_dst).sum(dim=-1) * rel
         alpha = alpha / math.sqrt(q_dst.size(-1))
-        alpha = self.dropout(seg_softmax(alpha, edge_index[1], edge_index[1].max().item() + 1))
+        alpha = self.dropout(
+            seg_softmax(alpha, edge_index[1], edge_index[1].max().item() + 1)
+        )
         # out: (E, H, D)
         out = v_src * alpha.unsqueeze(-1)
         out = out.view(-1, self.out_dim)  # (E, out_dim[H*D])
 
         # aggregate -> (N, out_dim)
-        return self.aggr_module(out, edge_index[1, :], dim=self.node_dim, dim_size=dim_size)
+        return self.aggr_module(
+            out, edge_index[1, :], dim=self.node_dim, dim_size=dim_size
+        )
 
     def __repr__(self):
-        return (f'{self.__class__.__name__}({self.out_dim}, ',
-                f'num_heads={self.num_heads})')
+        return (
+            f"{self.__class__.__name__}({self.out_dim}, ",
+            f"num_heads={self.num_heads})",
+        )

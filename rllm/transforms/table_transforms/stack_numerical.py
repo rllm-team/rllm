@@ -9,7 +9,7 @@ class StackNumerical(ColTransform):
     r"""The StackNumerical class is designed to transform numerical features
     in tabular data by stacking them into a specified dimension. This
     transformation changes the shape of the numerical features from
-    [batch_size, num_feats] to [batch_size, num_feats, out_dim], effectively
+    [batch_size, num_cols] to [batch_size, num_cols, out_dim], effectively
     replicating the values along the new dimension.
 
     Args:

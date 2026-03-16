@@ -1,16 +1,18 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
-from .pre_encoder import PreEncoder
-from ._embedding_encoder import EmbeddingEncoder
+import torch
+
+from .table_encoder import TableEncoder
+from .embedding_encoder import EmbeddingEncoder
 from ._linear_encoder import LinearEncoder
 from rllm.types import ColType
 
 
-class FTTransformerPreEncoder(PreEncoder):
+class TromptTableEncoder(TableEncoder):
     r"""
-    The FTTransformerPreEncoder class is a specialized pre-encoder for the
-    FTTransformer model. It initializes a column-specific encoder dict for
+    The TromptTableEncoder class is a specialized pre-encoder for the
+    Trompt model. It initializes a column-specific encoder dict for
     categorical and numerical features based on the provided metadata.
     Specifically, it uses `EmbeddingEncoder` for categorical features and
     `LinearEncoder` for numerical features.
@@ -30,8 +32,15 @@ class FTTransformerPreEncoder(PreEncoder):
         metadata: Dict[ColType, List[Dict[str, Any]]],
         in_dim: int = 1,
     ) -> None:
-        col_pre_encoder_dict = {
-            ColType.CATEGORICAL: EmbeddingEncoder(),
-            ColType.NUMERICAL: LinearEncoder(in_dim=in_dim),
+        col_encoder_dict = {
+            ColType.CATEGORICAL: EmbeddingEncoder(
+                post_module=torch.nn.LayerNorm(out_dim)
+            ),
+            ColType.NUMERICAL: LinearEncoder(
+                in_dim=in_dim,
+                post_module=torch.nn.ModuleList(
+                    [torch.nn.ReLU(), torch.nn.LayerNorm(out_dim)]
+                ),
+            ),
         }
-        super().__init__(out_dim, metadata, col_pre_encoder_dict)
+        super().__init__(out_dim, metadata, col_encoder_dict)

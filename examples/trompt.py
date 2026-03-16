@@ -5,7 +5,7 @@
 # Datasets      Titanic     Adult
 # Metrics       Acc         Acc
 # Rept.         -           0.862
-# Ours          0.853       0.861
+# Ours          0.853       0.864
 # Time          13.9s       911.7s
 
 import argparse
@@ -25,6 +25,7 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import DefaultTableTransform
+from rllm.nn.encoder import TromptTableEncoder
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
@@ -35,7 +36,7 @@ parser.add_argument("--emb_dim", help="embedding dim", type=int, default=128)
 parser.add_argument("--num_layers", type=int, default=6)
 parser.add_argument("--num_prompts", type=int, default=128)
 parser.add_argument("--batch_size", type=int, default=256)
-parser.add_argument("--epochs", type=int, default=50)
+parser.add_argument("--epochs", type=int, default=100)
 parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--wd", type=float, default=5e-4)
 parser.add_argument("--seed", type=int, default=0)
@@ -78,6 +79,7 @@ class Trompt(torch.nn.Module):
         self.out_dim = out_dim
         self.x_prompt = torch.nn.Parameter(torch.empty(num_prompts, hidden_dim))
 
+        self.table_encoders = torch.nn.ModuleList()
         self.convs = torch.nn.ModuleList()
         for _ in range(num_layers):
             self.convs.append(
@@ -85,7 +87,11 @@ class Trompt(torch.nn.Module):
                     in_dim=in_dim,
                     out_dim=hidden_dim,
                     num_prompts=num_prompts,
-                    use_pre_encoder=True,
+                )
+            )
+            self.table_encoders.append(
+                TromptTableEncoder(
+                    out_dim=hidden_dim,
                     metadata=metadata,
                 )
             )
@@ -110,12 +116,13 @@ class Trompt(torch.nn.Module):
                 torch.nn.init.xavier_uniform_(layer.weight)
                 torch.nn.init.zeros_(layer.bias)
 
-    def forward(self, x) -> Tensor:
+    def forward(self, x: dict) -> Tensor:
         outs = []
         batch_size = x[list(x.keys())[0]].size(0)
         x_prompt = self.x_prompt.unsqueeze(0).repeat(batch_size, 1, 1)
-        for conv in self.convs:
-            x_prompt = conv(x, x_prompt)
+        for encoder, conv in zip(self.table_encoders, self.convs):
+            x_encoded = encoder(x)
+            x_prompt = conv(x_encoded, x_prompt)
             w_prompt = F.softmax(self.linear(x_prompt), dim=1)
             out = (w_prompt * x_prompt).sum(dim=1)
             out = self.mlp(out)
@@ -124,7 +131,6 @@ class Trompt(torch.nn.Module):
         return torch.cat(outs, dim=1).mean(dim=1)
 
 
-print(data.num_cols, data.num_classes)
 # Set up model and optimizer
 model = Trompt(
     in_dim=data.num_cols,

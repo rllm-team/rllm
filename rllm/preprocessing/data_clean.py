@@ -1,5 +1,4 @@
 import re
-import pandas
 from pandas import Series
 
 
@@ -31,18 +30,18 @@ def _clean_numerical_value(val):
 
     try:
         # Check for percentage format
-        is_percentage = '%' in val_str
+        is_percentage = "%" in val_str
         if is_percentage:
-            val_str = val_str.replace('%', '')
+            val_str = val_str.replace("%", "")
         # Remove all whitespace (handles "1 234.56" format)
-        val_str = val_str.replace(' ', '')
+        val_str = val_str.replace(" ", "")
         # Remove currency symbols and other non-numeric chars
         # Keep: digits, decimal point, minus sign, comma, and 'e/E' for scientific notation
-        val_str = re.sub(r'[^\d.\-,eE]', '', val_str)
+        val_str = re.sub(r"[^\d.\-,eE]", "", val_str)
         # Remove thousand separators
-        val_str = val_str.replace(',', '')
+        val_str = val_str.replace(",", "")
         # Validate and convert to float
-        if val_str and val_str not in ['-', '.', '-.', 'e', 'E']:
+        if val_str and val_str not in ["-", ".", "-.", "e", "E"]:
             num_val = float(val_str)
             # Convert percentage to decimal
             if is_percentage:

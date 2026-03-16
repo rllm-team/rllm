@@ -73,4 +73,7 @@ class EmbeddingEncoder(ColEncoder):
         # Use 0th index for NaN
         feat[na_mask] = 0
         # [batch_size, num_cols, dim]
-        return self.emb(feat)
+        feat_emb = self.emb(feat)
+        if self.post_module is not None:
+            feat_emb = self.post_module(feat_emb)
+        return feat_emb

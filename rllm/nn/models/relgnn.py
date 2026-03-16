@@ -1,6 +1,5 @@
 from typing import Any, Dict, List, Tuple, Optional
 from collections import defaultdict
-import warnings
 
 import torch
 from torch import Tensor
@@ -10,7 +9,7 @@ from rllm.types import ColType, StatType
 from rllm.data import HeteroGraphData
 from rllm.nn.models import TableResNet
 from rllm.nn.conv.graph_conv.relgnn_conv import RelGNNConv
-from rllm.nn.pre_encoder import HeteroTemporalEncoder
+from rllm.nn.encoder import HeteroTemporalEncoder
 
 
 class RelGNN(torch.nn.Module):
@@ -47,23 +46,21 @@ class RelGNN(torch.nn.Module):
         self.aggr = aggr
 
         self.edge_type_mapping = {
-            edge_type: "__".join(edge_type)
-            for edge_type in atomic_routes_edge_types
+            edge_type: "__".join(edge_type) for edge_type in atomic_routes_edge_types
         }
 
         convs = ModuleList()
         for _ in range(num_layers):
             conv_dict = ModuleDict()
             for edge_type in atomic_routes_edge_types:
-                conv_dict[self.edge_type_mapping[edge_type]] = \
-                    RelGNNConv(
-                        attn_type=edge_type[0],
-                        in_dim=hidden_dim,
-                        out_dim=hidden_dim,
-                        num_heads=num_heads,
-                        aggr=aggr,
-                        simplified_MP=simplified_MP,
-                    )
+                conv_dict[self.edge_type_mapping[edge_type]] = RelGNNConv(
+                    attn_type=edge_type[0],
+                    in_dim=hidden_dim,
+                    out_dim=hidden_dim,
+                    num_heads=num_heads,
+                    aggr=aggr,
+                    simplified_MP=simplified_MP,
+                )
             convs.append(conv_dict)
         self.convs = convs
 
@@ -87,10 +84,10 @@ class RelGNN(torch.nn.Module):
     def forward(
         self,
         x_dict: Dict[str, Tensor],
-        edge_index_dict: Dict[Tuple[str, str, str], Tensor]
+        edge_index_dict: Dict[Tuple[str, str, str], Tensor],
     ) -> Dict[str, Tensor]:
         for _, (conv_dict, norm_dict) in enumerate(zip(self.convs, self.norms)):
-            x_dict =  self.heteroconv_forward(conv_dict, x_dict, edge_index_dict)
+            x_dict = self.heteroconv_forward(conv_dict, x_dict, edge_index_dict)
             x_dict = {key: norm_dict[key](x) for key, x in x_dict.items()}
             x_dict = {key: x.relu() for key, x in x_dict.items()}
 
@@ -100,7 +97,7 @@ class RelGNN(torch.nn.Module):
         self,
         conv_dict: ModuleDict,
         x_dict: Dict[str, Tensor],
-        edge_index_dict: Dict[Tuple[str, str, str], Tensor]
+        edge_index_dict: Dict[Tuple[str, str, str], Tensor],
     ) -> Dict[str, Tensor]:
 
         out_dict: Dict[str, List[Tensor]] = defaultdict(list)
@@ -131,12 +128,12 @@ class RelGNN(torch.nn.Module):
             edge_type_info = edge_type_info.split("__")
             attn_type = edge_type_info[0]
 
-            if attn_type == 'dim-dim':
+            if attn_type == "dim-dim":
                 src, rel, dst = edge_type_info[1:]
                 x = (
-                        x_dict.get(src, None),
-                        x_dict.get(dst, None),
-                    )
+                    x_dict.get(src, None),
+                    x_dict.get(dst, None),
+                )
                 edge_index = edge_index_dict[(src, rel, dst)]
 
                 out = conv(x, edge_index)
@@ -146,21 +143,21 @@ class RelGNN(torch.nn.Module):
 
                 update(out_dict, dst, out)
 
-            elif attn_type == 'dim-fact-dim':
+            elif attn_type == "dim-fact-dim":
                 edge_attn, edge_aggr = edge_type_info[1:4], edge_type_info[4:]
                 edge_attn = tuple(edge_attn)
                 edge_aggr = tuple(edge_aggr)
                 src_attn, _, dst = edge_attn
                 src_aggr = edge_aggr[0]
                 x = (
-                        x_dict[src_aggr],
-                        x_dict[src_attn],
-                        x_dict[dst],
-                    )
+                    x_dict[src_aggr],
+                    x_dict[src_attn],
+                    x_dict[dst],
+                )
                 edge_index = (
-                        edge_index_dict[edge_attn],
-                        edge_index_dict[edge_aggr],
-                    )
+                    edge_index_dict[edge_attn],
+                    edge_index_dict[edge_aggr],
+                )
                 out = conv(x, edge_index)
 
                 if self.simplified_MP and out is None:
@@ -229,8 +226,9 @@ class RelGNNModel(torch.nn.Module):
         super().__init__()
         # validate input
         for node_type in data.node_types:
-            assert node_type in col_stats_dict, \
-                f"Node type {node_type} not found in col_stats_dict"
+            assert (
+                node_type in col_stats_dict
+            ), f"Node type {node_type} not found in col_stats_dict"
 
         # build modules
         self.TNN_DICT = ModuleDict(
@@ -240,7 +238,8 @@ class RelGNNModel(torch.nn.Module):
                     out_dim=hidden_dim,
                     num_layers=tnn_num_layers,
                     metadata=col_stats_dict[node_type],
-                ) for node_type in data.node_types
+                )
+                for node_type in data.node_types
             }
         )
 
@@ -288,7 +287,7 @@ class RelGNNModel(torch.nn.Module):
             self.TEMPORAL_ENCODER.reset_parameters()
         self.RelGNN.reset_parameters()
         for layer in self.OUTPUT_HEAD:
-            if hasattr(layer, 'reset_parameters'):
+            if hasattr(layer, "reset_parameters"):
                 layer.reset_parameters()
 
     def forward(
@@ -313,10 +312,7 @@ class RelGNNModel(torch.nn.Module):
                 x_dict[node_type] = x_dict[node_type] + rel_time
 
         # 3. apply RelGNN
-        x_dict = self.RelGNN(
-            x_dict,
-            batch.edge_index_dict
-        )
+        x_dict = self.RelGNN(x_dict, batch.edge_index_dict)
 
         # 4. apply OUTPUT_HEAD to target table
         return self.OUTPUT_HEAD(x_dict[target_table][: seed_time.size(0)])

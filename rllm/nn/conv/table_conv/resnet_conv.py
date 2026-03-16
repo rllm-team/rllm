@@ -15,6 +15,29 @@ class ResNetConv(torch.nn.Module):
     r"""The ResNet-like TNN LayerConv introduced in the
     `"Revisiting Deep Learning Models for Tabular Data"
     <https://arxiv.org/abs/2106.11959>` _ paper.
+
+    This module applies a two-layer MLP block with optional normalization,
+    activation, and dropout, then adds a residual shortcut connection.
+
+    Args:
+        in_dim (int): Input feature dimensionality.
+        out_dim (int): Output feature dimensionality.
+        normalization (str | None): Normalization type. Supported values are
+            ``"layer_norm"``, ``"batch_norm"``, or :obj:`None`.
+            (default: ``"layer_norm"``)
+        dropout (float): Dropout probability. (default: 0.0)
+
+    Returns:
+        This class does not return a tensor in ``__init__``.
+        The ``forward`` method returns the transformed feature tensor.
+
+    Example:
+        >>> import torch
+        >>> conv = ResNetConv(in_dim=16, out_dim=32, normalization="layer_norm", dropout=0.1)
+        >>> x = torch.randn(64, 16)
+        >>> out = conv(x)
+        >>> out.shape
+        torch.Size([64, 32])
     """
 
     def __init__(
@@ -62,6 +85,14 @@ class ResNetConv(torch.nn.Module):
             self.short_cut.reset_parameters()
 
     def forward(self, x: Tensor) -> Tensor:
+        """Apply residual MLP transformation.
+
+        Args:
+            x (Tensor): Input tensor of shape ``[..., in_dim]``.
+
+        Returns:
+            Tensor: Output tensor of shape ``[..., out_dim]``.
+        """
         residual = x
 
         x = self.lin1(x)

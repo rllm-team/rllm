@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Tuple
 
 import torch
 from torch import Tensor
@@ -17,6 +17,7 @@ class HeteroSAGE(torch.nn.Module):
         aggr (str): The aggregation method.
         num_layers (int): The number of layers.
     """
+
     def __init__(
         self,
         node_types: List[str],
@@ -35,8 +36,9 @@ class HeteroSAGE(torch.nn.Module):
         for _ in range(num_layers):
             conv_dict = ModuleDict()
             for edge_type in edge_types:
-                conv_dict[self.edge_type_mapping[edge_type]] = \
-                    SAGEConv(hidden_dim, hidden_dim, aggr=aggr)
+                conv_dict[self.edge_type_mapping[edge_type]] = SAGEConv(
+                    hidden_dim, hidden_dim, aggr=aggr
+                )
             self.convs.append(conv_dict)
 
         self.norms = torch.nn.ModuleList()
@@ -59,7 +61,7 @@ class HeteroSAGE(torch.nn.Module):
     def forward(
         self,
         x_dict: Dict[str, Tensor],
-        edge_index_dict: Dict[Tuple[str, str, str], Tensor]
+        edge_index_dict: Dict[Tuple[str, str, str], Tensor],
     ) -> Dict[str, Tensor]:
         for layer in range(len(self.convs)):
             conv_dict = self.convs[layer]
@@ -73,7 +75,9 @@ class HeteroSAGE(torch.nn.Module):
                 if dst not in dst_dict:
                     dst_dict[dst] = []
                 dst_dict[dst].append(
-                    conv_dict[self.edge_type_mapping[edge_type]]((x_src, x_dst), edge_index)
+                    conv_dict[self.edge_type_mapping[edge_type]](
+                        (x_src, x_dst), edge_index
+                    )
                 )
             for dst, x_list in dst_dict.items():
                 x_stack = torch.stack(x_list, dim=0)

@@ -20,25 +20,25 @@ sys.path.append("../../")
 from rllm.datasets import TLF2KDataset, TACM12KDataset, TML1MDataset
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.models import BRIDGE, TableEncoder, GraphEncoder
+from rllm.nn.models import BRIDGE, TableBackbone, GraphBackbone
 from examples.bridge.utils import data_prepare
 
 
 def build_bridge_model(num_classes, metadata, emb_size):
-    t_encoder = TableEncoder(
+    t_backbone = TableBackbone(
         in_dim=emb_size,
         out_dim=emb_size,
         table_conv=TabTransformerConv,
         metadata=metadata,
     )
-    g_encoder = GraphEncoder(
+    g_backbone = GraphBackbone(
         in_dim=emb_size,
         out_dim=num_classes,
         graph_conv=GCNConv,
     )
     model = BRIDGE(
-        table_encoder=t_encoder,
-        graph_encoder=g_encoder,
+        table_backbone=t_backbone,
+        graph_backbone=g_backbone,
     )
     return model
 
@@ -79,8 +79,17 @@ def train_bridge_model(model, target_table, non_table_embeddings, adj, epochs, l
     times = []
     for epoch in range(1, epochs + 1):
         start = time.time()
-        train_loss = train(model, optimizer, target_table, non_table_embeddings, adj, y, train_mask)
-        train_acc, val_acc, tmp_test_acc = test(model, target_table, non_table_embeddings, adj, y, [train_mask, val_mask, test_mask])
+        train_loss = train(
+            model, optimizer, target_table, non_table_embeddings, adj, y, train_mask
+        )
+        train_acc, val_acc, tmp_test_acc = test(
+            model,
+            target_table,
+            non_table_embeddings,
+            adj,
+            y,
+            [train_mask, val_mask, test_mask],
+        )
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc
@@ -102,7 +111,9 @@ def train_bridge_model(model, target_table, non_table_embeddings, adj, epochs, l
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="tlf2k", choices=["tlf2k", "tml1m", "tacm12k"])
+    parser.add_argument(
+        "--dataset", type=str, default="tlf2k", choices=["tlf2k", "tml1m", "tacm12k"]
+    )
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--wd", type=float, default=1e-4)
@@ -118,6 +129,12 @@ if __name__ == "__main__":
     elif args.dataset == "tacm12k":
         dataset = TACM12KDataset(cached_dir=path, force_reload=True)
 
-    target_table, non_table_embeddings, adj, emb_size = data_prepare(dataset, args.dataset, device)
-    model = build_bridge_model(target_table.num_classes, target_table.metadata, emb_size).to(device)
-    train_bridge_model(model, target_table, non_table_embeddings, adj, args.epochs, args.lr, args.wd)
+    target_table, non_table_embeddings, adj, emb_size = data_prepare(
+        dataset, args.dataset, device
+    )
+    model = build_bridge_model(
+        target_table.num_classes, target_table.metadata, emb_size
+    ).to(device)
+    train_bridge_model(
+        model, target_table, non_table_embeddings, adj, args.epochs, args.lr, args.wd
+    )
