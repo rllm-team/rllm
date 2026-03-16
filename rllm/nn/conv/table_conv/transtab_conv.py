@@ -50,6 +50,15 @@ class TransTabConv(torch.nn.Module):
             (default: False)
         use_layer_norm (bool): Whether to include LayerNorm layers in each
             sub-block. (default: True)
+
+    Example:
+        >>> import torch
+        >>> conv = TransTabConv(conv_dim=32, nhead=4, dim_feedforward=64, dropout=0.1)
+        >>> x = torch.randn(8, 10, 32)
+        >>> mask = torch.ones(8, 10, dtype=torch.bool)
+        >>> out = conv(x, src_key_padding_mask=mask)
+        >>> out.shape
+        torch.Size([8, 10, 32])
     """
 
     __constants__ = ["batch_first", "norm_first"]

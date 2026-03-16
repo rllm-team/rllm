@@ -60,12 +60,14 @@ class LGCConv(MessagePassing):
         out_dim: Optional[int] = None,
         bias: bool = False,
     ):
-        super().__init__(aggr='sum')
+        super().__init__(aggr="sum")
         self.beta = beta
         self.with_param = with_param
 
         if self.with_param:
-            assert in_dim is not None and out_dim is not None, "in_dim and out_dim should be provided"
+            assert (
+                in_dim is not None and out_dim is not None
+            ), "in_dim and out_dim should be provided"
             self.lin = torch.nn.Linear(in_dim, out_dim, bias=False)
             if bias:
                 self.bias = torch.nn.Parameter(torch.empty(out_dim))
@@ -80,11 +82,32 @@ class LGCConv(MessagePassing):
             torch.nn.init.zeros_(self.bias)
 
     def forward(
-            self,
-            x: Tensor,
-            edge_index: Union[Tensor, SparseTensor],
-            edge_weight: Optional[Tensor] = None,
+        self,
+        x: Tensor,
+        edge_index: Union[Tensor, SparseTensor],
+        edge_weight: Optional[Tensor] = None,
     ) -> Tensor:
+        r"""Run lazy graph convolution with optional linear projection.
+
+        Args:
+            x (Tensor): Input node features.
+            edge_index (Union[Tensor, SparseTensor]): Graph connectivity in edge-list
+                or sparse adjacency format.
+            edge_weight (Optional[Tensor]): Optional per-edge weights.
+
+        Returns:
+            Tensor: Output node features after lazy propagation.
+
+        Example:
+            >>> import torch
+            >>> from rllm.nn.conv.graph_conv import LGCConv
+            >>> conv = LGCConv(beta=0.5)
+            >>> x = torch.randn(4, 8)
+            >>> edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
+            >>> out = conv(x, edge_index)
+            >>> out.shape
+            torch.Size([4, 8])
+        """
         if self.with_param:
             x = self.lin(x)
 
@@ -109,7 +132,9 @@ class LGCConv(MessagePassing):
         gcn_msgs = x.index_select(dim=0, index=src_index)
         if edge_weight is not None:
             gcn_msgs = gcn_msgs * edge_weight.view(-1, 1)
-        gcn_msgs = self.aggr_module(gcn_msgs, edge_index[1, :].squeeze(), dim=dim, dim_size=x.size(0))
+        gcn_msgs = self.aggr_module(
+            gcn_msgs, edge_index[1, :].squeeze(), dim=dim, dim_size=x.size(0)
+        )
         return self.beta * gcn_msgs + (1 - self.beta) * x
 
     def __repr__(self) -> str:

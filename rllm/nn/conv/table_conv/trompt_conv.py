@@ -23,18 +23,14 @@ class TromptConv(torch.nn.Module):
         num_prompts (int): Number of prompts.
         num_groups (int): Number of groups for group normalization (default: 2).
 
-    Returns:
-        This class does not return a tensor in ``__init__``.
-        The ``forward`` method returns prompt-wise aggregated feature tensors.
-
     Example:
         >>> import torch
-        >>> conv = TromptConv(in_dim=8, out_dim=16, num_prompts=4)
-        >>> x = torch.randn(32, 8, 16)
-        >>> x_prompt = torch.randn(32, 4, 16)
+        >>> conv = TromptConv(in_dim=10, out_dim=16, num_prompts=4)
+        >>> x = torch.randn(8, 10, 16)
+        >>> x_prompt = torch.randn(8, 4, 16)
         >>> out = conv(x, x_prompt)
         >>> out.shape
-        torch.Size([32, 4, 16])
+        torch.Size([8, 4, 16])
     """
 
     def __init__(

@@ -27,10 +27,6 @@ class ResNetConv(torch.nn.Module):
             (default: ``"layer_norm"``)
         dropout (float): Dropout probability. (default: 0.0)
 
-    Returns:
-        This class does not return a tensor in ``__init__``.
-        The ``forward`` method returns the transformed feature tensor.
-
     Example:
         >>> import torch
         >>> conv = ResNetConv(in_dim=16, out_dim=32, normalization="layer_norm", dropout=0.1)
