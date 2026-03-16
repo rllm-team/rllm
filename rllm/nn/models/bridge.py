@@ -11,10 +11,10 @@ from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 
 
-class TableEncoder(torch.nn.Module):
-    r"""TableEncoder is a submodule of the BRIDGE method,
+class TableBackbone(torch.nn.Module):
+    r"""TableBackbone is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming table.
-    The TableEncoder takes as input :class:`rllm.data.TableData` representing
+    The TableBackbone takes as input :class:`rllm.data.TableData` representing
     the tabular data and applies multiple convolutional layers to capture
     complex patterns and relationships within the data. Before outputting,
     the feature dictionary is concatenated to facilitate subsequent operations.
@@ -58,8 +58,8 @@ class TableEncoder(torch.nn.Module):
         return x
 
 
-class GraphEncoder(torch.nn.Module):
-    r"""GraphEncoder is a submodule of the BRIDGE method,
+class GraphBackbone(torch.nn.Module):
+    r"""GraphBackbone is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming graph.
     This submodule is designed to handle graph-structured data. And it takes
     as input two tensor representing the node feature and graph structure.
@@ -126,18 +126,18 @@ class BRIDGE(torch.nn.Module):
     multi-table joint learning tasks.
 
     Args:
-        table_encoder (TableEncoder): Encoder for tabular data.
-        graph_encoder (GraphEncoder): Encoder for graph data.
+        table_backbone (TableBackbone): Backbones for tabular data.
+        graph_backbone (GraphBackbone): Backbones for graph data.
     """
 
     def __init__(
         self,
-        table_encoder: TableEncoder,
-        graph_encoder: GraphEncoder,
+        table_backbone: TableBackbone,
+        graph_backbone: GraphBackbone,
     ) -> None:
         super().__init__()
-        self.table_encoder = table_encoder
-        self.graph_encoder = graph_encoder
+        self.table_backbone = table_backbone
+        self.graph_backbone = graph_backbone
 
     def forward(
         self,
@@ -159,10 +159,10 @@ class BRIDGE(torch.nn.Module):
         Returns:
             Tensor: Output table embedding features.
         """
-        t_embedds = self.table_encoder(table)
+        t_embedds = self.table_backbone(table)
         if non_table is not None:
             node_feats = torch.cat([t_embedds, non_table], dim=0)
         else:
             node_feats = t_embedds
-        node_feats = self.graph_encoder(node_feats, adj)
+        node_feats = self.graph_backbone(node_feats, adj)
         return node_feats[: len(table), :]

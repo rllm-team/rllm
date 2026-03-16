@@ -1,5 +1,5 @@
 from .rect import RECT_L
-from .bridge import BRIDGE, TableEncoder, GraphEncoder
+from .bridge import BRIDGE, TableBackbone, GraphBackbone
 from .transtab import TransTab, TransTabClassifier, TransTabForCL
 from .base_model import LinearClassifier
 from .resnet import TableResNet
@@ -11,8 +11,8 @@ from .relgnn import RelGNN, RelGNNModel
 __all__ = [
     "RECT_L",
     "BRIDGE",
-    "TableEncoder",
-    "GraphEncoder",
+    "TableBackbone",
+    "GraphBackbone",
     "TransTab",
     "TransTabClassifier",
     "TransTabForCL",
