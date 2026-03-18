@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, Optional, Type
 
 import torch
 from torch import Tensor
@@ -12,9 +12,7 @@ class GraphEncoder(BaseEncoder):
     r"""GraphEncoder is a graph-level encoder used by BRIDGE.
 
     It applies stacked graph convolution layers with dropout and configurable
-    activation on all
-    intermediate layers, supporting both full-batch and mini-batch adjacency
-    inputs.
+    activation on all intermediate layers on full-batch adjacency inputs.
 
     Args:
         in_dim (int): Input dimensionality of the data.
@@ -76,36 +74,24 @@ class GraphEncoder(BaseEncoder):
     def forward(
         self,
         x: Tensor,
-        adj: Union[Tensor, List[Tensor]],
+        adj: Tensor,
     ) -> Tensor:
         """Apply stacked graph convolutions to node features.
 
         Args:
-            x (Tensor): Node features.
-            adj (Union[Tensor, List[Tensor]]): Full-batch adjacency tensor or
-                sampled adjacency tensors for mini-batch training.
+            x (Tensor): Node features of shape [num_nodes, in_dim].
+            adj (Tensor): Full-batch adjacency matrix of shape
+                [num_nodes, num_nodes].
 
         Returns:
-            Tensor: Output node embeddings.
+            Tensor: Output node embeddings of shape [num_nodes, out_dim].
         """
         if self.pre_encoder_module is not None:
             x = self.pre_encoder_module(x)
 
-        # Full batch training or full test
-        if isinstance(adj, Tensor):
-            for conv in self.convs[:-1]:
-                x = F.dropout(x, p=self.dropout, training=self.training)
-                x = self.activation(conv(x, adj))
+        for conv in self.convs[:-1]:
             x = F.dropout(x, p=self.dropout, training=self.training)
-            x = self.convs[-1](x, adj)
-            return x
-        # Batch training
-        elif isinstance(adj, list):
-            for i, conv in enumerate(self.convs[:-1]):
-                x = F.dropout(x, p=self.dropout, training=self.training)
-                x = self.activation(conv(x, adj[-i - 1]))
-            x = F.dropout(x, p=self.dropout, training=self.training)
-            x = self.convs[-1](x, adj[0])
-            return x
-
-        raise TypeError(f"Expected adj to be Tensor or List[Tensor], got {type(adj)}")
+            x = self.activation(conv(x, adj))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.convs[-1](x, adj)
+        return x
