@@ -11,8 +11,10 @@ from torch import Tensor
 from transformers import BertTokenizerFast
 
 from .pre_encoder import PreEncoder
-from ._transtab_word_embedding_encoder import TransTabWordEmbeddingEncoder
-from ._transtab_num_embedding_encoder import TransTabNumEmbeddingEncoder
+from .col_encoder import (
+    TransTabNumEmbeddingEncoder,
+    TransTabWordEmbeddingEncoder,
+)
 from rllm.types import ColType
 from rllm.data.table_data import TableData
 

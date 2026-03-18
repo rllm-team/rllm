@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 from torch.nn import ModuleDict
 
-from .positional_encoder import PositionalEncoder
+from .col_encoder import PositionalEncoder
 
 
 class HeteroTemporalEncoder(torch.nn.Module):
@@ -31,6 +31,7 @@ class HeteroTemporalEncoder(torch.nn.Module):
         >>> out["user"].shape
         torch.Size([1, 16])
     """
+
     def __init__(self, node_types: List[str], channels: int):
         super().__init__()
 

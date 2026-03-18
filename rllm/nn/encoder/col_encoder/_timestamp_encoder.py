@@ -9,8 +9,8 @@ from torch.nn import Parameter
 from rllm.types import ColType, StatType
 from rllm.preprocessing import TimestampPreprocessor
 from ._col_encoder import ColEncoder
-from .positional_encoder import PositionalEncoder
-from .cyclic_encoder import CyclicEncoder
+from ._positional_encoder import PositionalEncoder
+from ._cyclic_encoder import CyclicEncoder
 
 
 class TimestampEncoder(ColEncoder):

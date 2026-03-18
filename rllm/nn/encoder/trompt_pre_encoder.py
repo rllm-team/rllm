@@ -4,8 +4,7 @@ from typing import Any, Dict, List
 import torch
 
 from .pre_encoder import PreEncoder
-from .embedding_encoder import EmbeddingEncoder
-from ._linear_encoder import LinearEncoder
+from .col_encoder import EmbeddingEncoder, LinearEncoder
 from rllm.types import ColType
 
 

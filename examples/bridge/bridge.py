@@ -20,18 +20,18 @@ sys.path.append("../../")
 from rllm.datasets import TLF2KDataset, TACM12KDataset, TML1MDataset
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.models import BRIDGE, TableBackbone, GraphBackbone
+from rllm.nn.models import BRIDGE, TableEncoder, GraphEncoder
 from examples.bridge.utils import data_prepare
 
 
 def build_bridge_model(num_classes, metadata, emb_size):
-    t_backbone = TableBackbone(
+    t_backbone = TableEncoder(
         in_dim=emb_size,
         out_dim=emb_size,
         table_conv=TabTransformerConv,
         metadata=metadata,
     )
-    g_backbone = GraphBackbone(
+    g_backbone = GraphEncoder(
         in_dim=emb_size,
         out_dim=num_classes,
         graph_conv=GCNConv,

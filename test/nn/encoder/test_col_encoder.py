@@ -17,7 +17,7 @@ import torch
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData
-from rllm.nn.encoder.embedding_encoder import EmbeddingEncoder
+from rllm.nn.encoder._embedding_encoder import EmbeddingEncoder
 from rllm.nn.encoder._reshape_encoder import ReshapeEncoder
 from rllm.nn.encoder._linear_encoder import LinearEncoder
 
