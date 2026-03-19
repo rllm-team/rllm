@@ -5,7 +5,7 @@ from abc import ABC
 import torch
 from torch import Tensor
 
-from .col_encoder import ColEncoder
+from ..col_encoder import ColEncoder
 from rllm.types import ColType
 
 

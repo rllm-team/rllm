@@ -18,6 +18,7 @@ import os.path as osp
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score, accuracy_score
 import torch
+from torch import Tensor
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
@@ -26,7 +27,7 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import TabTransformerTransform
-from rllm.nn.encoder import TabTransformerPreEncoder
+from rllm.nn.encoder import TableEncoder, TabTransformerPreEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -78,30 +79,30 @@ class TabTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.pre_encoder = TabTransformerPreEncoder(
+        self.encoder = TableEncoder(
+            in_dim=hidden_dim,
             out_dim=hidden_dim,
+            num_layers=num_layers,
             metadata=metadata,
+            pre_encoder=TabTransformerPreEncoder,
+            table_conv=TabTransformerConv,
+            pre_encoder_return_dict=True,
+            pooling="none",
+            table_conv_kwargs={"num_heads": num_heads},
         )
-        self.convs = torch.nn.ModuleList()
-        for _ in range(num_layers):
-            self.convs.append(
-                TabTransformerConv(conv_dim=hidden_dim, num_heads=num_heads)
-            )
 
-        self.fc = torch.nn.Linear(
+        self.mlp = torch.nn.Linear(
             len(metadata[ColType.CATEGORICAL]) * hidden_dim
             + len(metadata[ColType.NUMERICAL]),
             out_dim,
         )
 
-    def forward(self, x):
-        x = self.pre_encoder(x, return_dict=True)
-        for conv in self.convs:
-            x = conv(x)
+    def forward(self, x: Dict[ColType, Tensor]) -> Tensor:
+        x = self.encoder(x)
         x[ColType.CATEGORICAL] = x[ColType.CATEGORICAL].flatten(1)
         x[ColType.NUMERICAL] = x[ColType.NUMERICAL].flatten(1)
         x = torch.cat(list(x.values()), dim=1)
-        out = self.fc(x)
+        out = self.mlp(x)
         return out
 
 

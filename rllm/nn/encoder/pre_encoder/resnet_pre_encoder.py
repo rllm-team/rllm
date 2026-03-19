@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 
 from rllm.types import ColType
 from .pre_encoder import PreEncoder
-from .col_encoder import (
+from ..col_encoder import (
     EmbeddingEncoder,
     LinearEncoder,
     TextEmbeddingEncoder,

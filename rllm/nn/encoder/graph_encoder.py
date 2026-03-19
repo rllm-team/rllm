@@ -52,20 +52,22 @@ class GraphEncoder(BaseEncoder):
         activation: str = "relu",
         pre_encoder: Optional[Type[torch.nn.Module]] = None,
         pre_encoder_kwargs: Optional[Dict[str, Any]] = None,
+        last_layer_activation: bool = False,
     ) -> None:
         super().__init__(num_layers=num_layers)
         self.dropout = dropout
         self.activation = self.get_activation(activation)
+        self.last_layer_activation = last_layer_activation
 
         pre_encoder_kwargs = pre_encoder_kwargs or {}
         if pre_encoder is not None:
-            self.pre_encoder_module = pre_encoder(
+            self.pre_encoder = pre_encoder(
                 in_dim=in_dim,
                 out_dim=in_dim,
                 **pre_encoder_kwargs,
             )
         else:
-            self.pre_encoder_module = None
+            self.pre_encoder = None
 
         for _ in range(num_layers - 1):
             self.convs.append(graph_conv(in_dim=in_dim, out_dim=in_dim, normalize=norm))
@@ -86,12 +88,14 @@ class GraphEncoder(BaseEncoder):
         Returns:
             Tensor: Output node embeddings of shape [num_nodes, out_dim].
         """
-        if self.pre_encoder_module is not None:
-            x = self.pre_encoder_module(x)
+        if self.pre_encoder is not None:
+            x = self.pre_encoder(x)
 
         for conv in self.convs[:-1]:
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = self.activation(conv(x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj)
+        if self.last_layer_activation:
+            x = self.activation(x)
         return x

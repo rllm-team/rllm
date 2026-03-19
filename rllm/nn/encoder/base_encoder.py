@@ -33,7 +33,6 @@ class BaseEncoder(torch.nn.Module, ABC):
             "selu": F.selu,
             "tanh": torch.tanh,
             "sigmoid": torch.sigmoid,
-            "identity": lambda x: x,
             "none": lambda x: x,
         }
 
@@ -41,6 +40,6 @@ class BaseEncoder(torch.nn.Module, ABC):
             raise ValueError(
                 f"Unsupported activation: {activation}. Supported: "
                 "{'relu', 'gelu', 'elu', 'leaky_relu', 'selu', "
-                "'tanh', 'sigmoid', 'identity', 'none'}"
+                "'tanh', 'sigmoid', 'none'}"
             )
         return activation_map[activation_name]

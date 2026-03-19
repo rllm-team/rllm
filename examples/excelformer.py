@@ -26,7 +26,7 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Jannis, Titanic
 from rllm.transforms.table_transforms import DefaultTableTransform
-from rllm.nn.encoder import FTTransformerPreEncoder
+from rllm.nn.encoder import TableEncoder, FTTransformerPreEncoder
 from rllm.nn.conv.table_conv import ExcelFormerConv
 
 parser = argparse.ArgumentParser()
@@ -76,25 +76,24 @@ class ExcelFormer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.pre_encoder = FTTransformerPreEncoder(
+        self.encoder = TableEncoder(
+            in_dim=hidden_dim,
             out_dim=hidden_dim,
+            num_layers=num_layers,
             metadata=metadata,
+            pre_encoder=FTTransformerPreEncoder,
+            table_conv=ExcelFormerConv,
         )
-        self.convs = torch.nn.ModuleList()
-        for _ in range(num_layers):
-            self.convs.append(ExcelFormerConv(conv_dim=hidden_dim))
 
-        self.fc = torch.nn.Sequential(
+        self.mlp = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
             torch.nn.ReLU(),
             torch.nn.Linear(hidden_dim, out_dim),
         )
 
-    def forward(self, x) -> Tensor:
-        x = self.pre_encoder(x)
-        for conv in self.convs:
-            x = conv(x)
-        out = self.fc(x.mean(dim=1))
+    def forward(self, x: Dict[ColType, Tensor]) -> Tensor:
+        x = self.encoder(x)
+        out = self.mlp(x.mean(dim=1))
         return out
 
 

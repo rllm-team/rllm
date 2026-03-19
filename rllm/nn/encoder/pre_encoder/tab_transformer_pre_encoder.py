@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from .pre_encoder import PreEncoder
-from .col_encoder import EmbeddingEncoder, ReshapeEncoder
+from ..col_encoder import EmbeddingEncoder, ReshapeEncoder
 from rllm.types import ColType
 
 

@@ -11,7 +11,7 @@ from torch import Tensor
 from transformers import BertTokenizerFast
 
 from .pre_encoder import PreEncoder
-from .col_encoder import (
+from ..col_encoder import (
     TransTabNumEmbeddingEncoder,
     TransTabWordEmbeddingEncoder,
 )
