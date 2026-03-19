@@ -1,11 +1,10 @@
 from __future__ import annotations
-from typing import Union, Dict, List, Any
+from typing import Union, Dict
 
 import torch
 from torch import Tensor
 
 from rllm.types import ColType
-from rllm.nn.pre_encoder import TabTransformerPreEncoder
 
 
 class TabTransformerConv(torch.nn.Module):
@@ -21,10 +20,19 @@ class TabTransformerConv(torch.nn.Module):
         num_heads (int, optional): Number of attention heads (default: 8).
         dropout (float, optional): Attention module dropout (default: 0.3).
         activation (str, optional): Activation function (default: "relu").
-        use_pre_encoder (bool): Whether to use a pre-encoder (default: :obj:`False`).
-        metadata (Dict[ColType, List[Dict[str, Any]]], optional):
-            Metadata for each column type, specifying the statistics and
-            properties of the columns. (default: :obj:`None`).
+
+    Returns:
+        This class does not directly return a tensor in ``__init__``.
+        The ``forward`` method returns the updated input container ``x``.
+
+    Example:
+        >>> import torch
+        >>> from rllm.types import ColType
+        >>> conv = TabTransformerConv(conv_dim=32, num_heads=8, dropout=0.1)
+        >>> x = {ColType.CATEGORICAL: torch.randn(4, 10, 32)}
+        >>> out = conv(x)
+        >>> out[ColType.CATEGORICAL].shape
+        torch.Size([4, 10, 32])
     """
 
     def __init__(
@@ -33,10 +41,9 @@ class TabTransformerConv(torch.nn.Module):
         num_heads: int = 8,
         dropout: float = 0.3,
         activation: str = "relu",
-        use_pre_encoder: bool = False,
-        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
+        # One encoder layer models contextual interactions among categorical columns.
         encoder_layer = torch.nn.TransformerEncoderLayer(
             d_model=conv_dim,
             nhead=num_heads,
@@ -52,24 +59,20 @@ class TabTransformerConv(torch.nn.Module):
             norm=encoder_norm,
         )
 
-        # Define PreEncoder
-        self.pre_encoder = None
-        if use_pre_encoder:
-            self.pre_encoder = TabTransformerPreEncoder(
-                out_dim=conv_dim,
-                metadata=metadata,
-            )
+    def forward(self, x: Union[Dict, Tensor]) -> Union[Dict, Tensor]:
+        """Encode categorical features with self-attention.
 
-        self.reset_parameters()
+        Args:
+            x (Union[Dict, Tensor]): A container that supports
+                ``x[ColType.CATEGORICAL]`` indexing. The categorical tensor
+                is typically shaped as ``[batch_size, num_categorical_cols, conv_dim]``.
 
-    def reset_parameters(self) -> None:
-        if self.pre_encoder is not None:
-            self.pre_encoder.reset_parameters()
-
-    def forward(self, x: Union[Dict, Tensor]):
-        if self.pre_encoder is not None:
-            x = self.pre_encoder(x, return_dict=True)
-
-        x[ColType.CATEGORICAL] = self.transformer(x[ColType.CATEGORICAL])
-
+        Returns:
+            Union[Dict, Tensor]: The same container type as input, where
+            ``x[ColType.CATEGORICAL]`` is replaced with the transformed tensor.
+        """
+        if isinstance(x, dict) and ColType.CATEGORICAL in x:
+            x[ColType.CATEGORICAL] = self.transformer(x[ColType.CATEGORICAL])
+        elif isinstance(x, Tensor):
+            x = self.transformer(x)
         return x

@@ -2,9 +2,11 @@
 # "Heterogeneous Graph Transformer" paper.
 # ArXiv: https://arxiv.org/abs/2003.01332
 
-# Datasets  IMDB
-# Acc       0.583
-# TIme      2.0s
+# Datasets  IMDB        DBLP
+# Metrics   Macro-F1    Macro-F1
+# Rept.     -           -
+# Ours      0.579       0.786
+# Time      8.145s      19.758s
 
 import argparse
 import sys
@@ -14,13 +16,15 @@ import os.path as osp
 
 import torch
 import torch.nn.functional as F
+from sklearn.metrics import f1_score
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.datasets import IMDB
+from rllm.datasets import IMDB, DBLP
 from rllm.nn.conv.graph_conv import HGTConv
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--dataset", type=str, default="imdb", choices=["imdb", "dblp"])
 parser.add_argument("--lr", type=float, default=5e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=1e-3, help="Weight decay")
 parser.add_argument("--dropout", type=float, default=0.6, help="Graph Dropout")
@@ -33,7 +37,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = IMDB(path)[0]
+if args.dataset.lower() == "dblp":
+    data = DBLP(cached_dir=path)[0]
+    data["conference"].x = torch.full(
+        (data["conference"].num_nodes, 1), 1, dtype=torch.float
+    )
+    target_node_type = "author"
+else:
+    data = IMDB(cached_dir=path)[0]
+    target_node_type = "movie"
 data.to(device)
 
 
@@ -49,25 +61,30 @@ class HGT(torch.nn.Module):
         metadata: Dict[str, List[str]] = None,
     ):
         super().__init__()
+        self.encoder = torch.nn.ModuleDict()
+        for node_type, node_in_dim in in_dim.items():
+            self.encoder[node_type] = torch.nn.Linear(node_in_dim, hidden_dim)
         self.hgt_conv = HGTConv(
-            in_dim=in_dim,
+            in_dim=hidden_dim,
             out_dim=hidden_dim,
             num_heads=num_heads,
             dropout=dropout,
             metadata=metadata,
-            use_pre_encoder=True,
         )
         self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
     def forward(self, x_dict, adj_dict):
+        x_dict = {
+            node_type: self.encoder[node_type](x) for node_type, x in x_dict.items()
+        }
         out = self.hgt_conv(x_dict, adj_dict)
-        out = self.lin(out["movie"])
+        out = self.lin(out[target_node_type])
         return out
 
 
 # Set up model and optimizer
 in_dim = {node_type: data[node_type].x.shape[1] for node_type in data.node_types}
-out_dim = torch.unique(data["movie"].y).numel()
+out_dim = torch.unique(data[target_node_type].y).numel()
 model = HGT(
     in_dim=in_dim,
     out_dim=out_dim,
@@ -86,7 +103,7 @@ def train() -> float:
     optimizer.zero_grad()
     out = model(data.x_dict(), data.adj_dict())
     mask = data.train_mask
-    loss = F.cross_entropy(out[mask], data["movie"].y[mask])
+    loss = F.cross_entropy(out[mask], data[target_node_type].y[mask])
     loss.backward()
     optimizer.step()
     return float(loss)
@@ -97,15 +114,17 @@ def test() -> List[float]:
     model.eval()
     pred = model(data.x_dict(), data.adj_dict()).argmax(dim=-1)
 
-    accs = []
+    f1s = []
     for split in ["train_mask", "val_mask", "test_mask"]:
         mask = getattr(data, split)
-        acc = (pred[mask] == data["movie"].y[mask]).sum() / mask.sum()
-        accs.append(float(acc))
-    return accs
+        y_true = data[target_node_type].y[mask].cpu().numpy()
+        y_pred = pred[mask].cpu().numpy()
+        f1 = f1_score(y_true, y_pred, average="macro")
+        f1s.append(float(f1))
+    return f1s
 
 
-metric = "Acc"
+metric = "Macro-F1"
 best_val_acc = test_acc = 0
 times = []
 start_patience = patience = args.patience

@@ -1,14 +1,35 @@
 from __future__ import annotations
-from typing import Tuple, Union, Dict, List, Any
+from typing import Tuple
 
 import torch
 from torch import Tensor
 
-from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerPreEncoder
-
 
 class GLULayer(torch.nn.Module):
+    r"""Gated Linear Unit (GLU) layer used by ExcelFormer.
+
+    The layer first projects input features from ``in_dim`` to ``2 * out_dim``.
+    The projected tensor is split into value and gate parts, and the output is
+    computed as ``value * tanh(gate)``.
+
+    Args:
+        in_dim (int): Input feature dimensionality.
+        out_dim (int): Output feature dimensionality.
+
+    Returns:
+        This class does not return a tensor in ``__init__``.
+        The ``forward`` method returns a tensor with shape
+        ``[batch_size, num_cols, out_dim]``.
+
+    Example:
+        >>> import torch
+        >>> layer = GLULayer(in_dim=32, out_dim=32)
+        >>> x = torch.randn(8, 10, 32)
+        >>> out = layer(x)
+        >>> out.shape
+        torch.Size([8, 10, 32])
+    """
+
     def __init__(
         self,
         in_dim,
@@ -22,6 +43,14 @@ class GLULayer(torch.nn.Module):
         self.fc.reset_parameters()
 
     def forward(self, x: Tensor) -> Tensor:
+        """Apply linear projection and gated activation.
+
+        Args:
+            x (Tensor): Input tensor of shape ``[batch_size, num_cols, in_dim]``.
+
+        Returns:
+            Tensor: Output tensor of shape ``[batch_size, num_cols, out_dim]``.
+        """
         x = self.fc(x)
         x, gates = x.chunk(2, dim=2)
         return x * torch.nn.functional.tanh(gates)
@@ -37,6 +66,10 @@ class SemiPermeableAttention(torch.nn.Module):
         num_heads (int): Number of heads in Attention module (default: :obj:`8`)
         head_dim(int): Dimension of each attention head (default: :obj:`16`)
         dropout (float): Percentage of random deactivation (default: :obj:`0.`)
+
+    Returns:
+        The ``forward`` method returns an attended tensor with the same shape
+        as the input ``x``.
     """
 
     def __init__(self, dim, num_heads=8, head_dim=16, dropout=0.0):
@@ -58,7 +91,15 @@ class SemiPermeableAttention(torch.nn.Module):
         x = x.permute(0, 2, 1, 3)
         return x
 
-    def forward(self, x: Tensor):
+    def forward(self, x: Tensor) -> Tensor:
+        """Compute semi-permeable self-attention on tabular tokens.
+
+        Args:
+            x (Tensor): Input tensor of shape ``[batch_size, num_cols, dim]``.
+
+        Returns:
+            Tensor: Output tensor of shape ``[batch_size, num_cols, dim]``.
+        """
         q, k, v = self.to_qkv(x).chunk(3, dim=-1)
         q = self._rearrange_qkv(q)
         k = self._rearrange_qkv(k)
@@ -79,7 +120,7 @@ class SemiPermeableAttention(torch.nn.Module):
         self.to_qkv.reset_parameters()
         self.to_out.reset_parameters()
 
-    def get_attention_mask(self, input_shape: Tuple, device):
+    def get_attention_mask(self, input_shape: Tuple, device) -> Tensor:
         bs, num_heads, seq_len, _ = input_shape
         seq_ids = torch.arange(seq_len, device=device)
         attention_mask = (
@@ -108,10 +149,19 @@ class ExcelFormerConv(torch.nn.Module):
         num_heads (int): Number of attention heads (default: :obj:`8`).
         head_dim (int):  Dimensionality of each attention head (default: :obj:`16`).
         dropout (float): Attention module dropout (default: :obj:`0.3`).
-        use_pre_encoder (bool): Whether to use a pre-encoder (default: :obj:`False`).
-        metadata (Dict[rllm.types.ColType, List[Dict[str, Any]]], optional):
-            Metadata for each column type, specifying the statistics and
-            properties of the columns. (default: :obj:`None`).
+
+    Returns:
+        This class does not return a tensor in ``__init__``.
+        The ``forward`` method returns a transformed tensor with the same shape
+        as input.
+
+    Example:
+        >>> import torch
+        >>> conv = ExcelFormerConv(conv_dim=32, num_heads=8, head_dim=16, dropout=0.1)
+        >>> x = torch.randn(64, 12, 32)
+        >>> out = conv(x)
+        >>> out.shape
+        torch.Size([64, 12, 32])
     """
 
     def __init__(
@@ -120,37 +170,33 @@ class ExcelFormerConv(torch.nn.Module):
         num_heads: int = 8,
         head_dim: int = 16,
         dropout: float = 0.5,
-        use_pre_encoder: bool = False,
-        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
         self.layer_norm = torch.nn.LayerNorm(conv_dim)
+        self.glu_norm = torch.nn.LayerNorm(conv_dim)
         self.sp_attention = SemiPermeableAttention(
             dim=conv_dim, num_heads=num_heads, head_dim=head_dim, dropout=dropout
         )
         self.glu_layer = GLULayer(in_dim=conv_dim, out_dim=conv_dim)
 
-        # Define PreEncoder
-        self.pre_encoder = None
-        if use_pre_encoder:
-            self.pre_encoder = FTTransformerPreEncoder(
-                out_dim=conv_dim,
-                metadata=metadata,
-            )
-
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
         self.layer_norm.reset_parameters()
+        self.glu_norm.reset_parameters()
         self.sp_attention.reset_parameters()
         self.glu_layer.reset_parameters()
-        if self.pre_encoder:
-            self.pre_encoder.reset_parameters()
 
-    def forward(self, x: Union[Dict, Tensor]) -> Tensor:
-        if self.pre_encoder:
-            x = self.pre_encoder(x)
-        x = self.layer_norm(x)
-        x = self.sp_attention(x)
-        x = x + self.glu_layer(x)
+    def forward(self, x: Tensor) -> Tensor:
+        """Apply attention block and GLU block with residual connections.
+
+        Args:
+            x (Tensor): Input tensor of shape
+                ``[batch_size, num_cols, conv_dim]``.
+
+        Returns:
+            Tensor: Output tensor with the same shape as input.
+        """
+        x = x + self.sp_attention(self.layer_norm(x))
+        x = x + self.glu_layer(self.glu_norm(x))
         return x

@@ -25,8 +25,10 @@ GNN Cheatsheet
       - Two classic methods (Random and VertexCover) and PS-FeatProp-W from the `"Label-free Node Classification on Graphs with Large Language Models (LLMS)" <https://arxiv.org/abs/2310.04668>`__ paper.
     * - TAPE
       - The TAPE method from the `"Harnessing Explanations: LLM-to-LM Interpreter for Enhanced Text-Attributed Graph Representation Learning" <https://arxiv.org/abs/2305.19523>`__ paper.
-
-
+    * - RelGNN
+      - The RelGNN model from `"RelGNN: Composite Message Passing for Relational Deep Learning" <https://arxiv.org/abs/2502.06784>`__ paper.
+    * - HeteroSAGE
+      - The herterogeneous version of the GraphSAGE model from the `"Inductive Representation Learning on Large Graphs" <https://arxiv.org/abs/1706.02216>`__ paper.
 
 TNN Cheatsheet
 ----------------
@@ -38,12 +40,12 @@ TNN Cheatsheet
       - The FT-Transformer model introduced in the `"Revisiting Deep Learning Models for Tabular Data" <https://arxiv.org/abs/2106.11959>`_ paper.
     * - TabTransformer
       - The Tab-Transformer model introduced in the `"TabTransformer: Tabular Data Modeling Using Contextual Embeddings" <https://arxiv.org/abs/2012.06678>`_ paper.
-    * - TabNet
-      - The TabNet model introduced in the `"TabNet: Attentive Interpretable Tabular Learning" <https://arxiv.org/abs/1908.07442>`_ paper.
     * - ExcelFormer
       - The ExcelFormer model introduced in the `"ExcelFormer: A neural network surpassing GBDTs on tabular data" <https://arxiv.org/abs/2301.02819>`_ paper.
     * - Trompt
       - The Trompt model introduced in the `"Trompt: Towards a Better Deep Neural Network for Tabular Data" <https://arxiv.org/abs/2305.18446>`_ paper.
+    * - TransTab
+      - End-to-end TransTab model for downstream prediction tasks from the `"TransTab: Learning Transferable Tabular Transformers Across Tables" <https://arxiv.org/abs/2205.09328>`_ paper.
 
 
 RTL Cheatsheet
@@ -55,3 +57,7 @@ RTL Cheatsheet
 
     * - BRIDGE
       - The BRIDGE method from the `"rLLM: Relational Table Learning with LLMs" <https://arxiv.org/abs/2407.20157>`_ paper.
+    * - RDL
+      - Relational Deep Learning (RDL) model from the `"RelBench: A Benchmark for Deep Learning on Relational Databases" <https://arxiv.org/abs/2407.20060>`_ paper.
+    * - RelGNNModel
+      - The relational table learning model with RelGNN as the HGNN backbone from the `"RelGNN: Composite Message Passing for Relational Deep Learning" <https://arxiv.org/abs/2502.06784>`_ paper.

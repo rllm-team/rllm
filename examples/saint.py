@@ -3,9 +3,12 @@
 # via Row Attention and Contrastive Pre-Training" paper.
 # ArXiv: https://arxiv.org/abs/2106.01342
 
-# Datasets  Titanic    Adult
-# AUC       0.900      0.914
-# Time      11.3s      336.6s
+# Datasets      Titanic    BankMarketing
+# Metrics       AUC        AUC
+# Rept.         -          0.933
+# Ours          0.900      0.913
+# Time          11.3s      336.6s
+
 
 import argparse
 import sys
@@ -23,18 +26,22 @@ import torch.nn.functional as F
 sys.path.append("./")
 sys.path.append("../")
 from rllm.types import ColType
-from rllm.datasets.titanic import Titanic
+from rllm.datasets import Titanic, BankMarketing
 from rllm.transforms.table_transforms import DefaultTableTransform
+from rllm.nn.encoder import FTTransformerTableEncoder
 from rllm.nn.conv.table_conv.saint_conv import SAINTConv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--emb_dim", help="embedding dim.", type=int, default=32)
-parser.add_argument("--num_layers", type=int, default=3)
-parser.add_argument("--batch_size", type=int, default=128)
-parser.add_argument("--lr", type=float, default=1e-3)
+parser.add_argument(
+    "--dataset", type=str, default="titanic", choices=["titanic", "bankmarketing"]
+)
+parser.add_argument("--emb_dim", help="embedding dim.", type=int, default=64)
+parser.add_argument("--num_layers", type=int, default=1)
+parser.add_argument("--batch_size", type=int, default=256)
+parser.add_argument("--lr", type=float, default=1e-4)
+parser.add_argument("--wd", type=float, default=1e-2)
 parser.add_argument("--epochs", type=int, default=50)
 parser.add_argument("--seed", type=int, default=0)
-parser.add_argument("--wd", type=float, default=5e-4)
 args = parser.parse_args()
 
 # Set random seed and device
@@ -43,16 +50,19 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = Titanic(cached_dir=path)[0]
+if args.dataset.lower() == "bankmarketing":
+    data = BankMarketing(cached_dir=path)[0]
+else:
+    data = Titanic(cached_dir=path)[0]
 
 # Transform data
 transform = DefaultTableTransform(out_dim=args.emb_dim)
 data = transform(data).to(device)
 data.shuffle()
 
-# Split dataset, here the ratio of train-val-test is 80%-10%-10%
+# Split dataset, here the ratio of train-val-test is 65%-15%-20% following the paper
 train_loader, val_loader, test_loader = data.get_dataloader(
-    train_split=0.8, val_split=0.1, test_split=0.1, batch_size=args.batch_size
+    train_split=0.65, val_split=0.15, test_split=0.2, batch_size=args.batch_size
 )
 
 
@@ -62,23 +72,18 @@ class SAINT(torch.nn.Module):
         self,
         hidden_dim: int,
         out_dim: int,
-        num_feats: int,
+        num_cols: int,
         num_layers: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-
-        self.convs = torch.nn.ModuleList()
-        self.convs.append(
-            SAINTConv(
-                conv_dim=hidden_dim,
-                num_feats=num_feats,
-                use_pre_encoder=True,
-                metadata=metadata,
-            )
+        self.table_encoder = FTTransformerTableEncoder(
+            out_dim=hidden_dim,
+            metadata=metadata,
         )
-        for _ in range(num_layers - 1):
-            self.convs.append(SAINTConv(conv_dim=hidden_dim, num_feats=num_feats))
+        self.convs = torch.nn.ModuleList()
+        for _ in range(num_layers):
+            self.convs.append(SAINTConv(conv_dim=hidden_dim, num_cols=num_cols))
 
         self.fc = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
@@ -87,6 +92,7 @@ class SAINT(torch.nn.Module):
         )
 
     def forward(self, x) -> Tensor:
+        x = self.table_encoder(x)
         for conv in self.convs:
             x = conv(x)
         out = self.fc(x.mean(dim=1))
@@ -98,10 +104,10 @@ model = SAINT(
     hidden_dim=args.emb_dim,
     out_dim=data.num_classes,
     num_layers=args.num_layers,
-    num_feats=data.num_cols,
+    num_cols=data.num_cols,
     metadata=data.metadata,
 ).to(device)
-optimizer = torch.optim.Adam(
+optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=args.lr,
     weight_decay=args.wd,
@@ -138,7 +144,7 @@ def test(loader: DataLoader) -> float:
 
     # Compute the overall AUC
     overall_auc = roc_auc_score(all_labels, all_preds)
-    return overall_auc
+    return float(overall_auc)
 
 
 metric = "AUC"

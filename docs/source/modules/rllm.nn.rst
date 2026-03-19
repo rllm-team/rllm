@@ -38,6 +38,7 @@ Table Conv
    TabTransformerConv
    TromptConv
    TransTabConv
+   ResNetConv
 
 Pre-Encoder
 ----------------
@@ -49,8 +50,11 @@ Pre-Encoder
    :toctree: ../generated
    :template: autosummary/class.rst
 
-   FTTransformerPreEncoder
-   TabTransformerPreEncoder
+   FTTransformerTableEncoder
+   TabTransformerTableEncoder
+   TransTabTableEncoder
+   ResNetTableEncoder
+   HeteroTemporalEncoder
 
 
 Models
@@ -63,8 +67,26 @@ Models
    :toctree: ../generated
    :template: autosummary/class.rst
 
-   BRIDGE
    RECT_L
-   TabNet
+   BRIDGE
    TransTab
+   TableResNet
+   HeteroSAGE
+   RDL
+   RelGNN
+   RelGNNModel
 
+
+Loss
+------
+
+.. currentmodule:: rllm.nn.loss
+
+.. autosummary::
+   :nosignatures:
+   :toctree: ../generated
+   :template: autosummary/class.rst
+
+   ContrastiveLoss
+   SelfSupervisedVPCL
+   SupervisedVPCL

@@ -2,18 +2,6 @@ rllm.data
 ====================
 
 
-Dataset
-------------
-
-.. currentmodule:: rllm.data
-.. autosummary::
-   :nosignatures:
-   :toctree: ../generated
-   :template: autosummary/class.rst
-
-   Dataset
-
-
 
 Graph Data
 -------------------------

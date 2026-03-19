@@ -18,3 +18,4 @@ langchain_huggingface
 langchain_openai
 peft
 datasets
+transformers

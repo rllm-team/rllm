@@ -14,7 +14,7 @@ def sanitize_name(arcname: str, pathsep: str):
     return arcname
 
 
-def index2mask(index: Tensor, size: int):
+def index_to_mask(index: Tensor, size: int):
     r"""Convert index to mask format."""
     mask = torch.zeros(size, dtype=bool)
     mask[index] = True

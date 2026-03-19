@@ -15,13 +15,14 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
+sys.path.append("../../")
 from rllm.datasets import TACM12KDataset
 from rllm.dataloader import BRIDGELoader
 from rllm.transforms.graph_transforms import NormalizeFeatures
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.models import BRIDGE, TableEncoder, GraphEncoder
+from rllm.nn.models import BRIDGE, TableBackbone, GraphBackbone
 from utils import build_homo_graph
 
 
@@ -86,21 +87,18 @@ train_loader = BRIDGELoader(
 )
 
 # Set up model and optimizer
-t_encoder = TableEncoder(
+t_backbone = TableBackbone(
     in_dim=emb_size,
     out_dim=emb_size,
     table_conv=TabTransformerConv,
     metadata=target_table.metadata,
 )
-g_encoder = GraphEncoder(
-    in_dim=emb_size,
-    out_dim=target_table.num_classes,
-    graph_conv=GCNConv,
-    norm=True
+g_backbone = GraphBackbone(
+    in_dim=emb_size, out_dim=target_table.num_classes, graph_conv=GCNConv, norm=True
 )
 model = BRIDGE(
-    table_encoder=t_encoder,
-    graph_encoder=g_encoder,
+    table_backbone=t_backbone,
+    graph_backbone=g_backbone,
 ).to(device)
 optimizer = torch.optim.Adam(
     model.parameters(),
@@ -119,9 +117,7 @@ def train() -> float:
             non_table=None,
             adj=adjs,
         )
-        loss = F.cross_entropy(
-            logits[:batch], table_data.y[:batch].to(torch.long)
-        )
+        loss = F.cross_entropy(logits[:batch], table_data.y[:batch].to(torch.long))
         loss.backward()
         optimizer.step()
         loss_all += loss.item()

@@ -10,16 +10,18 @@ def _get_activation_fn(activation):
         return torch.nn.functional.relu
     elif activation == "gelu":
         return torch.nn.functional.gelu
-    elif activation == 'selu':
+    elif activation == "selu":
         return torch.nn.functional.selu
-    elif activation == 'leakyrelu':
+    elif activation == "leakyrelu":
         return torch.nn.functional.leaky_relu
-    raise RuntimeError("activation should be relu/gelu/selu/leakyrelu, not {}".format(activation))
+    raise RuntimeError(
+        "activation should be relu/gelu/selu/leakyrelu, not {}".format(activation)
+    )
 
 
 class TransTabConv(torch.nn.Module):
     r"""The TransTabConv module introduced in
-    `"TransTab: Learning Transferable Tabular Transformers Across Tables"`
+    `"TransTab: Learning Transferable Tabular Transformers Across Tables"
     <https://arxiv.org/abs/2205.09328>`_ paper.
 
     This layer implements a single Transformer encoder block customized for
@@ -48,24 +50,30 @@ class TransTabConv(torch.nn.Module):
             (default: False)
         use_layer_norm (bool): Whether to include LayerNorm layers in each
             sub-block. (default: True)
-        device (Optional[torch.device]): Device on which to allocate layer
-            parameters. (default: None)
-        dtype (Optional[torch.dtype]): Data type for layer parameters.
-            (default: None)
     """
 
-    __constants__ = ['batch_first', 'norm_first']
+    __constants__ = ["batch_first", "norm_first"]
 
-    def __init__(self, conv_dim, nhead, dim_feedforward=2048, dropout=0.1, activation=torch.nn.functional.relu,
-                 layer_norm_eps=1e-5, batch_first=True, norm_first=False,
-                 device=None, dtype=None, use_layer_norm=True) -> None:
-        factory_kwargs = {'device': device, 'dtype': dtype}
+    def __init__(
+        self,
+        conv_dim,
+        nhead,
+        dim_feedforward=2048,
+        dropout=0.1,
+        activation=torch.nn.functional.relu,
+        layer_norm_eps=1e-5,
+        batch_first=True,
+        norm_first=False,
+        use_layer_norm=True,
+    ) -> None:
         super().__init__()
-        self.self_attn = torch.nn.MultiheadAttention(conv_dim, nhead, batch_first=batch_first, **factory_kwargs)
+        self.self_attn = torch.nn.MultiheadAttention(
+            conv_dim, nhead, batch_first=batch_first
+        )
         # Implementation of Feedforward model
-        self.linear1 = torch.nn.Linear(conv_dim, dim_feedforward, **factory_kwargs)
+        self.linear1 = torch.nn.Linear(conv_dim, dim_feedforward)
         self.dropout = torch.nn.Dropout(dropout)
-        self.linear2 = torch.nn.Linear(dim_feedforward, conv_dim, **factory_kwargs)
+        self.linear2 = torch.nn.Linear(dim_feedforward, conv_dim)
 
         # Implementation of gates
         self.gate_linear = torch.nn.Linear(conv_dim, 1, bias=False)
@@ -75,8 +83,8 @@ class TransTabConv(torch.nn.Module):
         self.use_layer_norm = use_layer_norm
 
         if self.use_layer_norm:
-            self.norm1 = torch.nn.LayerNorm(conv_dim, eps=layer_norm_eps, **factory_kwargs)
-            self.norm2 = torch.nn.LayerNorm(conv_dim, eps=layer_norm_eps, **factory_kwargs)
+            self.norm1 = torch.nn.LayerNorm(conv_dim, eps=layer_norm_eps)
+            self.norm2 = torch.nn.LayerNorm(conv_dim, eps=layer_norm_eps)
         self.dropout1 = torch.nn.Dropout(dropout)
         self.dropout2 = torch.nn.Dropout(dropout)
 
@@ -87,29 +95,35 @@ class TransTabConv(torch.nn.Module):
             self.activation = activation
 
     # self-attention block
-    def _sa_block(self, x: Tensor,
-                  attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tensor:
+    def _sa_block(
+        self, x: Tensor, attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]
+    ) -> Tensor:
         key_padding_mask = ~key_padding_mask.bool()
-        x = self.self_attn(x, x, x,
-                           attn_mask=attn_mask,
-                           key_padding_mask=key_padding_mask,
-                           )[0]
+        x = self.self_attn(
+            x,
+            x,
+            x,
+            attn_mask=attn_mask,
+            key_padding_mask=key_padding_mask,
+        )[0]
         return self.dropout1(x)
 
     # feed forward block
     def _ff_block(self, x: Tensor) -> Tensor:
         g = self.gate_act(self.gate_linear(x))
         h = self.linear1(x)
-        h = h * g   # add gate
+        h = h * g  # add gate
         h = self.linear2(self.dropout(self.activation(h)))
         return self.dropout2(h)
 
     def __setstate__(self, state):
-        if 'activation' not in state:
-            state['activation'] = torch.nn.functional.relu
+        if "activation" not in state:
+            state["activation"] = torch.nn.functional.relu
         super().__setstate__(state)
 
-    def forward(self, x, src_mask=None, src_key_padding_mask=None, is_causal=None, **kwargs) -> Tensor:
+    def forward(
+        self, x, src_mask=None, src_key_padding_mask=None, is_causal=None, **kwargs
+    ) -> Tensor:
         r"""Pass the input through this encoder layer.
 
         Args:

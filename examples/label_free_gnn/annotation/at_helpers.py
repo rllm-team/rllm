@@ -90,13 +90,13 @@ def query_llm(llm, prompts, label_names, n=1):
         res = []
         for j in range(n):
             print('querying', i, j)
-            output = llm.predict(prompt)
+            output = llm.invoke(prompt)
             print('response:', output)
             ok, error_type = validate_syntax(output, label_names)
             if not ok:
                 print('correcting', i, j)
                 correction_prompt = generate_correction_prompt(prompt, label_names, error_type)
-                output = llm.predict(correction_prompt)
+                output = llm.invoke(correction_prompt)
                 print('response:', output)
             res.append(output)
         responses.append(res)

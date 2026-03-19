@@ -3,7 +3,9 @@
 # ArXiv: https://arxiv.org/abs/2309.13599
 
 # Datasets  CiteSeer    Cora      PubMed
-# Acc       0.773       0.869     0.837
+# Metrics   Acc         Acc       Acc
+# Rept.     0.775       0.869     0.834
+# Ours      0.774       0.869     0.837
 # Time      3.7s        2.3s      4.3s
 
 import argparse
@@ -24,7 +26,7 @@ from rllm.nn.conv.graph_conv import LGCConv
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--dataset", type=str, default="cora", choices=["citeseer, cora, pubmed"]
+    "--dataset", type=str, default="cora", choices=["citeseer", "cora", "pubmed"]
 )
 parser.add_argument("--decline", type=float, default=0.9, help="decline rate"),
 parser.add_argument("--lr_sup", type=float, default=0.001, help="lr for loss")
@@ -60,9 +62,9 @@ lr_sup = args.lr_sup
 
 # Define model
 class LinearNeuralNetwork(torch.nn.Module):
-    def __init__(self, num_feats: int, num_classes: int, bias: bool = True):
+    def __init__(self, num_cols: int, num_classes: int, bias: bool = True):
         super().__init__()
-        self.W = torch.nn.Linear(num_feats, num_classes, bias=bias)
+        self.W = torch.nn.Linear(num_cols, num_classes, bias=bias)
         self.conv = LGCConv(beta=args.beta)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -113,7 +115,7 @@ class LinearNeuralNetwork(torch.nn.Module):
 
 # Set up model
 model = LinearNeuralNetwork(
-    num_feats=data.x.shape[1],
+    num_cols=data.x.shape[1],
     num_classes=data.num_classes,
     bias=False,
 ).to(device)

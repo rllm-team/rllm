@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Optional
 
 import torch
 from torch import Tensor
@@ -52,11 +52,11 @@ class TableTransform(torch.nn.Module, ABC):
 
     def __init__(
         self,
-        out_dim: int | None = None,
-        col_type: ColType | None = None,
-        post_module: torch.nn.Module | None = None,
-        na_mode: Dict[StatType, NAMode] | None = None,
-        transforms: List[Callable] | None = None,
+        out_dim: Optional[int] = None,
+        col_type: Optional[ColType] = None,
+        post_module: Optional[torch.nn.Module] = None,
+        na_mode: Optional[Dict[StatType, NAMode]] = None,
+        transforms: Optional[List[Callable]] = None,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""
@@ -77,6 +77,8 @@ class TableTransform(torch.nn.Module, ABC):
             na_mode = {
                 ColType.NUMERICAL: NAMode.MEAN,
                 ColType.CATEGORICAL: NAMode.MOST_FREQUENT,
+                ColType.BINARY: NAMode.MOST_FREQUENT,
+                ColType.TEXT: NAMode.MOST_FREQUENT,
             }
 
         self.out_dim = out_dim
@@ -128,6 +130,15 @@ class TableTransform(torch.nn.Module, ABC):
         # object.
         feats = data.get_feat_dict()
         for col_type, feat in feats.items():
+            # Skip TEXT type as it's already tokenized (tuple of tensors)
+            # NaN handling for TEXT is done during tokenization
+            if col_type == ColType.TEXT:
+                continue
+
+            # Skip if col_type not in na_mode (defensive check)
+            if col_type not in self.na_mode:
+                continue
+
             feat = self._fill_nan(feat, data.metadata[col_type], self.na_mode[col_type])
             # Handle NaN in case na_mode is None
             feats[col_type] = torch.nan_to_num(feat, nan=0)

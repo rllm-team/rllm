@@ -1,12 +1,8 @@
 from __future__ import annotations
-from typing import Union, Dict, List, Any
 
 import torch
 from torch import Tensor
 import torch.nn.functional as F
-
-from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
 class TromptConv(torch.nn.Module):
@@ -26,10 +22,19 @@ class TromptConv(torch.nn.Module):
         out_dim (int): Output dimensionality, and hidden layer dimensionality.
         num_prompts (int): Number of prompts.
         num_groups (int): Number of groups for group normalization (default: 2).
-        use_pre_encoder (bool): Whether to use a pre-encoder (default: :obj:`False`).
-        metadata (Dict[ColType, List[Dict[str, Any]]], optional):
-            Metadata for each column type, specifying the statistics and
-            properties of the columns. (default: :obj:`None`).
+
+    Returns:
+        This class does not return a tensor in ``__init__``.
+        The ``forward`` method returns prompt-wise aggregated feature tensors.
+
+    Example:
+        >>> import torch
+        >>> conv = TromptConv(in_dim=8, out_dim=16, num_prompts=4)
+        >>> x = torch.randn(32, 8, 16)
+        >>> x_prompt = torch.randn(32, 4, 16)
+        >>> out = conv(x, x_prompt)
+        >>> out.shape
+        torch.Size([32, 4, 16])
     """
 
     def __init__(
@@ -38,8 +43,6 @@ class TromptConv(torch.nn.Module):
         out_dim: int,
         num_prompts: int,
         num_groups: int = 2,
-        use_pre_encoder: bool = False,
-        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
         self.num_prompts = num_prompts
@@ -57,14 +60,6 @@ class TromptConv(torch.nn.Module):
             num_channels=num_prompts,
         )
 
-        # Define PreEncoder
-        self.pre_encoder = None
-        if use_pre_encoder:
-            self.pre_encoder = FTTransformerPreEncoder(
-                out_dim=out_dim,
-                metadata=metadata,
-            )
-
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -73,12 +68,20 @@ class TromptConv(torch.nn.Module):
         torch.nn.init.xavier_uniform_(self.linear.weight)
         torch.nn.init.zeros_(self.linear.bias)
         torch.nn.init.uniform_(self.expand_weight)
-        if self.pre_encoder is not None:
-            self.pre_encoder.reset_parameters()
 
-    def forward(self, x: Union[Dict, Tensor], x_prompt: Tensor) -> Tensor:
-        if self.pre_encoder is not None:
-            x = self.pre_encoder(x)
+    def forward(self, x: Tensor, x_prompt: Tensor) -> Tensor:
+        """Expand and aggregate feature embeddings conditioned on prompts.
+
+        Args:
+            x (Tensor): Input feature embeddings of shape
+                ``[batch_size, in_dim, out_dim]``.
+            x_prompt (Tensor): Prompt embeddings of shape
+                ``[batch_size, num_prompts, out_dim]``.
+
+        Returns:
+            Tensor: Aggregated prompt representations of shape
+            ``[batch_size, num_prompts, out_dim]``.
+        """
 
         emb_column = self.ln_column(self.emb_column)
         emb_prompt = self.ln_prompt(self.emb_prompt)

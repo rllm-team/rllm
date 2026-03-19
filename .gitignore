@@ -29,6 +29,7 @@ coverage.xml
 *.onnx
 *.exe
 *.ckpt
+*.log
 examples/**/*.png
 examples/**/*.pdf
 benchmark/results/
@@ -38,6 +39,8 @@ draft.py
 _self_test_util.py
 huggingface/
 trash/
+*.ipynb
+tokenizer/
 
 !rllm/data/
 !test/data/

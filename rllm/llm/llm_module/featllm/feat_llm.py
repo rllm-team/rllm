@@ -6,7 +6,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from torch import Tensor
-from langchain_openai import ChatOpenAI
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 class LC:
@@ -14,7 +13,7 @@ class LC:
     from langchain.chat_models.base import BaseChatModel
 
 
-from feat_engineer import FeatLLMEngineer
+from .feat_engineer import FeatLLMEngineer
 
 
 class simple_model(nn.Module):
@@ -261,6 +260,7 @@ if __name__ == "__main__":
     API_KEY = "<Your API KEY>"
     API_URL = "<Your API URL>"
     # Example usage
+    from langchain_openai import ChatOpenAI
     llm = ChatOpenAI(
         model_name="Your Model Name",
         openai_api_base=API_URL,

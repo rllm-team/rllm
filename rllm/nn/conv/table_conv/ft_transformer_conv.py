@@ -1,12 +1,9 @@
 from __future__ import annotations
-from typing import Optional, Union, Dict, List, Any
+from typing import Optional
 
 import torch
 from torch import Tensor
 from torch.nn import Parameter
-
-from rllm.types import ColType
-from rllm.nn.pre_encoder import FTTransformerPreEncoder
 
 
 class FTTransformerConv(torch.nn.Module):
@@ -23,16 +20,24 @@ class FTTransformerConv(torch.nn.Module):
         conv_dim (int): Input/Output dimensionality.
         feedforward_dim (int, optional): Hidden dimensionality used by
             feedforward network of the Transformer model. If :obj:`None`, it
-            will be set to :obj:`dim` (default: :obj:`None`)
-        layers (int): Number of transformer encoder layers. (default: 3)
+            will be set to :obj:`conv_dim` (default: :obj:`None`).
         num_heads (int): Number of heads in multi-head attention (default: 8)
-        dropout (int): The dropout value (default: 0.1)
+        dropout (float): The dropout value (default: 0.3)
         activation (str): The activation function (default: :obj:`relu`)
         use_cls (bool): Whether to use a CLS token (default: :obj:`False`).
-        use_pre_encoder (bool): Whether to use a pre-encoder (default: :obj:`False`).
-        metadata (Optional[Dict[ColType, List[Dict[str, Any]]]]): Metadata for
-            each column type, specifying the statistics and properties of the
-            columns (default: :obj:`None`).
+
+    Returns:
+        This class does not return a tensor in ``__init__``.
+        The ``forward`` method returns either column embeddings or the CLS
+        embedding, depending on ``use_cls``.
+
+    Example:
+        >>> import torch
+        >>> conv = FTTransformerConv(conv_dim=32, num_heads=8, use_cls=False)
+        >>> x = torch.randn(16, 10, 32)
+        >>> out = conv(x)
+        >>> out.shape
+        torch.Size([16, 10, 32])
     """
 
     def __init__(
@@ -43,12 +48,9 @@ class FTTransformerConv(torch.nn.Module):
         dropout: float = 0.3,
         activation: str = "relu",
         use_cls: bool = False,
-        use_pre_encoder: bool = False,
-        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ):
         super().__init__()
         self.use_cls = use_cls
-        self.metadata = metadata
         encoder_layer = torch.nn.TransformerEncoderLayer(
             d_model=conv_dim,
             nhead=num_heads,
@@ -65,14 +67,6 @@ class FTTransformerConv(torch.nn.Module):
         )
         self.cls_embedding = Parameter(torch.empty(conv_dim))
 
-        # Define PreEncoder
-        self.pre_encoder = None
-        if use_pre_encoder:
-            self.pre_encoder = FTTransformerPreEncoder(
-                out_dim=conv_dim,
-                metadata=self.metadata,
-            )
-
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -80,14 +74,12 @@ class FTTransformerConv(torch.nn.Module):
         for p in self.transformer.parameters():
             if p.dim() > 1:
                 torch.nn.init.xavier_uniform_(p)
-        if self.pre_encoder:
-            self.pre_encoder.reset_parameters()
 
-    def forward(self, x: Union[Dict, Tensor]) -> Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         r"""CLS-token augmented Transformer convolution.
 
         Args:
-            x (Union[Dict, Tensor]): Input tensor of shape [batch_size, num_cols, dim]
+            x (Tensor): Input tensor of shape [batch_size, num_cols, dim]
 
         Returns:
             torch.Tensor: Output tensor of shape [batch_size, num_cols, dim]
@@ -95,8 +87,6 @@ class FTTransformerConv(torch.nn.Module):
             [batch_size, num_cols + 1, dim], corresponding to the
             added CLS token column.
         """
-        if self.pre_encoder is not None:
-            x = self.pre_encoder(x)
 
         B, _, _ = x.shape
         # [batch_size, num_cols, dim]

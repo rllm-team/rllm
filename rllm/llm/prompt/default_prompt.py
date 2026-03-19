@@ -9,8 +9,7 @@ DEFAULT_SCENARIO_CLASSIFICATION_TMPL = (  # noqa
     "---------------------\n"  # noqa
     "Using the sample description above and your knowledge, return the label that "  # noqa
     "is most relevant to the sample.\n"  # noqa
-    "Provide label in the following format: 'ANSWER: <label>' and explain why "  # noqa
-    "this label was selected.\n"  # noqa
+    "Provide label in the following format: 'ANSWER: <label>'.\n"  # noqa
 )
 
 DEFAULT_SCENARIO_REGRESSION_TMPL = (  # noqa
@@ -24,8 +23,7 @@ DEFAULT_SCENARIO_REGRESSION_TMPL = (  # noqa
     "---------------------\n"  # noqa
     "Using the sample description above and your knowledge, return a value that "  # noqa
     "is most possible to the sample.\n"  # noqa
-    "Provide value in the following format: 'ANSWER: <value>' and explain why "  # noqa
-    "this value was predicted.\n"  # noqa
+    "Provide value in the following format: 'ANSWER: <value>'.\n"  # noqa
 )
 
 DEFAULT_SCENARIO_EXPLANATION_TMPL = (  # noqa

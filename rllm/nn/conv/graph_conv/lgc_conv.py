@@ -98,7 +98,7 @@ class LGCConv(MessagePassing):
         r"""Lazy Graph Convolution
 
         .. math::
-            lazy_msgs = \beta * gcn_msgs + (1-\beta) * \mathbf{X}
+            lazy\_msgs = \beta * gcn\_msgs + (1-\beta) * \mathbf{X}
         """
 
         edge_index, ew = self.__unify_edgeindex__(edge_index)

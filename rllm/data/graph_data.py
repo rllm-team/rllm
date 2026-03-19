@@ -177,7 +177,16 @@ class GraphData(BaseGraph):
     def num_nodes(self):
         if "num_nodes" in self._mapping:
             return self._mapping["num_nodes"]
-        return len(self.y)
+        if hasattr(self, "y") and self.y is not None:
+            return len(self.y)
+        elif hasattr(self, "x") and self.x is not None:
+            return len(self.x)
+        elif hasattr(self, "adj") and self.adj is not None:
+            return self.adj.size(0)
+        else:
+            raise AttributeError(
+                "Cannot determine number of nodes: no y, x, or adj attributes available"
+            )
 
     @property
     def num_classes(self):
@@ -282,6 +291,7 @@ class GraphData(BaseGraph):
 
         return hetero_data
 
+
 """
 `EdgeType` and `NodeType` are used as the types of
 edges and nodes in the `HeteroGraphData` class.
@@ -303,47 +313,58 @@ class HeteroGraphData(BaseGraph):
     Methods of initialization:
         1) Assign attributes,
 
-        data = HeteroGraphData()
-        data['paper']['x'] = x_paper
-        data['paper'].x = x_paper
+        .. code-block:: python
+
+            data = HeteroGraphData()
+            data['paper']['x'] = x_paper
+            data['paper'].x = x_paper
 
         Tips:
             Though name of node attribute can be arbitrary, `x` is prefered.
 
         2) pass them as keyword arguments,
 
-        data = HeteroGraphData(
-            'paper' = {'x': x_paper, 'y': labels},
-            'writer' = {'x': x_writer},
-            'writer__of__paper' = {'adj' = adj}
-        )
+        .. code-block:: python
+
+            data = HeteroGraphData(
+                'paper' = {'x': x_paper, 'y': labels},
+                'writer' = {'x': x_writer},
+                'writer__of__paper' = {'adj' = adj}
+            )
 
         3) pass them as dictionaries,
 
-        data = HeteroGraphData(
-            {
-                'paper' = {'x': x_paper, 'y': labels},
-                'writer' = {'x': x_writer},
-                ('writer', 'of', 'paper') = {'adj' = adj}
-            }
-        )
+        .. code-block:: python
 
-    Save some attributes like train_mask:
+            data = HeteroGraphData(
+                {
+                    'paper' = {'x': x_paper, 'y': labels},
+                    'writer' = {'x': x_writer},
+                    ('writer', 'of', 'paper') = {'adj' = adj}
+                }
+            )
 
-        data.train_mask = train_mask
+        Save some attributes like train_mask:
+
+        .. code-block:: python
+
+            data.train_mask = train_mask
 
         Save more edges and nodes:
-        data[edge_type|node_type] = {
-            ...
-        }
 
-        Key of edge type:
-        data['src__tgt'] =  {'adj': adj}
-        data[src, tgt] = {'adj': adj}
-        data[src, rel, tgt] = {'adj': adj}
+        .. code-block:: python
 
-        Key of node type:
-        data['node type'] = {'x': x}
+            data[edge_type|node_type] = {
+                ...
+            }
+
+            Key of edge type:
+            data['src__tgt'] =  {'adj': adj}
+            data[src, tgt] = {'adj': adj}
+            data[src, rel, tgt] = {'adj': adj}
+
+            Key of node type:
+            data['node type'] = {'x': x}
     """
 
     def __init__(self, mapping: Optional[Mapping[str, Any]] = None, **kwargs):
@@ -676,15 +697,16 @@ class HeteroGraphData(BaseGraph):
 
     def set_value_dict(
         self, key: str, value_d: Dict[Union[NodeType, EdgeType], Any]
-    ) -> None:
+    ) -> 'HeteroGraphData':
         r"""Set the attribute `key` for each node and edge type in value dict.
 
         Args:
             key (str): The attribute key to set.
             value (Dict[Union[NodeType, EdgeType], Any]): The attribute values.
         """
-        for type_, value in value_d.items():
+        for type_, value in (value_d or {}).items():
             self[type_][key] = value
+        return self
 
     # Dunder functions ########################################
 
