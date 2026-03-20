@@ -24,11 +24,11 @@ class SAINTConv(torch.nn.Module):
 
     Example:
         >>> import torch
-        >>> conv = SAINTConv(conv_dim=16, num_cols=10, num_heads=4, dropout=0.1)
-        >>> x = torch.randn(8, 10, 16)
+        >>> conv = SAINTConv(conv_dim=16, num_cols=8, num_heads=4, dropout=0.1)
+        >>> x = torch.randn(32, 8, 16)
         >>> out = conv(x)
         >>> out.shape
-        torch.Size([8, 10, 16])
+        torch.Size([32, 8, 16])
     """
 
     def __init__(

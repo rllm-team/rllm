@@ -1,14 +1,20 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
+<<<<<<<< HEAD:rllm/nn/encoder/pre_encoder/ft_transformer_pre_encoder.py
 from .pre_encoder import PreEncoder
 from ..col_encoder import EmbeddingEncoder, LinearEncoder
+========
+from .table_encoder import TableEncoder
+from .embedding_encoder import EmbeddingEncoder
+from ._linear_encoder import LinearEncoder
+>>>>>>>> main:rllm/nn/encoder/ft_transformer_table_encoder.py
 from rllm.types import ColType
 
 
-class FTTransformerPreEncoder(PreEncoder):
+class FTTransformerTableEncoder(TableEncoder):
     r"""
-    The FTTransformerPreEncoder class is a specialized pre-encoder for the
+    The FTTransformerTableEncoder class is a specialized pre-encoder for the
     FTTransformer model. It initializes a column-specific encoder dict for
     categorical and numerical features based on the provided metadata.
     Specifically, it uses `EmbeddingEncoder` for categorical features and

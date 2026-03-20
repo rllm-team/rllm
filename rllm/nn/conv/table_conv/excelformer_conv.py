@@ -53,25 +53,31 @@ class GLULayer(torch.nn.Module):
 
 class SemiPermeableAttention(torch.nn.Module):
     r"""Semi-Permeable Attention module propose in the
-    `"ExcelFormer: A neural network surpassing GBDTs on tabular data"`
-    <https://arxiv.org/abs/2301.02819>`_ paper.
+        `"ExcelFormer: A neural network surpassing GBDTs on tabular data"`
+        <https://arxiv.org/abs/2301.02819>`_ paper.
 
-    This module applies causal-style column-wise self-attention to model
-    dependencies among tabular feature tokens.
+        This module applies causal-style column-wise self-attention to model
+        dependencies among tabular feature tokens.
 
-    Args:
-        dim (int): Input dimensionality
-        num_heads (int): Number of heads in Attention module (default: :obj:`8`)
-        head_dim(int): Dimension of each attention head (default: :obj:`16`)
-        dropout (float): Percentage of random deactivation (default: :obj:`0.`)
+        Args:
+            dim (int): Input dimensionality
+            num_heads (int): Number of heads in Attention module (default: :obj:`8`)
+            head_dim(int): Dimension of each attention head (default: :obj:`16`)
+            dropout (float): Percentage of random deactivation (default: :obj:`0.`)
 
-    Example:
-        >>> import torch
-        >>> attn = SemiPermeableAttention(dim=32, num_heads=4, head_dim=8, dropout=0.1)
-        >>> x = torch.randn(16, 12, 32)
-        >>> out = attn(x)
-        >>> out.shape
-        torch.Size([16, 12, 32])
+    <<<<<<< HEAD
+        Example:
+            >>> import torch
+            >>> attn = SemiPermeableAttention(dim=32, num_heads=4, head_dim=8, dropout=0.1)
+            >>> x = torch.randn(16, 12, 32)
+            >>> out = attn(x)
+            >>> out.shape
+            torch.Size([16, 12, 32])
+    =======
+        Returns:
+            The ``forward`` method returns an attended tensor with the same shape
+            as the input ``x``.
+    >>>>>>> main
     """
 
     def __init__(self, dim, num_heads=8, head_dim=16, dropout=0.0):
@@ -135,30 +141,45 @@ class SemiPermeableAttention(torch.nn.Module):
 
 class ExcelFormerConv(torch.nn.Module):
     r"""The ExcelFormerConv Layer introduced in the
-    `"ExcelFormer: A neural network surpassing GBDTs on tabular data"
-    <https://arxiv.org/abs/2301.02819>`_ paper.
+        `"ExcelFormer: A neural network surpassing GBDTs on tabular data"
+        <https://arxiv.org/abs/2301.02819>`_ paper.
 
-    This layer is designed to handle tabular data by applying a combination of
-    normalization, attention, and gated linear unit (GLU). In essence, it is
-    a variant of the attention mechanism tailored for tabular data.  If
-    metadata is provided, the pre-encoder is used to preprocess the input data
-    before applying the subsequent encoders. The layer normalizes the input,
-    applies semi-permeable attention, and then uses a GLU layer to enhance the
-    representation learning capability.
+        This layer is designed to handle tabular data by applying a combination of
+        normalization, attention, and gated linear unit (GLU). In essence, it is
+        a variant of the attention mechanism tailored for tabular data.  If
+        metadata is provided, the pre-encoder is used to preprocess the input data
+        before applying the subsequent encoders. The layer normalizes the input,
+        applies semi-permeable attention, and then uses a GLU layer to enhance the
+        representation learning capability.
 
-    Args:
-        conv_dim (int): Input/Output dimensionality.
-        num_heads (int): Number of attention heads (default: :obj:`8`).
-        head_dim (int):  Dimensionality of each attention head (default: :obj:`16`).
-        dropout (float): Attention module dropout (default: :obj:`0.3`).
+        Args:
+            conv_dim (int): Input/Output dimensionality.
+            num_heads (int): Number of attention heads (default: :obj:`8`).
+            head_dim (int):  Dimensionality of each attention head (default: :obj:`16`).
+            dropout (float): Attention module dropout (default: :obj:`0.3`).
 
-    Example:
-        >>> import torch
-        >>> conv = ExcelFormerConv(conv_dim=32, num_heads=8, head_dim=16, dropout=0.1)
-        >>> x = torch.randn(10, 7, 32)
-        >>> out = conv(x)
-        >>> out.shape
-        torch.Size([10, 7, 32])
+    <<<<<<< HEAD
+        Example:
+            >>> import torch
+            >>> conv = ExcelFormerConv(conv_dim=32, num_heads=8, head_dim=16, dropout=0.1)
+            >>> x = torch.randn(10, 7, 32)
+            >>> out = conv(x)
+            >>> out.shape
+            torch.Size([10, 7, 32])
+    =======
+        Returns:
+            This class does not return a tensor in ``__init__``.
+            The ``forward`` method returns a transformed tensor with the same shape
+            as input.
+
+        Example:
+            >>> import torch
+            >>> conv = ExcelFormerConv(conv_dim=32, num_heads=8, head_dim=16, dropout=0.1)
+            >>> x = torch.randn(64, 12, 32)
+            >>> out = conv(x)
+            >>> out.shape
+            torch.Size([64, 12, 32])
+    >>>>>>> main
     """
 
     def __init__(

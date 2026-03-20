@@ -11,8 +11,8 @@ from .relgnn import RelGNN, RelGNNModel
 __all__ = [
     "RECT_L",
     "BRIDGE",
-    "TableEncoder",
-    "GraphEncoder",
+    "TableBackbone",
+    "GraphBackbone",
     "TransTab",
     "TransTabClassifier",
     "TransTabForCL",
