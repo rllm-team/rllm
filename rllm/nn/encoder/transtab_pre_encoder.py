@@ -11,10 +11,9 @@ from torch import Tensor
 from transformers import BertTokenizerFast
 
 from .pre_encoder import PreEncoder
-from ..col_encoder import (
-    TransTabNumEmbeddingEncoder,
-    TransTabWordEmbeddingEncoder,
-)
+from .col_encoder._transtab_num_embedding_encoder import TransTabNumEmbeddingEncoder
+from .col_encoder._transtab_word_embedding_encoder import TransTabWordEmbeddingEncoder
+
 from rllm.types import ColType
 from rllm.data.table_data import TableData
 
@@ -65,7 +64,6 @@ class TransTabPreEncoder(PreEncoder):
             duplicate column names; otherwise raise :class:`ValueError`.
 
     Returns:
-        This class does not return tensors in ``__init__``.
         The ``forward`` method returns either aligned embeddings with attention
         masks, a dictionary of encoded tensors, or a concatenated tensor.
     """

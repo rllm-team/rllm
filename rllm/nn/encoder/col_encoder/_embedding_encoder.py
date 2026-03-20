@@ -23,7 +23,6 @@ class EmbeddingEncoder(ColEncoder):
             be applied to the output (default: :obj:`None`).
 
     Returns:
-        This class does not return a tensor in ``__init__``.
         The ``forward`` method returns categorical embeddings with shape
         ``[batch_size, num_cat_cols, out_dim]``.
 

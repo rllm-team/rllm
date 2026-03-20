@@ -29,10 +29,6 @@ class RelGNN(torch.nn.Module):
         num_heads (int): The number of attention heads.
         simplified_MP (bool): Whether to use simplified message passing.
 
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns node embeddings by node type.
-
     Example:
         >>> from rllm.nn.models import RelGNN
         >>> model = RelGNN(node_types=["user", "item"], atomic_routes_edge_types=[("dim-dim", "user", "rel", "item")], hidden_dim=16)

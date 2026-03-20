@@ -34,7 +34,6 @@ class TimestampEncoder(ColEncoder):
             (default: :obj:`False`).
 
     Returns:
-        This class does not return a tensor in ``__init__``.
         The ``forward`` method returns timestamp embeddings with shape
         ``[batch_size, num_timestamp_cols, out_dim]``.
 

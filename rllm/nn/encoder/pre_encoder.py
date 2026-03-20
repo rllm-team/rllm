@@ -5,7 +5,7 @@ from abc import ABC
 import torch
 from torch import Tensor
 
-from ..col_encoder import ColEncoder
+from .col_encoder._col_encoder import ColEncoder
 from rllm.types import ColType
 
 
@@ -29,7 +29,6 @@ class PreEncoder(torch.nn.Module, ABC):
             as keys.
 
     Returns:
-        This class does not return a tensor in ``__init__``.
         The ``forward`` method returns either a concatenated embedding tensor
         or a dictionary of per-column-type embeddings.
 

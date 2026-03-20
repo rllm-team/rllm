@@ -433,10 +433,6 @@ class TransTabForCL(TransTab):
             used by the underlying :class:`TransTabTableEncoder`. (default: None)
         **kwargs: Additional keyword arguments passed to :class:`TransTab`.
 
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns contrastive loss outputs.
-
     Example:
         >>> from rllm.nn.models import TransTabForCL
         >>> model = TransTabForCL(hidden_dim=32, num_partition=2)
@@ -557,7 +553,7 @@ class TransTabForCL(TransTab):
                 tokenizer_config=tokenizer_config,
             )
             # Process through table_encoder
-            proc = self.pre_encoderer(sub_table)
+            proc = self.pre_encoder(sub_table)
             emb = proc["embedding"]
             mask = proc["attention_mask"]
             # Add CLS token

@@ -21,7 +21,6 @@ class CyclicEncoder(Module):
         out_size (int): The output dimension size.
 
     Returns:
-        This class does not return a tensor in ``__init__``.
         The ``forward`` method returns encoded tensor with shape
         ``input_tensor.shape + (out_size,)``.
 

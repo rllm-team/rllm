@@ -24,7 +24,6 @@ class TextEmbeddingEncoder(ColEncoder):
             be applied to the output (default: :obj:`None`).
 
     Returns:
-        This class does not return a tensor in ``__init__``.
         The ``forward`` method returns text column embeddings with shape
         ``[batch_size, num_text_cols, out_dim]``.
 

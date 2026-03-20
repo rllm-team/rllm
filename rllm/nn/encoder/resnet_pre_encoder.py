@@ -2,12 +2,10 @@ from typing import Any, Dict, List
 
 from rllm.types import ColType
 from .pre_encoder import PreEncoder
-from ..col_encoder import (
-    EmbeddingEncoder,
-    LinearEncoder,
-    TextEmbeddingEncoder,
-    TimestampEncoder,
-)
+from .col_encoder._embedding_encoder import EmbeddingEncoder
+from .col_encoder._linear_encoder import LinearEncoder
+from .col_encoder._textembedding_encoder import TextEmbeddingEncoder
+from .col_encoder._timestamp_encoder import TimestampEncoder
 
 
 class ResNetPreEncoder(PreEncoder):
@@ -23,7 +21,6 @@ class ResNetPreEncoder(PreEncoder):
             properties of the columns.
 
     Returns:
-        This class does not return tensors in ``__init__``.
         Encoded outputs are produced when inherited ``forward`` is called.
 
     Example:

@@ -25,10 +25,6 @@ class TableResNet(torch.nn.Module):
         normalization (str | None): The normalization method.
         dropout (float): The dropout rate.
 
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns table-level representations.
-
     Example:
         >>> from rllm.nn.models import TableResNet
         >>> # Instantiate with prepared table metadata for tabular inputs.

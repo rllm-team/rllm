@@ -26,11 +26,6 @@ class FTTransformerConv(torch.nn.Module):
         activation (str): The activation function (default: :obj:`relu`)
         use_cls (bool): Whether to use a CLS token (default: :obj:`False`).
 
-    Returns:
-        This class does not return a tensor in ``__init__``.
-        The ``forward`` method returns either column embeddings or the CLS
-        embedding, depending on ``use_cls``.
-
     Example:
         >>> import torch
         >>> conv = FTTransformerConv(conv_dim=32, num_heads=8, use_cls=False)

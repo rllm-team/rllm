@@ -31,7 +31,6 @@ class LinearEncoder(ColEncoder):
             no activation function will be applied (default: :obj:`None`).
 
     Returns:
-        This class does not return a tensor in ``__init__``.
         The ``forward`` method returns embeddings of shape
         ``[batch_size, num_cols, out_dim]``.
 

@@ -2,7 +2,8 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from .pre_encoder import PreEncoder
-from ..col_encoder import EmbeddingEncoder, LinearEncoder
+from .col_encoder._embedding_encoder import EmbeddingEncoder
+from .col_encoder._linear_encoder import LinearEncoder
 from rllm.types import ColType
 
 
@@ -23,7 +24,6 @@ class FTTransformerPreEncoder(PreEncoder):
             (default: :obj:`1`).
 
     Returns:
-        This class does not return a tensor in ``__init__``.
         Encoded outputs are produced by inherited ``forward``.
 
     Example:

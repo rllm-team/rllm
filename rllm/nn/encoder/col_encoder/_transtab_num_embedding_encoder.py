@@ -23,7 +23,6 @@ class TransTabNumEmbeddingEncoder(ColEncoder):
             after encoding (e.g., batch normalization or activation). (default: None)
 
     Returns:
-        This class does not return a tensor in ``__init__``.
         The ``forward`` method returns numerical feature embeddings with shape
         ``[batch_size, num_num_cols, hidden_dim]``.
 

@@ -13,7 +13,6 @@ class PositionalEncoder(Module):
         out_size (int): The output dimension size.
 
     Returns:
-        This class does not return a tensor in ``__init__``.
         The ``forward`` method returns encoded tensor with shape
         ``input_tensor.shape + (out_size,)``.
 
@@ -24,11 +23,11 @@ class PositionalEncoder(Module):
         >>> enc(x).shape
         torch.Size([2, 3, 8])
     """
+
     def __init__(self, out_size: int) -> None:
         super().__init__()
         if out_size % 2 != 0:
-            raise ValueError(
-                f"out_size should be divisible by 2 (got {out_size}).")
+            raise ValueError(f"out_size should be divisible by 2 (got {out_size}).")
         self.out_size = out_size
         self.mult_term: Tensor
         self.register_buffer(
@@ -47,7 +46,7 @@ class PositionalEncoder(Module):
         assert torch.all(input_tensor >= 0)
         # (*, 1) * (1, ..., 1, out_size // 2) -> (*, out_size // 2)
         mult_tensor = input_tensor.unsqueeze(-1) * self.mult_term.reshape(
-            (1, ) * input_tensor.ndim + (-1, ))
+            (1,) * input_tensor.ndim + (-1,)
+        )
         # cat([(*, out_size // 2), (*, out_size // 2)]) -> (*, out_size)
-        return torch.cat([torch.sin(mult_tensor),
-                          torch.cos(mult_tensor)], dim=-1)
+        return torch.cat([torch.sin(mult_tensor), torch.cos(mult_tensor)], dim=-1)

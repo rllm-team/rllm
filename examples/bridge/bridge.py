@@ -20,8 +20,7 @@ sys.path.append("../../")
 from rllm.datasets import TLF2KDataset, TACM12KDataset, TML1MDataset
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.models import BRIDGE
-from rllm.nn.encoder import TableEncoder, GraphEncoder
+from rllm.nn.models import TableEncoder, GraphEncoder, BRIDGE
 from examples.bridge.utils import data_prepare
 
 

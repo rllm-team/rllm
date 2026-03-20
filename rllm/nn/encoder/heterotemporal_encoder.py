@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 from torch.nn import ModuleDict
 
-from ..col_encoder import PositionalEncoder
+from .col_encoder._positional_encoder import PositionalEncoder
 
 
 class HeteroTemporalEncoder(torch.nn.Module):
@@ -17,7 +17,6 @@ class HeteroTemporalEncoder(torch.nn.Module):
         channels (int): The number of channels.
 
     Returns:
-        This class does not return tensors in ``__init__``.
         The ``forward`` method returns a dictionary from node type to
         temporal embeddings.
 

@@ -18,9 +18,6 @@ def _reset_parameters_soft(module: torch.nn.Module):
     Args:
         module (torch.nn.Module): Module to reset.
 
-    Returns:
-        None: The module is updated in place.
-
     Example:
         >>> import torch
         >>> layer = torch.nn.Linear(4, 8)

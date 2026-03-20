@@ -1,8 +1,9 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
+from .col_encoder._embedding_encoder import EmbeddingEncoder
+from .col_encoder._reshape_encoder import ReshapeEncoder
 from .pre_encoder import PreEncoder
-from ..col_encoder import EmbeddingEncoder, ReshapeEncoder
 from rllm.types import ColType
 
 
@@ -20,7 +21,6 @@ class TabTransformerPreEncoder(PreEncoder):
             properties of the columns.
 
     Returns:
-        This class does not return a tensor in ``__init__``.
         Encoded outputs are produced by inherited ``forward``.
     """
 
