@@ -265,14 +265,14 @@ class TransTab(torch.nn.Module):
     def update(self, config: Dict[str, Any]) -> None:
         col_map = {k: v for k, v in config.items() if k in ("cat", "num", "bin")}
         if col_map:
-            self.table_encoder.update(
+            self.pre_encoder.update(
                 cat=col_map.get("cat", None),
                 num=col_map.get("num", None),
                 bin=col_map.get("bin", None),
             )
-            self.categorical_columns = self.table_encoder.categorical_columns
-            self.numerical_columns = self.table_encoder.numerical_columns
-            self.binary_columns = self.table_encoder.binary_columns
+            self.categorical_columns = self.pre_encoder.categorical_columns
+            self.numerical_columns = self.pre_encoder.numerical_columns
+            self.binary_columns = self.pre_encoder.binary_columns
 
             print("Extended column mappings in TransTab via table_encoder.update().")
 
@@ -530,8 +530,8 @@ class TransTabForCL(TransTab):
         sub_df_list = self._build_positive_pairs(df, self.num_partition)
 
         tokenizer_config = TokenizerConfig(
-            tokenizer=self.table_encoder.tokenizer,
-            pad_token_id=self.table_encoder.tokenizer.pad_token_id,
+            tokenizer=self.pre_encoder.tokenizer,
+            pad_token_id=self.pre_encoder.tokenizer.pad_token_id,
             tokenize_combine=True,
             include_colname=True,
             save_colname_token_ids=True,
@@ -557,7 +557,7 @@ class TransTabForCL(TransTab):
                 tokenizer_config=tokenizer_config,
             )
             # Process through table_encoder
-            proc = self.pre_encoder(sub_table)
+            proc = self.pre_encoderer(sub_table)
             emb = proc["embedding"]
             mask = proc["attention_mask"]
             # Add CLS token
@@ -588,11 +588,11 @@ class TransTabForCL(TransTab):
     def _infer_col_types(self, columns):
         col_types = {}
         for col in columns:
-            if col in self.table_encoder.categorical_columns:
+            if col in self.pre_encoder.categorical_columns:
                 col_types[col] = ColType.TEXT
-            elif col in self.table_encoder.numerical_columns:
+            elif col in self.pre_encoder.numerical_columns:
                 col_types[col] = ColType.NUMERICAL
-            elif col in self.table_encoder.binary_columns:
+            elif col in self.pre_encoder.binary_columns:
                 col_types[col] = ColType.BINARY
             else:
                 col_types[col] = ColType.TEXT

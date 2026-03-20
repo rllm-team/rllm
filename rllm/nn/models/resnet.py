@@ -48,7 +48,7 @@ class TableResNet(torch.nn.Module):
         self.dropout = dropout
 
         # PreEncoder
-        self.table_encoder = ResNetPreEncoder(
+        self.pre_encoder = ResNetPreEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
         )
@@ -78,7 +78,7 @@ class TableResNet(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.table_encoder.reset_parameters()
+        self.pre_encoder.reset_parameters()
         for conv in self.convs:
             conv.reset_parameters()
         for layer in self.decoder:
