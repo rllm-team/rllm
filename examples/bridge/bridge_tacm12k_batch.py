@@ -22,7 +22,8 @@ from rllm.transforms.graph_transforms import NormalizeFeatures
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.models import BRIDGE, TableBackbone, GraphBackbone
+from rllm.nn.models import BRIDGE
+from rllm.nn.encoder import TableEncoder, GraphEncoder
 from utils import build_homo_graph
 
 
@@ -94,8 +95,6 @@ t_backbone = TableEncoder(
     metadata=target_table.metadata,
 )
 g_backbone = GraphEncoder(
-    in_dim=emb_size, out_dim=target_table.num_classes, graph_conv=GCNConv, norm=True
-g_backbone = GraphBackbone(
     in_dim=emb_size, out_dim=target_table.num_classes, graph_conv=GCNConv, norm=True
 )
 model = BRIDGE(

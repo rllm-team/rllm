@@ -26,7 +26,7 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Jannis, Titanic
 from rllm.transforms.table_transforms import DefaultTableTransform
-from rllm.nn.encoder import FTTransformerTableEncoder
+from rllm.nn.encoder import TableEncoder, FTTransformerPreEncoder
 from rllm.nn.conv.table_conv import ExcelFormerConv
 
 parser = argparse.ArgumentParser()
@@ -76,13 +76,14 @@ class ExcelFormer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.table_encoder = FTTransformerTableEncoder(
+        self.encoder = TableEncoder(
+            in_dim=hidden_dim,
             out_dim=hidden_dim,
+            num_layers=num_layers,
             metadata=metadata,
+            pre_encoder=FTTransformerPreEncoder,
+            table_conv=ExcelFormerConv,
         )
-        self.convs = torch.nn.ModuleList()
-        for _ in range(num_layers):
-            self.convs.append(ExcelFormerConv(conv_dim=hidden_dim))
 
         self.mlp = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
@@ -91,10 +92,8 @@ class ExcelFormer(torch.nn.Module):
         )
 
     def forward(self, x) -> Tensor:
-        x = self.table_encoder(x)
-        for conv in self.convs:
-            x = conv(x)
-        out = self.fc(x.mean(dim=1))
+        x = self.encoder(x)
+        out = self.mlp(x.mean(dim=1))
         return out
 
 
@@ -108,7 +107,7 @@ model = ExcelFormer(
 optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=args.lr,
-    # weight_decay=args.wd,
+    weight_decay=args.wd,
 )
 
 

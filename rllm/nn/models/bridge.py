@@ -17,8 +17,8 @@ class BRIDGE(torch.nn.Module):
     multi-table joint learning tasks.
 
     Args:
-        table_backbone (TableBackbone): Backbones for tabular data.
-        graph_backbone (GraphBackbone): Backbones for graph data.
+        table_encoder (TableBackbone): Backbones for tabular data.
+        graph_encoder (GraphBackbone): Backbones for graph data.
 
     Returns:
         This class does not return tensors in ``__init__``.
@@ -31,12 +31,12 @@ class BRIDGE(torch.nn.Module):
 
     def __init__(
         self,
-        table_backbone: TableEncoder,
-        graph_backbone: GraphEncoder,
+        table_encoder: TableEncoder,
+        graph_encoder: GraphEncoder,
     ) -> None:
         super().__init__()
-        self.table_backbone = table_backbone
-        self.graph_backbone = graph_backbone
+        self.table_encoder = table_encoder
+        self.graph_encoder = graph_encoder
 
     def forward(
         self,
@@ -58,7 +58,7 @@ class BRIDGE(torch.nn.Module):
         Returns:
             Tensor: Output table embedding features.
         """
-        t_embedds = self.table_backbone(table)
+        t_embedds = self.table_encoder(table)
         if isinstance(t_embedds, dict):
             t_embedds = torch.cat(list(t_embedds.values()), dim=0)
             t_embedds = t_embedds.mean(dim=1)
@@ -66,5 +66,5 @@ class BRIDGE(torch.nn.Module):
             node_feats = torch.cat([t_embedds, non_table], dim=0)
         else:
             node_feats = t_embedds
-        node_feats = self.graph_backbone(node_feats, adj)
+        node_feats = self.graph_encoder(node_feats, adj)
         return node_feats[: len(table), :]

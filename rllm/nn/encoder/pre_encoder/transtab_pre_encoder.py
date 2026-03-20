@@ -10,22 +10,16 @@ import torch
 from torch import Tensor
 from transformers import BertTokenizerFast
 
-<<<<<<<< HEAD:rllm/nn/encoder/pre_encoder/transtab_pre_encoder.py
 from .pre_encoder import PreEncoder
 from ..col_encoder import (
     TransTabNumEmbeddingEncoder,
     TransTabWordEmbeddingEncoder,
 )
-========
-from .table_encoder import TableEncoder
-from ._transtab_word_embedding_encoder import TransTabWordEmbeddingEncoder
-from ._transtab_num_embedding_encoder import TransTabNumEmbeddingEncoder
->>>>>>>> main:rllm/nn/encoder/transtab_table_encoder.py
 from rllm.types import ColType
 from rllm.data.table_data import TableData
 
 
-class TransTabTableEncoder(TableEncoder):
+class TransTabPreEncoder(PreEncoder):
     r"""Pre-encoder for the TransTab model as proposed in
     `"TransTab: Learning Transferable Tabular Transformers Across Tables"
     <https://arxiv.org/abs/2205.09328>`_ paper.
@@ -464,7 +458,7 @@ class TransTabTableEncoder(TableEncoder):
                 ):
                     raise ValueError(
                         "TableData must be materialized before passing to "
-                        "TransTabTableEncoder. Call table_data.lazy_materialize() first."
+                        "TransTabPreEncoder. Call table_data.lazy_materialize() first."
                     )
 
                 data = self._adapt_feat_dict(
@@ -509,7 +503,7 @@ class TransTabTableEncoder(TableEncoder):
                 return self._align_and_concat(emb_dict, masks)
             else:
                 raise TypeError(
-                    "TransTabTableEncoder.forward: x must be a TableData or an "
+                    "TransTabPreEncoder.forward: x must be a TableData or an "
                     "object with a feat_dict attribute."
                 )
 
@@ -543,7 +537,7 @@ class TransTabTableEncoder(TableEncoder):
         os.makedirs(path, exist_ok=True)
         encoder_path = os.path.join(path, "input_encoder.bin")
         torch.save(self.state_dict(), encoder_path)
-        print(f"Saved TransTabTableEncoder weights to {encoder_path}")
+        print(f"Saved TransTabPreEncoder weights to {encoder_path}")
 
     def load(self, ckpt_dir: str) -> None:
         r"""Load tokenizer, column configuration, and encoder weights.
@@ -568,6 +562,6 @@ class TransTabTableEncoder(TableEncoder):
         except TypeError:
             state_dict = torch.load(encoder_path, map_location="cpu")
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
-        print(f"Loaded TransTabTableEncoder weights from {encoder_path}")
+        print(f"Loaded TransTabPreEncoder weights from {encoder_path}")
         print(f"  Missing keys: {missing}")
         print(f"  Unexpected keys: {unexpected}")

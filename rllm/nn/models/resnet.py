@@ -96,11 +96,7 @@ class TableResNet(torch.nn.Module):
         """
         x = table.feat_dict
 
-<<<<<<< HEAD
         x = self.pre_encoder(x)  # (B, n_cols, hidden_dim)
-=======
-        x = self.table_encoder(x)  # (B, n_cols, hidden_dim)
->>>>>>> main
         # flatten the table_encoder output
         x = x.view(x.size(0), math.prod(x.shape[1:]))  # (B, n_cols * hidden_dim)
         x = self.convs(x)  # (B, hidden_dim)
