@@ -14,12 +14,14 @@ from .pre_encoder.tab_transformer_pre_encoder import TabTransformerPreEncoder
 class TableEncoder(BaseEncoder):
     r"""TableEncoder is a table-level encoder used by BRIDGE.
 
-    It first applies a pre-encoder to each column type, then stacks table
-    convolution layers and finally pools across columns.
+    It optionally applies a pre-encoder to each column type, then stacks
+    table convolution layers.
 
     Args:
         in_dim (int): Input dimensionality of the table data.
         out_dim (int): Output dimensionality for the encoded table data.
+        hidden_dim (int, optional): Hidden dimensionality for intermediate
+            layers. If :obj:`None`, defaults to :obj:`out_dim`.
         num_layers (int, optional): Number of convolution layers.
             (default: :obj:`1`).
         metadata (Dict[ColType, List[Dict[str, Any]]], optional):
@@ -30,12 +32,22 @@ class TableEncoder(BaseEncoder):
         pre_encoder (Type[torch.nn.Module], optional):
             The pre-encoder used before table convolution.
             (default: :obj:`rllm.nn.encoder.TabTransformerPreEncoder`).
+        pre_encoder_out_dim (int, optional): Optional output dimension of the
+            pre-encoder. If set, it is used as the first table-conv input
+            dimension.
         pre_encoder_return_dict (bool, optional):
             Whether to ask pre-encoder to return a feature dict.
-            (default: :obj:`True`).
+            (default: :obj:`False`).
+        norm_layer (str, optional): Feature normalization after each table
+            convolution layer. Supported values are :obj:`"layernorm"`,
+            :obj:`"batchnorm1d"`, and :obj:`"none"`.
+            If set to :obj:`None` or :obj:`"none"`, no feature
+            normalization is applied.
         activation (str, optional):
             Activation function to apply after each convolution layer.
-            Supported values: :obj:`"relu"`, :obj:`"tanh"`, :obj:`"none"`.
+            Supported values: :obj:`"relu"`, :obj:`"gelu"`, :obj:`"elu"`,
+            :obj:`"leaky_relu"`, :obj:`"selu"`, :obj:`"tanh"`,
+            :obj:`"sigmoid"`, :obj:`"none".
             (default: :obj:`"none"`).
         pre_encoder_kwargs (Dict[str, Any], optional):
             Extra keyword args passed to pre-encoder constructor.
@@ -172,15 +184,15 @@ class TableEncoder(BaseEncoder):
     def forward(
         self, x: Union[TableData, Dict[ColType, Tensor]]
     ) -> Union[Tensor, Dict[ColType, Tensor]]:
-        """Encode a table into a pooled feature representation.
+        """Encode a table into feature representations.
 
         Args:
             x (Union[TableData, Dict[ColType, Tensor]]): Input table data object.
 
         Returns:
             Union[Tensor, Dict[ColType, Tensor]]: Encoded output after table
-            backbone. If pooling is :obj:`"none"`, this returns the raw
-            convolution output without pooling.
+            convolution layers. The output type matches the pre-encoder
+            configuration.
         """
         if isinstance(x, TableData):
             x = x.feat_dict

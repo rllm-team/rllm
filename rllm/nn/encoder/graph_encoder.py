@@ -32,7 +32,7 @@ class GraphEncoder(BaseEncoder):
         activation (str): Activation function used on intermediate layers.
             Supported values: :obj:`"relu"`, :obj:`"gelu"`, :obj:`"elu"`,
             :obj:`"leaky_relu"`, :obj:`"selu"`, :obj:`"tanh"`,
-            :obj:`"sigmoid"`, :obj:`"identity"`, :obj:`"none"`.
+            :obj:`"sigmoid"`, :obj:`"none"`.
             (default: :obj:`"relu"`).
         pre_encoder (Type[torch.nn.Module], optional):
             Optional pre-encoder to process node features before graph

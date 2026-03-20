@@ -267,7 +267,7 @@ class MessagePassing(torch.nn.Module, ABC):
         Args:
             feats (Tensor): The node features.
             edge_index (Union[Tensor, SparseTensor]): The edge indices.
-            dim (Optionalp[int]): The edge_index dimension to retrieve. If None, retrieve both src and dst.
+            dim (Optional[int]): The edge_index dimension to retrieve. If None, retrieve both src and dst.
             retrieve_dim (int): The dimension to retrieve.
 
         Returns:
@@ -289,7 +289,7 @@ class MessagePassing(torch.nn.Module, ABC):
         Args:
             feats (Tensor): The node features.
             edge_index (Union[Tensor, SparseTensor]): The edge indices.
-            dim (Optionalp[int]): The edge_index dimension to retrieve. If None, retrieve both src and dst.
+            dim (Optional[int]): The edge_index dimension to retrieve. If None, retrieve both src and dst.
             retrieve_dim (int): The dimension to retrieve.
 
         Returns:

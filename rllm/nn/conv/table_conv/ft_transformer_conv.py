@@ -82,10 +82,10 @@ class FTTransformerConv(torch.nn.Module):
             x (Tensor): Input tensor of shape [batch_size, num_cols, dim]
 
         Returns:
-            torch.Tensor: Output tensor of shape [batch_size, num_cols, dim]
-            corresponding to the input columns, or output tensor of shape
-            [batch_size, num_cols + 1, dim], corresponding to the
-            added CLS token column.
+            torch.Tensor: If ``use_cls=False``, output tensor of shape
+            ``[batch_size, num_cols, dim]`` corresponding to input columns.
+            If ``use_cls=True``, output tensor of shape
+            ``[batch_size, dim]`` for the CLS token representation.
         """
 
         B, _, _ = x.shape
