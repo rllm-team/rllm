@@ -63,10 +63,6 @@ class SelfSupervisedVPCL(ContrastiveLoss):
     - similarity (str): Similarity metric; "dot" for raw dot product, "cosine" for L2-normalized cosine similarity.
     - eps (float): Numerical stability constant.
 
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns a scalar self-supervised VPCL loss.
-
     Example:
         >>> import torch
         >>> loss_fn = SelfSupervisedVPCL()
@@ -188,10 +184,6 @@ class SupervisedVPCL(ContrastiveLoss):
     - similarity (str): Similarity metric; "dot" for raw dot product,
       "cosine" for L2-normalized cosine similarity.
     - eps (float): Numerical stability constant.
-
-        Returns:
-                This class does not return tensors in ``__init__``.
-                The ``forward`` method returns a scalar supervised VPCL loss.
 
         Example:
                 >>> import torch

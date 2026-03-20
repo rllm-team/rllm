@@ -18,10 +18,6 @@ class RECT_L(torch.nn.Module):
         dropout (float, optional): The dropout probability.
             (default: :obj:`0.0`)
 
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns reconstructed semantic embeddings.
-
     Example:
         >>> import torch
         >>> model = RECT_L(in_dim=16, hidden_dim=8)

@@ -17,10 +17,6 @@ class HeteroSAGE(torch.nn.Module):
         aggr (str): The aggregation method.
         num_layers (int): The number of layers.
 
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns node embeddings for each node type.
-
     Example:
         >>> model = HeteroSAGE(node_types=["user", "item"], edge_types=[("user", "rates", "item")], hidden_dim=16)
     """

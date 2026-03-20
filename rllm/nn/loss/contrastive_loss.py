@@ -39,10 +39,6 @@ class ContrastiveLoss(BaseLoss):
         similarity (str): Similarity metric, "dot" or "cosine".
         eps (float): Numerical stability constant.
 
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns a scalar contrastive loss.
-
     Example:
         >>> import torch
         >>> loss_fn = ContrastiveLoss(temperature=1.0, similarity="dot")

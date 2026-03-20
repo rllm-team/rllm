@@ -215,10 +215,6 @@ class RelGNNModel(torch.nn.Module):
         relgnn_simplified_MP (bool): Whether to use simplified message passing in RelGNN.
         use_temporal_encoder (bool): Whether to use temporal encoder.
 
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns predictions for the target table.
-
     Example:
         >>> from rllm.nn.models import RelGNNModel
         >>> # Instantiate with prepared relational graph data and metadata.

@@ -12,11 +12,6 @@ class LinearClassifier(torch.nn.Module):
         num_class (int): Number of prediction classes.
         hidden_dim (int): Dimensionality of the input hidden features.
 
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns logits with shape ``[batch_size]`` or
-        ``[batch_size, num_class]``.
-
     Example:
         >>> import torch
         >>> head = LinearClassifier(num_class=3, hidden_dim=16)

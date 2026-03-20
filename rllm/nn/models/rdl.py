@@ -33,10 +33,6 @@ class RDL(torch.nn.Module):
         hgnn_num_layers (int): The number of layers for HGNN.
         use_temporal_encoder (bool): Whether to use temporal encoder.
 
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns predictions for the target table.
-
     Example:
         >>> # RDL is typically instantiated with a prepared HeteroGraphData object.
         >>> from rllm.nn.models import RDL

@@ -27,11 +27,6 @@ class TransTabCLSToken(torch.nn.Module):
     Args:
         hidden_dim (int): Dimensionality of the CLS token embedding.
 
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns a dictionary with updated embeddings and
-        attention masks.
-
     Example:
         >>> import torch
         >>> cls = TransTabCLSToken(hidden_dim=8)
@@ -318,10 +313,6 @@ class TransTabClassifier(TransTab):
         tokenizer: Optional pretrained tokenizer instance. If provided, will be
             used by the underlying :class:`TransTabTableEncoder`. (default: None)
         **kwargs: Additional keyword arguments passed to :class:`TransTab`.
-
-    Returns:
-        This class does not return tensors in ``__init__``.
-        The ``forward`` method returns logits and optional supervised loss.
 
     Example:
         >>> from rllm.nn.models import TransTabClassifier

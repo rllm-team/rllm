@@ -21,10 +21,6 @@ class BaseLoss(torch.nn.Module):
     Args:
       No additional constructor arguments.
 
-    Returns:
-      This class does not return tensors in ``__init__``.
-      Subclasses implement ``forward`` to return a scalar loss tensor.
-
     Example:
       >>> import torch
       >>> class DummyLoss(BaseLoss):
