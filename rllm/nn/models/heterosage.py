@@ -16,6 +16,9 @@ class HeteroSAGE(torch.nn.Module):
         channels (int): The number of channels.
         aggr (str): The aggregation method.
         num_layers (int): The number of layers.
+
+    Example:
+        >>> model = HeteroSAGE(node_types=["user", "item"], edge_types=[("user", "rates", "item")], hidden_dim=16)
     """
 
     def __init__(
@@ -63,6 +66,15 @@ class HeteroSAGE(torch.nn.Module):
         x_dict: Dict[str, Tensor],
         edge_index_dict: Dict[Tuple[str, str, str], Tensor],
     ) -> Dict[str, Tensor]:
+        """Run heterogeneous GraphSAGE message passing.
+
+        Args:
+            x_dict (Dict[str, Tensor]): Input node features by node type.
+            edge_index_dict (Dict[Tuple[str, str, str], Tensor]): Edge indices by edge type.
+
+        Returns:
+            Dict[str, Tensor]: Updated node embeddings for each node type.
+        """
         for layer in range(len(self.convs)):
             conv_dict = self.convs[layer]
             # apply graph conv to each edge type and

@@ -28,7 +28,7 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic, BankMarketing
 from rllm.transforms.table_transforms import DefaultTableTransform
-from rllm.nn.encoder import FTTransformerTableEncoder
+from rllm.nn.encoder import FTTransformerPreEncoder
 from rllm.nn.conv.table_conv.saint_conv import SAINTConv
 
 parser = argparse.ArgumentParser()
@@ -77,7 +77,7 @@ class SAINT(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.table_encoder = FTTransformerTableEncoder(
+        self.pre_encoder = FTTransformerPreEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
         )
@@ -85,17 +85,17 @@ class SAINT(torch.nn.Module):
         for _ in range(num_layers):
             self.convs.append(SAINTConv(conv_dim=hidden_dim, num_cols=num_cols))
 
-        self.fc = torch.nn.Sequential(
+        self.mlp = torch.nn.Sequential(
             torch.nn.LayerNorm(hidden_dim),
             torch.nn.ReLU(),
             torch.nn.Linear(hidden_dim, out_dim),
         )
 
-    def forward(self, x) -> Tensor:
-        x = self.table_encoder(x)
+    def forward(self, x: Dict[ColType, Tensor]) -> Tensor:
+        x = self.pre_encoder(x)
         for conv in self.convs:
             x = conv(x)
-        out = self.fc(x.mean(dim=1))
+        out = self.mlp(x.mean(dim=1))
         return out
 
 

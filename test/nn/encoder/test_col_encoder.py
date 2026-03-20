@@ -17,9 +17,9 @@ import torch
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData
-from rllm.nn.encoder.embedding_encoder import EmbeddingEncoder
-from rllm.nn.encoder._reshape_encoder import ReshapeEncoder
-from rllm.nn.encoder._linear_encoder import LinearEncoder
+from rllm.nn.encoder.col_encoder._embedding_encoder import EmbeddingEncoder
+from rllm.nn.encoder.col_encoder._reshape_encoder import ReshapeEncoder
+from rllm.nn.encoder.col_encoder._linear_encoder import LinearEncoder
 
 
 def test_reshape_encoder():

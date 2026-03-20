@@ -30,15 +30,25 @@ from rllm.nn.models import TransTabClassifier
 import utils_run
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--hidden_dim", type=int, default=128, help="Transformer hidden dim")
-parser.add_argument("--num_layers", type=int, default=2, help="Number of transformer layers")
-parser.add_argument("--num_heads", type=int, default=8, help="Number of attention heads")
+parser.add_argument(
+    "--hidden_dim", type=int, default=128, help="Transformer hidden dim"
+)
+parser.add_argument(
+    "--num_layers", type=int, default=2, help="Number of transformer layers"
+)
+parser.add_argument(
+    "--num_heads", type=int, default=8, help="Number of attention heads"
+)
 parser.add_argument("--batch_size", type=int, default=256, help="Batch size")
 parser.add_argument("--epochs", type=int, default=100, help="Training epochs")
 parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
 parser.add_argument("--wd", type=float, default=5e-4, help="Weight decay")
-parser.add_argument("--dataset", type=str, default="titanic", choices=["titanic", "adult"])
-parser.add_argument("--tokenizer_dir", type=str, default="./tokenizer", help="Tokenizer directory")
+parser.add_argument(
+    "--dataset", type=str, default="titanic", choices=["titanic", "adult"]
+)
+parser.add_argument(
+    "--tokenizer_dir", type=str, default="./tokenizer", help="Tokenizer directory"
+)
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -48,7 +58,8 @@ path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 
 # Initialize tokenizer for TableData preprocessing
 tokenizer = BertTokenizerFast.from_pretrained(
-    args.tokenizer_dir if osp.exists(args.tokenizer_dir) else "bert-base-uncased")
+    args.tokenizer_dir if osp.exists(args.tokenizer_dir) else "bert-base-uncased"
+)
 if not osp.exists(args.tokenizer_dir):
     tokenizer.save_pretrained(args.tokenizer_dir)
 
@@ -63,27 +74,41 @@ tokenizer_config = TokenizerConfig(
 
 # Load dataset with tokenization (use cache for reproducibility)
 if args.dataset == "titanic":
-    data = Titanic(cached_dir=path, tokenizer_config=tokenizer_config, forced_reload=True)[0]
+    data = Titanic(
+        cached_dir=path, tokenizer_config=tokenizer_config, forced_reload=True
+    )[0]
 elif args.dataset == "adult":
-    data = Adult(cached_dir=path, tokenizer_config=tokenizer_config, forced_reload=True)[0]
+    data = Adult(
+        cached_dir=path, tokenizer_config=tokenizer_config, forced_reload=True
+    )[0]
 target_col = data.target_col
 
 # Create train/val/test splits
 indices = np.arange(data.num_rows)
 labels = data.y.numpy()
 train_idx, temp_idx = train_test_split(indices, test_size=0.3, stratify=labels)
-val_idx, test_idx = train_test_split(temp_idx, test_size=2 / 3, stratify=labels[temp_idx])
+val_idx, test_idx = train_test_split(
+    temp_idx, test_size=2 / 3, stratify=labels[temp_idx]
+)
 
 # Create DataLoader with TableData-based collate function
 batch_fn = utils_run.make_batch_fn(data, target_col, device, use_tabledata=True)
-train_loader = DataLoader(train_idx.tolist(), batch_size=args.batch_size, shuffle=False, collate_fn=batch_fn)
-val_loader = DataLoader(val_idx.tolist(), batch_size=args.batch_size, shuffle=False, collate_fn=batch_fn)
-test_loader = DataLoader(test_idx.tolist(), batch_size=args.batch_size, shuffle=False, collate_fn=batch_fn)
+train_loader = DataLoader(
+    train_idx.tolist(), batch_size=args.batch_size, shuffle=False, collate_fn=batch_fn
+)
+val_loader = DataLoader(
+    val_idx.tolist(), batch_size=args.batch_size, shuffle=False, collate_fn=batch_fn
+)
+test_loader = DataLoader(
+    test_idx.tolist(), batch_size=args.batch_size, shuffle=False, collate_fn=batch_fn
+)
 
 # Build model and optimizer
 col_types = data.col_types
 cat_cols = [c for c, t in col_types.items() if t == ColType.TEXT and c != target_col]
-num_cols = [c for c, t in col_types.items() if t == ColType.NUMERICAL and c != target_col]
+num_cols = [
+    c for c, t in col_types.items() if t == ColType.NUMERICAL and c != target_col
+]
 bin_cols = [c for c, t in col_types.items() if t == ColType.BINARY and c != target_col]
 num_classes = data.num_classes
 

@@ -16,8 +16,8 @@ import pandas as pd
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData
-from rllm.nn.encoder import TabTransformerTableEncoder
-from rllm.nn.encoder import FTTransformerTableEncoder
+from rllm.nn.encoder import TabTransformerPreEncoder
+from rllm.nn.encoder import FTTransformerPreEncoder
 
 
 def test_tab_transformer_table_encoder():
@@ -42,7 +42,7 @@ def test_tab_transformer_table_encoder():
     dataset = TableData(df, col_types, target_col="cat_2")
 
     # Create and initialize TabTransformerEncoder
-    table_encoder = TabTransformerTableEncoder(
+    table_encoder = TabTransformerPreEncoder(
         out_dim=1,
         metadata=dataset.metadata,
     )
@@ -81,7 +81,7 @@ def test_ft_transformer_table_encoder():
     dataset = TableData(df, col_types, target_col="cat_2")
 
     # Create and initialize FTTransformerEncoder
-    table_encoder = FTTransformerTableEncoder(
+    table_encoder = FTTransformerPreEncoder(
         out_dim=1,
         metadata=dataset.metadata,
     )

@@ -15,6 +15,9 @@ class HGTConv(MessagePassing):
     as introduced in the `"Heterogeneous Graph Transformer"
     <https://arxiv.org/abs/2003.01332>`__ paper.
 
+    This layer models type-specific node interactions by relation-aware
+    attention and aggregates messages for each destination node type.
+
     Args:
         in_dim (Union[int, Dict[str, int]]):
             Size of each input sample of every node type.
@@ -107,6 +110,27 @@ class HGTConv(MessagePassing):
         x_dict: Dict[str, Tensor],
         edge_index_dict: Dict[Tuple[str, str], Union[Tensor, SparseTensor]],
     ):
+        r"""Perform heterogeneous transformer message passing by relation type.
+
+        Args:
+            x_dict (Dict[str, Tensor]): Mapping from node type to node features.
+            edge_index_dict (Dict[Tuple[str, str], Union[Tensor, SparseTensor]]):
+                Mapping from typed relation keys to graph connectivity.
+
+        Returns:
+            Dict[str, Tensor]: Output embeddings per node type.
+
+        Example:
+            >>> import torch
+            >>> from rllm.nn.conv.graph_conv import HGTConv
+            >>> metadata = (['a', 'b'], [('a', 'b')])
+            >>> conv = HGTConv(16, 8, metadata, num_heads=1)
+            >>> x_dict = {'a': torch.randn(2, 16), 'b': torch.randn(3, 16)}
+            >>> edge_index_dict = {('a', 'b'): torch.tensor([[0, 1], [1, 2]])}
+            >>> out = conv(x_dict, edge_index_dict)
+            >>> out['b'].shape
+            torch.Size([3, 8])
+        """
         H, D = self.num_heads, self.out_dim // self.num_heads
         k_dict, q_dict, v_dict, out_node_dict, out_dict = {}, {}, {}, {}, {}
 

@@ -28,6 +28,10 @@ class RelGNN(torch.nn.Module):
         num_layers (int): The number of layers.
         num_heads (int): The number of attention heads.
         simplified_MP (bool): Whether to use simplified message passing.
+
+    Example:
+        >>> from rllm.nn.models import RelGNN
+        >>> model = RelGNN(node_types=["user", "item"], atomic_routes_edge_types=[("dim-dim", "user", "rel", "item")], hidden_dim=16)
     """
 
     def __init__(
@@ -86,6 +90,15 @@ class RelGNN(torch.nn.Module):
         x_dict: Dict[str, Tensor],
         edge_index_dict: Dict[Tuple[str, str, str], Tensor],
     ) -> Dict[str, Tensor]:
+        """Apply stacked relational message passing layers.
+
+        Args:
+            x_dict (Dict[str, Tensor]): Input node features by node type.
+            edge_index_dict (Dict[Tuple[str, str, str], Tensor]): Edge indices by route.
+
+        Returns:
+            Dict[str, Tensor]: Updated node embeddings.
+        """
         for _, (conv_dict, norm_dict) in enumerate(zip(self.convs, self.norms)):
             x_dict = self.heteroconv_forward(conv_dict, x_dict, edge_index_dict)
             x_dict = {key: norm_dict[key](x) for key, x in x_dict.items()}
@@ -201,6 +214,10 @@ class RelGNNModel(torch.nn.Module):
         relgnn_num_heads (int): The number of attention heads for RelGNN.
         relgnn_simplified_MP (bool): Whether to use simplified message passing in RelGNN.
         use_temporal_encoder (bool): Whether to use temporal encoder.
+
+    Example:
+        >>> from rllm.nn.models import RelGNNModel
+        >>> # Instantiate with prepared relational graph data and metadata.
     """
 
     def __init__(
@@ -295,6 +312,15 @@ class RelGNNModel(torch.nn.Module):
         batch: HeteroGraphData,
         target_table: str,
     ) -> Dict[str, Tensor]:
+        """Run table encoding, optional temporal encoding, RelGNN propagation, and output head.
+
+        Args:
+            batch (HeteroGraphData): Batched heterogeneous relational graph.
+            target_table (str): Target node type to predict.
+
+        Returns:
+            Tensor: Output predictions for the target table.
+        """
         seed_time = batch[target_table].seed_time
         # 1. apply TNN to each node type (table)
         x_dict = {}

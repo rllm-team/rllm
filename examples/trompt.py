@@ -25,7 +25,7 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import DefaultTableTransform
-from rllm.nn.encoder import TromptTableEncoder
+from rllm.nn.encoder import TromptPreEncoder
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
@@ -79,7 +79,7 @@ class Trompt(torch.nn.Module):
         self.out_dim = out_dim
         self.x_prompt = torch.nn.Parameter(torch.empty(num_prompts, hidden_dim))
 
-        self.table_encoders = torch.nn.ModuleList()
+        self.pre_encoders = torch.nn.ModuleList()
         self.convs = torch.nn.ModuleList()
         for _ in range(num_layers):
             self.convs.append(
@@ -89,8 +89,8 @@ class Trompt(torch.nn.Module):
                     num_prompts=num_prompts,
                 )
             )
-            self.table_encoders.append(
-                TromptTableEncoder(
+            self.pre_encoders.append(
+                TromptPreEncoder(
                     out_dim=hidden_dim,
                     metadata=metadata,
                 )
@@ -120,7 +120,7 @@ class Trompt(torch.nn.Module):
         outs = []
         batch_size = x[list(x.keys())[0]].size(0)
         x_prompt = self.x_prompt.unsqueeze(0).repeat(batch_size, 1, 1)
-        for encoder, conv in zip(self.table_encoders, self.convs):
+        for encoder, conv in zip(self.pre_encoders, self.convs):
             x_encoded = encoder(x)
             x_prompt = conv(x_encoded, x_prompt)
             w_prompt = F.softmax(self.linear(x_prompt), dim=1)

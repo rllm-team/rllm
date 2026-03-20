@@ -21,18 +21,14 @@ class TabTransformerConv(torch.nn.Module):
         dropout (float, optional): Attention module dropout (default: 0.3).
         activation (str, optional): Activation function (default: "relu").
 
-    Returns:
-        This class does not directly return a tensor in ``__init__``.
-        The ``forward`` method returns the updated input container ``x``.
-
     Example:
         >>> import torch
         >>> from rllm.types import ColType
         >>> conv = TabTransformerConv(conv_dim=32, num_heads=8, dropout=0.1)
-        >>> x = {ColType.CATEGORICAL: torch.randn(4, 10, 32)}
+        >>> x = {ColType.CATEGORICAL: torch.randn(8, 10, 32)}
         >>> out = conv(x)
         >>> out[ColType.CATEGORICAL].shape
-        torch.Size([4, 10, 32])
+        torch.Size([8, 10, 32])
     """
 
     def __init__(

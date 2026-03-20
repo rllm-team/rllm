@@ -8,7 +8,7 @@ from torch.nn import Sequential
 
 from rllm.types import ColType
 from rllm.data import TableData
-from rllm.nn.encoder import ResNetTableEncoder
+from rllm.nn.encoder import ResNetPreEncoder
 from rllm.nn.conv.table_conv import ResNetConv
 
 
@@ -24,6 +24,10 @@ class TableResNet(torch.nn.Module):
         metadata (Dict[ColType, List[Dict[str, Any]]]): The metadata of the table.
         normalization (str | None): The normalization method.
         dropout (float): The dropout rate.
+
+    Example:
+        >>> from rllm.nn.models import TableResNet
+        >>> # Instantiate with prepared table metadata for tabular inputs.
     """
 
     def __init__(
@@ -39,8 +43,8 @@ class TableResNet(torch.nn.Module):
         self.normalization = normalization
         self.dropout = dropout
 
-        # TableEncoder
-        self.table_encoder = ResNetTableEncoder(
+        # PreEncoder
+        self.pre_encoder = ResNetPreEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
         )
@@ -70,7 +74,7 @@ class TableResNet(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.table_encoder.reset_parameters()
+        self.pre_encoder.reset_parameters()
         for conv in self.convs:
             conv.reset_parameters()
         for layer in self.decoder:
@@ -78,9 +82,17 @@ class TableResNet(torch.nn.Module):
                 layer.reset_parameters()
 
     def forward(self, table: TableData) -> Tensor:
+        """Encode a table into a fixed-size feature vector.
+
+        Args:
+            table (TableData): Input table data.
+
+        Returns:
+            Tensor: Output representations of shape ``[batch_size, out_dim]``.
+        """
         x = table.feat_dict
 
-        x = self.table_encoder(x)  # (B, n_cols, hidden_dim)
+        x = self.pre_encoder(x)  # (B, n_cols, hidden_dim)
         # flatten the table_encoder output
         x = x.view(x.size(0), math.prod(x.shape[1:]))  # (B, n_cols * hidden_dim)
         x = self.convs(x)  # (B, hidden_dim)

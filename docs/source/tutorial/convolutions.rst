@@ -198,7 +198,7 @@ The :obj:`metadata` contains information about the table structure and is used t
 
         self.pre_encoder = None
         if metadata:
-            self.pre_encoder = TabTransformerTableEncoder(
+            self.pre_encoder = TabTransformerPreEncoder(
                 out_dim=dim,
                 metadata=metadata,
             )
