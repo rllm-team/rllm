@@ -61,7 +61,7 @@ class BRIDGE(torch.nn.Module):
         t_embedds = self.table_encoder(table)
         if isinstance(t_embedds, dict):
             t_embedds = torch.cat(list(t_embedds.values()), dim=0)
-            t_embedds = t_embedds.mean(dim=1)
+        t_embedds = t_embedds.mean(dim=1)
         if non_table is not None:
             node_feats = torch.cat([t_embedds, non_table], dim=0)
         else:
