@@ -22,8 +22,7 @@ from rllm.transforms.graph_transforms import NormalizeFeatures
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.models import BRIDGE
-from rllm.nn.encoder import TableEncoder, GraphEncoder
+from rllm.nn.models import TableEncoder, GraphEncoder, BRIDGE
 from utils import build_homo_graph
 
 
@@ -88,18 +87,18 @@ train_loader = BRIDGELoader(
 )
 
 # Set up model and optimizer
-t_backbone = TableEncoder(
+t_encoder = TableEncoder(
     in_dim=emb_size,
     out_dim=emb_size,
     table_conv=TabTransformerConv,
     metadata=target_table.metadata,
 )
-g_backbone = GraphEncoder(
+g_encoder = GraphEncoder(
     in_dim=emb_size, out_dim=target_table.num_classes, graph_conv=GCNConv, norm=True
 )
 model = BRIDGE(
-    table_backbone=t_backbone,
-    graph_backbone=g_backbone,
+    table_encoder=t_encoder,
+    graph_encoder=g_encoder,
 ).to(device)
 optimizer = torch.optim.Adam(
     model.parameters(),
