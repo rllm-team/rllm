@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Callable
+from typing import Callable, Dict, Optional, Type, Union
 
 import torch
 from torch import Tensor
@@ -43,3 +43,51 @@ class BaseEncoder(torch.nn.Module, ABC):
                 "'tanh', 'sigmoid', 'none'}"
             )
         return activation_map[activation_name]
+
+    @staticmethod
+    def build_layer_dims(
+        in_dim: int,
+        out_dim: int,
+        hidden_dim: Optional[int],
+        hidden_default_dim: int,
+        num_layers: int,
+    ) -> list[int]:
+        hidden_dim = hidden_default_dim if hidden_dim is None else hidden_dim
+        return [in_dim] + [hidden_dim] * (num_layers - 1) + [out_dim]
+
+    @staticmethod
+    def resolve_norm_layer(norm_layer: Optional[str]) -> Type[torch.nn.Module]:
+        norm_layer_name = "none" if norm_layer is None else norm_layer.lower()
+        if norm_layer_name == "layernorm":
+            return torch.nn.LayerNorm
+        if norm_layer_name in {"batchnorm", "batchnorm1d"}:
+            return torch.nn.BatchNorm1d
+        if norm_layer_name == "none":
+            return torch.nn.Identity
+        raise ValueError(
+            "Unsupported norm_layer: "
+            f"{norm_layer}. Supported: {'layernorm', 'batchnorm1d', 'none'}"
+        )
+
+    @staticmethod
+    def validate_feature_last_dim(
+        x: Union[Tensor, Dict[object, Tensor]],
+        expected_dim: int,
+        allow_dict: bool = True,
+    ) -> None:
+        if isinstance(x, dict):
+            if allow_dict:
+                return
+            for feat in x.values():
+                if feat.size(-1) != expected_dim:
+                    raise ValueError(
+                        "Feature dimension mismatch: "
+                        f"expected {expected_dim}, got {feat.size(-1)}."
+                    )
+            return
+
+        if x.size(-1) != expected_dim:
+            raise ValueError(
+                "Feature dimension mismatch: "
+                f"expected {expected_dim}, got {x.size(-1)}."
+            )

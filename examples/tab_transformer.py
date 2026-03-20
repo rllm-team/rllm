@@ -87,7 +87,6 @@ class TabTransformer(torch.nn.Module):
             pre_encoder=TabTransformerPreEncoder,
             table_conv=TabTransformerConv,
             pre_encoder_return_dict=True,
-            pooling="none",
             table_conv_kwargs={"num_heads": num_heads},
         )
 
