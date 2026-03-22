@@ -4,30 +4,25 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 import urllib.request
 import urllib.response
 import warnings
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from urllib.error import URLError
 
 import torch
 from torch import nn
 
+from rllm.nn.encoder.tabpfn_pre_encoder import TabPFNPreEncoder
+from rllm.nn.encoder.tabpfn_y_pre_encoder import TabPFNYPreEncoder
+from rllm.types import ColType, StatType
+
 from .bar_distribution import FullSupportBarDistribution
 from .config import InferenceConfig
-from .encoders import (
-    InputNormalizationEncoderStep,
-    LinearInputEncoderStep,
-    MulticlassClassificationTargetEncoder,
-    NanHandlingEncoderStep,
-    RemoveDuplicateFeaturesEncoderStep,
-    RemoveEmptyFeaturesEncoderStep,
-    SequentialEncoder,
-    VariableNumFeaturesEncoderStep,
-)
 from .tabpfn_backbone import PerFeatureTransformer
 
 logger = logging.getLogger(__name__)
@@ -102,56 +97,34 @@ def get_encoder(  # noqa: PLR0913
     normalize_by_used_features: bool,
     encoder_use_bias: bool,
 ) -> nn.Module:
-    inputs_to_merge = {"main": {"dim": num_features}}
-
-    encoder_steps = []
-    if remove_empty_features:
-        encoder_steps += [RemoveEmptyFeaturesEncoderStep()]
-
-    if remove_duplicate_features:
-        encoder_steps += [RemoveDuplicateFeaturesEncoderStep()]
-
-    encoder_steps += [NanHandlingEncoderStep(keep_nans=nan_handling_enabled)]
-
-    if nan_handling_enabled:
-        inputs_to_merge["nan_indicators"] = {"dim": num_features}
-
-        encoder_steps += [
-            VariableNumFeaturesEncoderStep(
-                num_features=num_features,
-                normalize_by_used_features=False,
-                in_keys=["nan_indicators"],
-                out_keys=["nan_indicators"],
-            ),
-        ]
-
-    encoder_steps += [
-        InputNormalizationEncoderStep(
-            normalize_on_train_only=normalize_on_train_only,
-            normalize_to_ranking=normalize_to_ranking,
-            normalize_x=normalize_x,
-            remove_outliers=remove_outliers,
-        ),
+    # Build minimal numerical metadata required by ColEncoder-based TabPFNPreEncoder.
+    # Statistics are neutral defaults because this TabPFN loading path does not provide
+    # dataset-level metadata at checkpoint load time.
+    numerical_stats = [
+        {
+            StatType.MEAN: 0.0,
+            StatType.STD: 1.0,
+            StatType.MIN: -1e9,
+            StatType.MAX: 1e9,
+        }
+        for _ in range(num_features)
     ]
+    metadata = {ColType.NUMERICAL: numerical_stats}
 
-    encoder_steps += [
-        VariableNumFeaturesEncoderStep(
-            num_features=num_features,
-            normalize_by_used_features=normalize_by_used_features,
-        ),
-    ]
-
-    encoder_steps += [
-        LinearInputEncoderStep(
-            num_features=sum([i["dim"] for i in inputs_to_merge.values()]),
-            emsize=embedding_size,
-            bias=encoder_use_bias,
-            in_keys=tuple(inputs_to_merge),
-            out_keys=("output",),
-        ),
-    ]
-
-    return SequentialEncoder(*encoder_steps, output_key="output")
+    return TabPFNPreEncoder(
+        out_dim=embedding_size,
+        metadata=metadata,
+        remove_empty_features=remove_empty_features,
+        remove_duplicate_features=remove_duplicate_features,
+        nan_handling_enabled=nan_handling_enabled,
+        normalize_on_train_only=normalize_on_train_only,
+        normalize_to_ranking=normalize_to_ranking,
+        normalize_x=normalize_x,
+        remove_outliers=remove_outliers,
+        normalize_by_used_features=normalize_by_used_features,
+        encoder_use_bias=encoder_use_bias,
+        fixed_num_features=num_features,
+    )
 
 
 def get_y_encoder(
@@ -161,24 +134,118 @@ def get_y_encoder(
     nan_handling_y_encoder: bool,
     max_num_classes: int,
 ) -> nn.Module:
-    steps = []
-    inputs_to_merge = [{"name": "main", "dim": num_inputs}]
-    if nan_handling_y_encoder:
-        steps += [NanHandlingEncoderStep()]
-        inputs_to_merge += [{"name": "nan_indicators", "dim": num_inputs}]
+    return TabPFNYPreEncoder(
+        num_inputs=num_inputs,
+        embedding_size=embedding_size,
+        nan_handling_y_encoder=nan_handling_y_encoder,
+        max_num_classes=max_num_classes,
+    )
 
-    if max_num_classes >= 2:
-        steps += [MulticlassClassificationTargetEncoder()]
 
-    steps += [
-        LinearInputEncoderStep(
-            num_features=sum([i["dim"] for i in inputs_to_merge]),  # type: ignore
-            emsize=embedding_size,
-            in_keys=tuple(i["name"] for i in inputs_to_merge),  # type: ignore
-            out_keys=("output",),
-        ),
-    ]
-    return SequentialEncoder(*steps, output_key="output")
+def _find_last_matching_key(
+    state_dict: dict[str, torch.Tensor],
+    pattern: str,
+) -> str | None:
+    matches: list[tuple[int, str]] = []
+    regex = re.compile(pattern)
+    for key in state_dict:
+        match = regex.fullmatch(key)
+        if match is not None:
+            matches.append((int(match.group(1)), key))
+    if not matches:
+        return None
+    matches.sort()
+    return matches[-1][1]
+
+
+def _convert_old_linear_weight(
+    tensor: torch.Tensor,
+    target_shape: torch.Size,
+) -> torch.Tensor:
+    if tensor.shape == target_shape:
+        return tensor
+
+    if tensor.ndim == 2 and len(target_shape) == 3:
+        num_cols, in_dim, out_dim = target_shape
+        if in_dim == 1 and tensor.shape[0] == out_dim and tensor.shape[1] >= num_cols:
+            converted = tensor[:, :num_cols].transpose(0, 1).unsqueeze(1)
+            if converted.shape == target_shape:
+                return converted
+
+    return tensor
+
+
+def _convert_old_linear_bias(
+    tensor: torch.Tensor,
+    target_shape: torch.Size,
+) -> torch.Tensor:
+    if tensor.shape == target_shape:
+        return tensor
+
+    if tensor.ndim == 1 and len(target_shape) == 2:
+        converted = tensor.unsqueeze(0).expand(target_shape[0], -1) / target_shape[0]
+        if converted.shape == target_shape:
+            return converted
+
+    return tensor
+
+
+def _remap_legacy_tabpfn_state_dict(
+    state_dict: dict[str, torch.Tensor],
+    model: nn.Module,
+) -> dict[str, torch.Tensor]:
+    remapped_state = model.state_dict()
+
+    for key, value in state_dict.items():
+        if key in remapped_state and remapped_state[key].shape == value.shape:
+            remapped_state[key] = value
+
+    encoder_linear_weight_key = next(
+        key
+        for key in remapped_state
+        if key.startswith("encoder.col_encoder_dict.numerical.")
+        and key.endswith(".weight")
+    )
+    encoder_linear_bias_key = encoder_linear_weight_key.replace(".weight", ".bias")
+    y_weight_key = "y_encoder.proj.weight"
+    y_bias_key = "y_encoder.proj.bias"
+
+    source_encoder_weight = _find_last_matching_key(
+        state_dict,
+        r"encoder\.(\d+)\.layer\.weight",
+    )
+    source_encoder_bias = _find_last_matching_key(
+        state_dict,
+        r"encoder\.(\d+)\.layer\.bias",
+    )
+    source_y_weight = _find_last_matching_key(
+        state_dict,
+        r"y_encoder\.(\d+)\.layer\.weight",
+    )
+    source_y_bias = _find_last_matching_key(
+        state_dict,
+        r"y_encoder\.(\d+)\.layer\.bias",
+    )
+
+    if source_encoder_weight is not None:
+        remapped_state[encoder_linear_weight_key] = _convert_old_linear_weight(
+            state_dict[source_encoder_weight],
+            remapped_state[encoder_linear_weight_key].shape,
+        )
+
+    if source_encoder_bias is not None:
+        remapped_state[encoder_linear_bias_key] = _convert_old_linear_bias(
+            state_dict[source_encoder_bias],
+            remapped_state[encoder_linear_bias_key].shape,
+        )
+
+    if source_y_weight is not None:
+        remapped_state[y_weight_key] = state_dict[source_y_weight]
+
+    if source_y_bias is not None:
+        remapped_state[y_bias_key] = state_dict[source_y_bias]
+
+    return remapped_state
 
 
 def load_model(
@@ -210,7 +277,8 @@ def load_model(
         checkpoint = torch.load(path, map_location="cpu", weights_only=None)
 
     state_dict = checkpoint["state_dict"]
-    config = _preprocess_config(checkpoint["config"])
+    raw_config: dict[str, Any] = checkpoint["config"]
+    config = _preprocess_config(raw_config)
 
     criterion_state_keys = [k for k in state_dict if "criterion." in k]
     loss_criterion = get_loss_criterion(config)
@@ -297,7 +365,8 @@ def load_model(
             else False
         ),
     )
-    model.load_state_dict(state_dict)
+    remapped_state_dict = _remap_legacy_tabpfn_state_dict(state_dict, model)
+    model.load_state_dict(remapped_state_dict, strict=True)
     model.eval()
     criterion_to_return = (
         loss_criterion

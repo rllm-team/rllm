@@ -38,7 +38,7 @@ class FTTransformerPreEncoder(PreEncoder):
         in_dim: int = 1,
     ) -> None:
         col_encoder_dict = {
-            ColType.CATEGORICAL: EmbeddingEncoder(),
-            ColType.NUMERICAL: LinearEncoder(in_dim=in_dim),
+            ColType.CATEGORICAL: [EmbeddingEncoder()],
+            ColType.NUMERICAL: [LinearEncoder(in_dim=in_dim)],
         }
         super().__init__(out_dim, metadata, col_encoder_dict)
