@@ -22,10 +22,6 @@ class SAINTConv(torch.nn.Module):
         dropout (float, optional): Attention module dropout (default: 0.3).
         activation (str, optional): Activation function (default: "relu").
 
-    Returns:
-        This class does not return a tensor in ``__init__``.
-        The ``forward`` method returns a tensor with the same shape as input.
-
     Example:
         >>> import torch
         >>> conv = SAINTConv(conv_dim=16, num_cols=8, num_heads=4, dropout=0.1)

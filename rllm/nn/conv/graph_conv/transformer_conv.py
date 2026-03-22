@@ -15,6 +15,9 @@ class GTransformerConv(MessagePassing):
     Unified Message Passing Model for Semi-Supervised Classification"
     <https://arxiv.org/abs/2009.03509>`_ paper.
 
+    This layer computes multi-head attention on graph edges and combines
+    neighborhood messages with optional root-node skip information.
+
     Args:
         in_dim (Tuple[int, int]): Size of each input sample
             (for source and target nodes).
@@ -108,7 +111,32 @@ class GTransformerConv(MessagePassing):
         edge_weight: Optional[Tensor] = None,
         return_attention_weights: bool = False,
     ):
-        r"""Supports edge_index only."""
+        r"""Apply graph transformer attention and optional root skip update.
+
+        Args:
+            x (Union[Tensor, Tuple[Tensor, Tensor]]):
+                - Tensor input features for homogeneous graphs.
+                - Tuple of source and destination node features.
+            edge_index (Tensor): Edge list connectivity with shape ``[2, num_edges]``.
+            edge_weight (Optional[Tensor]): Optional edge feature tensor used
+                when ``edge_dim`` is set.
+            return_attention_weights (bool): If True, also return edge attention
+                scores.
+
+        Returns:
+            Union[Tensor, Tuple[Tensor, Tuple[Tensor, Tensor]]]: Output node
+            embeddings, optionally with edge attention weights.
+
+        Example:
+            >>> import torch
+            >>> from rllm.nn.conv.graph_conv import GTransformerConv
+            >>> conv = GTransformerConv((8, 8), out_dim=4, num_heads=2)
+            >>> x = torch.randn(4, 8)
+            >>> edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
+            >>> out = conv(x, edge_index)
+            >>> out.shape
+            torch.Size([4, 8])
+        """
         H, C = self.heads, self.out_dim
 
         if isinstance(x, Tensor):

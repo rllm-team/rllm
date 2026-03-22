@@ -50,10 +50,10 @@ Pre-Encoder
    :toctree: ../generated
    :template: autosummary/class.rst
 
-   FTTransformerTableEncoder
-   TabTransformerTableEncoder
-   TransTabTableEncoder
-   ResNetTableEncoder
+   FTTransformerPreEncoder
+   TabTransformerPreEncoder
+   TransTabPreEncoder
+   ResNetPreEncoder
    HeteroTemporalEncoder
 
 

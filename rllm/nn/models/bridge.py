@@ -6,15 +6,15 @@ import torch.nn.functional as F
 
 from rllm.types import ColType
 from rllm.data import TableData
-from rllm.nn.encoder import TabTransformerTableEncoder
+from rllm.nn.encoder import TabTransformerPreEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 
 
-class TableBackbone(torch.nn.Module):
-    r"""TableBackbone is a submodule of the BRIDGE method,
+class TableEncoder(torch.nn.Module):
+    r"""TableEncoder is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming table.
-    The TableBackbone takes as input :class:`rllm.data.TableData` representing
+    The TableEncoder takes as input :class:`rllm.data.TableData` representing
     the tabular data and applies multiple convolutional layers to capture
     complex patterns and relationships within the data. Before outputting,
     the feature dictionary is concatenated to facilitate subsequent operations.
@@ -44,13 +44,13 @@ class TableBackbone(torch.nn.Module):
         super().__init__()
 
         self.convs = torch.nn.ModuleList()
-        self.encoder = TabTransformerTableEncoder(out_dim=out_dim, metadata=metadata)
+        self.pre_encoder = TabTransformerPreEncoder(out_dim=out_dim, metadata=metadata)
         for _ in range(num_layers):
             self.convs.append(table_conv(conv_dim=out_dim))
 
     def forward(self, table: TableData) -> Tensor:
         x = table.feat_dict
-        x = self.encoder(x, return_dict=True)
+        x = self.pre_encoder(x, return_dict=True)
         for conv in self.convs:
             x = conv(x)
         x = torch.cat(list(x.values()), dim=1)
@@ -58,8 +58,8 @@ class TableBackbone(torch.nn.Module):
         return x
 
 
-class GraphBackbone(torch.nn.Module):
-    r"""GraphBackbone is a submodule of the BRIDGE method,
+class GraphEncoder(torch.nn.Module):
+    r"""GraphEncoder is a submodule of the BRIDGE method,
     which mainly performs multi-layer convolution of the incoming graph.
     This submodule is designed to handle graph-structured data. And it takes
     as input two tensor representing the node feature and graph structure.
@@ -126,18 +126,22 @@ class BRIDGE(torch.nn.Module):
     multi-table joint learning tasks.
 
     Args:
-        table_backbone (TableBackbone): Backbones for tabular data.
-        graph_backbone (GraphBackbone): Backbones for graph data.
+        table_encoder (TableEncoder): Encoder for tabular data.
+        graph_encoder (GraphEncoder): Encoder for graph data.
+
+    Example:
+        >>> from rllm.nn.models.bridge import BRIDGE, TableEncoder, GraphEncoder
+        >>> model = BRIDGE(TableEncoder(16, 32, metadata={}), GraphEncoder(32, 8))
     """
 
     def __init__(
         self,
-        table_backbone: TableBackbone,
-        graph_backbone: GraphBackbone,
+        table_encoder: TableEncoder,
+        graph_encoder: GraphEncoder,
     ) -> None:
         super().__init__()
-        self.table_backbone = table_backbone
-        self.graph_backbone = graph_backbone
+        self.table_encoder = table_encoder
+        self.graph_encoder = graph_encoder
 
     def forward(
         self,
@@ -159,10 +163,10 @@ class BRIDGE(torch.nn.Module):
         Returns:
             Tensor: Output table embedding features.
         """
-        t_embedds = self.table_backbone(table)
+        t_embedds = self.table_encoder(table)
         if non_table is not None:
             node_feats = torch.cat([t_embedds, non_table], dim=0)
         else:
             node_feats = t_embedds
-        node_feats = self.graph_backbone(node_feats, adj)
+        node_feats = self.graph_encoder(node_feats, adj)
         return node_feats[: len(table), :]

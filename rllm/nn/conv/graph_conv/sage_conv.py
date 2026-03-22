@@ -43,12 +43,12 @@ class SAGEConv(MessagePassing):
         self,
         in_dim: int,
         out_dim: int,
-        aggr: Optional[Union[str, Aggregator]] = 'sum',
+        aggr: Optional[Union[str, Aggregator]] = "sum",
         activation: Optional[Callable] = F.relu,
         dropout: float = 0.0,
         bias: bool = False,
         dst_in_dim: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ):
         self.in_dim = in_dim
         self.out_dim = out_dim
@@ -56,21 +56,21 @@ class SAGEConv(MessagePassing):
         self.activation = activation
         self.dropout = dropout
 
-        if aggr == 'lstm':
-            kwargs.setdefault('aggr_kwargs', {})
-            kwargs['aggr_kwargs'].setdefault('in_dim', in_dim)
-            kwargs['aggr_kwargs'].setdefault('out_dim', in_dim)
-        elif aggr[-4:] == 'pool':
-            kwargs.setdefault('aggr_kwargs', {})
-            kwargs['aggr_kwargs'].setdefault('in_dim', in_dim)
-            kwargs['aggr_kwargs'].setdefault('out_dim', in_dim)
+        if aggr == "lstm":
+            kwargs.setdefault("aggr_kwargs", {})
+            kwargs["aggr_kwargs"].setdefault("in_dim", in_dim)
+            kwargs["aggr_kwargs"].setdefault("out_dim", in_dim)
+        elif aggr[-4:] == "pool":
+            kwargs.setdefault("aggr_kwargs", {})
+            kwargs["aggr_kwargs"].setdefault("in_dim", in_dim)
+            kwargs["aggr_kwargs"].setdefault("out_dim", in_dim)
 
         super().__init__(aggr=self.aggr, **kwargs)
 
         self.lin_neigh = torch.nn.Linear(in_dim, in_dim, bias=False)
 
-        if aggr == 'gcn':
-            self.register_module('self_lin', None)
+        if aggr == "gcn":
+            self.register_module("self_lin", None)
         else:
             if dst_in_dim is not None:
                 self.self_lin = torch.nn.Linear(dst_in_dim, out_dim, bias=False)
@@ -82,7 +82,7 @@ class SAGEConv(MessagePassing):
         if bias:
             self.bias = Parameter(torch.empty(out_dim), requires_grad=True)
         else:
-            self.register_parameter('bias', None)
+            self.register_parameter("bias", None)
 
         self.reset_parameters()
 
@@ -100,6 +100,30 @@ class SAGEConv(MessagePassing):
         edge_index: Union[Tensor, SparseTensor],
         edge_weight: Optional[Tensor] = None,
     ):
+        r"""Aggregate neighbor information and combine with destination features.
+
+        Args:
+            x (Union[Tensor, Tuple[Tensor]]):
+                - Tensor input features for homogeneous graphs.
+                - Tuple containing source and destination node features.
+            edge_index (Union[Tensor, SparseTensor]): Graph connectivity in edge-list
+                or sparse adjacency format.
+            edge_weight (Optional[Tensor]): Optional edge weights used by certain
+                aggregators such as ``gcn``.
+
+        Returns:
+            Tensor: Output embeddings for destination nodes.
+
+        Example:
+            >>> import torch
+            >>> from rllm.nn.conv.graph_conv import SAGEConv
+            >>> conv = SAGEConv(16, 8, aggr='sum')
+            >>> x = torch.randn(4, 16)
+            >>> edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
+            >>> out = conv(x, edge_index)
+            >>> out.shape
+            torch.Size([4, 8])
+        """
         if isinstance(x, Tensor):
             x = [x, x]
         else:
@@ -108,20 +132,17 @@ class SAGEConv(MessagePassing):
         x[0] = F.dropout(x[0], p=self.dropout, training=self.training)
         x[1] = F.dropout(x[1], p=self.dropout, training=self.training)
 
-        if self.aggr[-4:] != 'pool':
+        if self.aggr[-4:] != "pool":
             x[0] = self.lin_neigh(x[0])  # (N, in_dim)
 
-        if self.aggr == 'gcn' and self.self_lin is None:
+        if self.aggr == "gcn" and self.self_lin is None:
             """GCN aggregator.
             Assuming the edge_index has been GCN normalized while preprocessing.
             """
             out = self.propagate(
-                x[0],
-                edge_index,
-                edge_weight=edge_weight,
-                dim_size=x[1].size(0)
+                x[0], edge_index, edge_weight=edge_weight, dim_size=x[1].size(0)
             )
-        elif self.aggr[-4:] == 'pool':
+        elif self.aggr[-4:] == "pool":
             out = self.propagate(x[0], edge_index, dim_size=x[1].size(0))
             out = self.lin_neigh(out)
         else:

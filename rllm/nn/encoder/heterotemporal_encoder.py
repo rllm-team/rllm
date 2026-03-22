@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 from torch.nn import ModuleDict
 
-from .positional_encoder import PositionalEncoder
+from .col_encoder._positional_encoder import PositionalEncoder
 
 
 class HeteroTemporalEncoder(torch.nn.Module):
@@ -15,7 +15,22 @@ class HeteroTemporalEncoder(torch.nn.Module):
     Args:
         node_types (List[str]): The list of node types.
         channels (int): The number of channels.
+
+    Returns:
+        The ``forward`` method returns a dictionary from node type to
+        temporal embeddings.
+
+    Example:
+        >>> import torch
+        >>> enc = HeteroTemporalEncoder(node_types=["user", "item"], channels=16)
+        >>> seed_time = torch.tensor([1000.0, 1100.0])
+        >>> time_dict = {"user": torch.tensor([900.0]), "item": torch.tensor([950.0])}
+        >>> batch_dict = {"user": torch.tensor([0]), "item": torch.tensor([1])}
+        >>> out = enc(seed_time, time_dict, batch_dict)
+        >>> out["user"].shape
+        torch.Size([1, 16])
     """
+
     def __init__(self, node_types: List[str], channels: int):
         super().__init__()
 

@@ -17,10 +17,39 @@ class BaseLoss(torch.nn.Module):
 
     This class itself does not impose any particular training logic.
     It only standardizes the interface.
+
+    Args:
+      No additional constructor arguments.
+
+    Example:
+      >>> import torch
+      >>> class DummyLoss(BaseLoss):
+      ...     def forward(self, x):
+      ...         return x.mean()
+      >>> loss_fn = DummyLoss()
+      >>> loss_fn(torch.tensor([1.0, 2.0, 3.0]))
+      tensor(2.)
     """
 
     def __init__(self) -> None:
         super().__init__()
 
     def forward(self, *args, **kwargs) -> torch.Tensor:
+        """Compute the loss value.
+
+        Args:
+          *args: Positional inputs defined by subclasses.
+          **kwargs: Keyword inputs defined by subclasses.
+
+        Returns:
+          torch.Tensor: A scalar loss tensor.
+
+        Example:
+          >>> class DummyLoss(BaseLoss):
+          ...     def forward(self, x):
+          ...         return x.sum()
+          >>> DummyLoss()(torch.tensor([1.0, 2.0]))
+          tensor(3.)
+        """
+
         raise NotImplementedError(f"{self.__class__.__name__} must implement forward()")

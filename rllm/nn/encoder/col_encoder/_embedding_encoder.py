@@ -21,6 +21,20 @@ class EmbeddingEncoder(ColEncoder):
             output, such as activation function and normalization. Must
             preserve the shape of the output. If :obj:`None`, no module will
             be applied to the output (default: :obj:`None`).
+
+    Returns:
+        The ``forward`` method returns categorical embeddings with shape
+        ``[batch_size, num_cat_cols, out_dim]``.
+
+    Example:
+        >>> import torch
+        >>> from rllm.types import StatType
+        >>> stats = [{StatType.COUNT: 10}, {StatType.COUNT: 20}]
+        >>> enc = EmbeddingEncoder(out_dim=8, stats_list=stats)
+        >>> enc.post_init()
+        >>> x = torch.tensor([[1, 2], [3, 4]])
+        >>> enc(x).shape
+        torch.Size([2, 2, 8])
     """
 
     supported_types = {ColType.CATEGORICAL}
