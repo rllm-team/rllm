@@ -25,7 +25,6 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import DefaultTableTransform
-from rllm.nn.encoder import TromptPreEncoder
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
@@ -79,7 +78,6 @@ class Trompt(torch.nn.Module):
         self.out_dim = out_dim
         self.x_prompt = torch.nn.Parameter(torch.empty(num_prompts, hidden_dim))
 
-        self.pre_encoders = torch.nn.ModuleList()
         self.convs = torch.nn.ModuleList()
         for _ in range(num_layers):
             self.convs.append(
@@ -87,16 +85,11 @@ class Trompt(torch.nn.Module):
                     in_dim=in_dim,
                     out_dim=hidden_dim,
                     num_prompts=num_prompts,
-                )
-            )
-            self.pre_encoders.append(
-                TromptPreEncoder(
-                    out_dim=hidden_dim,
                     metadata=metadata,
                 )
             )
 
-        self.linear = torch.nn.Linear(hidden_dim, 1)
+        self.lin_prompt = torch.nn.Linear(hidden_dim, 1)
         self.mlp = torch.nn.Sequential(
             torch.nn.Linear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
@@ -109,8 +102,8 @@ class Trompt(torch.nn.Module):
         torch.nn.init.xavier_uniform_(self.x_prompt)
         for conv in self.convs:
             conv.reset_parameters()
-        torch.nn.init.xavier_uniform_(self.linear.weight)
-        torch.nn.init.zeros_(self.linear.bias)
+        torch.nn.init.xavier_uniform_(self.lin_prompt.weight)
+        torch.nn.init.zeros_(self.lin_prompt.bias)
         for layer in self.mlp:
             if isinstance(layer, torch.nn.Linear):
                 torch.nn.init.xavier_uniform_(layer.weight)
@@ -120,10 +113,9 @@ class Trompt(torch.nn.Module):
         outs = []
         batch_size = x[list(x.keys())[0]].size(0)
         x_prompt = self.x_prompt.unsqueeze(0).repeat(batch_size, 1, 1)
-        for encoder, conv in zip(self.pre_encoders, self.convs):
-            x_encoded = encoder(x)
-            x_prompt = conv(x_encoded, x_prompt)
-            w_prompt = F.softmax(self.linear(x_prompt), dim=1)
+        for conv in self.convs:
+            x_prompt = conv(x, x_prompt)
+            w_prompt = F.softmax(self.lin_prompt(x_prompt), dim=1)
             out = (w_prompt * x_prompt).sum(dim=1)
             out = self.mlp(out)
             out = out.reshape(batch_size, 1, self.out_dim)
