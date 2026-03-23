@@ -15,11 +15,7 @@ import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 
-from .encoders import (
-    LinearInputEncoderStep,
-    NanHandlingEncoderStep,
-    SequentialEncoder,
-)
+from rllm.nn.encoder import PreEncoder
 from rllm.nn.transformer_encoder import PerFeatureEncoderLayer
 
 DEFAULT_EMSIZE = 128
@@ -89,12 +85,12 @@ class PerFeatureTransformer(nn.Module):
     def __init__(  # noqa: C901, D417, PLR0913
         self,
         *,
-        encoder: nn.Module | None = None,
+        encoder: nn.Module,
+        y_encoder: nn.Module,
         ninp: int = DEFAULT_EMSIZE,
         nhead: int = 4,
         nhid: int = DEFAULT_EMSIZE * 4,
         nlayers: int = 10,
-        y_encoder: nn.Module | None = None,
         decoder_dict: dict[str, tuple[type[nn.Module] | None, int]] | None = None,
         init_method: str | None = None,
         activation: Literal["gelu", "relu"] = "gelu",
@@ -178,31 +174,6 @@ class PerFeatureTransformer(nn.Module):
             decoder_dict = {"standard": (None, 1)}
 
         super().__init__()
-
-        if encoder is None:
-            encoder = SequentialEncoder(
-                LinearInputEncoderStep(
-                    num_features=1,
-                    emsize=DEFAULT_EMSIZE,
-                    replace_nan_by_zero=False,
-                    bias=True,
-                    in_keys=("main",),
-                    out_keys=("output",),
-                ),
-            )
-
-        if y_encoder is None:
-            y_encoder = SequentialEncoder(
-                NanHandlingEncoderStep(),
-                LinearInputEncoderStep(
-                    num_features=2,
-                    emsize=DEFAULT_EMSIZE,
-                    replace_nan_by_zero=False,
-                    bias=True,
-                    out_keys=("output",),
-                    in_keys=("main", "nan_indicators"),
-                ),
-            )
 
         self.encoder = encoder
         self.y_encoder = y_encoder
@@ -511,7 +482,7 @@ class PerFeatureTransformer(nn.Module):
         extra_encoders_args = {}
         if categorical_inds_to_use is not None and isinstance(
             self.encoder,
-            SequentialEncoder,
+            PreEncoder,
         ):
             extra_encoders_args["categorical_inds"] = categorical_inds_to_use
 

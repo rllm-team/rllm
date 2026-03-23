@@ -6,8 +6,30 @@ import torch
 from torch import Tensor
 
 from rllm.types import ColType, StatType
-from rllm.nn.models.tabpfn_v2.encoders import select_features
 from ._col_encoder import ColEncoder
+
+
+def select_features(x: torch.Tensor, sel: torch.Tensor) -> torch.Tensor:
+    B, total_features = sel.shape
+    sequence_length = x.shape[0]
+
+    if B == 1:
+        return x[:, :, sel[0]]
+
+    new_x = torch.zeros(
+        (sequence_length, B, total_features),
+        device=x.device,
+        dtype=x.dtype,
+    )
+
+    sel_counts = sel.sum(dim=-1)
+
+    for b in range(B):
+        s = int(sel_counts[b])
+        if s > 0:
+            new_x[:, b, :s] = x[:, b, sel[b]]
+
+    return new_x
 
 
 class RemoveEmptyFeaturesEncoder(ColEncoder):
