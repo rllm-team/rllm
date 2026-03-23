@@ -22,15 +22,15 @@ class NeighborLoader(torch.utils.data.DataLoader):
             loader will use this function to transform the graph before
             returning it.
         replace (bool, optional): Whether to sample with replacement.
-            Default is False.
+            (default: :obj:`False`)
         shuffle (bool, optional): Whether to shuffle the data at every
-            epoch. Default is False.
+            epoch. (default: :obj:`False`)
         batch_size (int, optional): How many samples per batch to load.
-            Default is 1.
+            (default: :obj:`1`)
         num_workers (int, optional): How many subprocesses to use for
-            data loading. Default is 0.
+            data loading. (default: :obj:`0`)
         **kwargs: Additional keyword arguments to be passed to the
-            `torch.utils.data.DataLoader` class.
+            :class:`torch.utils.data.DataLoader` class.
     """
     def __init__(
         self,
@@ -96,6 +96,9 @@ class NeighborLoader(torch.utils.data.DataLoader):
 
         Args:
             node (int): The node for which to get the in-neighbors.
+
+        Returns:
+            Tensor: The indices of in-neighbor nodes.
         """
         start = self.col_ptr[node].item()
         end = self.col_ptr[node + 1].item()
@@ -146,10 +149,18 @@ class NeighborLoader(torch.utils.data.DataLoader):
         self,
         batch: List[Tensor],
     ) -> Tuple[int, Tensor, List[Tensor]]:
-        r"""Collate function for the NeighborLoader. This function
-        is responsible for sampling neighbors for each node in the
-        batch and returning the sampled nodes and their corresponding
-        adjacency lists.
+        r"""Collate function for the NeighborLoader. Samples neighbors
+        for each node in the batch and returns the sampled subgraph.
+
+        Args:
+            batch (List[Tensor]): A list of seed node indices.
+
+        Returns:
+            Tuple[int, Tensor, List[Tensor]]: A tuple of
+            :obj:`(batch_size, n_id, adjs)` where :obj:`batch_size` is
+            the number of seed nodes, :obj:`n_id` contains all sampled
+            node indices, and :obj:`adjs` is a list of sparse adjacency
+            matrices per hop.
         """
         batch = torch.tensor(batch, dtype=torch.long).tolist()
         raw_adjs = []

@@ -98,6 +98,9 @@ class TromptConv(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        if self.feature_encoder is not None:
+            self.feature_encoder.reset_parameters()
+
         torch.nn.init.xavier_uniform_(self.emb_column)
         torch.nn.init.xavier_uniform_(self.emb_prompt)
         torch.nn.init.xavier_uniform_(self.lin_se_prompt.weight)
