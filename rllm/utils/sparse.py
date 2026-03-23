@@ -76,11 +76,11 @@ def set_values(adj: Tensor, values: Tensor) -> Tensor:
         )
     elif adj.layout == torch.sparse_csr:
         return torch.sparse_csr_tensor(
-            adj.indices(), adj.indptr(), values, size, device=adj.device
+            adj.crow_indices(), adj.col_indices(), values, size, device=adj.device
         )
     elif adj.layout == torch.sparse_csc:
         return torch.sparse_csc_tensor(
-            adj.indices(), adj.indptr(), values, size, device=adj.device
+            adj.ccol_indices(), adj.row_indices(), values, size, device=adj.device
         )
     else:
         raise ValueError(f"Unsupported sparse tensor layout: {adj.layout}")

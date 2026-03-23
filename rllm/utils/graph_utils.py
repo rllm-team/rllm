@@ -20,7 +20,7 @@ warnings.filterwarnings(
 )
 
 
-def adj_to_edge_index(adj: Tensor) -> Union[Tensor, Optional[Tensor]]:
+def adj_to_edge_index(adj: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
     r"""Convert a sparse adjacency matrix to an edge index tensor.
 
     Args:
@@ -31,7 +31,7 @@ def adj_to_edge_index(adj: Tensor) -> Union[Tensor, Optional[Tensor]]:
         where :obj:`edge_index` has shape :obj:`[2, num_edges]` and
         :obj:`edge_attr` is :obj:`None` if all edge weights are 1.
     """
-    if adj.is_sparse:
+    if is_torch_sparse_tensor(adj):
         coo_adj = adj.to_sparse_coo().coalesce()
         s, d, vs = coo_adj.indices()[0], coo_adj.indices()[1], coo_adj.values()
         vs = None if torch.all(vs == 1) else vs
@@ -66,76 +66,6 @@ def remove_self_loops(adj: Tensor):
     adj = adj.clone()
     adj[loop_index, loop_index] = 0
     return adj
-
-
-def add_remaining_self_loops(adj: Tensor, fill_value=1.0):
-    r"""Add self-loops to the adjacency matrix.
-
-    .. math::
-        \mathbf{\hat{A}} = \mathbf{A} + \mathbf{I}
-
-    Args:
-        adj (Tensor): The adjacency matrix in sparse or dense format.
-        fill_value (float): The value to fill in the self-loop edges.
-            (default: :obj:`1.0`)
-
-    Returns:
-        Tensor: The adjacency matrix with self-loops added.
-    """
-    shape = adj.shape
-    device = adj.device
-
-    if is_torch_sparse_tensor(adj):
-        adj = adj.coalesce()
-        indices = adj.indices()
-        values = adj.values()
-
-        mask = indices[0] != indices[1]
-
-        loop_index = torch.arange(0, shape[0], dtype=torch.long, device=device)
-        loop_index = loop_index.unsqueeze(0).repeat(2, 1)
-
-        indices = torch.cat([indices[:, mask], loop_index], dim=1)
-        fill_values = (
-            torch.ones_like(loop_index, dtype=values.dtype, device=device) * fill_value
-        )
-        values = torch.cat([values[mask], fill_values], dim=0)
-        return torch.sparse_coo_tensor(indices, values, shape).to(device)
-
-    loop_index = torch.arange(0, shape[0], dtype=torch.long, device=device)
-    adj = adj.clone()
-    adj[loop_index, loop_index] = fill_value
-    return adj
-
-
-def construct_graph(
-    edge_index: Tensor, N: int, edge_attr: Tensor = None, remove_self: bool = True
-):
-    r"""Convert an edge index to a sparse COO adjacency matrix.
-
-    Args:
-        edge_index (Tensor): The edge index of shape :obj:`[2, num_edges]`.
-        N (int): The number of nodes.
-        edge_attr (Tensor, optional): Values of the non-zero elements.
-            If :obj:`None`, all edges are assigned weight 1.
-            (default: :obj:`None`)
-        remove_self (bool): If set to :obj:`False`, self-loops are kept
-            in the adjacency matrix. (default: :obj:`True`)
-
-    Returns:
-        Tensor: A sparse COO adjacency matrix of shape :obj:`[N, N]`.
-    """
-    device = edge_index.device
-    edge_index = edge_index.cpu()
-
-    if remove_self:
-        edge_index = remove_self_loops(edge_index=edge_index)
-
-    if edge_attr is None:
-        edge_attr = np.ones([edge_index.shape[1]], dtype=np.float32)
-
-    adj_sp = sp.csr_matrix((edge_attr, (edge_index[0], edge_index[1])), shape=[N, N])
-    return sparse_mx_to_torch_sparse_tensor(adj_sp).to(device)
 
 
 def gcn_norm(adj: Tensor):
