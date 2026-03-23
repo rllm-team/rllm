@@ -13,14 +13,15 @@ class RelGNNConv(GTransformerConv):
     path that aggregates through latent factors before final attention.
 
     Args:
-        attn_type (str): The attention type.
-        in_dim (Tuple[int, int]): The input dimension of source node
-            and destination node.
-        out_dim (int): The output dimension.
+        attn_type (str): The attention type, one of :obj:`"dim-dim"` or
+            :obj:`"dim-fact-dim"`.
+        in_dim (int): The input feature dimension.
+        out_dim (int): The output feature dimension per attention head.
         num_heads (int): The number of attention heads.
-        aggr (str): The aggregation method.
-        simplified_MP (bool): Whether to use simplified message passing.
-        bias (bool): Whether to use bias.
+        aggr (str): The aggregation method for the factorized path.
+        simplified_MP (bool): Whether to skip propagation when there are no
+            edges. (default: :obj:`False`)
+        bias (bool): Whether to add a bias term. (default: :obj:`True`)
     """
 
     def __init__(
@@ -51,6 +52,7 @@ class RelGNNConv(GTransformerConv):
         self.final_proj = Linear(num_heads * out_dim, out_dim, bias=bias)
 
     def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
         self.final_proj.reset_parameters()
         if self.attn_type == "dim-fact-dim":
             self.aggr_conv.reset_parameters()
@@ -74,7 +76,7 @@ class RelGNNConv(GTransformerConv):
                 is a tuple ``(edge_attn, edge_aggr)``.
             edge_weight: Optional edge features passed to transformer attention.
             return_attention_weights (bool): Whether to return attention scores
-                from the transformer attention path.
+                from the transformer attention path. (default: :obj:`False`)
 
         Returns:
             For ``dim-dim`` attention: Tensor output embeddings, or None when

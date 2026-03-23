@@ -7,7 +7,7 @@ import warnings
 import torch
 from torch import Tensor
 
-from rllm.utils._mixin import CastMixin
+from rllm.utils import CastMixin
 from rllm.utils.graph_utils import to_bidirectional
 
 
@@ -61,21 +61,26 @@ class NodeSamplerInput(CastMixin):
 
 @dataclass
 class HeteroSamplerOutput(CastMixin):
-    """
-    Outout of the heterosampler, which only contains
+    r"""Output of the heterogeneous graph sampler, containing only
     the indices of the sampled nodes and edges.
 
-    node (Dict[str, Tensor]): The indices of the sampled nodes.
-    row (Dict[Tuple, Tensor]): The row indices of the sampled edges.
-    col (Dict[Tuple, Tensor]): The column indices of the sampled edges.
-    batch (Dict[str, Tensor]): Not used yet.
-    num_sampled_nodes (Dict[str, List[int]]): The number of sampled nodes
-        for each node type in each hop.
-    num_sampled_edges (Dict[Tuple, List[int]]): The number of sampled edges
-        for each edge type in each hop.
-
-    Edge type: Tuple[str, str, str]
-    Node type: str
+    Attributes:
+        node (Dict[str, Tensor]): The indices of the sampled nodes.
+        row (Dict[Tuple, Tensor]): The row indices of the sampled edges.
+        col (Dict[Tuple, Tensor]): The column indices of the sampled edges.
+        batch (Dict[str, Tensor], optional): Not used yet.
+            (default: :obj:`None`)
+        num_sampled_nodes (Dict[str, List[int]], optional): The number of
+            sampled nodes for each node type in each hop.
+            (default: :obj:`None`)
+        num_sampled_edges (Dict[Tuple, List[int]], optional): The number of
+            sampled edges for each edge type in each hop.
+            (default: :obj:`None`)
+        original_row (Dict[Tuple, Tensor], optional): Original row indices
+            before bidirectional conversion. (default: :obj:`None`)
+        original_col (Dict[Tuple, Tensor], optional): Original column indices
+            before bidirectional conversion. (default: :obj:`None`)
+        metadata (Any, optional): Additional metadata. (default: :obj:`None`)
     """
     node: Dict[str, Tensor]
     row: Dict[Tuple, Tensor]
@@ -298,11 +303,16 @@ class NumNeighbors:
         self,
         edge_types: Optional[List[EdgeType]] = None,
     ) -> Union[List[int], Dict[EdgeType, List[int]]]:
-        r"""Returns the number of neighbors.
+        r"""Returns the number of neighbors per hop.
 
         Args:
             edge_types (List[Tuple[str, str, str]], optional): The edge types
                 to generate the number of neighbors for. (default: :obj:`None`)
+
+        Returns:
+            Union[List[int], Dict[EdgeType, List[int]]]: The number of
+            neighbors, either as a list (homogeneous) or a dict keyed by
+            edge type (heterogeneous).
         """
         if '_values' in self.__dict__:
             return self.__dict__['_values']
@@ -316,13 +326,17 @@ class NumNeighbors:
         self,
         edge_types: Optional[List[EdgeType]] = None,
     ) -> Union[List[int], Dict[str, List[int]]]:
-        r"""Returns the number of neighbors.
-        For heterogeneous graphs, a dictionary is returned in which edge type
-        tuples are converted to strings.
+        r"""Returns the number of neighbors per hop, with edge type tuples
+        converted to strings for backends that require string keys.
 
         Args:
             edge_types (List[Tuple[str, str, str]], optional): The edge types
                 to generate the number of neighbors for. (default: :obj:`None`)
+
+        Returns:
+            Union[List[int], Dict[str, List[int]]]: The number of neighbors,
+            either as a list (homogeneous) or a dict keyed by edge type
+            strings (heterogeneous).
         """
         if '_mapped_values' in self.__dict__:
             return self.__dict__['_mapped_values']
