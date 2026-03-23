@@ -9,13 +9,8 @@ from .col_encoder._col_encoder import ColEncoder
 from rllm.types import ColType
 
 
-<<<<<<<< HEAD:rllm/nn/encoder/table_pre_encoder.py
 class TablePreEncoder(torch.nn.Module, ABC):
     r"""The TablePreEncoder class is designed to transform table data by encoding
-========
-class PreEncoder(torch.nn.Module, ABC):
-    r"""The PreEncoder class is designed to transform table data by encoding
->>>>>>>> main:rllm/nn/encoder/pre_encoder.py
     each column type tensor into embeddings and performing the final
     concatenation. It supports different types of column encoders for
     categorical and numerical features, allowing for flexible and
@@ -38,11 +33,7 @@ class PreEncoder(torch.nn.Module, ABC):
         or a dictionary of per-column-type embeddings.
 
     Example:
-<<<<<<<< HEAD:rllm/nn/encoder/table_pre_encoder.py
         >>> from rllm.nn.encoder import TablePreEncoder
-========
-        >>> from rllm.nn.encoder import PreEncoder
->>>>>>>> main:rllm/nn/encoder/pre_encoder.py
         >>> # Usually instantiated through concrete subclasses.
     """
 

@@ -1,22 +1,14 @@
 from typing import Any, Dict, List
 
 from rllm.types import ColType
-<<<<<<< HEAD
 from .table_pre_encoder import TablePreEncoder
-=======
-from .pre_encoder import PreEncoder
->>>>>>> main
 from .col_encoder._embedding_encoder import EmbeddingEncoder
 from .col_encoder._linear_encoder import LinearEncoder
 from .col_encoder._textembedding_encoder import TextEmbeddingEncoder
 from .col_encoder._timestamp_encoder import TimestampEncoder
 
 
-<<<<<<< HEAD
 class ResNetPreEncoder(TablePreEncoder):
-=======
-class ResNetPreEncoder(PreEncoder):
->>>>>>> main
     r"""The pre-encoder for ResNet TNN.
 
     This encoder builds column-type-specific pre-encoders, then delegates the
