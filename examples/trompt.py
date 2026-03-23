@@ -89,7 +89,7 @@ class Trompt(torch.nn.Module):
                 )
             )
 
-        self.lin_prompt = torch.nn.Linear(hidden_dim, 1)
+        self.lin_attn = torch.nn.Linear(hidden_dim, 1)
         self.mlp = torch.nn.Sequential(
             torch.nn.Linear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
@@ -102,8 +102,8 @@ class Trompt(torch.nn.Module):
         torch.nn.init.xavier_uniform_(self.x_prompt)
         for conv in self.convs:
             conv.reset_parameters()
-        torch.nn.init.xavier_uniform_(self.lin_prompt.weight)
-        torch.nn.init.zeros_(self.lin_prompt.bias)
+        torch.nn.init.xavier_uniform_(self.lin_attn.weight)
+        torch.nn.init.zeros_(self.lin_attn.bias)
         for layer in self.mlp:
             if isinstance(layer, torch.nn.Linear):
                 torch.nn.init.xavier_uniform_(layer.weight)
@@ -115,7 +115,7 @@ class Trompt(torch.nn.Module):
         x_prompt = self.x_prompt.unsqueeze(0).repeat(batch_size, 1, 1)
         for conv in self.convs:
             x_prompt = conv(x, x_prompt)
-            w_prompt = F.softmax(self.lin_prompt(x_prompt), dim=1)
+            w_prompt = F.softmax(self.lin_attn(x_prompt), dim=1)
             out = (w_prompt * x_prompt).sum(dim=1)
             out = self.mlp(out)
             out = out.reshape(batch_size, 1, self.out_dim)
