@@ -7,7 +7,7 @@ from torch import Tensor
 from rllm.data import HeteroGraphData
 from rllm.dataloader.sampler.utils import (
     convert_hdata_to_csc,
-    hetero_neighbor_sample_cpu
+    hetero_neighbor_sample_cpu,
 )
 from rllm.dataloader.sampler.data_type import (
     NodeSamplerInput,
@@ -41,12 +41,13 @@ class HeteroSampler:
             to the pure Python sampler if PyG-lib is not installed.
             (default: :obj:`True`)
     """
+
     def __init__(
         self,
         hdata: HeteroGraphData,
         num_neighbors: List[int],
         replace: bool = False,
-        temporal_strategy: str = 'uniform',
+        temporal_strategy: str = "uniform",
         time_attr: Optional[str] = None,
         device: Optional[torch.device] = None,
         to_bidirectional: bool = False,
@@ -54,34 +55,37 @@ class HeteroSampler:
         use_pyg_lib: bool = True,
     ):
 
-        assert device is None or device.type == 'cpu', 'Device must be CPU-enabled or None.'
-        assert temporal_strategy == 'uniform', 'Only uniform temporal strategy is supported for now.'
-        if temporal_strategy == 'uniform' and time_attr is None:
-            raise ValueError('Time attribute must be provided for uniform temporal strategy.')
-        
+        assert (
+            device is None or device.type == "cpu"
+        ), "Device must be CPU-enabled or None."
+        assert (
+            temporal_strategy == "uniform"
+        ), "Only uniform temporal strategy is supported for now."
+        if temporal_strategy == "uniform" and time_attr is None:
+            raise ValueError(
+                "Time attribute must be provided for uniform temporal strategy."
+            )
+
         if use_pyg_lib and rllm.utils._pyglib.WITH_PYG_LIB:
             self.use_pyglib = True
         else:
             if use_pyg_lib:
-                warnings.warn("PyG-lib is not installed. Falling back to pure Python sampler.")
+                warnings.warn(
+                    "PyG-lib is not installed. Falling back to pure Python sampler."
+                )
             self.use_pyglib = False
 
         self.csc = csc
-        self.device = device or torch.device('cpu')
+        self.device = device or torch.device("cpu")
         self.node_types = hdata.node_types
         self.edge_types = hdata.edge_types
         self.num_nodes = {
-            node_type: hdata[node_type].num_nodes
-            for node_type in hdata.node_types
+            node_type: hdata[node_type].num_nodes for node_type in hdata.node_types
         }
 
         self.node_time_dict = hdata.collect_attr(time_attr)
 
-        (
-            self.col_ptr_dict,
-            self.row_dict,
-            self.perm_dict
-        ) = convert_hdata_to_csc(
+        (self.col_ptr_dict, self.row_dict, self.perm_dict) = convert_hdata_to_csc(
             hdata=hdata,
             device=self.device,
             share_memory=True,
@@ -96,7 +100,7 @@ class HeteroSampler:
         if self.use_pyglib:
             # Pyg_lib sampler requires the edge types to be a string.
             # Convert the edge types from tuple to string.
-            self.to_rel_type = {k: '__'.join(k) for k in self.edge_types}
+            self.to_rel_type = {k: "__".join(k) for k in self.edge_types}
             self.to_edge_type = {v: k for k, v in self.to_rel_type.items()}
 
             self.row_dict = remap_keys(self.row_dict, self.to_rel_type)
@@ -110,7 +114,7 @@ class HeteroSampler:
 
         if not self.use_pyglib:
             self.num_neighbors_dict = self._get_num_neighbor_dict()
-    
+
     # num_neighbors
     @property
     def num_neighbors(self) -> NumNeighbors:
@@ -129,7 +133,7 @@ class HeteroSampler:
         """
         num_neighbors_dict = self.num_neighbors.get_values(self.edge_types)
         return num_neighbors_dict
-    
+
     # is_temporal
     @property
     def is_temporal(self) -> bool:
@@ -172,9 +176,7 @@ class HeteroSampler:
         return out
 
     def _sample_neighbors(
-        self,
-        seed: Dict[str, Tensor],
-        seed_time: Optional[Dict[str, Tensor]]
+        self, seed: Dict[str, Tensor], seed_time: Optional[Dict[str, Tensor]]
     ) -> HeteroSamplerOutput:
         r"""Dispatch neighbor sampling to either PyG-lib or the pure Python
         backend.
@@ -202,31 +204,31 @@ class HeteroSampler:
                 self.num_neighbors.get_mapped_values(self.edge_types),
                 self.node_time_dict,
             )
-            args += (None, )    # edge time
-            args += (seed_time, )
-            args += (None, )    # edge weight
+            args += (None,)  # edge time
+            args += (seed_time,)
+            args += (None,)  # edge weight
             args += (
-                True,   # csc format
+                True,  # csc format
                 self.replace,
                 True,  # subgraph type
                 self.disjoint,
                 self.temporal_strategy,
-                True,   # return edge id
+                True,  # return edge id
             )
 
             out = torch.ops.pyg.hetero_neighbor_sample(*args)
 
-            row, col, node, edge, batch = out[:4] + (None, )
+            row, col, node, edge, batch = out[:4] + (None,)
             # `pyg-lib>0.1.0` returns sampled number of nodes/edges:
             num_sampled_nodes = num_sampled_edges = None
             if len(out) >= 6:
                 num_sampled_nodes, num_sampled_edges = out[4:6]
-            
+
             if self.disjoint:
                 node = {k: v.t().contiguous() for k, v in node.items()}
                 batch = {k: v[0] for k, v in node.items()}
                 node = {k: v[1] for k, v in node.items()}
-            
+
             # remap the edge type
             row = remap_keys(row, self.to_edge_type)
             col = remap_keys(col, self.to_edge_type)
@@ -259,7 +261,7 @@ class HeteroSampler:
                 batch_dict,
                 _,
                 num_sampled_nodes_per_hop,
-                num_edges_per_hop
+                num_edges_per_hop,
             ) = hetero_neighbor_sample_cpu(
                 rowptr_dict=self.col_ptr_dict,
                 col_dict=self.row_dict,
@@ -283,4 +285,3 @@ class HeteroSampler:
                 original_col=None,
                 metadata=None,
             )
-

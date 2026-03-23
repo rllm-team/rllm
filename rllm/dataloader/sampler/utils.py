@@ -3,7 +3,6 @@ from typing import Dict, Optional, Tuple, List
 import torch
 from torch import Tensor
 
-# from rllm.types import
 from rllm.data import HeteroGraphData, EdgeStorage
 
 
@@ -44,7 +43,7 @@ def convert_hdata_to_csc(
 
     for edge_type, edge_store in hdata.edge_items():
         src_node_time = (node_time_dict or {}).get(edge_type[0], None)
-        edge_time     = (edge_time_dict or {}).get(edge_type, None)
+        edge_time = (edge_time_dict or {}).get(edge_type, None)
         dst_node_type = edge_type[2]
         dst_num_nodes = hdata[dst_node_type].num_nodes
 
@@ -67,6 +66,7 @@ def convert_hdata_to_csc(
 # Hetero sampler backend
 NodeType = str
 EdgeType = Tuple[str, str, str]
+
 
 def _sample_uniform_without_replacement(
     row_start: int,
@@ -201,9 +201,7 @@ def hetero_neighbor_sample_cpu(
     # Prepare per-node-type storage: sampled nodes + index mapping
     # Internally we store (batch_idx, global_node_id) for each sampled node.
     # -------------------------------------------------------------------------
-    sampled_nodes: Dict[NodeType, List[Tuple[int, int]]] = {
-        nt: [] for nt in node_types
-    }
+    sampled_nodes: Dict[NodeType, List[Tuple[int, int]]] = {nt: [] for nt in node_types}
     node_index: Dict[NodeType, Dict[Tuple[int, int], int]] = {
         nt: {} for nt in node_types
     }
@@ -211,9 +209,7 @@ def hetero_neighbor_sample_cpu(
         nt: [0] for nt in node_types
     }
     # slice_dict[nt] = (begin, end) indices into sampled_nodes[nt] for current hop.
-    slice_dict: Dict[NodeType, Tuple[int, int]] = {
-        nt: (0, 0) for nt in node_types
-    }
+    slice_dict: Dict[NodeType, Tuple[int, int]] = {nt: (0, 0) for nt in node_types}
 
     # Flatten seed timestamps per "batch" (root of each sampled tree).
     seed_times: List[int] = []
@@ -255,9 +251,7 @@ def hetero_neighbor_sample_cpu(
     row_out: Dict[EdgeType, List[int]] = {et: [] for et in edge_types}
     col_out: Dict[EdgeType, List[int]] = {et: [] for et in edge_types}
     edge_id_out: Dict[EdgeType, List[int]] = {et: [] for et in edge_types}
-    num_edges_per_hop: Dict[EdgeType, List[int]] = {
-        et: [] for et in edge_types
-    }
+    num_edges_per_hop: Dict[EdgeType, List[int]] = {et: [] for et in edge_types}
 
     # Number of layers (hops): max length across all relations.
     L = max(len(v) for v in num_neighbors_dict.values()) if edge_types else 0
@@ -419,8 +413,7 @@ def hetero_neighbor_sample_cpu(
         else:
             row_dict_tensor[et] = torch.empty(0, device=device, dtype=torch.long)
             col_dict_tensor[et] = torch.empty(0, device=device, dtype=torch.long)
-            edge_id_dict_tensor[et] = torch.empty(0, device=device,
-                                                  dtype=torch.long)
+            edge_id_dict_tensor[et] = torch.empty(0, device=device, dtype=torch.long)
 
     return (
         row_dict_tensor,

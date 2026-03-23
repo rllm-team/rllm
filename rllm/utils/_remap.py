@@ -1,16 +1,15 @@
-from typing import TypeVar, Dict, Any, Optional, List
+from typing import TypeVar, Dict, Any, Optional, List, Union
 
 
-X = TypeVar('X')
-Y = TypeVar('Y')
+X = TypeVar("X")
+Y = TypeVar("Y")
 
 
 def remap_keys(
     inputs: Dict[X, Any],
     mapping: Dict[X, Y],
     exclude: Optional[List[X]] = None,
-    inplace: bool = False,
-) -> Optional[Dict[Y, Any]]:
+) -> Dict[Union[X, Y], Any]:
     r"""Remap the keys of the input dictionary using a mapping.
 
     Args:
@@ -19,13 +18,9 @@ def remap_keys(
         mapping (Dict[X, Y]): A mapping from old keys to new keys.
         exclude (List[X], optional): Keys to leave unchanged even if
             present in :obj:`mapping`. (default: :obj:`None`)
-        inplace (bool): If set to :obj:`True`, modifies :obj:`inputs` in
-            place and returns :obj:`None`. Otherwise returns a new
-            dictionary. (default: :obj:`False`)
 
     Returns:
-        Optional[Dict[Y, Any]]: A new dictionary with remapped keys, or
-        :obj:`None` if :obj:`inplace=True`.
+        Dict[Union[X, Y], Any]: A new dictionary with remapped keys.
 
     Example:
         >>> inputs = {'a': 1, 'b': 2, 'c': 3}
@@ -33,14 +28,5 @@ def remap_keys(
         >>> remap_keys(inputs, mapping)
         {'A': 1, 'B': 2, 'c': 3}
     """
-    if exclude is None:
-        exclude = []
-    out = inputs if inplace else inputs.copy()
-    for key, value in inputs.items():
-        if key in exclude:
-            continue
-        if key in mapping:
-            out[mapping[key]] = value
-            if not inplace:
-                del out[key]
-    return out if not inplace else None
+    exclude = exclude or []
+    return {k if k in exclude else mapping.get(k, k): v for k, v in inputs.items()}
