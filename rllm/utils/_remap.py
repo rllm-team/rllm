@@ -11,21 +11,26 @@ def remap_keys(
     exclude: Optional[List[X]] = None,
     inplace: bool = False,
 ) -> Optional[Dict[Y, Any]]:
-    r"""Remap the keys in the input dictionary.
+    r"""Remap the keys of the input dictionary using a mapping.
 
     Args:
-        inputs (Dict[X, Any]): The input dictionary.
-        mapping (Dict[X, Y]): The mapping dictionary.
-        exclude (List[X], optional): The keys to exclude.
-            (default: `None`)
-        inplace (bool, optional): If set to `True`, will modify the input dictionary
-            in place. Otherwise, will return a new dictionary.
-            (default: `False`)
+        inputs (Dict[X, Any]): The input dictionary whose keys are to be
+            remapped.
+        mapping (Dict[X, Y]): A mapping from old keys to new keys.
+        exclude (List[X], optional): Keys to leave unchanged even if
+            present in :obj:`mapping`. (default: :obj:`None`)
+        inplace (bool): If set to :obj:`True`, modifies :obj:`inputs` in
+            place and returns :obj:`None`. Otherwise returns a new
+            dictionary. (default: :obj:`False`)
+
+    Returns:
+        Optional[Dict[Y, Any]]: A new dictionary with remapped keys, or
+        :obj:`None` if :obj:`inplace=True`.
 
     Example:
         >>> inputs = {'a': 1, 'b': 2, 'c': 3}
         >>> mapping = {'a': 'A', 'b': 'B'}
-        >>> remap(inputs, mapping)
+        >>> remap_keys(inputs, mapping)
         {'A': 1, 'B': 2, 'c': 3}
     """
     if exclude is None:

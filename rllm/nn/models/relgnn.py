@@ -20,18 +20,28 @@ class RelGNN(torch.nn.Module):
     <https://arxiv.org/abs/2502.06784>`_.
 
     Args:
-        node_types (List[str]): The list of node types.
-        atomic_routes_edge_types (List[Tuple[str, str, str]]): The list of edge types
-            corresponding to atomic message passing routes.
-        hidden_dims (int): The number of hidden dimensions.
-        aggr (str): The aggregation method.
-        num_layers (int): The number of layers.
+        node_types (List[str]): The list of node types in the graph.
+        atomic_routes_edge_types (List[Tuple]): The list of atomic message
+            passing routes produced by :func:`~rllm.utils.get_atomic_routes`.
+        hidden_dim (int): The number of hidden dimensions.
+        aggr (str): The aggregation method across parallel routes.
+            (default: :obj:`'sum'`)
+        num_layers (int): The number of message passing layers.
+            (default: :obj:`2`)
         num_heads (int): The number of attention heads.
-        simplified_MP (bool): Whether to use simplified message passing.
+            (default: :obj:`1`)
+        simplified_MP (bool): If :obj:`True`, skips routes whose edge
+            index is absent in the batch. (default: :obj:`True`)
 
     Example:
         >>> from rllm.nn.models import RelGNN
-        >>> model = RelGNN(node_types=["user", "item"], atomic_routes_edge_types=[("dim-dim", "user", "rel", "item")], hidden_dim=16)
+        >>> from rllm.utils import get_atomic_routes
+        >>> routes = get_atomic_routes(hdata.edge_types)
+        >>> model = RelGNN(
+        ...     node_types=hdata.node_types,
+        ...     atomic_routes_edge_types=routes,
+        ...     hidden_dim=128,
+        ... )
     """
 
     def __init__(
@@ -78,6 +88,7 @@ class RelGNN(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        r"""Reset all learnable parameters of the module."""
         for conv_dict in self.convs:
             for conv in conv_dict.values():
                 conv.reset_parameters()
@@ -90,7 +101,7 @@ class RelGNN(torch.nn.Module):
         x_dict: Dict[str, Tensor],
         edge_index_dict: Dict[Tuple[str, str, str], Tensor],
     ) -> Dict[str, Tensor]:
-        """Apply stacked relational message passing layers.
+        r"""Apply stacked relational message passing layers.
 
         Args:
             x_dict (Dict[str, Tensor]): Input node features by node type.
@@ -112,6 +123,18 @@ class RelGNN(torch.nn.Module):
         x_dict: Dict[str, Tensor],
         edge_index_dict: Dict[Tuple[str, str, str], Tensor],
     ) -> Dict[str, Tensor]:
+        r"""Apply one layer of heterogeneous convolution across all atomic
+        routes and aggregate the results per destination node type.
+
+        Args:
+            conv_dict (ModuleDict): Convolution modules keyed by route string.
+            x_dict (Dict[str, Tensor]): Input node features by node type.
+            edge_index_dict (Dict[Tuple[str, str, str], Tensor]): Edge
+                indices by edge type.
+
+        Returns:
+            Dict[str, Tensor]: Updated node embeddings by node type.
+        """
 
         out_dict: Dict[str, List[Tensor]] = defaultdict(list)
 
@@ -194,30 +217,48 @@ class RelGNN(torch.nn.Module):
 class RelGNNModel(torch.nn.Module):
     r"""The relational table learning model with RelGNN as the HGNN
     backbone from paper `"RelGNN: Composite Message Passing for
-    Relational Deep Learning" <https://arxiv.org/abs/2502.06784>` _.
-    The replementation includes Table ResNet as TNN and
-    RelGNN as the HGNN following
-    the original paper with temporal encoding module.
+    Relational Deep Learning" <https://arxiv.org/abs/2502.06784>`_.
+    The implementation combines TableResNet as the TNN component and
+    RelGNN as the HGNN component following the original paper, with an
+    optional temporal encoding module.
 
     Args:
         data (HeteroGraphData): The heterogeneous graph data.
         col_stats_dict (Dict[str, Dict[ColType, List[Dict[StatType, Any]]]]):
             The column statistics dictionary for each table.
-        atomic_routes_edge_types (List[Tuple[str, str, str]]): The list of edge types
-            corresponding to atomic message passing routes.
+        atomic_routes_edge_types (List[Tuple]): The list of atomic message
+            passing routes produced by :func:`~rllm.utils.get_atomic_routes`.
         hidden_dim (int): The hidden dimension.
         out_dim (int): The output dimension.
         tnn_hidden_dim (int): The hidden dimension for TNN.
+            (default: :obj:`128`)
         tnn_num_layers (int): The number of layers for TNN.
+            (default: :obj:`4`)
         relgnn_aggr (str): The aggregation method for RelGNN.
+            (default: :obj:`'mean'`)
         relgnn_num_layers (int): The number of layers for RelGNN.
+            (default: :obj:`2`)
         relgnn_num_heads (int): The number of attention heads for RelGNN.
-        relgnn_simplified_MP (bool): Whether to use simplified message passing in RelGNN.
-        use_temporal_encoder (bool): Whether to use temporal encoder.
+            (default: :obj:`1`)
+        relgnn_simplified_MP (bool): Whether to use simplified message
+            passing in RelGNN. (default: :obj:`True`)
+        use_temporal_encoder (bool): Whether to use the temporal encoder.
+            (default: :obj:`True`)
+        reg_task (bool): If :obj:`True`, uses a regression output head
+            with :class:`~torch.nn.GELU` activation instead of
+            classification. (default: :obj:`False`)
 
     Example:
         >>> from rllm.nn.models import RelGNNModel
-        >>> # Instantiate with prepared relational graph data and metadata.
+        >>> from rllm.utils import get_atomic_routes
+        >>> routes = get_atomic_routes(hdata.edge_types)
+        >>> model = RelGNNModel(
+        ...     data=hdata,
+        ...     col_stats_dict=col_stats_dict,
+        ...     atomic_routes_edge_types=routes,
+        ...     hidden_dim=128,
+        ...     out_dim=1,
+        ... )
     """
 
     def __init__(
@@ -298,6 +339,7 @@ class RelGNNModel(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        r"""Reset all learnable parameters of the module."""
         for tnn in self.TNN_DICT.values():
             tnn.reset_parameters()
         if self.use_temporal_encoder:
@@ -311,15 +353,17 @@ class RelGNNModel(torch.nn.Module):
         self,
         batch: HeteroGraphData,
         target_table: str,
-    ) -> Dict[str, Tensor]:
-        """Run table encoding, optional temporal encoding, RelGNN propagation, and output head.
+    ) -> Tensor:
+        r"""Run table encoding, optional temporal encoding, RelGNN
+        propagation, and the output head.
 
         Args:
             batch (HeteroGraphData): Batched heterogeneous relational graph.
-            target_table (str): Target node type to predict.
+            target_table (str): The node type to predict.
 
         Returns:
-            Tensor: Output predictions for the target table.
+            Tensor: Output predictions for seed nodes in the target table,
+            of shape :obj:`[batch_size, out_dim]`.
         """
         seed_time = batch[target_table].seed_time
         # 1. apply TNN to each node type (table)

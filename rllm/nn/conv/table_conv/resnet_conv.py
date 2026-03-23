@@ -14,7 +14,7 @@ from torch.nn import (
 class ResNetConv(torch.nn.Module):
     r"""The ResNet-like TNN LayerConv introduced in the
     `"Revisiting Deep Learning Models for Tabular Data"
-    <https://arxiv.org/abs/2106.11959>` _ paper.
+    <https://arxiv.org/abs/2106.11959>`_ paper.
 
     This module applies a two-layer MLP block with optional normalization,
     activation, and dropout, then adds a residual shortcut connection.
@@ -23,9 +23,9 @@ class ResNetConv(torch.nn.Module):
         in_dim (int): Input feature dimensionality.
         out_dim (int): Output feature dimensionality.
         normalization (str | None): Normalization type. Supported values are
-            ``"layer_norm"``, ``"batch_norm"``, or :obj:`None`.
-            (default: ``"layer_norm"``)
-        dropout (float): Dropout probability. (default: 0.0)
+            :obj:`"layer_norm"`, :obj:`"batch_norm"`, or :obj:`None`.
+            (default: :obj:`"layer_norm"`)
+        dropout (float): Dropout probability. (default: :obj:`0.0`)
 
     Example:
         >>> import torch
@@ -71,6 +71,7 @@ class ResNetConv(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
+        r"""Resets all learnable parameters of the module."""
         self.lin1.reset_parameters()
         self.lin2.reset_parameters()
         if self.norm1 is not None:
@@ -81,13 +82,13 @@ class ResNetConv(torch.nn.Module):
             self.short_cut.reset_parameters()
 
     def forward(self, x: Tensor) -> Tensor:
-        """Apply residual MLP transformation.
+        r"""Apply residual MLP transformation.
 
         Args:
-            x (Tensor): Input tensor of shape ``[..., in_dim]``.
+            x (Tensor): Input tensor of shape :obj:`[..., in_dim]`.
 
         Returns:
-            Tensor: Output tensor of shape ``[..., out_dim]``.
+            Tensor: Output tensor of shape :obj:`[..., out_dim]`.
         """
         residual = x
 

@@ -3,12 +3,13 @@ from torch import Tensor
 
 
 def is_undirected(adj: Tensor):
-    """Checks if the given adjacency matrix represents an undirected graph.
+    r"""Check if the given adjacency matrix represents an undirected graph.
+
     Args:
-        adj (Tensor): The adjacency matrix in sparse format.
+        adj (Tensor): The adjacency matrix in sparse COO format.
 
     Returns:
-        bool: True if the graph is undirected, False otherwise.
+        bool: :obj:`True` if the graph is undirected, :obj:`False` otherwise.
     """
     M, N = adj.shape
     if M != N:
@@ -40,14 +41,15 @@ def is_undirected(adj: Tensor):
 
 
 def to_undirected(adj: Tensor):
-    """Converts the given adjacency matrix to anundirected
-    graph representation.
+    r"""Convert the given adjacency matrix to an undirected graph
+    representation by adding reverse edges.
 
     Args:
-        adj (Tensor): The adjacency matrix in sparse format.
+        adj (Tensor): The adjacency matrix in sparse COO format.
 
     Returns:
-        Tensor: The undirected adjacency matrix in sparse format.
+        Tensor: The symmetrized (undirected) adjacency matrix in sparse
+        COO format.
     """
     # Determine the size of the adjacency matrix
     N = max(adj.shape[0], adj.shape[1])

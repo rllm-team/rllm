@@ -1,7 +1,26 @@
 from collections import defaultdict
 
 def get_atomic_routes(edge_type_list):
+    r"""Decompose relational edge types into atomic message passing routes
+    for the RelGNN model.
 
+    Each foreign-key edge type (prefixed with :obj:`'f2p'`) is mapped to
+    one of two route patterns:
+
+    - **dim-dim**: A single foreign-key edge and its reverse, used when a
+      fact table connects to exactly one dimension table.
+    - **dim-fact-dim**: A pair of foreign-key edges through a shared fact
+      table, used when a fact table connects to multiple dimension tables.
+
+    Args:
+        edge_type_list (List[Tuple[str, str, str]]): The list of edge types
+            in :obj:`(src, rel, dst)` format from the heterogeneous graph.
+
+    Returns:
+        List[Tuple]: A list of atomic routes. Each entry is a tuple whose
+        first element is the route type (:obj:`'dim-dim'` or
+        :obj:`'dim-fact-dim'`) followed by the edge type components.
+    """
     src_to_tuples = defaultdict(list)
     for src, rel, dst in edge_type_list:
         if rel.startswith('f2p'):

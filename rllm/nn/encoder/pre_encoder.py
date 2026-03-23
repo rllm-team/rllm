@@ -18,7 +18,7 @@ class PreEncoder(torch.nn.Module, ABC):
 
     Args:
         out_dim (int): Output dimensionality.
-        metadata(Dict[ColType, List[Dict[str, Any]]]):Metadata for each column
+        metadata (Dict[ColType, List[Dict[str, Any]]]): Metadata for each column
             type, specifying the statistics and properties of the columns.
         col_encoder_dict
             (Dict[:class:`rllm.types.ColType`,
@@ -63,7 +63,7 @@ class PreEncoder(torch.nn.Module, ABC):
         self.reset_parameters()
 
     def reset_parameters(self):
-        """Reset parameters for all encoders in the encoder_dict."""
+        r"""Resets all learnable parameters of the module."""
         for col_encoder in self.col_encoder_dict.values():
             col_encoder.reset_parameters()
 
@@ -72,6 +72,21 @@ class PreEncoder(torch.nn.Module, ABC):
         feat_dict: Dict[ColType, Tensor],
         return_dict: bool = False,
     ) -> Union[Tensor, Dict[ColType, Tensor]]:
+        r"""Encode each column type and concatenate the results.
+
+        Args:
+            feat_dict (Dict[ColType, Tensor]): Input features grouped by
+                column type.
+            return_dict (bool): If :obj:`True`, return a dictionary of
+                per-column-type embeddings instead of a concatenated tensor.
+                (default: :obj:`False`)
+
+        Returns:
+            Union[Tensor, Dict[ColType, Tensor]]: Concatenated embedding
+            tensor of shape :obj:`[batch_size, num_cols, out_dim]`, or a
+            dictionary of per-column-type embeddings when
+            :obj:`return_dict=True`.
+        """
         feat_encoded = {}
         for col_type in feat_dict.keys():
             feat = feat_dict[col_type]

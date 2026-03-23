@@ -57,8 +57,8 @@ class MessagePassing(torch.nn.Module, ABC):
 
         Args:
             x (Union[Tensor, Tuple[Tensor, Tensor]]):
-                - `Tensor`: The input node feature matrix. :math:`(|V|, F_{in})`
-                - `Tuple[Tensor, Tensor]`: The input node feature matrix for source and destination nodes.
+                - :obj:`Tensor`: The input node feature matrix. :math:`(|V|, F_{in})`
+                - :obj:`Tuple[Tensor, Tensor]`: The input node feature matrix for source and destination nodes.
             edge_index (Union[Tensor, SparseTensor]): The edge indices. Tensor, :math:`(2, |E|)`
             **kwargs: Additional arguments for the message, aggregate and update functions.
 
@@ -137,16 +137,20 @@ class MessagePassing(torch.nn.Module, ABC):
         dim: int = 0,
         dim_size: Optional[int] = None,
     ):
-        r"""
-        Aggrate messages from src nodes to dst nodes.
+        r"""Aggregate messages from src nodes to dst nodes.
 
         Args:
             msgs (Tensor): The messages to aggregate.
             edge_index (Union[Tensor, SparseTensor]): The edge indices.
-            dim (int): The dimension to aggregate.
+            dim (int): The dimension along which to aggregate.
                 (default: :obj:`0`)
-            dim_size (Optional[int]): The size of output, tensor at dim. If None, infer from edge_index.
+            dim_size (Optional[int]): The size of the output tensor at
+                :obj:`dim`. If :obj:`None`, inferred from :obj:`edge_index`.
                 (default: :obj:`None`)
+
+        Returns:
+            Tensor: Aggregated node representations of shape
+            :math:`(\text{dim\_size}, F)`.
         """
         edge_index, _ = self.__unify_edgeindex__(edge_index)
         return self.aggr_module(msgs, edge_index[1, :], dim=dim, dim_size=dim_size)

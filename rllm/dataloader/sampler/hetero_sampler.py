@@ -14,28 +14,32 @@ from rllm.dataloader.sampler.data_type import (
     HeteroSamplerOutput,
     NumNeighbors,
 )
-from rllm.utils._remap_keys import remap_keys
+from rllm.utils import remap_keys
 import rllm.utils._pyglib
 
 
 class HeteroSampler:
-    """
-    Heterogeneous graph sampler.
+    r"""Heterogeneous graph sampler for temporal neighbor sampling.
 
     Args:
         hdata (HeteroGraphData): The heterogeneous graph data.
         num_neighbors (List[int]): Number of neighbors to sample at each hop.
-        replace (bool): Whether to sample with replacement. Default is False.
-        temporal_strategy (str): Temporal sampling strategy.
-            Currently only 'uniform' is supported.
-        time_attr (Optional[str]): Node attribute name for time.
-            Required if temporal_strategy is 'uniform'.
-        device (Optional[torch.device]): Device to perform sampling on.
-            Currently only CPU is supported.
+        replace (bool): Whether to sample with replacement.
+            (default: :obj:`False`)
+        temporal_strategy (str): Temporal sampling strategy. Currently only
+            :obj:`'uniform'` is supported. (default: :obj:`'uniform'`)
+        time_attr (str, optional): Node attribute name for timestamps.
+            Required when :obj:`temporal_strategy='uniform'`.
+            (default: :obj:`None`)
+        device (torch.device, optional): Device to perform sampling on.
+            Currently only CPU is supported. (default: :obj:`None`)
         to_bidirectional (bool): Whether to convert the graph to bidirectional
-            by adding reverse edges. Default is False.
-        csc (bool): Whether to use CSC format for sampling. Default is False.
-        use_pyg_lib (bool): Whether to use PyG-lib for sampling. Default is True.
+            by adding reverse edges. (default: :obj:`False`)
+        csc (bool): Whether to use CSC format for sampling.
+            (default: :obj:`False`)
+        use_pyg_lib (bool): Whether to use PyG-lib for sampling. Falls back
+            to the pure Python sampler if PyG-lib is not installed.
+            (default: :obj:`True`)
     """
     def __init__(
         self,
@@ -117,6 +121,12 @@ class HeteroSampler:
         self._num_neighbors = NumNeighbors(num_neighbors)
 
     def _get_num_neighbor_dict(self) -> Dict[Tuple[str, str, str], List[int]]:
+        r"""Return the per-edge-type neighbor counts as a plain dictionary.
+
+        Returns:
+            Dict[Tuple[str, str, str], List[int]]: Number of neighbors per
+            hop for each edge type.
+        """
         num_neighbors_dict = self.num_neighbors.get_values(self.edge_types)
         return num_neighbors_dict
     
@@ -140,6 +150,15 @@ class HeteroSampler:
         return self.perm_dict
 
     def sample_neighbors(self, input: NodeSamplerInput) -> HeteroSamplerOutput:
+        r"""Sample a multi-hop neighborhood for the given seed nodes.
+
+        Args:
+            input (NodeSamplerInput): The seed nodes and their optional
+                timestamps and node type.
+
+        Returns:
+            HeteroSamplerOutput: The sampled node/edge indices with metadata.
+        """
         seed = {input.input_type: input.node}
         seed_time = None
         if input.time is not None:
@@ -157,6 +176,17 @@ class HeteroSampler:
         seed: Dict[str, Tensor],
         seed_time: Optional[Dict[str, Tensor]]
     ) -> HeteroSamplerOutput:
+        r"""Dispatch neighbor sampling to either PyG-lib or the pure Python
+        backend.
+
+        Args:
+            seed (Dict[str, Tensor]): Seed node indices per node type.
+            seed_time (Dict[str, Tensor], optional): Seed timestamps per
+                node type for temporal sampling. (default: :obj:`None`)
+
+        Returns:
+            HeteroSamplerOutput: The sampled node/edge indices.
+        """
 
         if self.use_pyglib:
             colptrs = list(self.col_ptr_dict.values())
@@ -218,16 +248,10 @@ class HeteroSampler:
             )
 
         else:
-            """
-            We do sample for each target node, i.e., for each column.
-            So we use col_ptr_dict as rowptr.
-
-            The sampling is:
-            - directed,
-            - temporal uniform,
-            - disjoint per seed node and
-            - not replaced.
-            """
+            # We sample for each target node, i.e., for each column,
+            # so we use col_ptr_dict as rowptr.
+            # The sampling is: directed, temporal uniform,
+            # disjoint per seed node, and without replacement.
             (
                 row_dict,
                 col_dict,
