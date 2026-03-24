@@ -21,6 +21,7 @@ class StackNumerical(ColTransform):
         self,
         out_dim: int,
     ) -> None:
+        super().__init__()
         self.out_dim = out_dim
 
     def forward(

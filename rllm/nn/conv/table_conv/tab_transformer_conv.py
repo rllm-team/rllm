@@ -27,8 +27,6 @@ class TabTransformerConv(torch.nn.Module):
         >>> conv = TabTransformerConv(conv_dim=32, num_heads=8, dropout=0.1)
         >>> x = {ColType.CATEGORICAL: torch.randn(8, 10, 32)}
         >>> out = conv(x)
-        >>> out[ColType.CATEGORICAL].shape
-        torch.Size([8, 10, 32])
     """
 
     def __init__(

@@ -21,8 +21,6 @@ class GLULayer(torch.nn.Module):
         >>> layer = GLULayer(in_dim=32, out_dim=32)
         >>> x = torch.randn(8, 10, 32)
         >>> out = layer(x)
-        >>> out.shape
-        torch.Size([8, 10, 32])
     """
 
     def __init__(
@@ -48,7 +46,7 @@ class GLULayer(torch.nn.Module):
         """
         x = self.fc(x)
         x, gates = x.chunk(2, dim=2)
-        return x * torch.nn.functional.tanh(gates)
+        return x * torch.tanh(gates)
 
 
 class SemiPermeableAttention(torch.nn.Module):
@@ -74,7 +72,13 @@ class SemiPermeableAttention(torch.nn.Module):
         torch.Size([16, 12, 32])
     """
 
-    def __init__(self, dim, num_heads=8, head_dim=16, dropout=0.0):
+    def __init__(
+        self,
+        dim: int,
+        num_heads: int = 8,
+        head_dim: int = 16,
+        dropout: float = 0.0,
+    ):
         super().__init__()
         inner_dim = head_dim * num_heads
         self.num_heads = num_heads

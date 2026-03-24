@@ -49,17 +49,18 @@ class SAGEConv(MessagePassing):
         dst_in_dim: Optional[int] = None,
         **kwargs,
     ):
+        aggr_name = aggr.lower() if isinstance(aggr, str) else None
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.aggr = aggr
         self.activation = activation
         self.dropout = dropout
 
-        if aggr == "lstm":
+        if aggr_name == "lstm":
             kwargs.setdefault("aggr_kwargs", {})
             kwargs["aggr_kwargs"].setdefault("in_dim", in_dim)
             kwargs["aggr_kwargs"].setdefault("out_dim", in_dim)
-        elif aggr[-4:] == "pool":
+        elif aggr_name is not None and aggr_name.endswith("pool"):
             kwargs.setdefault("aggr_kwargs", {})
             kwargs["aggr_kwargs"].setdefault("in_dim", in_dim)
             kwargs["aggr_kwargs"].setdefault("out_dim", in_dim)
@@ -132,17 +133,18 @@ class SAGEConv(MessagePassing):
         x[0] = F.dropout(x[0], p=self.dropout, training=self.training)
         x[1] = F.dropout(x[1], p=self.dropout, training=self.training)
 
-        if self.aggr[-4:] != "pool":
+        aggr_name = self.aggr.lower() if isinstance(self.aggr, str) else ""
+        if not aggr_name.endswith("pool"):
             x[0] = self.lin_neigh(x[0])  # (N, in_dim)
 
-        if self.aggr == "gcn" and self.self_lin is None:
+        if aggr_name == "gcn" and self.self_lin is None:
             """GCN aggregator.
             Assuming the edge_index has been GCN normalized while preprocessing.
             """
             out = self.propagate(
                 x[0], edge_index, edge_weight=edge_weight, dim_size=x[1].size(0)
             )
-        elif self.aggr[-4:] == "pool":
+        elif aggr_name.endswith("pool"):
             out = self.propagate(x[0], edge_index, dim_size=x[1].size(0))
             out = self.lin_neigh(out)
         else:

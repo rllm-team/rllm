@@ -138,8 +138,6 @@ class GTransformerConv(MessagePassing):
             >>> x = torch.randn(4, 8)
             >>> edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
             >>> out = conv(x, edge_index)
-            >>> out.shape
-            torch.Size([4, 8])
         """
         H, C = self.heads, self.out_dim
 

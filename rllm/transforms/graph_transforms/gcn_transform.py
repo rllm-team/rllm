@@ -2,7 +2,9 @@ import rllm.transforms.graph_transforms as GT
 
 
 class GCNTransform(GT.GraphTransform):
-    r"""This transform is based on the method described in the
+    r"""Preprocessing pipeline used by the original GCN model.
+
+    This transform is based on
     `"Semi-supervised Classification with Graph Convolutional Networks"
     <https://arxiv.org/abs/1609.02907>`__ paper.
     GCNTransform applies a series of transformations to a graph,
@@ -14,8 +16,8 @@ class GCNTransform(GT.GraphTransform):
         b. Symmetric Normalization
 
     Args:
-        normalize_features (str):
-            The method used to normalize the features (default: :obj:`l1`).
+        normalize_features (str): Feature normalization method passed to
+            :class:`NormalizeFeatures`. (default: :obj:`"l1"`)
     """
 
     def __init__(self, normalize_features: str = "l1"):

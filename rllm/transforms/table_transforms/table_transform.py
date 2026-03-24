@@ -16,7 +16,7 @@ def _reset_parameters_soft(module: torch.nn.Module):
 
 
 def _get_na_mask(tensor: Tensor) -> Tensor:
-    r"""Obtains the Na mask of the input :obj:`Tensor`.
+    r"""Obtains the NA mask of the input :obj:`Tensor`.
 
     Args:
         tensor (Tensor): Input :obj:`Tensor`.
@@ -37,7 +37,7 @@ class TableTransform(torch.nn.Module, ABC):
 
     Args:
         out_dim (int): The output dim dimensionality
-        col_type (stype): The stype of the Transform input.
+        col_type (ColType): Column type used for NA-mode validation.
         post_module (Module, optional): The post-hoc module applied to the
             output, such as activation function and normalization. Must
             preserve the shape of the output. If :obj:`None`, no module will be
@@ -103,7 +103,7 @@ class TableTransform(torch.nn.Module, ABC):
         # NaN handling of the input Tensor
         data = self.nan_forward(data)
 
-        for transform in self.transforms:
+        for transform in self.transforms or []:
             data = transform(data)
 
         return data
@@ -118,9 +118,6 @@ class TableTransform(torch.nn.Module, ABC):
         Args:
             feat: Input :obj:`Tensor`.
 
-        Returns:
-            Tensor: Output :obj:`Tensor` with NaNs replaced given
-            :obj:`na_mode`.
         """
         if self.na_mode is None:
             return data
@@ -183,7 +180,11 @@ class TableTransform(torch.nn.Module, ABC):
                 col_data[col_na_mask] = fill_value
         else:  # na_mask.ndim == 2
             fill_values = torch.tensor(fill_values, device=feat.device)
-            assert feat.size(-1) == fill_values.size(-1)
+            if feat.size(-1) != fill_values.size(-1):
+                raise ValueError(
+                    "Mismatched feature width during NA fill: "
+                    f"{feat.size(-1)} vs {fill_values.size(-1)}."
+                )
             feat = torch.where(na_mask, fill_values, feat)
 
         # Add better safeguard here to make sure nans are actually
@@ -192,7 +193,9 @@ class TableTransform(torch.nn.Module, ABC):
         filled_values = feat
 
         if filled_values.is_floating_point():
-            assert not torch.isnan(filled_values).any()
+            if torch.isnan(filled_values).any():
+                raise ValueError("NaN values remain after NA filling.")
         else:
-            assert not (filled_values == -1).any()
+            if (filled_values == -1).any():
+                raise ValueError("Invalid sentinel -1 remains after NA filling.")
         return feat

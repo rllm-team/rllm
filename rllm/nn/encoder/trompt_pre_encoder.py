@@ -25,8 +25,6 @@ class TromptPreEncoder(TablePreEncoder):
         in_dim (int, optional): The input dimensionality for numerical features
             (default: :obj:`1`).
 
-    Returns:
-        Encoded outputs are produced by inherited ``forward``.
     """
 
     def __init__(
@@ -41,8 +39,8 @@ class TromptPreEncoder(TablePreEncoder):
             ),
             ColType.NUMERICAL: LinearEncoder(
                 in_dim=in_dim,
-                post_module=torch.nn.ModuleList(
-                    [torch.nn.ReLU(), torch.nn.LayerNorm(out_dim)]
+                post_module=torch.nn.Sequential(
+                    torch.nn.ReLU(), torch.nn.LayerNorm(out_dim)
                 ),
             ),
         }

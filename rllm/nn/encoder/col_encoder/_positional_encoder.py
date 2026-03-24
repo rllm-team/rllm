@@ -12,10 +12,6 @@ class PositionalEncoder(Module):
     Args:
         out_size (int): The output dimension size.
 
-    Returns:
-        The ``forward`` method returns an encoded tensor of shape
-        :obj:`input_tensor.shape + (out_size,)`.
-
     Example:
         >>> import torch
         >>> enc = PositionalEncoder(out_size=8)
@@ -51,7 +47,8 @@ class PositionalEncoder(Module):
         Returns:
             Tensor: Encoded tensor of shape :obj:`(*, out_size)`.
         """
-        assert torch.all(input_tensor >= 0)
+        if not torch.all(input_tensor >= 0):
+            raise ValueError("`input_tensor` must be non-negative for positional encoding.")
         # (*, 1) * (1, ..., 1, out_size // 2) -> (*, out_size // 2)
         mult_tensor = input_tensor.unsqueeze(-1) * self.mult_term.reshape(
             (1,) * input_tensor.ndim + (-1,)

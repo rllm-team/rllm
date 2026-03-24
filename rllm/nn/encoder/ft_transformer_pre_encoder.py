@@ -23,9 +23,6 @@ class FTTransformerPreEncoder(TablePreEncoder):
         in_dim (int, optional): The input dimensionality for numerical features
             (default: :obj:`1`).
 
-    Returns:
-        Encoded outputs are produced by inherited ``forward``.
-
     Example:
         >>> from rllm.nn.encoder import FTTransformerPreEncoder
         >>> encoder = FTTransformerPreEncoder(out_dim=32, metadata={})
