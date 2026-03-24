@@ -42,8 +42,10 @@ def encode_categorical(
     for sentinel in missing_values:
         missing_mask = missing_mask | str_vals.eq(str(sentinel).strip())
 
-    # Factorize non-missing values; NaN-like entries are excluded via `na_sentinel`.
-    codes, uniques = pandas.factorize(col_copy.where(~missing_mask))
+    # Cast to str (matching original LabelEncoder behaviour for mixed-type columns),
+    # then factorize only non-missing values so lengths match the masked assignment.
+    valid_values = col_copy.loc[~missing_mask].astype(str)
+    codes, uniques = pandas.factorize(valid_values, sort=True)
     encoded = pandas.Series(-1, index=col_copy.index, dtype="int64", name=col_copy.name)
     encoded.loc[~missing_mask] = codes.astype("int64")
 
