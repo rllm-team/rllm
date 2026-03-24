@@ -15,7 +15,7 @@ from rllm.nn.conv.table_conv import ResNetConv
 class TableResNet(torch.nn.Module):
     r"""The ResNet-like TNN introduced in the
     `"Revisiting Deep Learning Models for Tabular Data"
-    <https://arxiv.org/abs/2106.11959>` _ paper.
+    <https://arxiv.org/abs/2106.11959>`_ paper.
 
     Args:
         hidden_dim (int): The hidden dimension.
@@ -23,11 +23,15 @@ class TableResNet(torch.nn.Module):
         num_layers (int): The number of layers.
         metadata (Dict[ColType, List[Dict[str, Any]]]): The metadata of the table.
         normalization (str | None): The normalization method.
-        dropout (float): The dropout rate.
+            (default: :obj:`"layer_norm"`)
+        dropout (float): The dropout rate. (default: :obj:`0.2`)
 
     Example:
+        >>> import torch
         >>> from rllm.nn.models import TableResNet
-        >>> # Instantiate with prepared table metadata for tabular inputs.
+        >>> from rllm.types import ColType
+        >>> metadata = {ColType.NUMERICAL: [{"name": "x"}]}
+        >>> model = TableResNet(hidden_dim=64, out_dim=1, num_layers=2, metadata=metadata)
     """
 
     def __init__(
@@ -74,6 +78,7 @@ class TableResNet(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
         self.pre_encoder.reset_parameters()
         for conv in self.convs:
             conv.reset_parameters()
@@ -82,13 +87,14 @@ class TableResNet(torch.nn.Module):
                 layer.reset_parameters()
 
     def forward(self, table: TableData) -> Tensor:
-        """Encode a table into a fixed-size feature vector.
+        r"""Encode a table into a fixed-size feature vector.
 
         Args:
             table (TableData): Input table data.
 
         Returns:
-            Tensor: Output representations of shape ``[batch_size, out_dim]``.
+            Tensor: Output representations of shape
+            :obj:`[batch_size, out_dim]`.
         """
         x = table.feat_dict
 

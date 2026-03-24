@@ -38,6 +38,7 @@ class HeteroTemporalEncoder(torch.nn.Module):
         )
 
     def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
         for encoder in self.encoder_dict.values():
             encoder.reset_parameters()
         for lin in self.lin_dict.values():
@@ -49,6 +50,19 @@ class HeteroTemporalEncoder(torch.nn.Module):
         time_dict: Dict[str, Tensor],
         batch_dict: Dict[str, Tensor],
     ) -> Dict[str, Tensor]:
+        r"""Compute relative temporal embeddings for each node type.
+
+        Args:
+            seed_time (Tensor): The reference timestamps for seed nodes of
+                shape :obj:`[num_seeds]`.
+            time_dict (Dict[str, Tensor]): Timestamps per node type.
+            batch_dict (Dict[str, Tensor]): Batch assignment indices per
+                node type, mapping each node to a seed node.
+
+        Returns:
+            Dict[str, Tensor]: Temporal embeddings per node type of shape
+            :obj:`[num_nodes, channels]`.
+        """
         out_dict: Dict[str, Tensor] = {}
 
         for node_type, time in time_dict.items():

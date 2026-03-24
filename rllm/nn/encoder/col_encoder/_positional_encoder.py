@@ -12,6 +12,10 @@ class PositionalEncoder(Module):
     Args:
         out_size (int): The output dimension size.
 
+    Returns:
+        The ``forward`` method returns an encoded tensor of shape
+        :obj:`input_tensor.shape + (out_size,)`.
+
     Example:
         >>> import torch
         >>> enc = PositionalEncoder(out_size=8)
@@ -38,6 +42,14 @@ class PositionalEncoder(Module):
         pass
 
     def forward(self, input_tensor: Tensor) -> Tensor:
+        r"""Apply sinusoidal positional encoding.
+
+        Args:
+            input_tensor (Tensor): Input scalar values of shape :obj:`(*,)`.
+
+        Returns:
+            Tensor: Encoded tensor of shape :obj:`(*, out_size)`.
+        """
         assert torch.all(input_tensor >= 0)
         # (*, 1) * (1, ..., 1, out_size // 2) -> (*, out_size // 2)
         mult_tensor = input_tensor.unsqueeze(-1) * self.mult_term.reshape(

@@ -8,17 +8,22 @@ from rllm.nn.conv.graph_conv import SAGEConv
 
 
 class HeteroSAGE(torch.nn.Module):
-    r"""The herterogeneous version of the GraphSAGE model.
+    r"""The heterogeneous version of the GraphSAGE model.
 
     Args:
         node_types (List[str]): The list of node types.
         edge_types (List[Tuple[str, str, str]]): The list of edge types.
-        channels (int): The number of channels.
-        aggr (str): The aggregation method.
-        num_layers (int): The number of layers.
+        hidden_dim (int): The number of hidden channels.
+        aggr (str): The aggregation method. (default: :obj:`"mean"`)
+        num_layers (int): The number of layers. (default: :obj:`2`)
 
     Example:
-        >>> model = HeteroSAGE(node_types=["user", "item"], edge_types=[("user", "rates", "item")], hidden_dim=16)
+        >>> from rllm.nn.models import HeteroSAGE
+        >>> model = HeteroSAGE(
+        ...     node_types=["user", "item"],
+        ...     edge_types=[("user", "rates", "item")],
+        ...     hidden_dim=16,
+        ... )
     """
 
     def __init__(
@@ -54,6 +59,7 @@ class HeteroSAGE(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
         for conv_dict in self.convs:
             for conv in conv_dict.values():
                 conv.reset_parameters()
@@ -66,11 +72,12 @@ class HeteroSAGE(torch.nn.Module):
         x_dict: Dict[str, Tensor],
         edge_index_dict: Dict[Tuple[str, str, str], Tensor],
     ) -> Dict[str, Tensor]:
-        """Run heterogeneous GraphSAGE message passing.
+        r"""Run heterogeneous GraphSAGE message passing.
 
         Args:
             x_dict (Dict[str, Tensor]): Input node features by node type.
-            edge_index_dict (Dict[Tuple[str, str, str], Tensor]): Edge indices by edge type.
+            edge_index_dict (Dict[Tuple[str, str, str], Tensor]): Edge
+                indices by edge type.
 
         Returns:
             Dict[str, Tensor]: Updated node embeddings for each node type.

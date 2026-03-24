@@ -3,11 +3,11 @@ from typing import Any, Dict, List
 
 from .col_encoder._embedding_encoder import EmbeddingEncoder
 from .col_encoder._reshape_encoder import ReshapeEncoder
-from .pre_encoder import PreEncoder
+from .table_pre_encoder import TablePreEncoder
 from rllm.types import ColType
 
 
-class TabTransformerPreEncoder(PreEncoder):
+class TabTransformerPreEncoder(TablePreEncoder):
     r"""The TabTransformerEncoder class is a specialized pre-encoder for the
     TabTransformer model. It initializes a column-specific encoder dict for
     categorical and numerical features based on the provided metadata.

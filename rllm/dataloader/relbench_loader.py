@@ -40,7 +40,10 @@ class RelbenchLoader(torch.utils.data.DataLoader):
         num_neighbors (List[int]): Number of neighbors to sample at each hop.
             (default: :obj:`[15, 10]`)
         to_bidirectional (bool): Whether to convert the graph to bidirectional
-            by adding reverse edges. Default is False.
+            by adding reverse edges. (default: :obj:`False`)
+        use_pyg_lib (bool): Whether to use PyG-lib for neighbor sampling.
+            Falls back to the pure Python sampler if not installed.
+            (default: :obj:`True`)
     """
 
     def __init__(
@@ -96,9 +99,11 @@ class RelbenchLoader(torch.utils.data.DataLoader):
         )
 
     def _get_sampler_input_from_task(self) -> NodeSamplerInput:
-        """
-        Get the sampler input from the task,
-        and set the transform to attach the target label to the batch.
+        r"""Build the sampler input from the task and register a transform
+        to attach target labels to each mini-batch.
+
+        Returns:
+            NodeSamplerInput: The sampler input for the current split.
         """
         task = self.task
         task_df, _ = task.task_data_dict[self.split]
@@ -131,13 +136,22 @@ class RelbenchLoader(torch.utils.data.DataLoader):
         )
 
     def collate_fn(self, index: Union[List[int], Tensor]) -> HeteroSamplerOutput:
-        """Sample a mini-batch sub-heterogeneous graph from input nodes."""
+        r"""Sample a mini-batch sub-heterogeneous graph from input nodes."""
         input: NodeSamplerInput = self.sampler_input[index]
         out: HeteroSamplerOutput = self.hetero_sampler.sample_neighbors(input)  # TODO: validate this
         return out
 
     def filter_fn(self, out: HeteroSamplerOutput) -> HeteroGraphData:
-        """Join the sampled nodes with their features."""
+        r"""Join sampled node/edge indices with their features and metadata.
+
+        Args:
+            out (HeteroSamplerOutput): Raw sampler output containing node
+                and edge indices.
+
+        Returns:
+            HeteroGraphData: A mini-batch heterogeneous graph with node
+            features, edge indices, timestamps, and target labels attached.
+        """
         # 1. filter hetero data with node features
         batch_hdata: HeteroGraphData = self._filter_hetero_data(
             node_dict=out.node,
@@ -200,17 +214,20 @@ class RelbenchLoader(torch.utils.data.DataLoader):
         num_neighbors: List[int] = [15, 10],
         to_bidirectional: bool = False,
     ) -> List['RelbenchLoader']:
-        """
-        Get the loaders for each split.
+        r"""Create train, val, and test loaders for each split.
 
         Args:
-            dataset: The dataset to load.
-            task: The task to load.
-            shuffle: Whether to shuffle the data.
-            batch_size: The batch size.
-            num_neighbors: The number of neighbors to sample.
+            dataset (RelBenchDataset): The RelBench dataset.
+            task (Union[RelBenchTask, str]): The task to load.
+            batch_size (int): The batch size. (default: :obj:`512`)
+            num_neighbors (List[int]): Number of neighbors to sample at
+                each hop. (default: :obj:`[15, 10]`)
+            to_bidirectional (bool): Whether to add reverse edges.
+                (default: :obj:`False`)
+
         Returns:
-            A list of [train_loader, val_loader, test_loader].
+            List[RelbenchLoader]: A list of
+            :obj:`[train_loader, val_loader, test_loader]`.
         """
         return [
             RelbenchLoader(
@@ -275,8 +292,17 @@ class RelbenchLoader(torch.utils.data.DataLoader):
         col: Tensor,
         perm: Optional[Tensor] = None
     ):
-        # Filters a edge storage object to only hold the edges in `index`,
-        # which represents the new graph as denoted by `(row, col)`:
+        r"""Filter an edge storage to only hold the sampled edges
+        represented by :obj:`(row, col)`.
+
+        Args:
+            store (NodeStorage): The source edge storage.
+            out_store (NodeStorage): The output edge storage to write into.
+            row (Tensor): Source node indices of sampled edges.
+            col (Tensor): Destination node indices of sampled edges.
+            perm (Tensor, optional): Edge permutation indices.
+                (default: :obj:`None`)
+        """
         for key, value in store.items():
             if key == 'edge_index':
                 edge_index = torch.stack([row, col], dim=0).to(value.device)
@@ -293,7 +319,13 @@ class RelbenchLoader(torch.utils.data.DataLoader):
         out_store: NodeStorage,
         index: Tensor
     ):
-        # Filters a node storage object to only hold the nodes in `index`:
+        r"""Filter a node storage to only hold the nodes given by :obj:`index`.
+
+        Args:
+            store (NodeStorage): The source node storage.
+            out_store (NodeStorage): The output node storage to write into.
+            index (Tensor): The 1-D tensor of node indices to keep.
+        """
         for key, value in store.items():
             if key == 'num_nodes':
                 out_store.num_nodes = index.numel()
@@ -316,14 +348,17 @@ class RelbenchLoader(torch.utils.data.DataLoader):
         index: Tensor,
         dim: int = 0,
     ) -> Tensor:
-        r"""Indexes the :obj:`value` table along dimension :obj:`dim` using the
-        entries in :obj:`index`.
+        r"""Index the :obj:`value` table along dimension :obj:`dim` using
+        the entries in :obj:`index`.
 
         Args:
             value (TableData): The input table.
-            index (torch.Tensor): The 1-D tensor containing the indices to index.
-            dim (int, optional): The dimension in which to index.
+            index (Tensor): The 1-D tensor containing the indices to select.
+            dim (int, optional): The dimension along which to index.
                 (default: :obj:`0`)
+
+        Returns:
+            TableData: The indexed sub-table.
         """
         index = index.to(torch.int64)
 

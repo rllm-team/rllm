@@ -21,7 +21,7 @@ class ColTypePlaceholder(Enum):
 
 
 class TypeInferencer:
-    """A utility class for inferring column types in tabular data.
+    r"""A utility class for inferring column types in tabular data.
 
     This class provides methods to infer the semantic type of columns
     in a DataFrame based on their content.
@@ -70,7 +70,7 @@ class TypeInferencer:
 
     @classmethod
     def infer_series_coltype(cls, ser: Series) -> Optional[ColType]:
-        """Infer :obj:`ColType` given :class:`Series` object.
+        r"""Infer :obj:`ColType` given :class:`Series` object.
 
         Args:
             ser (Series): Input series.
@@ -185,14 +185,14 @@ class TypeInferencer:
 
     @classmethod
     def infer_df_coltype(cls, df: DataFrame) -> dict[str, ColType]:
-        """Infer :obj:`col_to_type` given :class:`DataFrame` object.
+        r"""Infer :obj:`col_to_type` given :class:`DataFrame` object.
 
         Args:
             df (DataFrame): Input data frame.
 
         Returns:
-            col_to_type: Inferred :obj:`col_to_type`, mapping a column name to
-                its inferred :obj:`ColType`.
+            Dict[str, ColType]: Inferred mapping from column name to its
+            :obj:`ColType`.
         """
         col_to_type = {}
         for col in df.columns:
@@ -208,15 +208,16 @@ class TypeInferencer:
         cls,
         df_dict: Dict[str, DataFrame],
     ):
-        """Infer :obj:`col_to_type` for each table in a dictionary of DataFrames.
+        r"""Infer :obj:`col_to_type` for each table in a dictionary of
+        DataFrames.
 
         Args:
-            df_dict (Dict[str, DataFrame]): A dictionary mapping table names to
-                DataFrame objects.
+            df_dict (Dict[str, DataFrame]): A dictionary mapping table names
+                to :class:`DataFrame` objects.
 
         Returns:
-            Dict[str, dict]: A dictionary mapping table names to their inferred
-                :obj:`col_to_type` dictionaries.
+            Dict[str, Dict[str, ColType]]: A dictionary mapping each table
+            name to its inferred column-type mapping.
         """
         df_coltype_dict = {}
         for table_name, df in df_dict.items():

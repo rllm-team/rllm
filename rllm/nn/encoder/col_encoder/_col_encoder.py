@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from abc import ABC, abstractmethod
 
 import torch
-from torch import Tensor
+from torch import Tensor, Union
 
 from rllm.types import ColType, StatType
 
@@ -49,7 +49,7 @@ class ColEncoder(torch.nn.Module, ABC):
         self,
         out_dim: Optional[int] = None,
         stats_list: Optional[List[Dict[StatType]]] = None,
-        post_module: Optional[torch.nn.Module] = None,
+        post_module: Union[torch.nn.Module, torch.nn.Sequential] = None,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""
@@ -91,6 +91,9 @@ class ColEncoder(torch.nn.Module, ABC):
         x = self.encode_forward(feat)
         # Handle NaN in case na_mode is None
         x = torch.nan_to_num(x, nan=0)
+        # Apply post module if specified
+        if self.post_module is not None:
+            x = self.post_module(x)
         return x
 
     @abstractmethod
