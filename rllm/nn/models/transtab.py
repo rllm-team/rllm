@@ -10,7 +10,6 @@ from torch import Tensor
 
 from rllm.types import ColType
 from rllm.preprocessing import TokenizerConfig
-from rllm.preprocessing import TokenizerConfig
 from rllm.data.table_data import TableData
 from rllm.nn.loss import SupervisedVPCL, SelfSupervisedVPCL
 from rllm.nn.encoder import TransTabPreEncoder
@@ -73,7 +72,7 @@ class TransTab(torch.nn.Module):
 
     This model implements the full TransTab pipeline:
       1) Convert ``feat_dict`` into token IDs and value tensors via the
-         integrated :class:`TransTabPreEncoder`.
+         integrated :class:`TransTabTableEncoder`.
       2) Encode tokens/values into feature embeddings and attention masks.
       3) Prepend a learnable [CLS] token and encode the sequence via a
          multi-layer Transformer stack (TransTabCLSToken + TransTabConv).
@@ -99,9 +98,13 @@ class TransTab(torch.nn.Module):
         temperature (float): Temperature parameter for contrastive loss.
         base_temperature (float): Base temperature for stability scaling.
         tokenizer: Optional pretrained tokenizer instance (e.g., BertTokenizerFast).
-            If provided, will be used by :class:`TransTabPreEncoder`; otherwise
+            If provided, will be used by :class:`TransTabTableEncoder`; otherwise
             one is created automatically. (default: None)
         **kwargs: Additional keyword arguments passed to :class:`TransTabPreEncoder`.
+
+    Example:
+        >>> from rllm.nn.models import TransTab
+        >>> model = TransTab(hidden_dim=32, num_layer=1, num_attention_head=4)
     """
 
     def __init__(
@@ -134,10 +137,6 @@ class TransTab(torch.nn.Module):
         self.numerical_columns = numerical_columns
         self.binary_columns = binary_columns
 
-        self.categorical_columns = categorical_columns
-        self.numerical_columns = numerical_columns
-        self.binary_columns = binary_columns
-
         metadata = {
             ColType.CATEGORICAL: [],
             ColType.BINARY: [],
@@ -150,14 +149,9 @@ class TransTab(torch.nn.Module):
             numerical_columns=numerical_columns,
             binary_columns=binary_columns,
             tokenizer=tokenizer,
-            categorical_columns=categorical_columns,
-            numerical_columns=numerical_columns,
-            binary_columns=binary_columns,
-            tokenizer=tokenizer,
             hidden_dropout_prob=self.hidden_dropout_prob,
             layer_norm_eps=self.layer_norm_eps,
             use_align_layer=True,
-            **kwargs,
             **kwargs,
         )
 
@@ -216,16 +210,14 @@ class TransTab(torch.nn.Module):
                 f"Expected input type TableData or object with feat_dict, got {type(x)}"
             )
 
-        emb = proc_out["embedding"]        # (batch, seq_len, hidden_dim)
-        mask = proc_out["attention_mask"]   # (batch, seq_len)
+        emb = proc_out["embedding"]  # (batch, seq_len, hidden_dim)
+        mask = proc_out["attention_mask"]  # (batch, seq_len)
 
-        # Prepend CLS token
         # Prepend CLS token
         cls_out = self.cls_token(emb, attention_mask=mask)
-        emb2 = cls_out["embedding"]         # (batch, seq_len+1, hidden_dim)
-        mask2 = cls_out["attention_mask"]    # (batch, seq_len+1)
+        emb2 = cls_out["embedding"]  # (batch, seq_len+1, hidden_dim)
+        mask2 = cls_out["attention_mask"]  # (batch, seq_len+1)
 
-        # Transformer encoding
         # Transformer encoding
         for conv in self.convs:
             enc_out = conv(x=emb2, src_key_padding_mask=mask2)
@@ -235,7 +227,7 @@ class TransTab(torch.nn.Module):
         return final_cls
 
     def save(self, ckpt_dir: str) -> None:
-        """Save the entire model (pre_encoder + conv + cls_token)."""
+        """Save the entire model (table_encoder + conv + cls_token)."""
         self.pre_encoder.save(ckpt_dir)
 
         os.makedirs(ckpt_dir, exist_ok=True)
@@ -245,13 +237,8 @@ class TransTab(torch.nn.Module):
 
     def load(self, ckpt_dir: str) -> None:
         """Load the entire model from a checkpoint directory."""
-        """Load the entire model from a checkpoint directory."""
         self.pre_encoder.load(ckpt_dir)
 
-        # Synchronize column mapping
-        self.categorical_columns = self.pre_encoder.categorical_columns
-        self.numerical_columns = self.pre_encoder.numerical_columns
-        self.binary_columns = self.pre_encoder.binary_columns
         # Synchronize column mapping
         self.categorical_columns = self.pre_encoder.categorical_columns
         self.numerical_columns = self.pre_encoder.numerical_columns
@@ -264,7 +251,7 @@ class TransTab(torch.nn.Module):
         print(f" Missing keys: {missing}")
         print(f" Unexpected keys: {unexpected}")
 
-        # Cache the pre-trained pre_encoder state for subsequent update calls
+        # Cache the pre-trained table_encoder state for subsequent update calls
         pe_path = os.path.join(ckpt_dir, "input_encoder.bin")
         self._table_encoder_state = torch.load(
             pe_path, map_location="cpu", weights_only=True
@@ -274,7 +261,6 @@ class TransTab(torch.nn.Module):
         col_map = {k: v for k, v in config.items() if k in ("cat", "num", "bin")}
         if col_map:
             self.pre_encoder.update(
-            self.pre_encoder.update(
                 cat=col_map.get("cat", None),
                 num=col_map.get("num", None),
                 bin=col_map.get("bin", None),
@@ -282,18 +268,13 @@ class TransTab(torch.nn.Module):
             self.categorical_columns = self.pre_encoder.categorical_columns
             self.numerical_columns = self.pre_encoder.numerical_columns
             self.binary_columns = self.pre_encoder.binary_columns
-            self.categorical_columns = self.pre_encoder.categorical_columns
-            self.numerical_columns = self.pre_encoder.numerical_columns
-            self.binary_columns = self.pre_encoder.binary_columns
 
-            print("Extended column mappings in TransTab via pre_encoder.update().")
+            print("Extended column mappings in TransTab via table_encoder.update().")
 
         if "num_class" in config:
             self._adapt_to_new_num_class(config["num_class"])
 
     def _adapt_to_new_num_class(self, num_class: int) -> None:
-        """Rebuild the classification head and loss when the number of
-        classes changes.  Only effective if the subclass defines ``self.clf``.
         """Rebuild the classification head and loss when the number of
         classes changes.  Only effective if the subclass defines ``self.clf``.
         """
@@ -330,8 +311,12 @@ class TransTabClassifier(TransTab):
         ffn_dim (int): Inner dimension of Transformer feedforward networks.
         activation (str): Activation function for feedforward layers ("relu", etc.).
         tokenizer: Optional pretrained tokenizer instance. If provided, will be
-            used by the underlying :class:`TransTabPreEncoder`. (default: None)
+            used by the underlying :class:`TransTabTableEncoder`. (default: None)
         **kwargs: Additional keyword arguments passed to :class:`TransTab`.
+
+    Example:
+        >>> from rllm.nn.models import TransTabClassifier
+        >>> model = TransTabClassifier(num_class=2, hidden_dim=32)
     """
 
     def __init__(
@@ -436,8 +421,12 @@ class TransTabForCL(TransTab):
         base_temperature (float): Base temperature for loss normalization.
         activation (str): Activation function for feedforward layers.
         tokenizer: Optional pretrained tokenizer instance. If provided, will be
-            used by the underlying :class:`TransTabPreEncoder`. (default: None)
+            used by the underlying :class:`TransTabTableEncoder`. (default: None)
         **kwargs: Additional keyword arguments passed to :class:`TransTab`.
+
+    Example:
+        >>> from rllm.nn.models import TransTabForCL
+        >>> model = TransTabForCL(hidden_dim=32, num_partition=2)
     """
 
     def __init__(
@@ -530,8 +519,6 @@ class TransTabForCL(TransTab):
         tokenizer_config = TokenizerConfig(
             tokenizer=self.pre_encoder.tokenizer,
             pad_token_id=self.pre_encoder.tokenizer.pad_token_id,
-            tokenizer=self.pre_encoder.tokenizer,
-            pad_token_id=self.pre_encoder.tokenizer.pad_token_id,
             tokenize_combine=True,
             include_colname=True,
             save_colname_token_ids=True,
@@ -549,12 +536,10 @@ class TransTabForCL(TransTab):
                 }
             else:
                 sub_col_types = self._infer_col_types(sub_df.columns)
-                sub_col_types = self._infer_col_types(sub_df.columns)
 
             sub_table = TableData(
                 df=sub_df,
                 col_types=sub_col_types,
-                convert_text_coltypes={ColType.CATEGORICAL},
                 convert_text_coltypes={ColType.CATEGORICAL},
                 tokenizer_config=tokenizer_config,
             )
@@ -588,17 +573,12 @@ class TransTabForCL(TransTab):
         return None, loss
 
     def _infer_col_types(self, columns):
-    def _infer_col_types(self, columns):
         col_types = {}
         for col in columns:
             if col in self.pre_encoder.categorical_columns:
                 col_types[col] = ColType.TEXT
             elif col in self.pre_encoder.numerical_columns:
-            if col in self.pre_encoder.categorical_columns:
-                col_types[col] = ColType.TEXT
-            elif col in self.pre_encoder.numerical_columns:
                 col_types[col] = ColType.NUMERICAL
-            elif col in self.pre_encoder.binary_columns:
             elif col in self.pre_encoder.binary_columns:
                 col_types[col] = ColType.BINARY
             else:
