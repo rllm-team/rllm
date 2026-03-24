@@ -100,9 +100,8 @@ class SelfSupervisedVPCL(ContrastiveLoss):
         device = features.device
         batch_size, num_partitions, _ = features.shape
 
-        # Flatten [B, K, D] -> [B*K, D] so that each partition embedding
-        # becomes an individual contrastive instance.
-        feats = torch.cat(torch.unbind(features, dim=1), dim=0)  # [B*K, D]
+        # Flatten [B, K, D] -> [B*K, D] via view (zero-copy, no extra allocation).
+        feats = features.view(batch_size * num_partitions, -1)  # [B*K, D]
 
         # Assign each partition embedding an integer row id:
         # row_ids: [B*K], e.g. [0,0,...,0,1,1,...,1,...]
@@ -229,9 +228,8 @@ class SupervisedVPCL(ContrastiveLoss):
         device = features.device
         batch_size, num_partitions, _ = features.shape
 
-        # Flatten [B, K, D] -> [B*K, D] so that each partition embedding
-        # becomes an individual contrastive instance.
-        feats = torch.cat(torch.unbind(features, dim=1), dim=0)  # [B*K, D]
+        # Flatten [B, K, D] -> [B*K, D] via view (zero-copy, no extra allocation).
+        feats = features.view(batch_size * num_partitions, -1)  # [B*K, D]
 
         # Broadcast each row's label to all of its partitions:
         # labels_expanded: [B*K]

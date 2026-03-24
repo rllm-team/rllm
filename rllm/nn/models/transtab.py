@@ -14,7 +14,17 @@ from rllm.data.table_data import TableData
 from rllm.nn.loss import SupervisedVPCL, SelfSupervisedVPCL
 from rllm.nn.encoder import TransTabPreEncoder
 from rllm.nn.conv.table_conv import TransTabConv
-from rllm.nn.models.base_model import LinearClassifier
+
+
+class LinearClassifier(torch.nn.Module):
+    def __init__(self, num_class: int, hidden_dim: int = 128) -> None:
+        super().__init__()
+        out_dim = 1 if num_class <= 2 else num_class
+        self.norm = torch.nn.LayerNorm(hidden_dim)
+        self.fc = torch.nn.Linear(hidden_dim, out_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.fc(self.norm(x))
 
 
 class TransTabCLSToken(torch.nn.Module):

@@ -10,7 +10,7 @@ from rllm.preprocessing.word_embedding import (
     TextEmbedderConfig,
     embed_text_column,
 )
-from rllm.preprocessing.data_clean import preprocess_numerical_string
+from rllm.preprocessing.data_clean import to_numeric_by_column
 from rllm.preprocessing.timestamp import TimestampPreprocessor
 from rllm.preprocessing.df_to_tensor import df_to_tensor
 
@@ -30,5 +30,5 @@ __all__ = [
     # timestamp
     "TimestampPreprocessor",
     # data clean
-    "preprocess_numerical_string",
+    "to_numeric_by_column",
 ]

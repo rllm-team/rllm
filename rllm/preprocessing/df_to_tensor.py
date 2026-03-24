@@ -1,4 +1,4 @@
-from typing import Optional, Union, Tuple
+from typing import Optional, Sequence, Union, Tuple
 from pandas import Series
 
 import torch
@@ -9,7 +9,7 @@ from rllm.preprocessing._type_convert import (
     encode_categorical,
     convert_binary,
 )
-from rllm.preprocessing.data_clean import preprocess_numerical_string
+from rllm.preprocessing.data_clean import to_numeric_by_column
 from rllm.preprocessing.text_tokenize import (
     TokenizerConfig,
     process_tokenized_column,
@@ -22,13 +22,17 @@ from rllm.preprocessing.word_embedding import (
 from rllm.preprocessing.timestamp import TimestampPreprocessor
 from rllm.types import ColType
 
-
+# df_to_tensor应该是一个可配置的类/函数
 def df_to_tensor(
     df,
     col_types,
     target_col=None,
     text_embedder_config: Optional[TextEmbedderConfig] = None,
     tokenizer_config: Optional[TokenizerConfig] = None,
+    timestamp_format: Optional[str] = None,
+    timestamp_fields: Optional[Sequence[str]] = None,
+    categorical_missing_values: Optional[Sequence] = None,
+    binary_true_values: Optional[Sequence[str]] = None,
     concat: bool = True,
     cat_hardcode: bool = True,
 ):
@@ -42,6 +46,17 @@ def df_to_tensor(
         tokenizer_config: Configuration for tokenization; if provided and
             ``tokenize_combine`` is True, all TEXT columns are jointly tokenized
             and stored as a single entry in ``feat_dict[ColType.TEXT]``.
+        timestamp_format: Optional format string for parsing ``TIMESTAMP``
+            columns. ``None`` lets ``pd.to_datetime`` infer the format.
+        timestamp_fields: Optional list of time components to extract from
+            ``TIMESTAMP`` columns (subset of ``["YEAR", "MONTH", "DAY",
+            "DAYOFWEEK", "HOUR", "MINUTE", "SECOND"]``).
+        categorical_missing_values: Optional extra values treated as missing
+            when encoding categorical columns. Passed to
+            :func:`encode_categorical`.
+        binary_true_values: Optional list of string values that should be
+            interpreted as 1 in binary columns. Passed to
+            :func:`convert_binary`.
         concat: Whether to concatenate/stack features of the same column type
             (e.g., numerical and categorical along the last dim, text and
             timestamp along the feature/channel dim).
@@ -77,6 +92,10 @@ def df_to_tensor(
             col_name=col_name,
             text_embedder_config=text_embedder_config,
             tokenizer_config=tokenizer_config,
+            timestamp_format=timestamp_format,
+            timestamp_fields=timestamp_fields,
+            categorical_missing_values=categorical_missing_values,
+            binary_true_values=binary_true_values,
         )
         # 3. Update feat dict
         if col_name == target_col:
@@ -125,10 +144,14 @@ def _generate_column_tensor(
     col_name: str,
     text_embedder_config: Optional[TextEmbedderConfig] = None,
     tokenizer_config: Optional[TokenizerConfig] = None,
+    timestamp_format: Optional[str] = None,
+    timestamp_fields: Optional[Sequence[str]] = None,
+    categorical_missing_values: Optional[Sequence] = None,
+    binary_true_values: Optional[Sequence[str]] = None,
 ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
     col_copy = col.copy()
     if col_type == ColType.NUMERICAL:
-        col_copy = preprocess_numerical_string(col_copy)
+        col_copy = to_numeric_by_column(col_copy)
         col_copy = fillna_by_coltype(col_copy, ColType.NUMERICAL)
         return torch.tensor(col_copy.values.astype(float), dtype=torch.float32).reshape(
             -1, 1
@@ -136,14 +159,20 @@ def _generate_column_tensor(
 
     elif col_type == ColType.CATEGORICAL:
         col_copy = fillna_by_coltype(col_copy, ColType.CATEGORICAL)
-        col_copy, _ = encode_categorical(col_copy)
+        col_copy, _ = encode_categorical(
+            col_copy,
+            missing_values=categorical_missing_values,
+        )
         return torch.tensor(col_copy.values.astype(float), dtype=torch.float32).reshape(
             -1, 1
         )
 
     elif col_type == ColType.BINARY:
         col_copy = fillna_by_coltype(col_copy, ColType.BINARY)
-        col_copy = convert_binary(col_copy)
+        col_copy = convert_binary(
+            col_copy,
+            true_values=binary_true_values,
+        )
         return torch.tensor(col_copy.values.astype(float), dtype=torch.float32).reshape(
             -1, 1
         )
@@ -171,8 +200,13 @@ def _generate_column_tensor(
             return embed_text_column(col_copy, text_embedder_config)
 
     elif col_type == ColType.TIMESTAMP:
-        # [Batch, 7], (year, month, day, dayofweek, hour, minute, second)
-        preprocessor = TimestampPreprocessor(format=None)
+        # Default: [Batch, 7], (year, month, day, dayofweek, hour, minute, second).
+        # Pass timestamp_format / timestamp_fields to control parsing and output dims,
+        # e.g. timestamp_fields=["YEAR","MONTH","DAY"] → [Batch, 3].
+        preprocessor = TimestampPreprocessor(
+            format=timestamp_format,
+            fields=timestamp_fields,
+        )
         return preprocessor(col_copy)
 
     else:
