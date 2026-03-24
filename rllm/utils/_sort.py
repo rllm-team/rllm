@@ -26,10 +26,15 @@ def lexsort(
         tensor([4, 2]), tensor([4, 4]), tensor([5, 4])]
 
     Args:
-        keys (sequence of Tensors): keys to sort by, sort from last to first.
-        dim (int, optional): the dimension along which to sort. Default is -1.
-        descending (bool, optional): controls the sorting order (ascending or descending).
-            Default is False.
+        keys (List[Tensor]): Sorting keys; the last key has the highest
+            priority (primary sort), earlier keys break ties.
+        dim (int): The dimension along which to sort.
+            (default: :obj:`-1`)
+        descending (bool): If :obj:`True`, sorts in descending order.
+            (default: :obj:`False`)
+
+    Returns:
+        Tensor: A 1-D tensor of integer indices that sorts the input keys.
     """
     out = keys[0].argsort(dim=dim, descending=descending, stable=True)
     for k in keys[1:]:

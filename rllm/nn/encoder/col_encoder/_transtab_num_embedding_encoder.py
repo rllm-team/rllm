@@ -21,6 +21,18 @@ class TransTabNumEmbeddingEncoder(ColEncoder):
             (e.g., mean, std) for each numerical column. (default: None)
         post_module (Optional[torch.nn.Module]): Optional module to apply
             after encoding (e.g., batch normalization or activation). (default: None)
+
+    Returns:
+        The ``forward`` method returns numerical feature embeddings with shape
+        ``[batch_size, num_num_cols, hidden_dim]``.
+
+    Example:
+        >>> import torch
+        >>> enc = TransTabNumEmbeddingEncoder(hidden_dim=8)
+        >>> feat = torch.randn(3, 4, 8)
+        >>> raw = torch.randn(3, 4)
+        >>> enc(feat, raw).shape
+        torch.Size([3, 4, 8])
     """
 
     supported_types = {ColType.NUMERICAL}

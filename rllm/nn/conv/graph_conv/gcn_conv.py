@@ -78,6 +78,30 @@ class GCNConv(MessagePassing):
         edge_weight: Optional[Tensor] = None,
         dim_size: Optional[int] = None,
     ) -> Tensor:
+        r"""Apply a single GCN message-passing step.
+
+        Args:
+            x (Tensor): Input node features with shape ``[num_nodes, in_dim]``.
+            edge_index (Union[Tensor, SparseTensor]): Graph connectivity in edge-list
+                or sparse adjacency format.
+            edge_weight (Optional[Tensor]): Optional edge weights used during
+                neighborhood aggregation.
+            dim_size (Optional[int]): Optional number of destination nodes for
+                aggregation output shape inference.
+
+        Returns:
+            Tensor: Output node features with shape ``[num_nodes, out_dim]``.
+
+        Example:
+            >>> import torch
+            >>> from rllm.nn.conv.graph_conv import GCNConv
+            >>> conv = GCNConv(16, 8)
+            >>> x = torch.randn(5, 16)
+            >>> edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
+            >>> out = conv(x, edge_index)
+            >>> out.shape
+            torch.Size([5, 8])
+        """
         if self.normalize:
             assert edge_index.is_sparse, (
                 "GCNorm only support sparse adj matrix as input. "

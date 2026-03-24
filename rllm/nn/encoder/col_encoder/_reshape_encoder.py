@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import torch
 from torch import Tensor
@@ -23,6 +23,18 @@ class ReshapeEncoder(ColEncoder):
             preserve the shape of the output. If :obj:`None`, no module will
             be applied to the output (default: :obj:`None`).
         need_layer_norm (bool, optional): Whether to apply LayerNorm to the input.
+
+    Returns:
+        The ``forward`` method returns reshaped embeddings with shape
+        ``[batch_size, num_cols, 1]``.
+
+    Example:
+        >>> import torch
+        >>> enc = ReshapeEncoder(out_dim=1, stats_list=[{}, {}], need_layer_norm=False)
+        >>> enc.post_init()
+        >>> x = torch.randn(4, 2)
+        >>> enc(x).shape
+        torch.Size([4, 2, 1])
     """
 
     supported_types = {ColType.CATEGORICAL, ColType.NUMERICAL}

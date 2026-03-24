@@ -1,5 +1,4 @@
 import math
-import typing
 from typing import Optional, Tuple, Union
 
 import torch
@@ -16,14 +15,18 @@ class GTransformerConv(MessagePassing):
     Unified Message Passing Model for Semi-Supervised Classification"
     <https://arxiv.org/abs/2009.03509>`_ paper.
 
+    This layer computes multi-head attention on graph edges and combines
+    neighborhood messages with optional root-node skip information.
+
     Args:
         in_dim (Tuple[int, int]): Size of each input sample
             (for source and target nodes).
         out_dim (int): Size of each output sample.
         num_heads (int, optional): Number of multi-head-attentions.
             (default: :obj:`1`).
-        concat (bool, optional): If set to `False`, the multi-head attentions
-            are averaged instead of concatenated. (default: :obj:`True`)
+        concat (bool, optional): If set to :obj:`False`, the multi-head
+            attentions are averaged instead of concatenated.
+            (default: :obj:`True`)
         beta (bool, optional): If set to :obj:`True`, the layer will add
             a learnable skip-connection with learnable weight.
             (default: :obj:`False`)
@@ -31,9 +34,9 @@ class GTransformerConv(MessagePassing):
             attention coefficients which exposes each node to a stochastically
             sampled neighborhood during training. (default: :obj:`0`).
         edge_dim (int, optional): Size of each edge feature.
-            (default: :obj:`None`, which means no edge features are used).
-        bias (bool, optional): If set to `False`, no bias terms are added into
-            the final output. (default: :obj:`True`).
+            (default: :obj:`None`)
+        bias (bool, optional): If set to :obj:`False`, no bias terms are
+            added into the final output. (default: :obj:`True`).
         root_weight (bool, optional): If set to :obj:`False`, the layer will
             not use the root node feature for message update.
             (default: :obj:`True`)
@@ -49,13 +52,13 @@ class GTransformerConv(MessagePassing):
         num_heads: int = 1,
         concat: bool = True,
         beta: bool = False,
-        dropout: float = 0.,
+        dropout: float = 0.0,
         edge_dim: Optional[int] = None,
         bias: bool = True,
         root_weight: bool = True,
         **kwargs,
     ):
-        kwargs.setdefault('aggr', 'add')
+        kwargs.setdefault("aggr", "add")
         super().__init__(**kwargs)
 
         self.in_dim = in_dim
@@ -77,23 +80,23 @@ class GTransformerConv(MessagePassing):
         if edge_dim is not None:
             self.lin_edge = Linear(edge_dim, num_heads * out_dim, bias=False)
         else:
-            self.lin_edge = self.register_parameter('lin_edge', None)
+            self.lin_edge = self.register_parameter("lin_edge", None)
 
         if concat:
-            self.lin_skip = Linear(in_dim[1], num_heads * out_dim,
-                                   bias=bias)
+            self.lin_skip = Linear(in_dim[1], num_heads * out_dim, bias=bias)
             if self.beta:
                 self.lin_beta = Linear(3 * num_heads * out_dim, 1, bias=False)
             else:
-                self.lin_beta = self.register_parameter('lin_beta', None)
+                self.lin_beta = self.register_parameter("lin_beta", None)
         else:
             self.lin_skip = Linear(in_dim[1], out_dim, bias=bias)
             if self.beta:
                 self.lin_beta = Linear(3 * out_dim, 1, bias=False)
             else:
-                self.lin_beta = self.register_parameter('lin_beta', None)
+                self.lin_beta = self.register_parameter("lin_beta", None)
 
     def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
         self.lin_key.reset_parameters()
         self.lin_query.reset_parameters()
         self.lin_value.reset_parameters()
@@ -110,7 +113,34 @@ class GTransformerConv(MessagePassing):
         edge_weight: Optional[Tensor] = None,
         return_attention_weights: bool = False,
     ):
-        r"""Supports edge_index only."""
+        r"""Apply graph transformer attention and optional root skip update.
+
+        Args:
+            x (Union[Tensor, Tuple[Tensor, Tensor]]):
+                - :obj:`Tensor`: Input features for homogeneous graphs.
+                - :obj:`Tuple[Tensor, Tensor]`: Source and destination node
+                  features for bipartite graphs.
+            edge_index (Tensor): Edge list connectivity with shape
+                :obj:`[2, num_edges]`.
+            edge_weight (Optional[Tensor]): Optional edge feature tensor used
+                when :obj:`edge_dim` is set. (default: :obj:`None`)
+            return_attention_weights (bool): If :obj:`True`, also return edge
+                attention scores. (default: :obj:`False`)
+
+        Returns:
+            Union[Tensor, Tuple[Tensor, Tuple[Tensor, Tensor]]]: Output node
+            embeddings, optionally with edge attention weights.
+
+        Example:
+            >>> import torch
+            >>> from rllm.nn.conv.graph_conv import GTransformerConv
+            >>> conv = GTransformerConv((8, 8), out_dim=4, num_heads=2)
+            >>> x = torch.randn(4, 8)
+            >>> edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
+            >>> out = conv(x, edge_index)
+            >>> out.shape
+            torch.Size([4, 8])
+        """
         H, C = self.heads, self.out_dim
 
         if isinstance(x, Tensor):
@@ -162,7 +192,23 @@ class GTransformerConv(MessagePassing):
         dim_size: int,
         edge_weight: Optional[Tensor],
     ) -> Tensor:
+        r"""Fuse message computation and aggregation using multi-head attention.
 
+        Args:
+            edge_index (Tensor): Edge indices of shape :obj:`[2, num_edges]`.
+            query (Tensor): Query vectors for destination nodes of shape
+                :obj:`[num_dst, num_heads, out_dim]`.
+            key (Tensor): Key vectors for source nodes of shape
+                :obj:`[num_src, num_heads, out_dim]`.
+            value (Tensor): Value vectors for source nodes of shape
+                :obj:`[num_src, num_heads, out_dim]`.
+            dim_size (int): Number of destination nodes.
+            edge_weight (Optional[Tensor]): Optional edge feature tensor.
+
+        Returns:
+            Tensor: Aggregated node representations of shape
+            :obj:`[num_dst, num_heads, out_dim]`.
+        """
         query_i = query.index_select(0, edge_index[1])
         key_j = key.index_select(0, edge_index[0])
         value_j = value.index_select(0, edge_index[0])
@@ -170,8 +216,7 @@ class GTransformerConv(MessagePassing):
         edge_attr = None
         if self.lin_edge is not None:
             assert edge_weight is not None
-            edge_attr = self.lin_edge(edge_weight).view(-1, self.heads,
-                                                      self.out_dim)
+            edge_attr = self.lin_edge(edge_weight).view(-1, self.heads, self.out_dim)
             key_j = key_j + edge_attr
 
         alpha = (query_i * key_j).sum(dim=-1) / math.sqrt(self.out_dim)
@@ -185,10 +230,7 @@ class GTransformerConv(MessagePassing):
 
         out = out * alpha.view(-1, self.heads, 1)
         return self.aggr_module(
-            out,
-            edge_index[1],
-            dim=self._node_dim,
-            dim_size=dim_size
+            out, edge_index[1], dim=self._node_dim, dim_size=dim_size
         )
 
     def __repr__(self) -> str:

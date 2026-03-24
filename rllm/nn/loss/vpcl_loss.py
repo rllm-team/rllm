@@ -62,6 +62,13 @@ class SelfSupervisedVPCL(ContrastiveLoss):
     - base_temperature (float): Reference temperature :math:`\tau_0` used for final scaling :math:`\tau / \tau_0`.
     - similarity (str): Similarity metric; "dot" for raw dot product, "cosine" for L2-normalized cosine similarity.
     - eps (float): Numerical stability constant.
+
+    Example:
+        >>> import torch
+        >>> loss_fn = SelfSupervisedVPCL()
+        >>> feats = torch.randn(4, 2, 8)
+        >>> loss_fn(feats).ndim
+        0
     """
 
     def __init__(
@@ -177,6 +184,14 @@ class SupervisedVPCL(ContrastiveLoss):
     - similarity (str): Similarity metric; "dot" for raw dot product,
       "cosine" for L2-normalized cosine similarity.
     - eps (float): Numerical stability constant.
+
+        Example:
+                >>> import torch
+                >>> loss_fn = SupervisedVPCL()
+                >>> feats = torch.randn(4, 2, 8)
+                >>> labels = torch.tensor([0, 1, 0, 1])
+                >>> loss_fn(feats, labels).ndim
+                0
     """
 
     def __init__(

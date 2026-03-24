@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Tuple
 
 import torch
 from torch import Tensor
@@ -8,15 +8,24 @@ from rllm.nn.conv.graph_conv import SAGEConv
 
 
 class HeteroSAGE(torch.nn.Module):
-    r"""The herterogeneous version of the GraphSAGE model.
+    r"""The heterogeneous version of the GraphSAGE model.
 
     Args:
         node_types (List[str]): The list of node types.
         edge_types (List[Tuple[str, str, str]]): The list of edge types.
-        channels (int): The number of channels.
-        aggr (str): The aggregation method.
-        num_layers (int): The number of layers.
+        hidden_dim (int): The number of hidden channels.
+        aggr (str): The aggregation method. (default: :obj:`"mean"`)
+        num_layers (int): The number of layers. (default: :obj:`2`)
+
+    Example:
+        >>> from rllm.nn.models import HeteroSAGE
+        >>> model = HeteroSAGE(
+        ...     node_types=["user", "item"],
+        ...     edge_types=[("user", "rates", "item")],
+        ...     hidden_dim=16,
+        ... )
     """
+
     def __init__(
         self,
         node_types: List[str],
@@ -35,8 +44,9 @@ class HeteroSAGE(torch.nn.Module):
         for _ in range(num_layers):
             conv_dict = ModuleDict()
             for edge_type in edge_types:
-                conv_dict[self.edge_type_mapping[edge_type]] = \
-                    SAGEConv(hidden_dim, hidden_dim, aggr=aggr)
+                conv_dict[self.edge_type_mapping[edge_type]] = SAGEConv(
+                    hidden_dim, hidden_dim, aggr=aggr
+                )
             self.convs.append(conv_dict)
 
         self.norms = torch.nn.ModuleList()
@@ -49,6 +59,7 @@ class HeteroSAGE(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
         for conv_dict in self.convs:
             for conv in conv_dict.values():
                 conv.reset_parameters()
@@ -59,8 +70,18 @@ class HeteroSAGE(torch.nn.Module):
     def forward(
         self,
         x_dict: Dict[str, Tensor],
-        edge_index_dict: Dict[Tuple[str, str, str], Tensor]
+        edge_index_dict: Dict[Tuple[str, str, str], Tensor],
     ) -> Dict[str, Tensor]:
+        r"""Run heterogeneous GraphSAGE message passing.
+
+        Args:
+            x_dict (Dict[str, Tensor]): Input node features by node type.
+            edge_index_dict (Dict[Tuple[str, str, str], Tensor]): Edge
+                indices by edge type.
+
+        Returns:
+            Dict[str, Tensor]: Updated node embeddings for each node type.
+        """
         for layer in range(len(self.convs)):
             conv_dict = self.convs[layer]
             # apply graph conv to each edge type and
@@ -73,7 +94,9 @@ class HeteroSAGE(torch.nn.Module):
                 if dst not in dst_dict:
                     dst_dict[dst] = []
                 dst_dict[dst].append(
-                    conv_dict[self.edge_type_mapping[edge_type]]((x_src, x_dst), edge_index)
+                    conv_dict[self.edge_type_mapping[edge_type]](
+                        (x_src, x_dst), edge_index
+                    )
                 )
             for dst, x_list in dst_dict.items():
                 x_stack = torch.stack(x_list, dim=0)

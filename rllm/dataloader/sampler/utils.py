@@ -1,9 +1,8 @@
-from typing import Dict, Optional, Tuple, TypeVar, Union, List, Any
+from typing import Dict, Optional, Tuple, List
 
 import torch
 from torch import Tensor
 
-# from rllm.types import
 from rllm.data import HeteroGraphData, EdgeStorage
 
 
@@ -15,13 +14,28 @@ def convert_hdata_to_csc(
     node_time_dict: Optional[Dict[str, Tensor]] = None,
     edge_time_dict: Optional[Dict[str, Tensor]] = None,
 ):
-    """
-    Convert the heterogeneous graph to a CSC format.
+    r"""Convert a heterogeneous graph to CSC format for neighbor sampling.
+
+    Args:
+        hdata (HeteroGraphData): The heterogeneous graph data.
+        device (torch.device, optional): The device to place output tensors on.
+            (default: :obj:`None`)
+        share_memory (bool): Whether to move tensors to shared memory for
+            multi-process data loading. (default: :obj:`False`)
+        is_sorted (bool): Whether the edge indices are already sorted by
+            destination node. (default: :obj:`False`)
+        node_time_dict (Dict[str, Tensor], optional): Node-level timestamps
+            used for temporal filtering. (default: :obj:`None`)
+        edge_time_dict (Dict[str, Tensor], optional): Edge-level timestamps
+            used for temporal filtering. (default: :obj:`None`)
 
     Returns:
-        col_ptr_dict: Dict[str, Tensor]
-        row_dict: Dict[str, Tensor]
-        perm_dict: Dict[str, Tensor]
+        Tuple[Dict, Dict, Dict]: A tuple of
+        :obj:`(col_ptr_dict, row_dict, perm_dict)` where
+        :obj:`col_ptr_dict` contains the column pointers,
+        :obj:`row_dict` contains the row indices, and
+        :obj:`perm_dict` contains the edge permutations, all keyed by
+        edge type.
     """
     col_ptr_dict = {}
     row_dict = {}
@@ -29,7 +43,7 @@ def convert_hdata_to_csc(
 
     for edge_type, edge_store in hdata.edge_items():
         src_node_time = (node_time_dict or {}).get(edge_type[0], None)
-        edge_time     = (edge_time_dict or {}).get(edge_type, None)
+        edge_time = (edge_time_dict or {}).get(edge_type, None)
         dst_node_type = edge_type[2]
         dst_num_nodes = hdata[dst_node_type].num_nodes
 
@@ -49,24 +63,10 @@ def convert_hdata_to_csc(
     return col_ptr_dict, row_dict, perm_dict
 
 
-X = TypeVar('X')
-Y = TypeVar('Y')
-
-def remap_keys(
-    inputs: Dict[X, Any],
-    mapping: Dict[X, Y],
-    exclude: Optional[List[X]] = None,
-) -> Dict[Union[X, Y], Any]:
-    exclude = exclude or []
-    return {
-        k if k in exclude else mapping.get(k, k): v
-        for k, v in inputs.items()
-    }
-
-
 # Hetero sampler backend
 NodeType = str
 EdgeType = Tuple[str, str, str]
+
 
 def _sample_uniform_without_replacement(
     row_start: int,
@@ -74,7 +74,19 @@ def _sample_uniform_without_replacement(
     count: int,
     device: torch.device,
 ) -> List[int]:
-    """Return absolute edge indices in [row_start, row_end)."""
+    r"""Return absolute edge indices sampled uniformly without replacement
+    from the range :obj:`[row_start, row_end)`.
+
+    Args:
+        row_start (int): The start of the edge index range (inclusive).
+        row_end (int): The end of the edge index range (exclusive).
+        count (int): The number of indices to sample. If negative or
+            greater than the population size, all indices are returned.
+        device (torch.device): The device for intermediate tensor operations.
+
+    Returns:
+        List[int]: Sampled absolute edge indices.
+    """
     population = row_end - row_start
     if population == 0 or count == 0:
         return []
@@ -126,19 +138,32 @@ def hetero_neighbor_sample_cpu(
       track a batch index for each seed (like the C++ kernel), but we only
       return the global node indices.
 
-    Return:
-        row_dict: Dict[EdgeType, Tensor]
-        col_dict: Dict[EdgeType, Tensor]
-        node_id_dict: Dict[NodeType, Tensor]
-        edge_id_dict: Optional[Dict[EdgeType, Tensor]]
-        num_sampled_nodes_per_hop: Dict[NodeType, List[int]]
-        num_edges_per_hop: Dict[EdgeType, List[int]]
-
     Args:
-    csc (bool): If True, assumes `rowptr_dict` and `col_dict` are in CSC format.
-        This means for an edge type (src, rel, dst), the traversal is performed
-        from dst to src (reverse direction). The `rowptr_dict` indexes dst nodes,
-        and `col_dict` contains src nodes.
+        rowptr_dict (Dict[EdgeType, Tensor]): CSR/CSC column pointers per
+            edge type, of shape :obj:`[num_dst_nodes + 1]`.
+        col_dict (Dict[EdgeType, Tensor]): Row indices (neighbor node ids)
+            per edge type.
+        seed_dict (Dict[NodeType, Tensor]): Seed node indices per node type
+            to start sampling from.
+        num_neighbors_dict (Dict[EdgeType, List[int]]): Number of neighbors
+            to sample per hop for each edge type.
+        node_time_dict (Dict[NodeType, Tensor], optional): Node-level
+            timestamps for temporal filtering. (default: :obj:`None`)
+        edge_time_dict (Dict[EdgeType, Tensor], optional): Edge-level
+            timestamps for temporal filtering. (default: :obj:`None`)
+        seed_time_dict (Dict[NodeType, Tensor], optional): Timestamps
+            associated with each seed node. (default: :obj:`None`)
+        temporal_strategy (str): Sampling strategy for temporal graphs.
+            Currently only :obj:`'uniform'` is supported.
+            (default: :obj:`'uniform'`)
+        csc (bool): If :obj:`True`, assumes :obj:`rowptr_dict` and
+            :obj:`col_dict` are in CSC format, i.e., traversal goes from
+            destination to source. (default: :obj:`False`)
+
+    Returns:
+        Tuple: A 7-tuple of
+        :obj:`(row_dict, col_dict, node_id_dict, batch_dict,
+        edge_id_dict, num_sampled_nodes_per_hop, num_edges_per_hop)`.
     """
     if temporal_strategy != "uniform":
         raise ValueError("Only temporal_strategy='uniform' is supported.")
@@ -176,9 +201,7 @@ def hetero_neighbor_sample_cpu(
     # Prepare per-node-type storage: sampled nodes + index mapping
     # Internally we store (batch_idx, global_node_id) for each sampled node.
     # -------------------------------------------------------------------------
-    sampled_nodes: Dict[NodeType, List[Tuple[int, int]]] = {
-        nt: [] for nt in node_types
-    }
+    sampled_nodes: Dict[NodeType, List[Tuple[int, int]]] = {nt: [] for nt in node_types}
     node_index: Dict[NodeType, Dict[Tuple[int, int], int]] = {
         nt: {} for nt in node_types
     }
@@ -186,9 +209,7 @@ def hetero_neighbor_sample_cpu(
         nt: [0] for nt in node_types
     }
     # slice_dict[nt] = (begin, end) indices into sampled_nodes[nt] for current hop.
-    slice_dict: Dict[NodeType, Tuple[int, int]] = {
-        nt: (0, 0) for nt in node_types
-    }
+    slice_dict: Dict[NodeType, Tuple[int, int]] = {nt: (0, 0) for nt in node_types}
 
     # Flatten seed timestamps per "batch" (root of each sampled tree).
     seed_times: List[int] = []
@@ -230,9 +251,7 @@ def hetero_neighbor_sample_cpu(
     row_out: Dict[EdgeType, List[int]] = {et: [] for et in edge_types}
     col_out: Dict[EdgeType, List[int]] = {et: [] for et in edge_types}
     edge_id_out: Dict[EdgeType, List[int]] = {et: [] for et in edge_types}
-    num_edges_per_hop: Dict[EdgeType, List[int]] = {
-        et: [] for et in edge_types
-    }
+    num_edges_per_hop: Dict[EdgeType, List[int]] = {et: [] for et in edge_types}
 
     # Number of layers (hops): max length across all relations.
     L = max(len(v) for v in num_neighbors_dict.values()) if edge_types else 0
@@ -394,8 +413,7 @@ def hetero_neighbor_sample_cpu(
         else:
             row_dict_tensor[et] = torch.empty(0, device=device, dtype=torch.long)
             col_dict_tensor[et] = torch.empty(0, device=device, dtype=torch.long)
-            edge_id_dict_tensor[et] = torch.empty(0, device=device,
-                                                  dtype=torch.long)
+            edge_id_dict_tensor[et] = torch.empty(0, device=device, dtype=torch.long)
 
     return (
         row_dict_tensor,

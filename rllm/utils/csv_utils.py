@@ -38,17 +38,24 @@ def read_csv_with_fallback_encodings(
 
 
 def clean_df_by_col_types(df: pd.DataFrame, col_types: dict) -> pd.DataFrame:
-    r"""Lightweight DataFrame cleaning based on column types.
+    r"""Lightweight :class:`pandas.DataFrame` cleaning based on column types.
 
-    This helper keeps dataset-specific logic minimal and defers most handling
-    to the preprocessing utilities (e.g., :func:`df_to_tensor`).
+    This helper keeps dataset-specific logic minimal and defers most
+    handling to the preprocessing utilities (e.g., :func:`df_to_tensor`).
 
     Current behavior:
-        - Strip whitespace from column names.
-        - For CATEGORICAL columns:
-            * Normalize common string missing tokens to pandas.NA.
-        - For NUMERICAL columns:
-            * Keep values as-is (dataset can still apply custom fillna if needed).
+
+    - Strip whitespace from column names.
+    - For :obj:`CATEGORICAL` columns: normalize common string missing tokens
+      (e.g., ``"nan"``, ``"None"``) to :obj:`pandas.NA`.
+    - For :obj:`NUMERICAL` columns: keep values as-is.
+
+    Args:
+        df (pandas.DataFrame): The input DataFrame to clean.
+        col_types (dict): A mapping from column name to :obj:`ColType`.
+
+    Returns:
+        pandas.DataFrame: A cleaned copy of the input DataFrame.
     """
     df = df.copy()
     df.columns = df.columns.str.strip()

@@ -25,6 +25,7 @@ sys.path.append("../")
 from rllm.types import ColType
 from rllm.datasets import Adult, Titanic
 from rllm.transforms.table_transforms import DefaultTableTransform
+from rllm.nn.encoder import FTTransformerPreEncoder
 from rllm.nn.conv.table_conv import FTTransformerConv
 
 parser = argparse.ArgumentParser()
@@ -63,7 +64,7 @@ train_loader, val_loader, test_loader = data.get_dataloader(
 )
 
 
-# Define model
+# Define FT-Transformer model
 class FTTransformer(torch.nn.Module):
     def __init__(
         self,
@@ -73,15 +74,12 @@ class FTTransformer(torch.nn.Module):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ):
         super().__init__()
-        self.convs = torch.nn.ModuleList()
-        self.convs.append(
-            FTTransformerConv(
-                conv_dim=hidden_dim,
-                use_pre_encoder=True,
-                metadata=metadata,
-            )
+        self.pre_encoder = FTTransformerPreEncoder(
+            out_dim=hidden_dim,
+            metadata=metadata,
         )
-        for _ in range(num_layers - 1):
+        self.convs = torch.nn.ModuleList()
+        for _ in range(num_layers):
             self.convs.append(FTTransformerConv(conv_dim=hidden_dim))
 
         self.fc = torch.nn.Sequential(
@@ -91,6 +89,7 @@ class FTTransformer(torch.nn.Module):
         )
 
     def forward(self, x) -> Tensor:
+        x = self.pre_encoder(x)
         for conv in self.convs:
             x = conv(x)
         out = self.fc(x[:, 0, :])

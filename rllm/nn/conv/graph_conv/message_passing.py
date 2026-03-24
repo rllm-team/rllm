@@ -33,9 +33,9 @@ class MessagePassing(torch.nn.Module, ABC):
 
     def __init__(
         self,
-        aggr: Optional[Union[str, Aggregator]] = 'sum',
+        aggr: Optional[Union[str, Aggregator]] = "sum",
         *,
-        aggr_kwargs: Optional[Dict[str, Any]] = None
+        aggr_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
 
@@ -45,10 +45,10 @@ class MessagePassing(torch.nn.Module, ABC):
         self.aggr_module = self.aggr_revoler(aggr, **(aggr_kwargs or {}))
 
     def propagate(
-            self,
-            x: Union[Tensor, Tuple[Tensor, Tensor]],
-            edge_index: Union[Tensor, SparseTensor],
-            **kwargs
+        self,
+        x: Union[Tensor, Tuple[Tensor, Tensor]],
+        edge_index: Union[Tensor, SparseTensor],
+        **kwargs,
     ) -> Tensor:
         r"""
         The initial call to start propagating messages.
@@ -57,19 +57,33 @@ class MessagePassing(torch.nn.Module, ABC):
 
         Args:
             x (Union[Tensor, Tuple[Tensor, Tensor]]):
-                - `Tensor`: The input node feature matrix. :math:`(|V|, F_{in})`
-                - `Tuple[Tensor, Tensor]`: The input node feature matrix for source and destination nodes.
+                - :obj:`Tensor`: The input node feature matrix. :math:`(|V|, F_{in})`
+                - :obj:`Tuple[Tensor, Tensor]`: The input node feature matrix for source and destination nodes.
             edge_index (Union[Tensor, SparseTensor]): The edge indices. Tensor, :math:`(2, |E|)`
             **kwargs: Additional arguments for the message, aggregate and update functions.
+
+        Returns:
+            Tensor: Updated destination node representations after running
+            message, aggregate (or message_and_aggregate), and update.
+
+        Example:
+            >>> import torch
+            >>> from rllm.nn.conv.graph_conv import GCNConv
+            >>> conv = GCNConv(8, 4)
+            >>> x = torch.randn(5, 8)
+            >>> edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
+            >>> out = conv.propagate(x, edge_index)
+            >>> out.shape
+            torch.Size([5, 8])
         """
 
         # Infer aggregator dim_size
-        if 'dim_size' not in kwargs or kwargs['dim_size'] is None:
+        if "dim_size" not in kwargs or kwargs["dim_size"] is None:
             if x is not None:
                 if isinstance(x, Tensor):
-                    kwargs['dim_size'] = x.size(0)
+                    kwargs["dim_size"] = x.size(0)
                 else:
-                    kwargs['dim_size'] = x[1].size(0)
+                    kwargs["dim_size"] = x[1].size(0)
             else:
                 raise ValueError("dim_size must be provided while x is None.")
 
@@ -80,27 +94,21 @@ class MessagePassing(torch.nn.Module, ABC):
             )
             out = self.message_and_aggregate(**msg_aggr_kwargs)
         else:
-            msg_kwargs = self.__collect__(
-                self.message, x, edge_index, kwargs
-            )
+            msg_kwargs = self.__collect__(self.message, x, edge_index, kwargs)
             out = self.message(**msg_kwargs)
-            aggr_kwargs = self.__collect__(
-                self.aggregate, x, edge_index, kwargs
-            )
+            aggr_kwargs = self.__collect__(self.aggregate, x, edge_index, kwargs)
             out = self.aggregate(out, **aggr_kwargs)
 
         # update
-        update_kwargs = self.__collect__(
-            self.update, x, edge_index, kwargs
-        )
+        update_kwargs = self.__collect__(self.update, x, edge_index, kwargs)
         out = self.update(out, **update_kwargs)
         return out
 
     def message(
-            self,
-            x: Tensor,
-            edge_index: Union[Tensor, SparseTensor],
-            edge_weight: Tensor = None
+        self,
+        x: Tensor,
+        edge_index: Union[Tensor, SparseTensor],
+        edge_weight: Tensor = None,
     ) -> Tensor:
         r"""
         Compute message from src nodes :math:`v_j` to dst nodes :math:`v_i`.
@@ -127,18 +135,22 @@ class MessagePassing(torch.nn.Module, ABC):
         msgs: Tensor,
         edge_index: Union[Tensor, SparseTensor],
         dim: int = 0,
-        dim_size: Optional[int] = None
+        dim_size: Optional[int] = None,
     ):
-        r"""
-        Aggrate messages from src nodes to dst nodes.
+        r"""Aggregate messages from src nodes to dst nodes.
 
         Args:
             msgs (Tensor): The messages to aggregate.
             edge_index (Union[Tensor, SparseTensor]): The edge indices.
-            dim (int): The dimension to aggregate.
+            dim (int): The dimension along which to aggregate.
                 (default: :obj:`0`)
-            dim_size (Optional[int]): The size of output, tensor at dim. If None, infer from edge_index.
+            dim_size (Optional[int]): The size of the output tensor at
+                :obj:`dim`. If :obj:`None`, inferred from :obj:`edge_index`.
                 (default: :obj:`None`)
+
+        Returns:
+            Tensor: Aggregated node representations of shape
+            :math:`(\text{dim\_size}, F)`.
         """
         edge_index, _ = self.__unify_edgeindex__(edge_index)
         return self.aggr_module(msgs, edge_index[1, :], dim=dim, dim_size=dim_size)
@@ -162,19 +174,18 @@ class MessagePassing(torch.nn.Module, ABC):
 
     # Utility functions
     def __collect__(self, func: Callable, x, edge_index, kwargs) -> Dict[str, Any]:
-        r"""Collects the arguments funcs.
-        """
+        r"""Collects the arguments funcs."""
         func_params = OrderedDict(self.__func_params__(func))
-        if func.__name__ in ['aggregate', 'update']:
+        if func.__name__ in ["aggregate", "update"]:
             func_params.popitem(last=False)
 
         coll = OrderedDict()
         for k, v in func_params.items():
             if k in kwargs:
                 coll[k] = kwargs[k]
-            elif k == 'x':
+            elif k == "x":
                 coll[k] = x
-            elif k == 'edge_index':
+            elif k == "edge_index":
                 coll[k] = edge_index
             else:
                 if v.default != inspect.Parameter.empty:
@@ -188,7 +199,9 @@ class MessagePassing(torch.nn.Module, ABC):
         return inspect.signature(func).parameters
 
     @lru_cache
-    def __unify_edgeindex__(self, edge_index: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
+    def __unify_edgeindex__(
+        self, edge_index: Tensor
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         r"""Unify the edge index to a 2D tensor."""
         if edge_index.is_sparse:
             return self.__adj_to_edges__(edge_index)
@@ -196,7 +209,9 @@ class MessagePassing(torch.nn.Module, ABC):
             try:
                 return self.__adj_to_edges__(edge_index)
             except ValueError:
-                raise ValueError(f"Expect edge_index to be a 2D tensor, got {edge_index.size()}.")
+                raise ValueError(
+                    f"Expect edge_index to be a 2D tensor, got {edge_index.size()}."
+                )
         else:
             return edge_index, None
 
@@ -214,8 +229,9 @@ class MessagePassing(torch.nn.Module, ABC):
     @lru_cache
     def __is_overrided__(self, func: Callable) -> bool:
         r"""Check if the function is overridden. If so, return True."""
-        return getattr(self.__class__, func.__name__, None) \
-            != getattr(MessagePassing, func.__name__)
+        return getattr(self.__class__, func.__name__, None) != getattr(
+            MessagePassing, func.__name__
+        )
 
     def aggr_revoler(self, target_aggr: Union[str, Aggregator], **kwargs) -> Aggregator:
         r"""Resolve the aggregator."""
@@ -223,19 +239,21 @@ class MessagePassing(torch.nn.Module, ABC):
             return target_aggr
 
         import rllm.nn.conv.graph_conv.aggrs as aggrs
+
         aggrs_l = [
-            getattr(aggrs, name) for name in dir(aggrs)
+            getattr(aggrs, name)
+            for name in dir(aggrs)
             if inspect.isclass(getattr(aggrs, name))
         ]
 
         def normalize_str(s: str) -> str:
-            return s.lower().replace('_', '').replace('-', '').replace(' ', '')
+            return s.lower().replace("_", "").replace("-", "").replace(" ", "")
 
         norm_target_aggr = normalize_str(target_aggr)
 
         for aggr in aggrs_l:
             aggr_name = normalize_str(aggr.__name__)
-            if norm_target_aggr in [aggr_name, aggr_name.replace('aggregator', '')]:
+            if norm_target_aggr in [aggr_name, aggr_name.replace("aggregator", "")]:
                 return aggr(**kwargs)
 
         raise ValueError(f"Aggregator {target_aggr} not found.")
@@ -246,14 +264,14 @@ class MessagePassing(torch.nn.Module, ABC):
         feats: Tensor,
         edge_index: Union[Tensor, SparseTensor],
         dim: Optional[int] = None,
-        retrieve_dim: int = 0
+        retrieve_dim: int = 0,
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         r"""Non-bipartite graph, :obj:`feats` contains all nodes' features.
 
         Args:
             feats (Tensor): The node features.
             edge_index (Union[Tensor, SparseTensor]): The edge indices.
-            dim (Optionalp[int]): The edge_index dimension to retrieve. If None, retrieve both src and dst.
+            dim (Optional[int]): The edge_index dimension to retrieve. If None, retrieve both src and dst.
             retrieve_dim (int): The dimension to retrieve.
 
         Returns:
@@ -268,14 +286,14 @@ class MessagePassing(torch.nn.Module, ABC):
         feats: Tuple[Tensor, Tensor],
         edge_index: Union[Tensor, SparseTensor],
         dim: Optional[int] = None,
-        retrieve_dim: int = 0
+        retrieve_dim: int = 0,
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         r"""Bipartite graph, :obj:`feats` contains source and destination nodes' features.
 
         Args:
             feats (Tensor): The node features.
             edge_index (Union[Tensor, SparseTensor]): The edge indices.
-            dim (Optionalp[int]): The edge_index dimension to retrieve. If None, retrieve both src and dst.
+            dim (Optional[int]): The edge_index dimension to retrieve. If None, retrieve both src and dst.
             retrieve_dim (int): The dimension to retrieve.
 
         Returns:
@@ -289,7 +307,7 @@ class MessagePassing(torch.nn.Module, ABC):
         feats: Union[Tensor, Tuple[Tensor, Tensor]],
         edge_index: Union[Tensor, SparseTensor],
         dim: Optional[int] = None,
-        retrieve_dim: int = 0
+        retrieve_dim: int = 0,
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
 
         edge_index, _ = self.__unify_edgeindex__(edge_index)

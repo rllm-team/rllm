@@ -17,9 +17,9 @@ import torch
 
 from rllm.types import ColType
 from rllm.data.table_data import TableData
-from rllm.nn.pre_encoder._reshape_encoder import ReshapeEncoder
-from rllm.nn.pre_encoder._embedding_encoder import EmbeddingEncoder
-from rllm.nn.pre_encoder._linear_encoder import LinearEncoder
+from rllm.nn.encoder.col_encoder._embedding_encoder import EmbeddingEncoder
+from rllm.nn.encoder.col_encoder._reshape_encoder import ReshapeEncoder
+from rllm.nn.encoder.col_encoder._linear_encoder import LinearEncoder
 
 
 def test_reshape_encoder():
@@ -42,13 +42,13 @@ def test_reshape_encoder():
     }
     dataset = TableData(df, col_types, target_col="cat_3")
 
-    pre_encoder = ReshapeEncoder()
-    pre_encoder.post_init()
+    encoder = ReshapeEncoder()
+    encoder.post_init()
 
     x_num = dataset.get_feat_dict()[ColType.NUMERICAL].clone()
     x_cat = dataset.get_feat_dict()[ColType.CATEGORICAL].clone()
-    x_num_emb = pre_encoder(x_num)
-    x_cat_emb = pre_encoder(x_cat)
+    x_num_emb = encoder(x_num)
+    x_cat_emb = encoder(x_cat)
 
     # Check the shape of the encoded features
     assert x_num_emb.shape == (x_num.size(0), x_num.size(1), 1)
@@ -74,19 +74,19 @@ def test_embedding_encoder():
         "cat_3": ColType.CATEGORICAL,
     }
     dataset = TableData(df, col_types, target_col="cat_3")
-    pre_encoder = EmbeddingEncoder(
+    encoder = EmbeddingEncoder(
         out_dim=4,
         stats_list=dataset.metadata[ColType.CATEGORICAL],
     )
-    pre_encoder.post_init()
+    encoder.post_init()
     x_cat = dataset.get_feat_dict()[ColType.CATEGORICAL].clone()
-    x_emb = pre_encoder(x_cat)
+    x_emb = encoder(x_cat)
     assert x_emb.shape == (x_cat.size(0), x_cat.size(1), 4)
     assert torch.allclose(x_cat, dataset.get_feat_dict()[ColType.CATEGORICAL])
 
     # Perturb the first column
     x_cat[:, 0] = x_cat[:, 0] + 1
-    x_perturbed = pre_encoder(x_cat)
+    x_perturbed = encoder(x_cat)
     # Make sure other column embeddings are unchanged
     assert (x_perturbed[:, 1:, :] == x_emb[:, 1:, :]).all()
 
@@ -106,18 +106,18 @@ def test_linear_encoder():
         "num_3": ColType.NUMERICAL,
     }
     dataset = TableData(df, col_types, target_col="num_3")
-    pre_encoder = LinearEncoder(
+    encoder = LinearEncoder(
         out_dim=4,
         stats_list=dataset.metadata[ColType.NUMERICAL],
     )
-    pre_encoder.post_init()
+    encoder.post_init()
     x_num = dataset.get_feat_dict()[ColType.NUMERICAL].clone()
-    x_emb = pre_encoder(x_num)
+    x_emb = encoder(x_num)
     assert x_emb.shape == (x_num.size(0), x_num.size(1), 4)
     assert torch.allclose(x_num, dataset.get_feat_dict()[ColType.NUMERICAL])
 
     # Perturb the first column
     x_num[:, 0] = x_num[:, 0] + 42.0
-    x_perturbed = pre_encoder(x_num)
+    x_perturbed = encoder(x_num)
     # Make sure other column embeddings are unchanged
     assert (x_perturbed[:, 1:, :] == x_emb[:, 1:, :]).all()

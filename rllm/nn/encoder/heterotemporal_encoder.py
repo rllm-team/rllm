@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 from torch.nn import ModuleDict
 
-from .positional_encoder import PositionalEncoder
+from .col_encoder._positional_encoder import PositionalEncoder
 
 
 class HeteroTemporalEncoder(torch.nn.Module):
@@ -15,7 +15,22 @@ class HeteroTemporalEncoder(torch.nn.Module):
     Args:
         node_types (List[str]): The list of node types.
         channels (int): The number of channels.
+
+    Returns:
+        The ``forward`` method returns a dictionary from node type to
+        temporal embeddings.
+
+    Example:
+        >>> import torch
+        >>> enc = HeteroTemporalEncoder(node_types=["user", "item"], channels=16)
+        >>> seed_time = torch.tensor([1000.0, 1100.0])
+        >>> time_dict = {"user": torch.tensor([900.0]), "item": torch.tensor([950.0])}
+        >>> batch_dict = {"user": torch.tensor([0]), "item": torch.tensor([1])}
+        >>> out = enc(seed_time, time_dict, batch_dict)
+        >>> out["user"].shape
+        torch.Size([1, 16])
     """
+
     def __init__(self, node_types: List[str], channels: int):
         super().__init__()
 
@@ -27,6 +42,7 @@ class HeteroTemporalEncoder(torch.nn.Module):
         )
 
     def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
         for encoder in self.encoder_dict.values():
             encoder.reset_parameters()
         for lin in self.lin_dict.values():
@@ -38,6 +54,19 @@ class HeteroTemporalEncoder(torch.nn.Module):
         time_dict: Dict[str, Tensor],
         batch_dict: Dict[str, Tensor],
     ) -> Dict[str, Tensor]:
+        r"""Compute relative temporal embeddings for each node type.
+
+        Args:
+            seed_time (Tensor): The reference timestamps for seed nodes of
+                shape :obj:`[num_seeds]`.
+            time_dict (Dict[str, Tensor]): Timestamps per node type.
+            batch_dict (Dict[str, Tensor]): Batch assignment indices per
+                node type, mapping each node to a seed node.
+
+        Returns:
+            Dict[str, Tensor]: Temporal embeddings per node type of shape
+            :obj:`[num_nodes, channels]`.
+        """
         out_dict: Dict[str, Tensor] = {}
 
         for node_type, time in time_dict.items():

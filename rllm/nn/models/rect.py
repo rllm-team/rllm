@@ -17,6 +17,14 @@ class RECT_L(torch.nn.Module):
         hidden_dim (int): Intermediate size of each sample.
         dropout (float, optional): The dropout probability.
             (default: :obj:`0.0`)
+
+    Example:
+        >>> import torch
+        >>> model = RECT_L(in_dim=16, hidden_dim=8)
+        >>> x = torch.randn(4, 16)
+        >>> adj = torch.tensor([[0, 1, 2], [1, 2, 3]])
+        >>> model(x, adj).shape
+        torch.Size([4, 16])
     """
 
     def __init__(
@@ -41,18 +49,45 @@ class RECT_L(torch.nn.Module):
         torch.nn.init.xavier_uniform_(self.lin.weight.data)
 
     def forward(self, x: Tensor, adj: Tensor):
+        """Encode node features and reconstruct semantic targets.
+
+        Args:
+            x (Tensor): Input node features.
+            adj (Tensor): Graph connectivity.
+
+        Returns:
+            Tensor: Reconstructed output features.
+        """
         x = self.prelu(self.conv(x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
         return self.lin(x)
 
     @torch.jit.export
     def embed(self, x: Tensor, adj: Tensor):
+        """Compute hidden embeddings without gradient updates.
+
+        Args:
+            x (Tensor): Input node features.
+            adj (Tensor): Graph connectivity.
+
+        Returns:
+            Tensor: Hidden node embeddings.
+        """
         with torch.no_grad():
             return self.prelu(self.conv(x, adj))
 
     @torch.jit.export
     def get_semantic_labels(self, x: Tensor, y: Tensor, mask: Tensor):
-        r"""Replaces the original labels by their class-centers."""
+        r"""Replace labels with corresponding class-center embeddings.
+
+        Args:
+            x (Tensor): Node embeddings.
+            y (Tensor): Class labels.
+            mask (Tensor): Mask selecting labeled nodes.
+
+        Returns:
+            Tensor: Class-center embeddings for labeled nodes.
+        """
         device = x.device
         with torch.no_grad():
             x = x[mask]

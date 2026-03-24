@@ -4,19 +4,31 @@ from typing import Dict, List, Optional
 from abc import ABC, abstractmethod
 
 import torch
-from torch import Tensor
+from torch import Tensor, Union
 
 from rllm.types import ColType, StatType
 
 
 def _reset_parameters_soft(module: torch.nn.Module):
-    r"""Call reset_parameters() only when it exists. Skip activation module."""
+    r"""Safely reset parameters for a module if supported.
+
+    This helper checks whether ``module`` exposes a callable
+    ``reset_parameters`` method and invokes it when available.
+
+    Args:
+        module (torch.nn.Module): Module to reset.
+
+    Example:
+        >>> import torch
+        >>> layer = torch.nn.Linear(4, 8)
+        >>> _reset_parameters_soft(layer)
+    """
     if hasattr(module, "reset_parameters") and callable(module.reset_parameters):
         module.reset_parameters()
 
 
 class ColEncoder(torch.nn.Module, ABC):
-    r"""Base class for columns pre_encoder. This module encodes tensor of some
+    r"""Base class for columns encoder. This module encodes tensor of some
     specific columns type into 3-dimensional column-wise tensor
     that is input into tabular deep learning models.
     Columns with same ColType will be encoded into tensors.
@@ -37,7 +49,7 @@ class ColEncoder(torch.nn.Module, ABC):
         self,
         out_dim: Optional[int] = None,
         stats_list: Optional[List[Dict[StatType]]] = None,
-        post_module: Optional[torch.nn.Module] = None,
+        post_module: Union[torch.nn.Module, torch.nn.Sequential] = None,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""
@@ -79,6 +91,9 @@ class ColEncoder(torch.nn.Module, ABC):
         x = self.encode_forward(feat)
         # Handle NaN in case na_mode is None
         x = torch.nan_to_num(x, nan=0)
+        # Apply post module if specified
+        if self.post_module is not None:
+            x = self.post_module(x)
         return x
 
     @abstractmethod

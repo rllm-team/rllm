@@ -68,7 +68,6 @@ Models
    :template: autosummary/class.rst
 
    RECT_L
-   TabNet
    BRIDGE
    TransTab
    TableResNet

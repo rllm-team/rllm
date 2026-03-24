@@ -10,14 +10,15 @@ import torch
 from torch import Tensor
 from transformers import BertTokenizerFast
 
-from .pre_encoder import PreEncoder
-from ._transtab_word_embedding_encoder import TransTabWordEmbeddingEncoder
-from ._transtab_num_embedding_encoder import TransTabNumEmbeddingEncoder
+from .table_pre_encoder import TablePreEncoder
+from .col_encoder._transtab_num_embedding_encoder import TransTabNumEmbeddingEncoder
+from .col_encoder._transtab_word_embedding_encoder import TransTabWordEmbeddingEncoder
+
 from rllm.types import ColType
 from rllm.data.table_data import TableData
 
 
-class TransTabPreEncoder(PreEncoder):
+class TransTabPreEncoder(TablePreEncoder):
     r"""Pre-encoder for the TransTab model as proposed in
     `"TransTab: Learning Transferable Tabular Transformers Across Tables"
     <https://arxiv.org/abs/2205.09328>`_ paper.
@@ -61,6 +62,10 @@ class TransTabPreEncoder(PreEncoder):
             variable ``TOKENIZERS_PARALLELISM=false``.
         ignore_duplicate_cols (bool): If ``True``, automatically rename
             duplicate column names; otherwise raise :class:`ValueError`.
+
+    Returns:
+        The ``forward`` method returns either aligned embeddings with attention
+        masks, a dictionary of encoded tensors, or a concatenated tensor.
     """
 
     def __init__(
@@ -86,7 +91,7 @@ class TransTabPreEncoder(PreEncoder):
             ignore_duplicate_cols,
         )
 
-        col_pre_encoder_dict = {
+        col_encoder_dict = {
             ColType.CATEGORICAL: TransTabWordEmbeddingEncoder(
                 vocab_size=self.tokenizer.vocab_size,
                 out_dim=out_dim,
@@ -103,7 +108,7 @@ class TransTabPreEncoder(PreEncoder):
             ),
             ColType.NUMERICAL: TransTabNumEmbeddingEncoder(hidden_dim=out_dim),
         }
-        super().__init__(out_dim, metadata, col_pre_encoder_dict)
+        super().__init__(out_dim, metadata, col_encoder_dict)
 
         self.align_layer = (
             torch.nn.Linear(out_dim, out_dim, bias=False)
@@ -158,9 +163,7 @@ class TransTabPreEncoder(PreEncoder):
             else []
         )
         self.binary_columns: List[str] = (
-            self._deduplicate_preserve_order(binary_columns)
-            if binary_columns
-            else []
+            self._deduplicate_preserve_order(binary_columns) if binary_columns else []
         )
         self.ignore_duplicate_cols = ignore_duplicate_cols
 
@@ -302,27 +305,21 @@ class TransTabPreEncoder(PreEncoder):
             out["x_num"] = feat_dict[ColType.NUMERICAL].float()
             if colname_token_ids is not None:
                 num_cols = [
-                    c
-                    for c in colname_token_ids.keys()
-                    if c in self.numerical_columns
+                    c for c in colname_token_ids.keys() if c in self.numerical_columns
                 ]
                 if shuffle:
                     np.random.shuffle(num_cols)
                 if num_cols:
                     num_ids_list = [colname_token_ids[c][0] for c in num_cols]
                     num_mask_list = [colname_token_ids[c][1] for c in num_cols]
-                    out["num_col_input_ids"] = torch.stack(
-                        num_ids_list, dim=0
-                    ).long()
+                    out["num_col_input_ids"] = torch.stack(num_ids_list, dim=0).long()
                     out["num_att_mask"] = torch.stack(num_mask_list, dim=0).long()
 
         if ColType.BINARY in feat_dict:
             x_bin = feat_dict[ColType.BINARY]
             if colname_token_ids is not None:
                 bin_cols = [
-                    c
-                    for c in colname_token_ids.keys()
-                    if c in self.binary_columns
+                    c for c in colname_token_ids.keys() if c in self.binary_columns
                 ]
                 if shuffle:
                     np.random.shuffle(bin_cols)
@@ -362,11 +359,11 @@ class TransTabPreEncoder(PreEncoder):
         for col_type, feat in feat_dict.items():
             if col_type == ColType.NUMERICAL:
                 col_ids, col_mask, raw_vals = feat
-                token_emb = self.pre_encoder_dict[ColType.CATEGORICAL.value](col_ids)
+                token_emb = self.col_encoder_dict[ColType.CATEGORICAL.value](col_ids)
                 mask = col_mask.unsqueeze(-1)
                 token_emb = token_emb * mask
                 col_emb = token_emb.sum(1) / mask.sum(1)
-                num_emb = self.pre_encoder_dict[ColType.NUMERICAL.value](
+                num_emb = self.col_encoder_dict[ColType.NUMERICAL.value](
                     col_emb, raw_vals=raw_vals
                 )
                 feat_encoded[col_type] = num_emb
@@ -375,7 +372,7 @@ class TransTabPreEncoder(PreEncoder):
                     input_ids = feat[0]
                 else:
                     input_ids = feat
-                feat_encoded[col_type] = self.pre_encoder_dict[col_type.value](
+                feat_encoded[col_type] = self.col_encoder_dict[col_type.value](
                     input_ids
                 )
         return feat_encoded
@@ -398,9 +395,7 @@ class TransTabPreEncoder(PreEncoder):
                     df_masks["cat_att_mask"].to(self.device).float()
                 )
             if "bin_att_mask" in df_masks and ColType.BINARY in emb_dict:
-                masks[ColType.BINARY] = (
-                    df_masks["bin_att_mask"].to(self.device).float()
-                )
+                masks[ColType.BINARY] = df_masks["bin_att_mask"].to(self.device).float()
         else:
             for ct in (ColType.CATEGORICAL, ColType.BINARY):
                 if ct in emb_dict:
@@ -432,11 +427,9 @@ class TransTabPreEncoder(PreEncoder):
             mask_list.append(masks[ColType.BINARY])
 
         if len(emb_list) == 0:
-            raise ValueError(
-                "No features were encoded; check column configuration."
-            )
+            raise ValueError("No features were encoded; check column configuration.")
 
-        all_emb = torch.cat(emb_list, dim=1)   # [B, total_seq_len, D]
+        all_emb = torch.cat(emb_list, dim=1)  # [B, total_seq_len, D]
         all_mask = torch.cat(mask_list, dim=1)  # [B, total_seq_len]
         return {"embedding": all_emb, "attention_mask": all_mask}
 
@@ -563,9 +556,7 @@ class TransTabPreEncoder(PreEncoder):
 
         encoder_path = os.path.join(ckpt_dir, "input_encoder.bin")
         try:
-            state_dict = torch.load(
-                encoder_path, map_location="cpu", weights_only=True
-            )
+            state_dict = torch.load(encoder_path, map_location="cpu", weights_only=True)
         except TypeError:
             state_dict = torch.load(encoder_path, map_location="cpu")
         missing, unexpected = self.load_state_dict(state_dict, strict=False)

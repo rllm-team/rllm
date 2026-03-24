@@ -11,12 +11,23 @@ class PositionalEncoder(Module):
 
     Args:
         out_size (int): The output dimension size.
+
+    Returns:
+        The ``forward`` method returns an encoded tensor of shape
+        :obj:`input_tensor.shape + (out_size,)`.
+
+    Example:
+        >>> import torch
+        >>> enc = PositionalEncoder(out_size=8)
+        >>> x = torch.rand(2, 3)
+        >>> enc(x).shape
+        torch.Size([2, 3, 8])
     """
+
     def __init__(self, out_size: int) -> None:
         super().__init__()
         if out_size % 2 != 0:
-            raise ValueError(
-                f"out_size should be divisible by 2 (got {out_size}).")
+            raise ValueError(f"out_size should be divisible by 2 (got {out_size}).")
         self.out_size = out_size
         self.mult_term: Tensor
         self.register_buffer(
@@ -32,10 +43,18 @@ class PositionalEncoder(Module):
         pass
 
     def forward(self, input_tensor: Tensor) -> Tensor:
+        r"""Apply sinusoidal positional encoding.
+
+        Args:
+            input_tensor (Tensor): Input scalar values of shape :obj:`(*,)`.
+
+        Returns:
+            Tensor: Encoded tensor of shape :obj:`(*, out_size)`.
+        """
         assert torch.all(input_tensor >= 0)
         # (*, 1) * (1, ..., 1, out_size // 2) -> (*, out_size // 2)
         mult_tensor = input_tensor.unsqueeze(-1) * self.mult_term.reshape(
-            (1, ) * input_tensor.ndim + (-1, ))
+            (1,) * input_tensor.ndim + (-1,)
+        )
         # cat([(*, out_size // 2), (*, out_size // 2)]) -> (*, out_size)
-        return torch.cat([torch.sin(mult_tensor),
-                          torch.cos(mult_tensor)], dim=-1)
+        return torch.cat([torch.sin(mult_tensor), torch.cos(mult_tensor)], dim=-1)
