@@ -9,6 +9,13 @@ def remove_self_loops(adj: Tensor):
     r"""Remove self-loops from the adjacency matrix.
     Args:
         adj (Tensor): the adjacency matrix.
+
+    Shape:
+        - Input: Sparse or dense adjacency matrix ``[num_nodes, num_nodes]``.
+        - Output: Adjacency matrix with diagonal entries removed.
+
+    Examples:
+        >>> adj = remove_self_loops(adj)
     """
     shape = adj.shape
     device = adj.device

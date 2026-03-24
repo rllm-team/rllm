@@ -30,10 +30,6 @@ class LinearEncoder(ColEncoder):
             applied after the linear transformation. If :obj:`None`,
             no activation function will be applied (default: :obj:`None`).
 
-    Returns:
-        The ``forward`` method returns embeddings of shape
-        ``[batch_size, num_cols, out_dim]``.
-
     Example:
         >>> import torch
         >>> from rllm.types import StatType
@@ -41,8 +37,7 @@ class LinearEncoder(ColEncoder):
         >>> enc = LinearEncoder(in_dim=1, out_dim=8, stats_list=stats)
         >>> enc.post_init()
         >>> x = torch.randn(5, 3)
-        >>> enc(x).shape
-        torch.Size([5, 3, 8])
+        >>> out = enc(x)
     """
 
     supported_types = {ColType.NUMERICAL}

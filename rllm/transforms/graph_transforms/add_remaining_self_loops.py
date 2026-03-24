@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 from torch import Tensor
 
 from rllm.transforms.graph_transforms import EdgeTransform
@@ -15,12 +13,20 @@ class AddRemainingSelfLoops(EdgeTransform):
     Args:
         fill_value (Any): values to be filled in the self-loops,
             the default values is 1.0
+
+    Shape:
+        - Input: Sparse or dense adjacency matrix of shape
+          ``[num_nodes, num_nodes]``.
+        - Output: Adjacency matrix of the same shape.
+
+    Examples:
+        >>> transform = AddRemainingSelfLoops(fill_value=1.0)
+        >>> adj = transform(adj)
     """
 
     def __init__(self, fill_value=1.0):
         self.fill_value = fill_value
         self.data = None
 
-    @lru_cache()
     def forward(self, adj: Tensor) -> Tensor:
         return add_remaining_self_loops(adj, self.fill_value)

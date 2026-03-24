@@ -15,6 +15,16 @@ class StackNumerical(ColTransform):
     Args:
         out_dim (int): The output dimensionality to which the numerical
             features will be stacked.
+
+    Shape:
+        - Input: ``data.feat_dict[ColType.NUMERICAL]`` with shape
+          ``[batch_size, num_numerical_cols]``.
+        - Output: Tensor with shape
+          ``[batch_size, num_numerical_cols, out_dim]``.
+
+    Examples:
+        >>> transform = StackNumerical(out_dim=32)
+        >>> data = transform(data)
     """
 
     def __init__(

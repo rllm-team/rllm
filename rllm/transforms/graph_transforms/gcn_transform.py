@@ -16,6 +16,14 @@ class GCNTransform(GT.GraphTransform):
     Args:
         normalize_features (str):
             The method used to normalize the features (default: :obj:`l1`).
+
+    Shape:
+        - Input: Graph-like data containing ``x`` and ``adj``.
+        - Output: Same data type with normalized features and adjacency.
+
+    Examples:
+        >>> transform = GCNTransform(normalize_features="l2")
+        >>> data = transform(data)
     """
 
     def __init__(self, normalize_features: str = "l1"):

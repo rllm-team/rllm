@@ -15,6 +15,16 @@ class GraphTransform(torch.nn.Module, ABC):
     Args:
         transforms (List[Callable]): A list of transformation functions to be
             applied to the graph data.
+
+    Shape:
+        - Input: :class:`~rllm.data.graph_data.GraphData`,
+          :class:`~rllm.data.graph_data.HeteroGraphData`, or a list/tuple of
+          them.
+        - Output: Same structure as input after sequential transforms.
+
+    Examples:
+        >>> transform = GraphTransform([NormalizeFeatures("l2"), GCNNorm()])
+        >>> data = transform(data)
     """
 
     def __init__(

@@ -16,10 +16,6 @@ class HeteroTemporalEncoder(torch.nn.Module):
         node_types (List[str]): The list of node types.
         channels (int): The number of channels.
 
-    Returns:
-        The ``forward`` method returns a dictionary from node type to
-        temporal embeddings.
-
     Example:
         >>> import torch
         >>> enc = HeteroTemporalEncoder(node_types=["user", "item"], channels=16)

@@ -16,6 +16,14 @@ class RECTTransform(GT.GraphTransform):
             reduction (default: 200).
         use_gdc (bool): Whether to use Graph Diffusion Convolution (GDC)
             instead of GCN normalization (default: False).
+
+    Shape:
+        - Input: Graph-like data containing ``x`` and ``adj``.
+        - Output: Same data type with transformed features and adjacency.
+
+    Examples:
+        >>> transform = RECTTransform(svd_out_dim=200, use_gdc=False)
+        >>> data = transform(data)
     """
 
     def __init__(

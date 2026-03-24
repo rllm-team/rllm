@@ -20,16 +20,11 @@ class CyclicEncoder(Module):
     Args:
         out_size (int): The output dimension size.
 
-    Returns:
-        The ``forward`` method returns encoded tensor with shape
-        ``input_tensor.shape + (out_size,)``.
-
     Example:
         >>> import torch
         >>> enc = CyclicEncoder(out_size=8)
         >>> x = torch.rand(2, 3)
-        >>> enc(x).shape
-        torch.Size([2, 3, 8])
+        >>> out = enc(x)
     """
 
     def __init__(self, out_size: int) -> None:

@@ -24,9 +24,6 @@ class TromptPreEncoder(PreEncoder):
             properties of the columns.
         in_dim (int, optional): The input dimensionality for numerical features
             (default: :obj:`1`).
-
-    Returns:
-        Encoded outputs are produced by inherited ``forward``.
     """
 
     def __init__(

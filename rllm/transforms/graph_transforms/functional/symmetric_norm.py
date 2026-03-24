@@ -9,13 +9,19 @@ from rllm.utils.sparse import (
 
 
 def symmetric_norm(adj: Tensor):
-    """
-    Perform symmetric normalization on the adjacency matrix.
+    r"""Perform symmetric normalization on the adjacency matrix.
 
     Args:
         adj (Tensor): the sparse adjacency matrix,
             whose layout could be `torch.sparse_coo`, `torch.sparse_csr`
             and `torch.sparse_csc`.
+
+    Shape:
+        - Input: Sparse adjacency matrix ``[num_nodes, num_nodes]``.
+        - Output: Sparse normalized adjacency matrix with same shape.
+
+    Examples:
+        >>> norm_adj = symmetric_norm(adj)
     """
     shape = adj.shape
     device = adj.device

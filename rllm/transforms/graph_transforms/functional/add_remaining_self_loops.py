@@ -14,6 +14,13 @@ def add_remaining_self_loops(adj: Tensor, fill_value=1.0):
         adj (Tensor): the adjacency matrix.
         fill_value (Any): values to be filled in the self-loops,
             the default values is 1.
+
+    Shape:
+        - Input: Sparse or dense adjacency matrix ``[num_nodes, num_nodes]``.
+        - Output: Adjacency matrix with self-loops and same shape.
+
+    Examples:
+        >>> adj = add_remaining_self_loops(adj, fill_value=1.0)
     """
     shape = adj.shape
     device = adj.device

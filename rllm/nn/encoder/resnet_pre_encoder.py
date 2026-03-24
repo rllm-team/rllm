@@ -20,9 +20,6 @@ class ResNetPreEncoder(PreEncoder):
             Metadata for each column type, specifying the statistics and
             properties of the columns.
 
-    Returns:
-        Encoded outputs are produced when inherited ``forward`` is called.
-
     Example:
         >>> from rllm.nn.encoder import ResNetPreEncoder
         >>> from rllm.types import ColType

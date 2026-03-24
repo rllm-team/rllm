@@ -32,8 +32,6 @@ class ResNetConv(torch.nn.Module):
         >>> conv = ResNetConv(in_dim=16, out_dim=32, normalization="layer_norm", dropout=0.1)
         >>> x = torch.randn(64, 16)
         >>> out = conv(x)
-        >>> out.shape
-        torch.Size([64, 32])
     """
 
     def __init__(
@@ -85,9 +83,6 @@ class ResNetConv(torch.nn.Module):
 
         Args:
             x (Tensor): Input tensor of shape ``[..., in_dim]``.
-
-        Returns:
-            Tensor: Output tensor of shape ``[..., out_dim]``.
         """
         residual = x
 

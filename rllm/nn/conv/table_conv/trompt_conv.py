@@ -29,8 +29,6 @@ class TromptConv(torch.nn.Module):
         >>> x = torch.randn(8, 10, 16)
         >>> x_prompt = torch.randn(8, 4, 16)
         >>> out = conv(x, x_prompt)
-        >>> out.shape
-        torch.Size([8, 4, 16])
     """
 
     def __init__(
@@ -73,10 +71,6 @@ class TromptConv(torch.nn.Module):
                 ``[batch_size, in_dim, out_dim]``.
             x_prompt (Tensor): Prompt embeddings of shape
                 ``[batch_size, num_prompts, out_dim]``.
-
-        Returns:
-            Tensor: Aggregated prompt representations of shape
-            ``[batch_size, num_prompts, out_dim]``.
         """
 
         emb_column = self.ln_column(self.emb_column)

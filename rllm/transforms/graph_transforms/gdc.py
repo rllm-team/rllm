@@ -41,6 +41,17 @@ class GDC(EdgeTransform):
             parameters.
             (default: :obj:`dict(method='threshold', avg_degree=64)`)
 
+    Shape:
+        - Input: Sparse adjacency matrix ``[num_nodes, num_nodes]``.
+        - Output: Diffused sparse adjacency matrix ``[num_nodes, num_nodes]``.
+
+    Examples:
+        >>> transform = GDC(
+        ...     diffusion=dict(method="ppr", alpha=0.15),
+        ...     sparsification=dict(method="threshold", avg_degree=64),
+        ... )
+        >>> adj = transform(adj)
+
     """
 
     def __init__(
@@ -111,6 +122,12 @@ class GDC(EdgeTransform):
                 3. :obj:`"row"`: Row-wise normalization
                 4. :obj:`None`: No normalization.
 
+        Shape:
+            - Input: Sparse adjacency matrix ``[num_nodes, num_nodes]``.
+            - Output: Sparse transition matrix ``[num_nodes, num_nodes]``.
+
+        Examples:
+            >>> trans = transform.get_transition_matrix(adj, normalize="sym")
         """
         adj = adj.coalesce()
         indices = adj.indices()
@@ -160,7 +177,6 @@ class GDC(EdgeTransform):
 
         Args:
             adj (Tensor): The adjacency matrix.
-            num_nodes (int): Number of nodes.
             method (str): Diffusion method:
 
                 1. :obj:`"ppr"`: Use personalized PageRank as diffusion.
@@ -175,6 +191,12 @@ class GDC(EdgeTransform):
                    - **t** (*float*) - Time of diffusion.
                      default:obj:`[2, 10]`.
 
+        Shape:
+            - Input: Sparse adjacency matrix ``[num_nodes, num_nodes]``.
+            - Output: Dense diffusion matrix ``[num_nodes, num_nodes]``.
+
+        Examples:
+            >>> diff = transform.diffusion_matrix(adj, method="ppr", alpha=0.15)
         """
         if method == "ppr":
             # α (I_n + (α - 1) A)^-1
@@ -202,8 +224,7 @@ class GDC(EdgeTransform):
         r"""Sparsifies the given sparse graph.
 
         Args:
-            adj (Tensor): The adjacency matrix.
-            num_nodes (int): Number of nodes.
+            mx (Tensor): The dense adjacency/diffusion matrix.
             method (str): Method of sparsification:
 
                 1. :obj:`"threshold"`: Remove all edges with weights smaller
@@ -223,6 +244,12 @@ class GDC(EdgeTransform):
 
                    - **dim** (*int*) - The dim along which to take the top.
 
+        Shape:
+            - Input: Dense matrix ``[num_nodes, num_nodes]``.
+            - Output: Dense or sparse matrix with same shape.
+
+        Examples:
+            >>> sparse_mx = transform.sparsify_matrix(mx, method="topk", k=16, dim=1)
         """
         if method == "threshold":
             if "eps" not in kwargs.keys():
@@ -265,6 +292,12 @@ class GDC(EdgeTransform):
             adj (Tensor): The adjacency matrix.
             avg_degree (int): Target average degree.
 
+        Shape:
+            - Input: Dense matrix ``[num_nodes, num_nodes]``.
+            - Output: Scalar threshold value.
+
+        Examples:
+            >>> eps = transform.__calculate_eps__(mx, avg_degree=64)
         """
         edge_weights = adj.flatten()
         sorted_edges = torch.sort(edge_weights.flatten(), descending=True).values

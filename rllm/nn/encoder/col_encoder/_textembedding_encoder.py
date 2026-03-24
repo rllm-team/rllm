@@ -23,10 +23,6 @@ class TextEmbeddingEncoder(ColEncoder):
             preserve the shape of the output. If :obj:`None`, no module will
             be applied to the output (default: :obj:`None`).
 
-    Returns:
-        The ``forward`` method returns text column embeddings with shape
-        ``[batch_size, num_text_cols, out_dim]``.
-
     Example:
         >>> import torch
         >>> from rllm.types import StatType
@@ -34,8 +30,7 @@ class TextEmbeddingEncoder(ColEncoder):
         >>> enc = TextEmbeddingEncoder(out_dim=4, stats_list=stats)
         >>> enc.post_init()
         >>> x = torch.randn(3, 2, 6)
-        >>> enc(x).shape
-        torch.Size([3, 2, 4])
+        >>> out = enc(x)
     """
 
     supported_types = {ColType.TEXT}

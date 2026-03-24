@@ -48,6 +48,10 @@ class TableTransform(torch.nn.Module, ABC):
             functions to be applied to the input data. Each function in the
             list should take the input data as an argument and return the
             transformed data. (default: :obj=`None`)
+
+    Examples:
+        >>> transform = DefaultTableTransform()
+        >>> data = transform(data)
     """
 
     def __init__(
@@ -55,7 +59,7 @@ class TableTransform(torch.nn.Module, ABC):
         out_dim: Optional[int] = None,
         col_type: Optional[ColType] = None,
         post_module: Optional[torch.nn.Module] = None,
-        na_mode: Optional[Dict[StatType, NAMode]] = None,
+        na_mode: Optional[Dict[ColType, NAMode]] = None,
         transforms: Optional[List[Callable]] = None,
     ):
         r"""Since many attributes are specified later,
@@ -84,7 +88,7 @@ class TableTransform(torch.nn.Module, ABC):
         self.out_dim = out_dim
         self.post_module = post_module
         self.na_mode = na_mode
-        self.transforms = transforms
+        self.transforms = transforms or []
 
     @abstractmethod
     def reset_parameters(self):
@@ -99,7 +103,7 @@ class TableTransform(torch.nn.Module, ABC):
     def forward(
         self,
         data: TableData,
-    ) -> Tensor:
+    ) -> TableData:
         # NaN handling of the input Tensor
         data = self.nan_forward(data)
 
@@ -111,16 +115,24 @@ class TableTransform(torch.nn.Module, ABC):
     def nan_forward(
         self,
         data: TableData,
-    ) -> Tensor:
-        r"""Replace NaN values in input :obj:`Tensor` given
+    ) -> TableData:
+        r"""Replace NaN values in table features given
         :obj:`na_mode`.
 
         Args:
-            feat: Input :obj:`Tensor`.
+            data (TableData): Input table data.
 
         Returns:
-            Tensor: Output :obj:`Tensor` with NaNs replaced given
+            TableData: Output table data with NaNs replaced according to
             :obj:`na_mode`.
+
+        Shape:
+            - Input: ``data.feat_dict[col_type]`` is usually
+              ``[batch_size, num_cols]`` or ``[batch_size, num_cols, out_dim]``.
+            - Output: Same shapes as input.
+
+        Examples:
+            >>> data = transform.nan_forward(data)
         """
         if self.na_mode is None:
             return data
@@ -141,7 +153,9 @@ class TableTransform(torch.nn.Module, ABC):
 
             feat = self._fill_nan(feat, data.metadata[col_type], self.na_mode[col_type])
             # Handle NaN in case na_mode is None
-            feats[col_type] = torch.nan_to_num(feat, nan=0)
+            feats[col_type] = (
+                torch.nan_to_num(feat, nan=0) if feat.is_floating_point() else feat
+            )
 
         data.feat_dict = feats
         return data
@@ -152,7 +166,21 @@ class TableTransform(torch.nn.Module, ABC):
         stats_list: Dict[StatType, float],
         na_mode: NAMode,
     ) -> Tensor:
-        r"""Replace NaN values in input :obj:`Tensor` given :obj:`na_mode`."""
+        r"""Replace NaN values in input :obj:`Tensor` given :obj:`na_mode`.
+
+        Args:
+            feat (Tensor): Input feature tensor.
+            stats_list (Dict[StatType, float]): Per-column statistics.
+            na_mode (NAMode): Fill strategy.
+
+        Shape:
+            - Input: ``[batch_size, num_cols]`` or
+              ``[batch_size, num_cols, out_dim]``.
+            - Output: Same shape as input.
+
+        Examples:
+            >>> feat = transform._fill_nan(feat, stats_list, NAMode.MEAN)
+        """
         if isinstance(feat, Tensor):
             # cache for future use
             na_mask = _get_na_mask(feat)

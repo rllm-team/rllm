@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
-from rllm.transforms.table_transforms.col_normalize import ColNormalize
 from rllm.types import ColType
-from rllm.transforms.table_transforms import TableTransform
+from rllm.transforms.table_transforms import TableTransform,ColNormalize
 
 
 class TabTransformerTransform(TableTransform):
@@ -15,6 +14,10 @@ class TabTransformerTransform(TableTransform):
         metadata (Dict[ColType, List[Dict[str, Any]]], optional): Metadata
             containing information about the columns, such as statistics.
             (default: :obj:`None`)
+
+    Examples:
+        >>> transform = TabTransformerTransform(out_dim=32)
+        >>> data = transform(data)
     """
 
     def __init__(
@@ -23,11 +26,12 @@ class TabTransformerTransform(TableTransform):
         metadata: Dict[ColType, List[Dict[str, Any]]] = None,
     ) -> None:
         super().__init__(
-            out_dim=out_dim, transforms=[ColNormalize()]  # , StackNumerical(out_dim)],
+            out_dim=out_dim, transforms=[ColNormalize()]
         )
         self.metadata = metadata
 
     def reset_parameters(self) -> None:
         super().reset_parameters()
         for transform in self.transforms:
-            transform.reset_parameters()
+            if hasattr(transform, "reset_parameters"):
+                transform.reset_parameters()

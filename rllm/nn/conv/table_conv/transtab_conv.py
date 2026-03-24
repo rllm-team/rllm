@@ -57,8 +57,6 @@ class TransTabConv(torch.nn.Module):
         >>> x = torch.randn(8, 10, 32)
         >>> mask = torch.ones(8, 10, dtype=torch.bool)
         >>> out = conv(x, src_key_padding_mask=mask)
-        >>> out.shape
-        torch.Size([8, 10, 32])
     """
 
     __constants__ = ["batch_first", "norm_first"]
@@ -136,7 +134,7 @@ class TransTabConv(torch.nn.Module):
         r"""Pass the input through this encoder layer.
 
         Args:
-            src (Tensor): Input tensor of shape
+            x (Tensor): Input tensor of shape
                 `(batch_size, seq_len, conv_dim)` if `batch_first=True`,
                 else `(seq_len, batch_size, conv_dim)`.
             src_mask (Optional[Tensor]): Attention mask of shape
@@ -144,11 +142,6 @@ class TransTabConv(torch.nn.Module):
             src_key_padding_mask (Optional[Tensor]): Padding mask of shape
                 `(batch_size, seq_len)` where True values are ignored. (default: None)
             is_causal (Optional[bool]): Unused; present for API compatibility.
-
-        Returns:
-            Tensor: Output tensor of the same shape as `src`, after applying
-            self-attention, gated feedforward, residual connections, and
-            optional layer normalization.
         """
 
         if self.use_layer_norm:

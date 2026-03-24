@@ -13,6 +13,10 @@ class DefaultTableTransform(TableTransform):
         metadata (Dict[ColType, List[Dict[str, Any]]], optional): Metadata
             containing information about the columns, such as statistics.
             (default: :obj:`None`)
+
+    Examples:
+        >>> transform = DefaultTableTransform()
+        >>> data = transform(data)
     """
 
     def __init__(

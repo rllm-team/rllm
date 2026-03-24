@@ -42,9 +42,6 @@ class GLULayer(torch.nn.Module):
 
         Args:
             x (Tensor): Input tensor of shape ``[batch_size, num_cols, in_dim]``.
-
-        Returns:
-            Tensor: Output tensor of shape ``[batch_size, num_cols, out_dim]``.
         """
         x = self.fc(x)
         x, gates = x.chunk(2, dim=2)
@@ -98,9 +95,6 @@ class SemiPermeableAttention(torch.nn.Module):
 
         Args:
             x (Tensor): Input tensor of shape ``[batch_size, num_cols, dim]``.
-
-        Returns:
-            Tensor: Output tensor of shape ``[batch_size, num_cols, dim]``.
         """
         q, k, v = self.to_qkv(x).chunk(3, dim=-1)
         q = self._rearrange_qkv(q)
@@ -157,8 +151,6 @@ class ExcelFormerConv(torch.nn.Module):
         >>> conv = ExcelFormerConv(conv_dim=32, num_heads=8, head_dim=16, dropout=0.1)
         >>> x = torch.randn(10, 7, 32)
         >>> out = conv(x)
-        >>> out.shape
-        torch.Size([10, 7, 32])
     """
 
     def __init__(
@@ -190,9 +182,6 @@ class ExcelFormerConv(torch.nn.Module):
         Args:
             x (Tensor): Input tensor of shape
                 ``[batch_size, num_cols, conv_dim]``.
-
-        Returns:
-            Tensor: Output tensor with the same shape as input.
         """
         x = x + self.sp_attention(self.layer_norm(x))
         x = x + self.glu_layer(self.glu_norm(x))

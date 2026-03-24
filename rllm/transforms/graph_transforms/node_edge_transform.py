@@ -7,10 +7,24 @@ from rllm.data.graph_data import GraphData, HeteroGraphData
 
 
 class NodeTransform(ABC):
-    r"""An abstract base class for transforming nodes in graph data.
-    It provides a common interface for all node transformation
-    operations. It ensures that the data is shallow-copied to prevent
-    in-place modifications.
+    r"""Base class for node-level transforms.
+
+    This class applies :meth:`forward` to node features while keeping the input
+    container immutable via shallow copy.
+
+    Args:
+        None.
+
+    Shape:
+        - Input: :class:`~rllm.data.graph_data.GraphData`,
+          :class:`~rllm.data.graph_data.HeteroGraphData`, or
+          :class:`torch.Tensor` with shape ``[num_nodes, num_features]``.
+        - Output: Same type as input. Feature shape is determined by the
+          concrete transform.
+
+    Examples:
+        >>> transform = NormalizeFeatures("l2")
+        >>> data = transform(data)
     """
 
     def __call__(self, data):
@@ -39,10 +53,24 @@ class NodeTransform(ABC):
 
 
 class EdgeTransform(ABC):
-    r"""An abstract base class for transforming edges in graph data.
-    It provides a common interface for all edge transformation
-    operations. It ensures that the data is shallow-copied to prevent
-    in-place modifications.
+    r"""Base class for edge-level transforms.
+
+    This class applies :meth:`forward` to adjacency matrices while keeping the
+    input container immutable via shallow copy.
+
+    Args:
+        None.
+
+    Shape:
+        - Input: :class:`~rllm.data.graph_data.GraphData`,
+          :class:`~rllm.data.graph_data.HeteroGraphData`, or square
+          :class:`torch.Tensor` with shape ``[num_nodes, num_nodes]``.
+        - Output: Same type as input. Adjacency shape remains
+          ``[num_nodes, num_nodes]``.
+
+    Examples:
+        >>> transform = RemoveSelfLoops()
+        >>> data = transform(data)
     """
 
     def __call__(self, data):

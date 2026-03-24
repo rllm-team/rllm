@@ -1,4 +1,3 @@
-from functools import lru_cache
 from torch import Tensor
 
 from rllm.transforms.graph_transforms import NodeTransform
@@ -15,11 +14,18 @@ class NormalizeFeatures(NodeTransform):
     Args:
         norm (str): The norm to use to normalize each non zero sample,
             *e.g.*, `l1`, `l2`. (default: `l2`)
+
+    Shape:
+        - Input: Node feature matrix ``[num_nodes, num_features]``.
+        - Output: Normalized feature matrix with same shape.
+
+    Examples:
+        >>> transform = NormalizeFeatures("l2")
+        >>> x = transform(x)
     """
 
     def __init__(self, norm: str = "l2"):
         self.norm = norm
 
-    @lru_cache()
     def forward(self, x: Tensor) -> Tensor:
         return normalize_features(x, self.norm)

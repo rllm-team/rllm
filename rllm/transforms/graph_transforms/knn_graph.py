@@ -1,4 +1,3 @@
-from functools import lru_cache
 from typing import Optional
 
 from torch import Tensor
@@ -24,13 +23,21 @@ class KNNGraph(EdgeTransform):  # TODO: add force_undirected option.
             standard Euclidean distance when p = 2.
             (default: `minkowski`)
         p (float): Power parameter for the Minkowski metric (default: `2`).
-        metric_paramsdict (dict, optinal):
+        metric_params (dict, optional):
             Additional keyword arguments
             for the metric function.
             (default: None)
-        include_self (bool, optinal):
+        include_self (bool, optional):
             If set to True, the graph will contain self-loops. (default: False)
         n_jobs (int): Number of workers to use for computation. (default: 1)
+
+    Shape:
+        - Input: Node feature matrix ``[num_nodes, num_features]``.
+        - Output: Sparse adjacency matrix ``[num_nodes, num_nodes]``.
+
+    Examples:
+        >>> transform = KNNGraph(num_neighbors=6, metric="cosine")
+        >>> adj = transform(x)
     """
 
     def __init__(
@@ -51,7 +58,6 @@ class KNNGraph(EdgeTransform):  # TODO: add force_undirected option.
         self.include_self = include_self
         self.n_jobs = n_jobs
 
-    @lru_cache()
     def forward(self, x: Tensor) -> Tensor:
         knn_adj = knn_graph(
             x,

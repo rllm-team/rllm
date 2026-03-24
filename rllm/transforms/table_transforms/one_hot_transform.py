@@ -18,6 +18,16 @@ class OneHotTransform(ColTransform):
             The output dimensionality for the one-hot encoded features. If set
             to 0, the dimensionality will be determined by the number of
             unique categories in the data (default: 0).
+
+    Shape:
+        - Input: ``data.feat_dict[ColType.CATEGORICAL]`` with shape
+          ``[batch_size, num_categorical_cols]``.
+        - Output: One-hot tensor with shape
+          ``[batch_size, num_categorical_cols, num_classes]``.
+
+    Examples:
+        >>> transform = OneHotTransform(out_dim=16)
+        >>> data = transform(data)
     """
 
     def __init__(

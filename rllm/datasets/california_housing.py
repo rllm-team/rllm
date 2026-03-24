@@ -17,21 +17,33 @@ except Exception as e:
 
 
 class CaliforniaHousing(Dataset):
-    r"""California Housing (Regression) dataset via scikit-learn.
+    r"""The California Housing dataset is a classic regression dataset,
+    fetched from ``sklearn.datasets.fetch_california_housing``.
 
-    Fetches the California Housing dataset using
-    ``sklearn.datasets.fetch_california_housing`` and converts it into a
-    ``TableData`` object with appropriate column types.
+    The dataset contains census block-group level housing information from
+    California. The objective is to predict the median house value.
 
-    Features (8 numerical):
-    - MedInc, HouseAge, AveRooms, AveBedrms, Population, AveOccup, Latitude, Longitude
-
-    Target (numerical):
-    - MedHouseVal
+    .. MedInc: Median income in a block group.
+    .. HouseAge: Median house age in a block group.
+    .. AveRooms: Average number of rooms per household.
+    .. AveBedrms: Average number of bedrooms per household.
+    .. Population: Block-group population.
+    .. AveOccup: Average household occupancy.
+    .. Latitude: Latitude of the block group.
+    .. Longitude: Longitude of the block group.
+    .. Target: Median house value (MedHouseVal).
 
     Args:
-            cached_dir (str): Root directory where dataset should be saved.
-            forced_reload (bool): If set to True, re-process and overwrite.
+        cached_dir (str): Root directory where dataset should be saved.
+        forced_reload (bool): If set to `True`, this dataset will be
+            re-process again.
+
+    .. parsed-literal::
+
+        Statics:
+        Name                 Block Groups  Features
+        Size                 20640         8
+
     """
 
     def __init__(self, cached_dir: str, forced_reload: Optional[bool] = False) -> None:

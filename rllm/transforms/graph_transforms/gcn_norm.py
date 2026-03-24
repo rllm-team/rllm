@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 from torch import Tensor
 
 from rllm.transforms.graph_transforms import EdgeTransform
@@ -17,12 +15,24 @@ class GCNNorm(EdgeTransform):
     .. math::
         \mathbf{\hat{A}} = \mathbf{\hat{D}}^{-1/2} (\mathbf{A} + \mathbf{I})
         \mathbf{\hat{D}}^{-1/2}
+
+    Args:
+        None.
+
+    Shape:
+        - Input: Sparse or dense adjacency matrix of shape
+          ``[num_nodes, num_nodes]``.
+        - Output: Normalized adjacency matrix of shape
+          ``[num_nodes, num_nodes]``.
+
+    Examples:
+        >>> transform = GCNNorm()
+        >>> adj = transform(adj)
     """
 
     def __init__(self):
         pass
 
-    @lru_cache()
     def forward(self, adj: Tensor) -> Tensor:
         adj = add_remaining_self_loops(adj)
         return symmetric_norm(adj)

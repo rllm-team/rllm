@@ -19,9 +19,6 @@ class TabTransformerPreEncoder(PreEncoder):
         metadata (Dict[ColType, List[Dict[str, Any]]]):
             Metadata for each column type, specifying the statistics and
             properties of the columns.
-
-    Returns:
-        Encoded outputs are produced by inherited ``forward``.
     """
 
     def __init__(
