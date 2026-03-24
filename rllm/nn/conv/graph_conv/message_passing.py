@@ -42,7 +42,7 @@ class MessagePassing(torch.nn.Module, ABC):
         self.__explain__ = self.__is_overrided__(self.explain)
         self.__msg_aggr__ = self.__is_overrided__(self.message_and_aggregate)
 
-        self.aggr_module = self.aggr_revoler(aggr, **(aggr_kwargs or {}))
+        self.aggr_module = self.aggr_resolver(aggr, **(aggr_kwargs or {}))
 
     def propagate(
         self,
@@ -157,7 +157,7 @@ class MessagePassing(torch.nn.Module, ABC):
 
     def message_and_aggregate(self, edge_index: Union[Tensor, SparseTensor]) -> Tensor:
         r"""The message and aggregation interface to be overridden by subclasses."""
-        return NotImplemented
+        raise NotImplementedError
 
     def update(self, output: Tensor) -> Tensor:
         r"""Update the dst node embeddings."""
@@ -198,7 +198,6 @@ class MessagePassing(torch.nn.Module, ABC):
     def __func_params__(self, func: Callable) -> OrderedDict:
         return inspect.signature(func).parameters
 
-    @lru_cache
     def __unify_edgeindex__(
         self, edge_index: Tensor
     ) -> Tuple[Tensor, Optional[Tensor]]:
@@ -215,7 +214,6 @@ class MessagePassing(torch.nn.Module, ABC):
         else:
             return edge_index, None
 
-    @lru_cache
     def __adj_to_edges__(self, adj: SparseTensor) -> Tuple[Tensor, Tensor]:
         r"""Converts a sparse adjacency matrix to edge indices."""
         if adj.is_sparse:
@@ -233,7 +231,7 @@ class MessagePassing(torch.nn.Module, ABC):
             MessagePassing, func.__name__
         )
 
-    def aggr_revoler(self, target_aggr: Union[str, Aggregator], **kwargs) -> Aggregator:
+    def aggr_resolver(self, target_aggr: Union[str, Aggregator], **kwargs) -> Aggregator:
         r"""Resolve the aggregator."""
         if isinstance(target_aggr, Aggregator):
             return target_aggr

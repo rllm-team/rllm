@@ -21,6 +21,10 @@ def normalize_features(X: Tensor, norm: str = "l2", return_norm: bool = False):
     elif norm == "sum":
         X -= X.min()
         norms = X.sum(dim=-1, keepdim=True)
+    else:
+        raise ValueError(
+            f"Unsupported norm '{norm}'. Expected one of: 'l1', 'l2', 'sum'."
+        )
 
     X = X.div_(norms.clamp_(min=1.0))
 

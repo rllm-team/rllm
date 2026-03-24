@@ -27,7 +27,7 @@ class GraphTransform(torch.nn.Module, ABC):
 
     def forward(
         self,
-        data: Union[GraphData, HeteroGraphData],
+        data: Union[GraphData, HeteroGraphData, list, tuple],
     ):
         for transform in self.transforms:
             if isinstance(data, (list, tuple)):

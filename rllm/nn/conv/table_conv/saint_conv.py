@@ -27,8 +27,6 @@ class SAINTConv(torch.nn.Module):
         >>> conv = SAINTConv(conv_dim=16, num_cols=8, num_heads=4, dropout=0.1)
         >>> x = torch.randn(32, 8, 16)
         >>> out = conv(x)
-        >>> out.shape
-        torch.Size([32, 8, 16])
     """
 
     def __init__(

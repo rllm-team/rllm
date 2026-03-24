@@ -57,8 +57,6 @@ class TransTabConv(torch.nn.Module):
         >>> x = torch.randn(8, 10, 32)
         >>> mask = torch.ones(8, 10, dtype=torch.bool)
         >>> out = conv(x, src_key_padding_mask=mask)
-        >>> out.shape
-        torch.Size([8, 10, 32])
     """
 
     __constants__ = ["batch_first", "norm_first"]

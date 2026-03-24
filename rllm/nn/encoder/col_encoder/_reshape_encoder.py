@@ -54,7 +54,9 @@ class ReshapeEncoder(ColEncoder):
             self.layernorm = torch.nn.LayerNorm(len(self.stats_list))
 
     def reset_parameters(self) -> None:
-        self.layernorm.reset_parameters()
+        super().reset_parameters()
+        if self.need_layer_norm and hasattr(self, "layernorm"):
+            self.layernorm.reset_parameters()
 
     def encode_forward(
         self,

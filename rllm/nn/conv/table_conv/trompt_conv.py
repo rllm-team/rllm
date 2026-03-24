@@ -33,8 +33,6 @@ class TromptConv(torch.nn.Module):
         >>> x = torch.randn(8, 10, 16)
         >>> x_prompt = torch.randn(8, 4, 16)
         >>> out = conv(x, x_prompt)
-        >>> out.shape
-        torch.Size([8, 4, 16])
     """
 
     def __init__(

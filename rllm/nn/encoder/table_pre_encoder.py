@@ -28,10 +28,6 @@ class TablePreEncoder(torch.nn.Module, ABC):
             parent :class:`stypes <rllm.types.ColType>` are supported
             as keys.
 
-    Returns:
-        The ``forward`` method returns either a concatenated embedding tensor
-        or a dictionary of per-column-type embeddings.
-
     Example:
         >>> from rllm.nn.encoder import TablePreEncoder
         >>> # Usually instantiated through concrete subclasses.

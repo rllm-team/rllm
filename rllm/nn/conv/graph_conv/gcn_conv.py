@@ -103,10 +103,12 @@ class GCNConv(MessagePassing):
             torch.Size([5, 8])
         """
         if self.normalize:
-            assert edge_index.is_sparse, (
-                "GCNorm only support sparse adj matrix as input. "
-                "Please set `normalize=False` to use dense adj matrix."
-            )
+            if not edge_index.is_sparse:
+                raise ValueError(
+                    "GCNNorm requires sparse adjacency input when "
+                    "`normalize=True`. Set `normalize=False` for edge-list "
+                    "or dense inputs."
+                )
             edge_index = self.norm(edge_index)
 
         x = self.linear(x)
