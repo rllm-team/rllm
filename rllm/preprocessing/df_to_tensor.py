@@ -4,7 +4,7 @@ from pandas import Series
 import torch
 from torch import Tensor
 
-from rllm.preprocessing._fillna import fillna_by_coltype
+from rllm.preprocessing.fillna import FillNAConfig, fillna_by_coltype
 from rllm.preprocessing._type_convert import (
     encode_categorical,
     convert_binary,
@@ -22,17 +22,18 @@ from rllm.preprocessing.word_embedding import (
 from rllm.preprocessing.timestamp import TimestampPreprocessor
 from rllm.types import ColType
 
-# df_to_tensor应该是一个可配置的类/函数
+
 def df_to_tensor(
     df,
     col_types,
     target_col=None,
-    text_embedder_config: Optional[TextEmbedderConfig] = None,
-    tokenizer_config: Optional[TokenizerConfig] = None,
-    timestamp_format: Optional[str] = None,
-    timestamp_fields: Optional[Sequence[str]] = None,
+    fillna_config: Optional[FillNAConfig] = None,
     categorical_missing_values: Optional[Sequence] = None,
     binary_true_values: Optional[Sequence[str]] = None,
+    tokenizer_config: Optional[TokenizerConfig] = None,
+    text_embedder_config: Optional[TextEmbedderConfig] = None,
+    timestamp_format: Optional[str] = None,
+    timestamp_fields: Optional[Sequence[str]] = None,
     concat: bool = True,
     cat_hardcode: bool = True,
 ):
@@ -42,21 +43,23 @@ def df_to_tensor(
         df: Input DataFrame
         col_types: Dictionary mapping column names to column types
         target_col: Name of target column
-        text_embedder_config: Configuration for text embedding
-        tokenizer_config: Configuration for tokenization; if provided and
-            ``tokenize_combine`` is True, all TEXT columns are jointly tokenized
-            and stored as a single entry in ``feat_dict[ColType.TEXT]``.
-        timestamp_format: Optional format string for parsing ``TIMESTAMP``
-            columns. ``None`` lets ``pd.to_datetime`` infer the format.
-        timestamp_fields: Optional list of time components to extract from
-            ``TIMESTAMP`` columns (subset of ``["YEAR", "MONTH", "DAY",
-            "DAYOFWEEK", "HOUR", "MINUTE", "SECOND"]``).
+        fillna_config: Fill-NA configuration shared by all supported column
+            types. When ``None``, :class:`FillNAConfig` defaults are used.
         categorical_missing_values: Optional extra values treated as missing
             when encoding categorical columns. Passed to
             :func:`encode_categorical`.
         binary_true_values: Optional list of string values that should be
             interpreted as 1 in binary columns. Passed to
             :func:`convert_binary`.
+        tokenizer_config: Configuration for tokenization; if provided and
+            ``tokenize_combine`` is True, all TEXT columns are jointly tokenized
+            and stored as a single entry in ``feat_dict[ColType.TEXT]``.
+        text_embedder_config: Configuration for text embedding.
+        timestamp_format: Optional format string for parsing ``TIMESTAMP``
+            columns. ``None`` lets ``pd.to_datetime`` infer the format.
+        timestamp_fields: Optional list of time components to extract from
+            ``TIMESTAMP`` columns (subset of ``["YEAR", "MONTH", "DAY",
+            "DAYOFWEEK", "HOUR", "MINUTE", "SECOND"]``).
         concat: Whether to concatenate/stack features of the same column type
             (e.g., numerical and categorical along the last dim, text and
             timestamp along the feature/channel dim).
@@ -74,6 +77,9 @@ def df_to_tensor(
     y = None
 
     merged_token = None
+    if fillna_config is None:
+        fillna_config = FillNAConfig()
+
     if tokenizer_config is not None and tokenizer_config.tokenize_combine:
         merged_token = tokenize_merged_cols(
             df=df,
@@ -96,6 +102,7 @@ def df_to_tensor(
             timestamp_fields=timestamp_fields,
             categorical_missing_values=categorical_missing_values,
             binary_true_values=binary_true_values,
+            fillna_config=fillna_config,
         )
         # 3. Update feat dict
         if col_name == target_col:
@@ -148,17 +155,30 @@ def _generate_column_tensor(
     timestamp_fields: Optional[Sequence[str]] = None,
     categorical_missing_values: Optional[Sequence] = None,
     binary_true_values: Optional[Sequence[str]] = None,
+    fillna_config: Optional[FillNAConfig] = None,
 ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    if fillna_config is None:
+        fillna_config = FillNAConfig()
+
     col_copy = col.copy()
     if col_type == ColType.NUMERICAL:
         col_copy = to_numeric_by_column(col_copy)
-        col_copy = fillna_by_coltype(col_copy, ColType.NUMERICAL)
+        col_copy = fillna_by_coltype(
+            col_copy,
+            ColType.NUMERICAL,
+            strategy=fillna_config.numerical_strategy,
+            fill_value=fillna_config.numerical_fill_value,
+        )
         return torch.tensor(col_copy.values.astype(float), dtype=torch.float32).reshape(
             -1, 1
         )
 
     elif col_type == ColType.CATEGORICAL:
-        col_copy = fillna_by_coltype(col_copy, ColType.CATEGORICAL)
+        col_copy = fillna_by_coltype(
+            col_copy,
+            ColType.CATEGORICAL,
+            fill_value=fillna_config.categorical_fill_value,
+        )
         col_copy, _ = encode_categorical(
             col_copy,
             missing_values=categorical_missing_values,
@@ -180,6 +200,11 @@ def _generate_column_tensor(
     # TODO: (Feiyu Pan) If table contains two text columns, which require different
     # processing (one embedding, one tokenization), current design cannot handle it.
     elif col_type == ColType.TEXT:
+        col_copy = fillna_by_coltype(
+            col_copy,
+            ColType.TEXT,
+            fill_value=fillna_config.text_fill_value,
+        )
         # Determine processing mode based on config
         if tokenizer_config is not None:
             # Tokenize mode
@@ -200,6 +225,12 @@ def _generate_column_tensor(
             return embed_text_column(col_copy, text_embedder_config)
 
     elif col_type == ColType.TIMESTAMP:
+        col_copy = fillna_by_coltype(
+            col_copy,
+            ColType.TIMESTAMP,
+            strategy=fillna_config.timestamp_strategy,
+            fill_value=fillna_config.timestamp_fill_value,
+        )
         # Default: [Batch, 7], (year, month, day, dayofweek, hour, minute, second).
         # Pass timestamp_format / timestamp_fields to control parsing and output dims,
         # e.g. timestamp_fields=["YEAR","MONTH","DAY"] → [Batch, 3].

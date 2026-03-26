@@ -1,3 +1,4 @@
+from rllm.preprocessing.fillna import FillNAConfig, fillna_by_coltype
 from rllm.preprocessing.text_tokenize import (
     TokenizerConfig,
     process_tokenized_column,
@@ -31,4 +32,7 @@ __all__ = [
     "TimestampPreprocessor",
     # data clean
     "to_numeric_by_column",
+    # fillna
+    "FillNAConfig",
+    "fillna_by_coltype",
 ]
