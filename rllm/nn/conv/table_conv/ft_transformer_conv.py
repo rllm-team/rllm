@@ -31,8 +31,6 @@ class FTTransformerConv(torch.nn.Module):
         >>> conv = FTTransformerConv(conv_dim=32, num_heads=8, use_cls=False)
         >>> x = torch.randn(16, 10, 32)
         >>> out = conv(x)
-        >>> out.shape
-        torch.Size([16, 10, 32])
     """
 
     def __init__(

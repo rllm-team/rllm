@@ -10,12 +10,12 @@ class RECTTransform(GT.GraphTransform):
     normalization.
 
     Args:
-        normalize_features (str): The method for normalizing features
-            (default: "l1").
+        normalize_features (str): Method for feature normalization.
+            (default: :obj:`"l1"`)
         svd_out_dim (int): The output dimensionality after SVD feature
-            reduction (default: 200).
+            reduction. (default: :obj:`200`)
         use_gdc (bool): Whether to use Graph Diffusion Convolution (GDC)
-            instead of GCN normalization (default: False).
+            instead of GCN normalization. (default: :obj:`False`)
     """
 
     def __init__(

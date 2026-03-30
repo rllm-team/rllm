@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from abc import ABC, abstractmethod
 
 import torch
-from torch import Tensor, Union
+from torch import Tensor
 
 from rllm.types import ColType, StatType
 
@@ -34,7 +34,7 @@ class ColEncoder(torch.nn.Module, ABC):
     Columns with same ColType will be encoded into tensors.
 
     Args:
-        out_dim (int): The output dim dimensionality
+        out_dim (int): Output embedding dimensionality.
         stats_list (List[Dict[StatType]]): The list
             of stats for each column within the same column type.
         post_module (torch.nn.Module, optional): The post-hoc module applied to the

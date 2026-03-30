@@ -1,12 +1,12 @@
 from __future__ import annotations
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from rllm.types import ColType
 from rllm.transforms.table_transforms import TableTransform
 
 
 class DefaultTableTransform(TableTransform):
-    r"""Default Table Transform. Only fill the Nan values.
+    r"""Default table transform that only performs missing-value handling.
 
     Args:
         out_dim (int): The output dimensionality.
@@ -17,8 +17,8 @@ class DefaultTableTransform(TableTransform):
 
     def __init__(
         self,
-        out_dim: int = None,
-        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
+        out_dim: Optional[int] = None,
+        metadata: Optional[Dict[ColType, List[Dict[str, Any]]]] = None,
     ) -> None:
         super().__init__(
             out_dim=out_dim,

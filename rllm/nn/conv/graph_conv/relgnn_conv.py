@@ -91,14 +91,15 @@ class RelGNNConv(GTransformerConv):
             >>> x = torch.randn(4, 8)
             >>> edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
             >>> out = conv(x, edge_index)
-            >>> out.shape
-            torch.Size([4, 4])
         """
         # dim-dim
         if self.attn_type == "dim-dim":
             if self.simplified_MP and edge_index.shape[1] == 0:
                 return None
             out = super().forward(x, edge_index, edge_weight, return_attention_weights)
+            if return_attention_weights:
+                out_tensor, attn = out
+                return self.final_proj(out_tensor), attn
             return self.final_proj(out)
 
         # dim-fact-dim
@@ -121,4 +122,7 @@ class RelGNNConv(GTransformerConv):
             (src_attn, dst_attn), edge_attn, edge_weight, return_attention_weights
         )
 
+        if return_attention_weights:
+            out_tensor, attn = out
+            return (self.final_proj(out_tensor), attn), src_attn
         return self.final_proj(out), src_attn
