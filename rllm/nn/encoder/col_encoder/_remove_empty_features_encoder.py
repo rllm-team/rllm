@@ -67,20 +67,13 @@ class RemoveEmptyFeaturesEncoder(ColEncoder):
     def reset_parameters(self) -> None:
         super().reset_parameters()
 
-    def transform_tabpfn(
+    def encode_forward(
         self,
         feat: Tensor,
         *,
-        single_eval_pos: int,
+        single_eval_pos: Optional[int] = None,
+        normalize_on_train_only: bool = True,
     ) -> Tensor:
-        train_x = feat[:single_eval_pos]
-        sel = (train_x[1:] == train_x[0]).sum(0) != (train_x.shape[0] - 1)
-        out = select_features(feat, sel)
-        if self.post_module is not None:
-            out = self.post_module(out)
-        return out
-
-    def encode_forward(self, feat: Tensor) -> Tensor:
         if feat.ndim not in (2, 3):
             raise ValueError(
                 f"Expected feat to be 2D or 3D, but got shape {tuple(feat.shape)}."
@@ -99,6 +92,10 @@ class RemoveEmptyFeaturesEncoder(ColEncoder):
                 feat_out = torch.cat([kept, zeros], dim=1)
             else:
                 feat_out = kept
+        elif single_eval_pos is not None:
+            train_x = feat[:single_eval_pos]
+            sel = (train_x[1:] == train_x[0]).sum(0) != (train_x.shape[0] - 1)
+            feat_out = select_features(feat, sel)
         else:
             # [batch_size, num_cols, emb_dim]
             ref = feat[0:1, :, :]

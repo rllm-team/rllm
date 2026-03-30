@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional, List, Literal, Any, TYPE_CHECKING
 import numpy as np
 import os
+from pathlib import Path
 
 import torch
 
@@ -11,10 +12,10 @@ from rllm.data_augment import (
     prepare_regression_ensemble,
 )
 from rllm.nn.models.tabpfn_v2.loading import load_model
+from rllm.types import ColType
 from rllm.utils import download_model_from_huggingface
 
 if TYPE_CHECKING:
-    from rllm.nn.models.tabpfn_v2.config import InferenceConfig
     from rllm.nn.models.tabpfn_v2.tabpfn_backbone import (
         PerFeatureTransformer,
     )
@@ -66,7 +67,8 @@ def load_model_criterion_config(
     check_bar_distribution_criterion: bool,
     cache_trainset_representation: bool,
     model_seed: int,
-) -> tuple[PerFeatureTransformer, InferenceConfig, Any]:
+    metadata: Optional[dict[ColType, list[dict[Any, Any]]]] = None,
+) -> tuple[PerFeatureTransformer, dict[str, Any], Any]:
     """Load the model, criterion, and config from the given path.
 
     Args:
@@ -81,6 +83,7 @@ def load_model_criterion_config(
         version: The version of the model.
         download: Whether to download the model if it doesn't exist.
         model_seed: The seed of the model.
+        metadata: Optional column metadata for ``TabPFNPreEncoder`` (see ``load_model``).
 
     Returns:
         The model, criterion, and config.
@@ -97,8 +100,10 @@ def load_model_criterion_config(
             download_path=model_dir,
         )
     loaded_model, config, criterion = load_model(
-        path=model_path,
+        path=Path(model_path),
         model_seed=model_seed,
+        model_type=model_type,
+        metadata=metadata,
     )
     loaded_model.cache_trainset_representation = cache_trainset_representation
     return loaded_model, config, criterion
@@ -109,7 +114,8 @@ def initialize_tabpfn_model(
     model_type: str,
     model_id: int,
     static_seed: int,
-) -> tuple[PerFeatureTransformer, InferenceConfig, object]:
+    metadata: Optional[dict[ColType, list[dict[Any, Any]]]] = None,
+) -> tuple[PerFeatureTransformer, dict[str, Any], object]:
     """Common logic to load the TabPFN model, set up the random state,
     and optionally download the model.
 
@@ -118,6 +124,7 @@ def initialize_tabpfn_model(
         which: Which TabPFN model to load.
         fit_mode: Determines caching behavior.
         static_seed: Random seed for reproducibility logic.
+        metadata: Optional column metadata for the pre-encoder (see ``load_model``).
 
     Returns:
         model: The loaded TabPFN model.
@@ -136,6 +143,7 @@ def initialize_tabpfn_model(
             check_bar_distribution_criterion=False,
             cache_trainset_representation=False,
             model_seed=static_seed,
+            metadata=metadata,
         )
     else:
         # The regressor's bar distribution is required
@@ -146,6 +154,7 @@ def initialize_tabpfn_model(
             check_bar_distribution_criterion=True,
             cache_trainset_representation=False,
             model_seed=static_seed,
+            metadata=metadata,
         )
 
     return model, config_, criterion
@@ -174,6 +183,7 @@ class TabPFNv2(torch.nn.Module):
         average_before_softmax (bool): Whether to average logits before softmax. Default: False.
         n_workers (int): Number of parallel workers for preprocessing. Default: 1.
         parallel_mode (str): Parallel processing mode. Default: 'block'.
+        metadata: Optional TabPFN pre-encoder column metadata (per-column stats, etc.).
     """
 
     def __init__(
@@ -192,6 +202,7 @@ class TabPFNv2(torch.nn.Module):
         average_before_softmax: bool = False,
         n_workers: int = 1,
         parallel_mode: str = "block",
+        metadata: Optional[dict[ColType, list[dict[Any, Any]]]] = None,
     ):
         super().__init__()
 
@@ -217,6 +228,7 @@ class TabPFNv2(torch.nn.Module):
             model_type=model_type,
             model_id=model_id,
             static_seed=static_seed,
+            metadata=metadata,
         )
 
         # Ensemble configurations (will be set during fit)

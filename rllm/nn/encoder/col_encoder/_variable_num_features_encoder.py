@@ -36,49 +36,6 @@ class VariableNumFeaturesEncoder(ColEncoder):
     def reset_parameters(self) -> None:
         super().reset_parameters()
 
-    def transform_tabpfn(
-        self,
-        feat: Tensor,
-        *,
-        single_eval_pos: int,
-    ) -> Tensor:
-        x = feat
-        if x.shape[2] == 0:
-            out = torch.zeros(
-                x.shape[0],
-                x.shape[1],
-                self.num_features,
-                device=x.device,
-                dtype=x.dtype,
-            )
-            if self.post_module is not None:
-                out = self.post_module(out)
-            return out
-
-        train_x = x[:single_eval_pos]
-        sel = (train_x[1:] == train_x[0]).sum(0) != (train_x.shape[0] - 1)
-        used_feature_count = torch.clip(
-            sel.sum(-1).unsqueeze(-1),
-            min=1,
-        ).to(x.device)
-
-        if self.normalize_by_used_features:
-            scale = self.num_features / used_feature_count
-            if self.normalize_by_sqrt:
-                scale = torch.sqrt(scale)
-            x = x * scale
-
-        zeros = torch.zeros(
-            *x.shape[:-1],
-            self.num_features - x.shape[-1],
-            device=x.device,
-            dtype=x.dtype,
-        )
-        out = torch.cat([x, zeros], dim=-1)
-        if self.post_module is not None:
-            out = self.post_module(out)
-        return out
-
     def _estimate_used_feature_count(self, feat: Tensor) -> int:
         if feat.ndim == 2:
             sel = (feat[1:] == feat[0]).sum(0) != (feat.shape[0] - 1)
@@ -90,7 +47,52 @@ class VariableNumFeaturesEncoder(ColEncoder):
             )
         return max(int(sel.sum().item()), 1)
 
-    def encode_forward(self, feat: Tensor) -> Tensor:
+    def encode_forward(
+        self,
+        feat: Tensor,
+        *,
+        single_eval_pos: Optional[int] = None,
+        normalize_on_train_only: bool = True,
+    ) -> Tensor:
+        if feat.ndim == 3 and single_eval_pos is not None:
+            x = feat
+            if x.shape[2] == 0:
+                out = torch.zeros(
+                    x.shape[0],
+                    x.shape[1],
+                    self.num_features,
+                    device=x.device,
+                    dtype=x.dtype,
+                )
+                if self.post_module is not None:
+                    out = self.post_module(out)
+                return out
+
+            train_x = x[:single_eval_pos]
+            sel = (train_x[1:] == train_x[0]).sum(0) != (train_x.shape[0] - 1)
+            used_feature_count = torch.clip(
+                sel.sum(-1).unsqueeze(-1),
+                min=1,
+            ).to(x.device)
+
+            if self.normalize_by_used_features:
+                scale = self.num_features / used_feature_count
+                if self.normalize_by_sqrt:
+                    scale = torch.sqrt(scale)
+                x = x * scale
+
+            zeros = torch.zeros(
+                *x.shape[:-1],
+                self.num_features - x.shape[-1],
+                device=x.device,
+                dtype=x.dtype,
+            )
+            x = torch.cat([x, zeros], dim=-1)
+
+            if self.post_module is not None:
+                x = self.post_module(x)
+            return x
+
         used_feature_count = self._estimate_used_feature_count(feat)
 
         x = feat

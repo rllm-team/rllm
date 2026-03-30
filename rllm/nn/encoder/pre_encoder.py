@@ -77,6 +77,7 @@ class PreEncoder(torch.nn.Module, ABC):
         self,
         feat_dict: Dict[ColType, Tensor],
         return_dict: bool = False,
+        **kwargs: object,
     ) -> Union[Tensor, Dict[ColType, Tensor]]:
         feat_encoded = {}
         for col_type in feat_dict.keys():
@@ -84,7 +85,7 @@ class PreEncoder(torch.nn.Module, ABC):
             if col_type.value in self.col_encoder_dict.keys():
                 x = feat
                 for col_encoder in self.col_encoder_dict[col_type.value]:
-                    x = col_encoder(x)
+                    x = col_encoder(x, **kwargs)
                 feat_encoded[col_type] = x
             else:
                 feat_encoded[col_type] = feat

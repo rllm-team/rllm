@@ -16,7 +16,10 @@ from torch import nn
 from torch.utils.checkpoint import checkpoint
 
 from rllm.nn.encoder import PreEncoder
+from rllm.nn.encoder.tabpfn_pre_encoder import TabPFNPreEncoder
+from rllm.nn.encoder.tabpfn_y_pre_encoder import TabPFNYPreEncoder
 from rllm.nn.transformer_encoder import PerFeatureEncoderLayer
+from rllm.types import ColType, StatType
 
 DEFAULT_EMSIZE = 128
 
@@ -85,8 +88,24 @@ class PerFeatureTransformer(nn.Module):
     def __init__(  # noqa: C901, D417, PLR0913
         self,
         *,
-        encoder: nn.Module,
-        y_encoder: nn.Module,
+        encoder: nn.Module | None = None,
+        y_encoder: nn.Module | None = None,
+        # TabPFN encoder construction (used when encoder is None)
+        encoder_num_features: int | None = None,
+        remove_empty_features: bool = True,
+        remove_duplicate_features: bool = False,
+        nan_handling_enabled: bool = True,
+        normalize_on_train_only: bool = True,
+        normalize_to_ranking: bool = False,
+        normalize_x: bool = True,
+        remove_outliers: bool = False,
+        normalize_by_used_features: bool = True,
+        encoder_use_bias: bool = False,
+        encoder_metadata: dict[ColType, list[dict[Any, Any]]] | None = None,
+        # TabPFN y-encoder construction (used when y_encoder is None)
+        y_num_inputs: int = 1,
+        nan_handling_y_encoder: bool = True,
+        max_num_classes: int = 0,
         ninp: int = DEFAULT_EMSIZE,
         nhead: int = 4,
         nhid: int = DEFAULT_EMSIZE * 4,
@@ -109,9 +128,6 @@ class PerFeatureTransformer(nn.Module):
             | None
         ) = None,
         zero_init: bool = True,
-        use_separate_decoder: bool = False,
-        nlayers_decoder: int | None = None,
-        use_encoder_compression_layer: bool = False,
         precomputed_kv: (
             list[torch.Tensor | tuple[torch.Tensor, torch.Tensor]] | None
         ) = None,
@@ -159,12 +175,6 @@ class PerFeatureTransformer(nn.Module):
                 be initialized with zeros.
                 Thus, the layers will start out as identity functions.
             seed: The seed to use for the random number generator.
-            use_separate_decoder: If True, the decoder will be separate from the encoder
-            nlayers_decoder:
-                If use_separate_decoder is True, this is the number of
-                layers in the decoder. The default is to use 1/3 of the layers for the
-                decoder and 2/3 for the encoder.
-            use_encoder_compression_layer: Experimental
             precomputed_kv: Experimental
             layer_kwargs:
                 TODO: document.
@@ -174,9 +184,41 @@ class PerFeatureTransformer(nn.Module):
             decoder_dict = {"standard": (None, 1)}
 
         super().__init__()
+        
+        # if metadata is None:
+        numerical_stats: list[dict[Any, Any]] = [
+            {
+                StatType.MEAN: 0.0,
+                StatType.STD: 1.0,
+                StatType.MIN: -1e9,
+                StatType.MAX: 1e9,
+            }
+            for _ in range(encoder_num_features)
+        ]
+        metadata = {ColType.NUMERICAL: numerical_stats}
 
-        self.encoder = encoder
-        self.y_encoder = y_encoder
+        self.encoder = TabPFNPreEncoder(
+            out_dim=ninp,
+            metadata=metadata,
+            remove_empty_features=remove_empty_features,
+            remove_duplicate_features=remove_duplicate_features,
+            nan_handling_enabled=nan_handling_enabled,
+            normalize_on_train_only=normalize_on_train_only,
+            normalize_to_ranking=normalize_to_ranking,
+            normalize_x=normalize_x,
+            remove_outliers=remove_outliers,
+            normalize_by_used_features=normalize_by_used_features,
+            encoder_use_bias=encoder_use_bias,
+            fixed_num_features=encoder_num_features,
+        )
+
+        self.y_encoder = TabPFNYPreEncoder(
+            num_inputs=y_num_inputs,
+            embedding_size=ninp,
+            nan_handling_y_encoder=nan_handling_y_encoder,
+            max_num_classes=max_num_classes,
+        )
+
         self.ninp = ninp
         self.nhead = nhead
         self.nhid = nhid
@@ -200,37 +242,12 @@ class PerFeatureTransformer(nn.Module):
             layer = layer_creator()
             layer_creator = lambda: layer
 
-        nlayers_encoder = nlayers
-        if use_separate_decoder and nlayers_decoder is None:
-            nlayers_decoder = max((nlayers // 3) * 1, 1)
-            nlayers_encoder = max((nlayers // 3) * 2, 1)
-
         self.transformer_encoder = LayerStack(
             layer_creator=layer_creator,
-            num_layers=nlayers_encoder,
+            num_layers=nlayers,
             recompute_each_layer=recompute_layer,
             min_num_layers_layer_dropout=min_num_layers_layer_dropout,
         )
-        self.transformer_decoder = None
-        if use_separate_decoder and nlayers_decoder is not None:
-            self.transformer_decoder = LayerStack(
-                layer_creator=layer_creator,
-                num_layers=nlayers_decoder,
-            )
-
-        self.global_att_embeddings_for_compression = None
-        if use_encoder_compression_layer and use_separate_decoder:
-            num_global_att_tokens_for_compression = 512
-
-            self.global_att_embeddings_for_compression = nn.Embedding(
-                num_global_att_tokens_for_compression,
-                ninp,
-            )
-
-            self.encoder_compression_layer = LayerStack(
-                layer_creator=layer_creator,
-                num_layers=2,
-            )
 
         initialized_decoder_dict = {}
         for decoder_key in decoder_dict:
@@ -522,33 +539,11 @@ class PerFeatureTransformer(nn.Module):
         del embedded_y, embedded_x
 
         encoder_out = self.transformer_encoder(
-            (
-                embedded_input
-                if not self.transformer_decoder
-                else embedded_input[:, :single_eval_pos_]
-            ),
+            embedded_input,
             single_eval_pos=single_eval_pos,
             half_layers=half_layers,
             cache_trainset_representation=self.cache_trainset_representation,
         )  # b s f+1 e -> b s f+1 e
-
-        # If we are using a decoder
-        if self.transformer_decoder:
-            if self.global_att_embeddings_for_compression is not None:
-                # TODO: fixed number of compression tokens
-                train_encoder_out = self.encoder_compression_layer(
-                    self.global_att_embeddings_for_compression,
-                    att_src=encoder_out[:, single_eval_pos_],
-                    single_eval_pos=single_eval_pos_,
-                )
-
-            test_encoder_out = self.transformer_decoder(
-                embedded_input[:, single_eval_pos_:],
-                single_eval_pos=0,
-                att_src=encoder_out,
-            )
-            encoder_out = torch.cat([encoder_out, test_encoder_out], 1)
-            del test_encoder_out
 
         del embedded_input
 

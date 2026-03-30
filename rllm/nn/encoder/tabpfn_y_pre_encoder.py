@@ -86,14 +86,11 @@ class TabPFNYPreEncoder(nn.Module):
         self,
         y_state: dict,
         single_eval_pos: Optional[int] = None,
-        cache_trainset_representation: bool = False,
         **_: object,
     ) -> torch.Tensor:
-        del cache_trainset_representation
         y = y_state["main"]
 
         inputs = []
-
         if self.nan_handling_y_encoder:
             y, indicators = self._nan_handle(y, single_eval_pos)
             inputs.append(y)

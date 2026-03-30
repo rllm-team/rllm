@@ -4,7 +4,6 @@ import os.path as osp
 import numpy as np
 import torch
 from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import LabelEncoder
 
 
 sys.path.append("./")
@@ -48,9 +47,12 @@ y_test = test_dataset.y
 # Initialize and load the model
 model_path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "checkpoint", "tabpfn")
 print(model_path)
+# print(data.metadata)
 model = TabPFNv2(
     model_dir=model_path,
     model_type="clf",
+    model_id=0,
+    metadata=data.metadata,
 )
 
 # Set device

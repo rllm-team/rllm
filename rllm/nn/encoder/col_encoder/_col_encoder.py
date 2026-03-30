@@ -77,6 +77,7 @@ class ColEncoder(torch.nn.Module, ABC):
         self,
         feat: Tensor,
         col_names: Optional[List[str]] = None,
+        **kwargs: object,
     ) -> Tensor:
         if col_names is not None:
             num_cols = feat.shape[1]
@@ -88,7 +89,13 @@ class ColEncoder(torch.nn.Module, ABC):
                 )
 
         # Main encoding into column embeddings
-        x = self.encode_forward(feat)
+        # Some encoders (e.g. TabPFN-style) accept extra context kwargs like
+        # single_eval_pos / normalize_on_train_only. Keep backward compatibility
+        # with encoders that only accept (feat).
+        try:
+            x = self.encode_forward(feat, **kwargs)
+        except TypeError:
+            x = self.encode_forward(feat)
         # Handle NaN in case na_mode is None
         x = torch.nan_to_num(x, nan=0)
         return x
@@ -97,6 +104,7 @@ class ColEncoder(torch.nn.Module, ABC):
     def encode_forward(
         self,
         feat: Tensor,
+        **kwargs: object,
     ) -> Tensor:
         r"""The main forward function. Maps input :obj:`feat` from feat_dict
         (shape [batch_size, num_cols]) into output :obj:`x` of shape

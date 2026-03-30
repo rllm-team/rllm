@@ -34,38 +34,33 @@ class NanHandlingEncoder(ColEncoder):
     def reset_parameters(self) -> None:
         super().reset_parameters()
 
-    def transform_tabpfn(
+    def encode_forward(
         self,
         feat: Tensor,
         *,
-        single_eval_pos: int,
+        single_eval_pos: Optional[int] = None,
+        normalize_on_train_only: bool = True,
     ) -> Tensor:
-        train_x = feat[:single_eval_pos]
-        fill = torch.nanmean(train_x, dim=0)
-        mask = torch.isnan(feat) | torch.isinf(feat)
-        out = feat.clone()
-        out[mask] = fill.unsqueeze(0).expand_as(out)[mask]
-        if self.post_module is not None:
-            out = self.post_module(out)
-        return out
-
-    def encode_forward(self, feat: Tensor) -> Tensor:
         if feat.ndim == 2:
             fill = self.fill_values.to(feat.device)
             mask = torch.isnan(feat) | torch.isinf(feat)
             out = feat.clone()
             out[mask] = fill.unsqueeze(0).expand_as(out)[mask]
         elif feat.ndim == 3:
-            fill = self.fill_values.to(feat.device).unsqueeze(-1)
-            mask = torch.isnan(feat) | torch.isinf(feat)
-            out = feat.clone()
-            out[mask] = fill.unsqueeze(0).expand_as(out)[mask]
+            if single_eval_pos is not None:
+                train_x = feat[:single_eval_pos]
+                fill = torch.nanmean(train_x, dim=0)
+                mask = torch.isnan(feat) | torch.isinf(feat)
+                out = feat.clone()
+                out[mask] = fill.unsqueeze(0).expand_as(out)[mask]
+            else:
+                fill = self.fill_values.to(feat.device).unsqueeze(-1)
+                mask = torch.isnan(feat) | torch.isinf(feat)
+                out = feat.clone()
+                out[mask] = fill.unsqueeze(0).expand_as(out)[mask]
         else:
             raise ValueError(
                 f"Expected feat to be 2D or 3D, but got shape {tuple(feat.shape)}."
             )
-
-        if self.post_module is not None:
-            out = self.post_module(out)
 
         return out

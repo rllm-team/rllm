@@ -196,6 +196,12 @@ class InputNormalizationEncoder(ColEncoder):
         self.clip_range = clip_range
         self.normalize_x = normalize_x
         self.remove_outliers = remove_outliers
+        # This encoder is intended to be statistics-driven (non-learnable).
+        # If a post module is provided, freeze it to avoid introducing trainable
+        # parameters through normalization.
+        if self.post_module is not None:
+            for p in self.post_module.parameters():
+                p.requires_grad_(False)
 
     def post_init(self) -> None:
         means = []
@@ -215,30 +221,13 @@ class InputNormalizationEncoder(ColEncoder):
     def reset_parameters(self) -> None:
         super().reset_parameters()
 
-    def transform_tabpfn(
+    def encode_forward(
         self,
         feat: Tensor,
         *,
-        single_eval_pos: int,
-        normalize_on_train_only: bool,
+        single_eval_pos: Optional[int] = None,
+        normalize_on_train_only: bool = True,
     ) -> Tensor:
-        normalize_position = single_eval_pos if normalize_on_train_only else -1
-        x = feat
-        if self.remove_outliers:
-            x, _ = remove_outliers(
-                x,
-                normalize_positions=normalize_position,
-            )
-        if self.normalize_x:
-            x = normalize_data(
-                x,
-                normalize_positions=normalize_position,
-            )
-        if self.post_module is not None:
-            x = self.post_module(x)
-        return x
-
-    def encode_forward(self, feat: Tensor) -> Tensor:
         if feat.ndim == 2:
             x = feat
             if self.remove_outliers:
@@ -250,17 +239,33 @@ class InputNormalizationEncoder(ColEncoder):
             out = x
         elif feat.ndim == 3:
             x = feat
-            min_val = self.min_val.to(x.device).unsqueeze(-1)
-            max_val = self.max_val.to(x.device).unsqueeze(-1)
-            mean = self.mean.to(x.device).unsqueeze(-1)
-            std = self.std.to(x.device).unsqueeze(-1)
-            if self.remove_outliers:
-                x = torch.maximum(x, min_val)
-                x = torch.minimum(x, max_val)
-            if self.normalize_x:
-                x = (x - mean) / std
-            x = torch.clamp(x, min=self.clip_range[0], max=self.clip_range[1])
-            out = x
+            if single_eval_pos is not None:
+                normalize_position = (
+                    single_eval_pos if normalize_on_train_only else -1
+                )
+                if self.remove_outliers:
+                    x, _ = remove_outliers(
+                        x,
+                        normalize_positions=normalize_position,
+                    )
+                if self.normalize_x:
+                    x = normalize_data(
+                        x,
+                        normalize_positions=normalize_position,
+                    )
+                out = x
+            else:
+                min_val = self.min_val.to(x.device).unsqueeze(-1)
+                max_val = self.max_val.to(x.device).unsqueeze(-1)
+                mean = self.mean.to(x.device).unsqueeze(-1)
+                std = self.std.to(x.device).unsqueeze(-1)
+                if self.remove_outliers:
+                    x = torch.maximum(x, min_val)
+                    x = torch.minimum(x, max_val)
+                if self.normalize_x:
+                    x = (x - mean) / std
+                x = torch.clamp(x, min=self.clip_range[0], max=self.clip_range[1])
+                out = x
         else:
             raise ValueError(
                 f"Expected feat to be 2D or 3D, but got shape {tuple(feat.shape)}."

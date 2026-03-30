@@ -11,9 +11,6 @@ from .col_encoder._embedding_encoder import EmbeddingEncoder
 from .col_encoder._linear_encoder import LinearEncoder
 from .col_encoder._nan_handling_encoder import NanHandlingEncoder
 from .col_encoder._remove_empty_features_encoder import RemoveEmptyFeaturesEncoder
-from .col_encoder._remove_duplicate_features_encoder import (
-    RemoveDuplicateFeaturesEncoder,
-)
 from .col_encoder._variable_num_features_encoder import VariableNumFeaturesEncoder
 from .col_encoder._input_normalization_encoder import InputNormalizationEncoder
 from .col_encoder._frequency_feature_encoder import FrequencyFeatureEncoder
@@ -66,8 +63,9 @@ class TabPFNPreEncoder(PreEncoder):
             if remove_empty_features:
                 num_chain.append(RemoveEmptyFeaturesEncoder())
 
-            if remove_duplicate_features:
-                num_chain.append(RemoveDuplicateFeaturesEncoder())
+            # Keep the flag for API compatibility, but do not append this encoder:
+            # TabPFNPreEncoder's sequential path does not execute duplicate-removal.
+            del remove_duplicate_features
 
             if nan_handling_enabled:
                 num_chain.append(NanHandlingEncoder())
@@ -171,35 +169,19 @@ class TabPFNPreEncoder(PreEncoder):
         col_encoders = list(self.col_encoder_dict[numerical_key])
 
         for col_encoder in col_encoders:
-            if isinstance(col_encoder, RemoveEmptyFeaturesEncoder):
-                x_work = col_encoder.transform_tabpfn(
-                    x_work,
-                    single_eval_pos=single_eval_pos,
-                )
-                continue
-
-            if isinstance(col_encoder, RemoveDuplicateFeaturesEncoder):
-                continue
-
-            if isinstance(col_encoder, NanHandlingEncoder):
-                x_work = col_encoder.transform_tabpfn(
-                    x_work,
-                    single_eval_pos=single_eval_pos,
-                )
-                continue
-
-            if isinstance(col_encoder, InputNormalizationEncoder):
-                x_work = col_encoder.transform_tabpfn(
+            if isinstance(
+                col_encoder,
+                (
+                    RemoveEmptyFeaturesEncoder,
+                    NanHandlingEncoder,
+                    InputNormalizationEncoder,
+                    VariableNumFeaturesEncoder,
+                ),
+            ):
+                x_work = col_encoder(
                     x_work,
                     single_eval_pos=single_eval_pos,
                     normalize_on_train_only=self.normalize_on_train_only,
-                )
-                continue
-
-            if isinstance(col_encoder, VariableNumFeaturesEncoder):
-                x_work = col_encoder.transform_tabpfn(
-                    x_work,
-                    single_eval_pos=single_eval_pos,
                 )
                 continue
 
