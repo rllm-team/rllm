@@ -99,7 +99,11 @@ class TransTabConv(torch.nn.Module):
     def _sa_block(
         self, x: Tensor, attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]
     ) -> Tensor:
-        key_padding_mask = ~key_padding_mask.bool()
+        if key_padding_mask is not None:
+            # Input mask convention here is "keep mask" (True means attend/keep).
+            # torch.nn.MultiheadAttention expects key_padding_mask with
+            # True meaning "ignore", so invert before passing through.
+            key_padding_mask = ~key_padding_mask.bool()
         x = self.self_attn(
             x,
             x,
@@ -129,8 +133,11 @@ class TransTabConv(torch.nn.Module):
         Args:
             x (Tensor): Input of shape :math:`(N, S, H)`.
             src_mask (Tensor, optional): Additive attention mask :math:`(S, S)`. Default: ``None``.
-            src_key_padding_mask (Tensor, optional): Padding mask :math:`(N, S)`;
-                ``True`` positions are attended to. Default: ``None``.
+            src_key_padding_mask (Tensor, optional): Attention keep mask of shape
+                :math:`(N, S)` where ``True`` means the token is valid/attended to,
+                and ``False`` means masked out. Internally this is converted to
+                PyTorch ``key_padding_mask`` semantics (``True`` means ignore).
+                Default: ``None``.
             is_causal: Unused; present for API compatibility.
 
         Returns:

@@ -12,7 +12,6 @@ from rllm.preprocessing.word_embedding import (
     embed_text_column,
 )
 from rllm.preprocessing.data_clean import to_numeric_by_column
-from rllm.preprocessing.data_clean import to_numeric_by_column
 from rllm.preprocessing.timestamp import TimestampPreprocessor
 from rllm.preprocessing.df_to_tensor import df_to_tensor
 

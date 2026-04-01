@@ -301,6 +301,9 @@ def df_to_tensor(
         cat_val = feat_dict[ColType.CATEGORICAL]
         if isinstance(cat_val, tuple):
             raise ValueError("Categorical feature should not be token tuple.")
-        feat_dict[ColType.CATEGORICAL] = cat_val.int()
+        if isinstance(cat_val, list):
+            feat_dict[ColType.CATEGORICAL] = [t.int() for t in cat_val]
+        else:
+            feat_dict[ColType.CATEGORICAL] = cat_val.int()
 
     return feat_dict, y
