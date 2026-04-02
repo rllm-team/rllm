@@ -1,8 +1,19 @@
+from dataclasses import dataclass
 from typing import Literal, Union
 
 from pandas import Series
 
 from rllm.types import ColType
+
+
+@dataclass
+class FillNAConfig:
+    numerical_strategy: Literal["mean", "median", "mode", "constant"] = "mean"
+    numerical_fill_value: float = 0.0
+    categorical_fill_value: Union[int, str] = -1
+    text_fill_value: str = ""
+    timestamp_strategy: Literal["ffill", "bfill", "median", "constant"] = "ffill"
+    timestamp_fill_value = None
 
 
 def fillna_numerical(
