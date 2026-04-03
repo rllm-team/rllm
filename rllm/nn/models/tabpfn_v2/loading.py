@@ -56,7 +56,9 @@ def _pick_target_weight_bias_keys(
 ) -> tuple[str, str | None]:
     weight_key = next((k for k in weight_candidates if k in remapped_state), None)
     if weight_key is None and fallback_weight_predicate is not None:
-        weight_key = next((k for k in remapped_state if fallback_weight_predicate(k)), None)
+        weight_key = next(
+            (k for k in remapped_state if fallback_weight_predicate(k)), None
+        )
     if weight_key is None:
         raise KeyError("Could not find a target weight key in remapped_state.")
     bias_key = weight_key.replace(".weight", ".bias")
@@ -77,12 +79,15 @@ def _adapt_encoder_weight(
     return None
 
 
-def _adapt_encoder_bias(src: torch.Tensor, tgt_shape: torch.Size) -> torch.Tensor | None:
+def _adapt_encoder_bias(
+    src: torch.Tensor, tgt_shape: torch.Size
+) -> torch.Tensor | None:
     if src.shape == tgt_shape:
         return src
     if src.ndim == 1 and len(tgt_shape) == 2:
         return src.unsqueeze(0).expand(tgt_shape[0], -1) / tgt_shape[0]
     return None
+
 
 def _remap_legacy_tabpfn_state_dict(
     state_dict: dict[str, torch.Tensor],
@@ -98,7 +103,8 @@ def _remap_legacy_tabpfn_state_dict(
         remapped_state,
         weight_candidates=("encoder.5.layer.weight",),
         fallback_weight_predicate=lambda k: (
-            k.startswith("encoder.col_encoder_dict.numerical.") and k.endswith(".weight")
+            k.startswith("encoder.col_encoder_dict.numerical.")
+            and k.endswith(".weight")
         ),
     )
     y_weight_key, y_bias_key = _pick_target_weight_bias_keys(
@@ -121,13 +127,17 @@ def _remap_legacy_tabpfn_state_dict(
 
     if source_encoder_weight is not None:
         src = state_dict[source_encoder_weight]
-        adapted = _adapt_encoder_weight(src, remapped_state[encoder_linear_weight_key].shape)
+        adapted = _adapt_encoder_weight(
+            src, remapped_state[encoder_linear_weight_key].shape
+        )
         if adapted is not None:
             remapped_state[encoder_linear_weight_key] = adapted
 
     if source_encoder_bias is not None and encoder_linear_bias_key is not None:
         src = state_dict[source_encoder_bias]
-        adapted = _adapt_encoder_bias(src, remapped_state[encoder_linear_bias_key].shape)
+        adapted = _adapt_encoder_bias(
+            src, remapped_state[encoder_linear_bias_key].shape
+        )
         if adapted is not None:
             remapped_state[encoder_linear_bias_key] = adapted
 
