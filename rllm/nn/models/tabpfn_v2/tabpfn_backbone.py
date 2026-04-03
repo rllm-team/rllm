@@ -88,8 +88,6 @@ class PerFeatureTransformer(nn.Module):
     def __init__(  # noqa: C901, D417, PLR0913
         self,
         *,
-        encoder: nn.Module | None = None,
-        y_encoder: nn.Module | None = None,
         # TabPFN encoder construction (used when encoder is None)
         encoder_num_features: int | None = None,
         remove_empty_features: bool = True,
@@ -184,7 +182,7 @@ class PerFeatureTransformer(nn.Module):
             decoder_dict = {"standard": (None, 1)}
 
         super().__init__()
-        
+
         # if metadata is None:
         numerical_stats: list[dict[Any, Any]] = [
             {

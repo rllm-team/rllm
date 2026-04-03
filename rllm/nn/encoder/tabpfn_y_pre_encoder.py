@@ -33,7 +33,10 @@ class TabPFNYPreEncoder(nn.Module):
         self.max_num_classes = max_num_classes
 
         in_features = num_inputs + (num_inputs if nan_handling_y_encoder else 0)
-        self.proj = nn.Linear(in_features, embedding_size, bias=bias)
+        y_linear = nn.Linear(in_features, embedding_size, bias=bias)
+        y_step = nn.Module()
+        y_step.layer = y_linear
+        self.add_module("2", y_step)
 
     @staticmethod
     def _train_prefix(y: torch.Tensor, single_eval_pos: Optional[int]) -> torch.Tensor:
@@ -103,4 +106,5 @@ class TabPFNYPreEncoder(nn.Module):
             inputs[0] = y
 
         x = torch.cat(inputs, dim=-1)
-        return self.proj(x)
+        lin = self.get_submodule("2").layer
+        return lin(x.to(lin.weight.dtype))

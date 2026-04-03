@@ -6,7 +6,7 @@ import logging
 import re
 import warnings
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 import torch
 from torch import nn
@@ -17,43 +17,6 @@ from rllm.types import ColType
 from .tabpfn_backbone import PerFeatureTransformer
 
 logger = logging.getLogger(__name__)
-
-# Keys required in checkpoint["config"] to build PerFeatureTransformer and loss.
-# Architecture hyperparameters (emsize, nlayers, …) must match the saved weights.
-_REQUIRED_CONFIG_KEYS = frozenset({
-    "emsize",
-    "features_per_group",
-    "max_num_classes",
-    "nhead",
-    "nhid_factor",
-    "nlayers",
-    "num_buckets",
-    "remove_duplicate_features",
-})
-
-
-def _config_from_checkpoint(
-    raw: dict[str, Any] | None,
-    *,
-    model_type: Literal["clf", "reg"],
-) -> dict[str, Any]:
-    """Use checkpoint config only (no baked-in training defaults)."""
-    if not raw:
-        raise ValueError(
-            "Checkpoint must include a non-empty 'config' dict with keys: "
-            f"{sorted(_REQUIRED_CONFIG_KEYS)}"
-        )
-    missing = _REQUIRED_CONFIG_KEYS - raw.keys()
-    if missing:
-        raise ValueError(
-            "Checkpoint 'config' is missing required keys "
-            f"{sorted(missing)}; expected {sorted(_REQUIRED_CONFIG_KEYS)}"
-        )
-    cfg = dict(raw)
-    if model_type == "reg":
-        cfg["max_num_classes"] = 0
-        cfg["task_type"] = "regression"
-    return cfg
 
 
 def get_loss_criterion(
@@ -69,7 +32,9 @@ def get_loss_criterion(
     return FullSupportBarDistribution(borders, ignore_nan_targets=True)
 
 
-def _find_last_matching_key(state_dict: dict[str, torch.Tensor], pattern: str) -> str | None:
+def _find_last_matching_key(
+    state_dict: dict[str, torch.Tensor], pattern: str
+) -> str | None:
     """Return the last checkpoint key matching pattern with integer group(1)."""
     regex = re.compile(pattern)
     best: tuple[int, str] | None = None
@@ -83,6 +48,42 @@ def _find_last_matching_key(state_dict: dict[str, torch.Tensor], pattern: str) -
     return None if best is None else best[1]
 
 
+def _pick_target_weight_bias_keys(
+    remapped_state: dict[str, torch.Tensor],
+    *,
+    weight_candidates: tuple[str, ...],
+    fallback_weight_predicate: Callable[[str], bool] | None = None,
+) -> tuple[str, str | None]:
+    weight_key = next((k for k in weight_candidates if k in remapped_state), None)
+    if weight_key is None and fallback_weight_predicate is not None:
+        weight_key = next((k for k in remapped_state if fallback_weight_predicate(k)), None)
+    if weight_key is None:
+        raise KeyError("Could not find a target weight key in remapped_state.")
+    bias_key = weight_key.replace(".weight", ".bias")
+    if bias_key not in remapped_state:
+        bias_key = None
+    return weight_key, bias_key
+
+
+def _adapt_encoder_weight(
+    src: torch.Tensor, tgt_shape: torch.Size
+) -> torch.Tensor | None:
+    if src.shape == tgt_shape:
+        return src
+    if src.ndim == 2 and len(tgt_shape) == 3:
+        num_cols, in_dim, out_dim = tgt_shape
+        if in_dim == 1 and src.shape[0] == out_dim and src.shape[1] >= num_cols:
+            return src[:, :num_cols].transpose(0, 1).unsqueeze(1)
+    return None
+
+
+def _adapt_encoder_bias(src: torch.Tensor, tgt_shape: torch.Size) -> torch.Tensor | None:
+    if src.shape == tgt_shape:
+        return src
+    if src.ndim == 1 and len(tgt_shape) == 2:
+        return src.unsqueeze(0).expand(tgt_shape[0], -1) / tgt_shape[0]
+    return None
+
 def _remap_legacy_tabpfn_state_dict(
     state_dict: dict[str, torch.Tensor],
     model: nn.Module,
@@ -93,44 +94,52 @@ def _remap_legacy_tabpfn_state_dict(
         if key in remapped_state and remapped_state[key].shape == value.shape:
             remapped_state[key] = value
 
-    encoder_linear_weight_key = next(
-        key
-        for key in remapped_state
-        if key.startswith("encoder.col_encoder_dict.numerical.")
-        and key.endswith(".weight")
+    encoder_linear_weight_key, encoder_linear_bias_key = _pick_target_weight_bias_keys(
+        remapped_state,
+        weight_candidates=("encoder.5.layer.weight",),
+        fallback_weight_predicate=lambda k: (
+            k.startswith("encoder.col_encoder_dict.numerical.") and k.endswith(".weight")
+        ),
     )
-    encoder_linear_bias_key = encoder_linear_weight_key.replace(".weight", ".bias")
-    y_weight_key = "y_encoder.proj.weight"
-    y_bias_key = "y_encoder.proj.bias"
+    y_weight_key, y_bias_key = _pick_target_weight_bias_keys(
+        remapped_state,
+        weight_candidates=("y_encoder.2.layer.weight", "y_encoder.proj.weight"),
+    )
 
-    source_encoder_weight = _find_last_matching_key(state_dict, r"encoder\.(\d+)\.layer\.weight")
-    source_encoder_bias = _find_last_matching_key(state_dict, r"encoder\.(\d+)\.layer\.bias")
-    source_y_weight = _find_last_matching_key(state_dict, r"y_encoder\.(\d+)\.layer\.weight")
-    source_y_bias = _find_last_matching_key(state_dict, r"y_encoder\.(\d+)\.layer\.bias")
+    source_encoder_weight = _find_last_matching_key(
+        state_dict, r"encoder\.(\d+)\.layer\.weight"
+    )
+    source_encoder_bias = _find_last_matching_key(
+        state_dict, r"encoder\.(\d+)\.layer\.bias"
+    )
+    source_y_weight = _find_last_matching_key(
+        state_dict, r"y_encoder\.(\d+)\.layer\.weight"
+    )
+    source_y_bias = _find_last_matching_key(
+        state_dict, r"y_encoder\.(\d+)\.layer\.bias"
+    )
 
     if source_encoder_weight is not None:
         src = state_dict[source_encoder_weight]
-        tgt_shape = remapped_state[encoder_linear_weight_key].shape
-        if src.shape == tgt_shape:
-            remapped_state[encoder_linear_weight_key] = src
-        elif src.ndim == 2 and len(tgt_shape) == 3:
-            num_cols, in_dim, out_dim = tgt_shape
-            if in_dim == 1 and src.shape[0] == out_dim and src.shape[1] >= num_cols:
-                remapped_state[encoder_linear_weight_key] = src[:, :num_cols].transpose(0, 1).unsqueeze(1)
+        adapted = _adapt_encoder_weight(src, remapped_state[encoder_linear_weight_key].shape)
+        if adapted is not None:
+            remapped_state[encoder_linear_weight_key] = adapted
 
-    if source_encoder_bias is not None:
+    if source_encoder_bias is not None and encoder_linear_bias_key is not None:
         src = state_dict[source_encoder_bias]
-        tgt_shape = remapped_state[encoder_linear_bias_key].shape
-        if src.shape == tgt_shape:
-            remapped_state[encoder_linear_bias_key] = src
-        elif src.ndim == 1 and len(tgt_shape) == 2:
-            remapped_state[encoder_linear_bias_key] = src.unsqueeze(0).expand(tgt_shape[0], -1) / tgt_shape[0]
+        adapted = _adapt_encoder_bias(src, remapped_state[encoder_linear_bias_key].shape)
+        if adapted is not None:
+            remapped_state[encoder_linear_bias_key] = adapted
 
     if source_y_weight is not None:
-        remapped_state[y_weight_key] = state_dict[source_y_weight]
+        src = state_dict[source_y_weight]
+        if src.shape == remapped_state[y_weight_key].shape:
+            remapped_state[y_weight_key] = src
 
-    if source_y_bias is not None:
-        remapped_state[y_bias_key] = state_dict[source_y_bias]
+    if source_y_bias is not None and y_bias_key is not None:
+        src = state_dict[source_y_bias]
+        if src.shape == remapped_state[y_bias_key].shape:
+            remapped_state[y_bias_key] = src
 
     return remapped_state
 
@@ -168,8 +177,11 @@ def load_model(
         checkpoint = torch.load(path, map_location="cpu", weights_only=None)
 
     state_dict = checkpoint["state_dict"]
-    raw_config = checkpoint.get("config") or {}
-    config = _config_from_checkpoint(raw_config, model_type=model_type)
+    config = checkpoint.get("config")
+    if model_type == "reg":
+        config["max_num_classes"] = 0
+        config["task_type"] = "regression"
+
     emsize = int(config["emsize"])
     nhid_factor = int(config["nhid_factor"])
     nlayers = int(config["nlayers"])
@@ -198,9 +210,6 @@ def load_model(
 
     model = PerFeatureTransformer(
         seed=model_seed,
-        # Things that were explicitly passed inside `build_model()`
-        encoder=None,
-        y_encoder=None,
         encoder_num_features=config["features_per_group"],
         remove_empty_features=True,
         remove_duplicate_features=config["remove_duplicate_features"],
@@ -244,9 +253,7 @@ def load_model(
         attention_init_gain=1.0,
         two_sets_of_queries=False,
     )
-    print(state_dict.keys())
-    print(model.state_dict().keys())
-    exit()
+
     remapped_state_dict = _remap_legacy_tabpfn_state_dict(state_dict, model)
     model.load_state_dict(remapped_state_dict, strict=True)
     model.eval()

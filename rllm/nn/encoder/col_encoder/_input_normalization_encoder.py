@@ -204,19 +204,9 @@ class InputNormalizationEncoder(ColEncoder):
                 p.requires_grad_(False)
 
     def post_init(self) -> None:
-        means = []
-        stds = []
-        mins = []
-        maxs = []
-        for stats in self.stats_list:
-            means.append(float(stats.get(StatType.MEAN, 0.0)))
-            stds.append(float(stats.get(StatType.STD, 1.0)))
-            mins.append(float(stats.get(StatType.MIN, -float("inf"))))
-            maxs.append(float(stats.get(StatType.MAX, float("inf"))))
-        self.register_buffer("mean", torch.tensor(means))
-        self.register_buffer("std", torch.tensor(stds) + 1e-20)
-        self.register_buffer("min_val", torch.tensor(mins))
-        self.register_buffer("max_val", torch.tensor(maxs))
+        # Keep API compatibility with ColEncoder lifecycle, but do not
+        # materialize per-column stats as buffers to avoid state_dict coupling.
+        return None
 
     def reset_parameters(self) -> None:
         super().reset_parameters()
@@ -228,44 +218,46 @@ class InputNormalizationEncoder(ColEncoder):
         single_eval_pos: Optional[int] = None,
         normalize_on_train_only: bool = True,
     ) -> Tensor:
+        normalize_position = (
+            single_eval_pos
+            if (single_eval_pos is not None and normalize_on_train_only)
+            else -1
+        )
         if feat.ndim == 2:
             x = feat
             if self.remove_outliers:
-                x = torch.maximum(x, self.min_val.to(x.device))
-                x = torch.minimum(x, self.max_val.to(x.device))
+                data_for_stats = (
+                    x[:normalize_position]
+                    if normalize_position is not None and normalize_position > 0
+                    else x
+                )
+                data_mean = torch_nanmean(data_for_stats, axis=0)  # type: ignore
+                data_std = torch_nanstd(data_for_stats, axis=0)
+                cut_off = data_std * 4.0
+                lower, upper = data_mean - cut_off, data_mean + cut_off
+                x = torch.maximum(-torch.log(1 + torch.abs(x)) + lower, x)
+                x = torch.minimum(torch.log(1 + torch.abs(x)) + upper, x)
             if self.normalize_x:
-                x = (x - self.mean.to(x.device)) / self.std.to(x.device)
+                x = normalize_data(
+                    x,
+                    normalize_positions=normalize_position,
+                )
             x = torch.clamp(x, min=self.clip_range[0], max=self.clip_range[1])
             out = x
         elif feat.ndim == 3:
             x = feat
-            if single_eval_pos is not None:
-                normalize_position = (
-                    single_eval_pos if normalize_on_train_only else -1
+            if self.remove_outliers:
+                x, _ = remove_outliers(
+                    x,
+                    normalize_positions=normalize_position,
                 )
-                if self.remove_outliers:
-                    x, _ = remove_outliers(
-                        x,
-                        normalize_positions=normalize_position,
-                    )
-                if self.normalize_x:
-                    x = normalize_data(
-                        x,
-                        normalize_positions=normalize_position,
-                    )
-                out = x
-            else:
-                min_val = self.min_val.to(x.device).unsqueeze(-1)
-                max_val = self.max_val.to(x.device).unsqueeze(-1)
-                mean = self.mean.to(x.device).unsqueeze(-1)
-                std = self.std.to(x.device).unsqueeze(-1)
-                if self.remove_outliers:
-                    x = torch.maximum(x, min_val)
-                    x = torch.minimum(x, max_val)
-                if self.normalize_x:
-                    x = (x - mean) / std
-                x = torch.clamp(x, min=self.clip_range[0], max=self.clip_range[1])
-                out = x
+            if self.normalize_x:
+                x = normalize_data(
+                    x,
+                    normalize_positions=normalize_position,
+                )
+            x = torch.clamp(x, min=self.clip_range[0], max=self.clip_range[1])
+            out = x
         else:
             raise ValueError(
                 f"Expected feat to be 2D or 3D, but got shape {tuple(feat.shape)}."

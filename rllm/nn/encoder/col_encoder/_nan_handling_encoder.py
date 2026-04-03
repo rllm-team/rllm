@@ -25,11 +25,9 @@ class NanHandlingEncoder(ColEncoder):
         )
 
     def post_init(self) -> None:
-        means = []
-        for stats in self.stats_list:
-            mean = stats.get(StatType.MEAN, 0.0)
-            means.append(float(mean))
-        self.register_buffer("fill_values", torch.tensor(means))
+        # Keep lifecycle compatibility, but avoid stateful buffers so this
+        # encoder contributes no normalization metadata keys to state_dict.
+        return None
 
     def reset_parameters(self) -> None:
         super().reset_parameters()
@@ -41,23 +39,27 @@ class NanHandlingEncoder(ColEncoder):
         single_eval_pos: Optional[int] = None,
         normalize_on_train_only: bool = True,
     ) -> Tensor:
+        def _compute_fill_values(x: Tensor) -> Tensor:
+            invalid = torch.isnan(x) | torch.isinf(x)
+            valid = (~invalid).to(x.dtype).sum(dim=0).clamp(min=1.0)
+            value = torch.where(invalid, torch.zeros_like(x), x).sum(dim=0)
+            return value / valid
+
         if feat.ndim == 2:
-            fill = self.fill_values.to(feat.device)
+            fill = _compute_fill_values(feat)
             mask = torch.isnan(feat) | torch.isinf(feat)
             out = feat.clone()
             out[mask] = fill.unsqueeze(0).expand_as(out)[mask]
         elif feat.ndim == 3:
-            if single_eval_pos is not None:
-                train_x = feat[:single_eval_pos]
-                fill = torch.nanmean(train_x, dim=0)
-                mask = torch.isnan(feat) | torch.isinf(feat)
-                out = feat.clone()
-                out[mask] = fill.unsqueeze(0).expand_as(out)[mask]
-            else:
-                fill = self.fill_values.to(feat.device).unsqueeze(-1)
-                mask = torch.isnan(feat) | torch.isinf(feat)
-                out = feat.clone()
-                out[mask] = fill.unsqueeze(0).expand_as(out)[mask]
+            stats_source = (
+                feat[:single_eval_pos]
+                if (single_eval_pos is not None and normalize_on_train_only)
+                else feat
+            )
+            fill = _compute_fill_values(stats_source)
+            mask = torch.isnan(feat) | torch.isinf(feat)
+            out = feat.clone()
+            out[mask] = fill.unsqueeze(0).expand_as(out)[mask]
         else:
             raise ValueError(
                 f"Expected feat to be 2D or 3D, but got shape {tuple(feat.shape)}."
