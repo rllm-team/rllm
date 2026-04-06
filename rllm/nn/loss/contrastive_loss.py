@@ -8,13 +8,13 @@ from rllm.nn.loss.base_loss import BaseLoss
 
 
 class ContrastiveLoss(BaseLoss):
-    r"""
-    Generalized InfoNCE-style contrastive loss with a customizable positive mask.
+    r"""Generalized InfoNCE-style contrastive loss with a customizable positive mask.
 
     This class provides a reusable implementation of the InfoNCE / SupCon
-    contrastive objective used in self-supervised, supervised, and vertical-partition
-    contrastive learning. Subclasses only define how positives are selected
-    (via `pos_mask`); all numerical and normalization steps are handled here.
+    contrastive objective used in self-supervised, supervised, and
+    vertical-partition contrastive learning.  Subclasses only define how
+    positives are selected (via ``pos_mask``); all numerical and
+    normalisation steps are handled here.
 
     Per-anchor loss:
 
@@ -35,9 +35,17 @@ class ContrastiveLoss(BaseLoss):
 
     Args:
         temperature (float): Temperature :math:`\tau` scaling the logits.
-        base_temperature (float): Reference temperature :math:`\tau_0` for scaling.
-        similarity (str): Similarity metric, "dot" or "cosine".
-        eps (float): Numerical stability constant.
+        base_temperature (float): Reference temperature :math:`\tau_0`.
+        similarity (str): Similarity metric, ``"dot"`` or ``"cosine"``.
+        eps (float): Numerical stability constant added to log-denominators.
+
+    Example:
+        >>> import torch
+        >>> loss_fn = ContrastiveLoss(temperature=1.0, similarity="dot")
+        >>> feats = torch.randn(4, 8)
+        >>> pos_mask = torch.eye(4)
+        >>> loss_fn(feats, pos_mask).ndim
+        0
     """
 
     def __init__(
@@ -54,78 +62,91 @@ class ContrastiveLoss(BaseLoss):
         self.eps = eps
 
     def _pairwise_logits(self, feats: torch.Tensor) -> torch.Tensor:
-        """
-        Compute pairwise similarity logits BEFORE numerical stabilization.
+        """Compute pairwise similarity logits scaled by temperature.
 
-        feats: [N, D]
-        returns: [N, N] logits where logits[a, b] = sim(a, b) / temperature
+        Args:
+            feats: ``[N, D]`` embedding matrix.
+
+        Returns:
+            ``[N, N]`` logit matrix where ``logits[a, b] = sim(a, b) / τ``.
         """
         if self.similarity == "cosine":
             feats = F.normalize(feats, dim=1)
-
-        # dot product similarity matrix
-        # [N, D] @ [D, N] -> [N, N]
-        sim_matrix = torch.matmul(feats, feats.T)  # cosine if normalized, otherwise dot
-        logits = sim_matrix / self.temperature
-        return logits
+        sim_matrix = torch.matmul(feats, feats.T)
+        return sim_matrix / self.temperature
 
     def forward(
         self,
         feats: torch.Tensor,
         pos_mask: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        Compute the final contrastive loss given embeddings and a positive mask.
+        """Compute the contrastive loss given embeddings and a positive mask.
 
         Args:
-            feats (Tensor): [N, D]
-                Projected embeddings from all "views"/"partitions".
-            pos_mask (Tensor): [N, N], dtype float/bool
-                pos_mask[a, b] = 1.0 if sample b should be treated
-                as a positive of anchor a. We will internally remove
-                exact self-pairs from contributing positives and
-                denominators.
+            feats (Tensor): ``[N, D]`` projected embeddings from all views /
+                partitions.
+            pos_mask (Tensor): ``[N, N]`` float or bool mask where
+                ``pos_mask[a, b] = 1`` when sample *b* should be treated as a
+                positive of anchor *a*.  Self-pairs are excluded internally.
 
         Returns:
-            loss (Tensor): scalar contrastive loss.
+            torch.Tensor: Scalar contrastive loss.  Returns ``0.0`` (with
+            gradient) when no anchor in the batch has any valid positive.
+
+        Example:
+            >>> import torch
+            >>> loss_fn = ContrastiveLoss()
+            >>> feats = torch.randn(3, 5)
+            >>> pos_mask = torch.tensor(
+            ...     [[0, 1, 0], [1, 0, 0], [0, 0, 0]], dtype=torch.float32
+            ... )
+            >>> loss_fn(feats, pos_mask).ndim
+            0
         """
         device = feats.device
         N = feats.shape[0]
 
-        # 1. Compute pairwise logits
-        anchor_dot_contrast = self._pairwise_logits(feats)  # [N, N]
+        # 1. Pairwise logits [N, N]
+        logits = self._pairwise_logits(feats)
 
-        # 2. Numerical stability: subtract row-wise max
-        logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
-        logits = anchor_dot_contrast - logits_max.detach()  # [N, N]
+        # 2. Set diagonal to -inf so self-pairs contribute exactly 0 in exp
+        #    without the nan-producing `exp(large) * 0` pattern.
+        eye = torch.eye(N, dtype=torch.bool, device=device)
+        logits = logits.masked_fill(eye, float("-inf"))
 
-        # 3. Build mask that excludes self-pairs from denominator
-        # logits_mask[a, a] = 0, else 1
-        logits_mask = torch.ones_like(pos_mask, dtype=feats.dtype, device=device)
-        diag_idx = torch.arange(N, device=device).view(-1, 1)
-        logits_mask.scatter_(1, diag_idx, 0.0)
+        # 3. Numerical stability: subtract row-wise max (ignores -inf entries)
+        logits_max, _ = torch.max(logits, dim=1, keepdim=True)
+        logits = logits - logits_max.detach()
 
-        # 4. Positive mask should also not include self
-        mask = (pos_mask.float() * logits_mask).to(feats.dtype)  # [N, N]
+        # 4. Positive mask: exclude self-pairs
+        mask = pos_mask.to(dtype=feats.dtype, device=device).clone()
+        mask.fill_diagonal_(0.0)
 
-        # 5. Denominator for softmax: all non-self pairs
-        exp_logits = torch.exp(logits) * logits_mask  # [N, N]
-        denom = exp_logits.sum(dim=1, keepdim=True) + self.eps  # [N, 1]
+        # 5. Denominator: sum exp over all non-self entries
+        #    Diagonal is -inf → exp(-inf) = 0, so no masking needed here.
+        exp_logits = torch.exp(logits)                            # [N, N]
+        log_denom = torch.log(exp_logits.sum(dim=1, keepdim=True) + self.eps)
 
-        # log_prob[a, b] = log( p(b | a) ), where denominator excludes self
-        log_prob = logits - torch.log(denom)  # [N, N] broadcast row-wise
+        # 6. log p(b | a) for all pairs
+        log_prob = logits - log_denom                             # [N, N]
 
-        # 6. For each anchor a, average log_prob over its positives
-        pos_weight_sum = mask.sum(dim=1)  # [N]
-        mean_log_prob_pos = (mask * log_prob).sum(dim=1) / (
-            pos_weight_sum + self.eps
-        )  # [N]
+        # 7. For each anchor average log_prob over its positives.
+        #    Use torch.where instead of mask * log_prob to avoid
+        #    0 * (-inf) = nan (IEEE 754): non-positive positions get 0.
+        pos_weight_sum = mask.sum(dim=1)                          # [N]
+        valid = pos_weight_sum > 0                                # [N] bool
 
-        # 7. Final scaling (matches your TransTab code):
-        # loss_a = - (T / T0) * mean_log_prob_pos[a]
-        loss_per_anchor = (
-            -(self.temperature / self.base_temperature) * mean_log_prob_pos
-        )  # [N]
+        if not valid.any():
+            return torch.tensor(0.0, device=device, requires_grad=True)
 
-        loss = loss_per_anchor.mean()
-        return loss
+        zero = torch.zeros_like(log_prob)
+        masked_log_prob = torch.where(mask.bool(), log_prob, zero) # [N, N]
+        mean_log_prob_pos = masked_log_prob.sum(dim=1)             # [N]
+        mean_log_prob_pos[valid] = (
+            mean_log_prob_pos[valid] / pos_weight_sum[valid]
+        )
+        mean_log_prob_pos[~valid] = 0.0
+
+        # 8. Scale and average over valid anchors only
+        loss_per_anchor = -(self.temperature / self.base_temperature) * mean_log_prob_pos
+        return loss_per_anchor[valid].mean()

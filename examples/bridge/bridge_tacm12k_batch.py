@@ -22,7 +22,7 @@ from rllm.transforms.graph_transforms import NormalizeFeatures
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.conv.graph_conv import GCNConv
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.models import BRIDGE, TableEncoder, GraphEncoder
+from rllm.nn.models import TableEncoder, GraphEncoder, BRIDGE
 from utils import build_homo_graph
 
 
@@ -94,10 +94,7 @@ t_encoder = TableEncoder(
     metadata=target_table.metadata,
 )
 g_encoder = GraphEncoder(
-    in_dim=emb_size,
-    out_dim=target_table.num_classes,
-    graph_conv=GCNConv,
-    norm=True
+    in_dim=emb_size, out_dim=target_table.num_classes, graph_conv=GCNConv, norm=True
 )
 model = BRIDGE(
     table_encoder=t_encoder,
@@ -120,9 +117,7 @@ def train() -> float:
             non_table=None,
             adj=adjs,
         )
-        loss = F.cross_entropy(
-            logits[:batch], table_data.y[:batch].to(torch.long)
-        )
+        loss = F.cross_entropy(logits[:batch], table_data.y[:batch].to(torch.long))
         loss.backward()
         optimizer.step()
         loss_all += loss.item()

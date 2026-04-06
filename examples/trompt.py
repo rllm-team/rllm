@@ -5,7 +5,7 @@
 # Datasets      Titanic     Adult
 # Metrics       Acc         Acc
 # Rept.         -           0.862
-# Ours          0.853       0.861
+# Ours          0.853       0.864
 # Time          13.9s       911.7s
 
 import argparse
@@ -35,7 +35,7 @@ parser.add_argument("--emb_dim", help="embedding dim", type=int, default=128)
 parser.add_argument("--num_layers", type=int, default=6)
 parser.add_argument("--num_prompts", type=int, default=128)
 parser.add_argument("--batch_size", type=int, default=256)
-parser.add_argument("--epochs", type=int, default=50)
+parser.add_argument("--epochs", type=int, default=100)
 parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--wd", type=float, default=5e-4)
 parser.add_argument("--seed", type=int, default=0)
@@ -85,12 +85,11 @@ class Trompt(torch.nn.Module):
                     in_dim=in_dim,
                     out_dim=hidden_dim,
                     num_prompts=num_prompts,
-                    use_pre_encoder=True,
                     metadata=metadata,
                 )
             )
 
-        self.linear = torch.nn.Linear(hidden_dim, 1)
+        self.lin_attn = torch.nn.Linear(hidden_dim, 1)
         self.mlp = torch.nn.Sequential(
             torch.nn.Linear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
@@ -103,20 +102,20 @@ class Trompt(torch.nn.Module):
         torch.nn.init.xavier_uniform_(self.x_prompt)
         for conv in self.convs:
             conv.reset_parameters()
-        torch.nn.init.xavier_uniform_(self.linear.weight)
-        torch.nn.init.zeros_(self.linear.bias)
+        torch.nn.init.xavier_uniform_(self.lin_attn.weight)
+        torch.nn.init.zeros_(self.lin_attn.bias)
         for layer in self.mlp:
             if isinstance(layer, torch.nn.Linear):
                 torch.nn.init.xavier_uniform_(layer.weight)
                 torch.nn.init.zeros_(layer.bias)
 
-    def forward(self, x) -> Tensor:
+    def forward(self, x: dict) -> Tensor:
         outs = []
         batch_size = x[list(x.keys())[0]].size(0)
         x_prompt = self.x_prompt.unsqueeze(0).repeat(batch_size, 1, 1)
         for conv in self.convs:
             x_prompt = conv(x, x_prompt)
-            w_prompt = F.softmax(self.linear(x_prompt), dim=1)
+            w_prompt = F.softmax(self.lin_attn(x_prompt), dim=1)
             out = (w_prompt * x_prompt).sum(dim=1)
             out = self.mlp(out)
             out = out.reshape(batch_size, 1, self.out_dim)
@@ -124,7 +123,6 @@ class Trompt(torch.nn.Module):
         return torch.cat(outs, dim=1).mean(dim=1)
 
 
-print(data.num_cols, data.num_classes)
 # Set up model and optimizer
 model = Trompt(
     in_dim=data.num_cols,

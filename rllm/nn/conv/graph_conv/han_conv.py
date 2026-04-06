@@ -51,7 +51,7 @@ class HANConv(MessagePassing):
         dropout: float = 0.0,
         *,
         aggr: str = "sum",
-        **kwargs
+        **kwargs,
     ):
         # default use 'sum' aggregator
         super().__init__(aggr=aggr, aggr_kwargs=kwargs)
@@ -79,8 +79,8 @@ class HANConv(MessagePassing):
         hidden_dim = out_dim // num_heads
         for edge_type in edge_types:
             edge_type = "__".join(edge_type)
-            self.lin_src[edge_type] = torch.nn.Parameter(torch.empty(1, num_heads, hidden_dim))
-            self.lin_dst[edge_type] = torch.nn.Parameter(torch.empty(1, num_heads, hidden_dim))
+            self.lin_src[edge_type] = Parameter(torch.empty(1, num_heads, hidden_dim))
+            self.lin_dst[edge_type] = Parameter(torch.empty(1, num_heads, hidden_dim))
 
         # meta-path attention
         self.k_lin = torch.nn.Linear(out_dim, out_dim, bias=True)
@@ -102,12 +102,39 @@ class HANConv(MessagePassing):
         edge_index_dict: Dict[Tuple[str, str], Union[Tensor, SparseTensor]],
         return_semantic_attn_weights: bool = False,
     ):
+        r"""Apply HAN message passing over typed edges and semantic fusion.
+
+        Args:
+            x_dict (Dict[str, Tensor]): Mapping from node type to node feature matrix.
+            edge_index_dict (Dict[Tuple[str, str], Union[Tensor, SparseTensor]]):
+                Mapping from edge type triplets to typed graph connectivity.
+            return_semantic_attn_weights (bool): If True, also return semantic
+                attention weights for each node type.
+
+        Returns:
+            Union[Dict[str, Tensor], Tuple[Dict[str, Tensor], Dict[str, Tensor]]]:
+            Per-node-type output embeddings, optionally with semantic attention
+            weights.
+
+        Example:
+            >>> import torch
+            >>> from rllm.nn.conv.graph_conv import HANConv
+            >>> metadata = (['u', 'i'], [('u', 'i')])
+            >>> conv = HANConv(16, 8, metadata)
+            >>> x_dict = {'u': torch.randn(2, 16), 'i': torch.randn(3, 16)}
+            >>> edge_index_dict = {('u', 'i'): torch.tensor([[0, 1], [1, 2]])}
+            >>> out_dict = conv(x_dict, edge_index_dict)
+            >>> out_dict['i'].shape
+            torch.Size([3, 8])
+        """
         H, D = self.num_heads, self.out_dim // self.num_heads
         node_dict, out_dict = {}, {}
 
         # Linear projection
         for node_type, x in x_dict.items():
-            node_dict[node_type] = self.lin_dict[node_type](x).view(-1, H, D)  # (N, in_dim) -> (N, H, D)
+            node_dict[node_type] = self.lin_dict[node_type](x).view(
+                -1, H, D
+            )  # (N, in_dim) -> (N, H, D)
             out_dict[node_type] = []
 
         # Iterate over edge types
@@ -139,7 +166,9 @@ class HANConv(MessagePassing):
         semantic_attn_dict = {}
         for node_type, outs in out_dict.items():
             outs = torch.stack(outs, dim=0)  # (num_edge_types, N, out_dim)
-            k = torch.tanh(self.k_lin(outs)).mean(dim=1, keepdim=False)  # (num_edge_types, out_dim)
+            k = torch.tanh(self.k_lin(outs)).mean(
+                dim=1, keepdim=False
+            )  # (num_edge_types, out_dim)
             attn_score = (self.q * k).sum(dim=-1, keepdim=False)  # (num_edge_types)
             attn = F.softmax(attn_score, dim=0)
             outs = attn.view(-1, 1, 1) * outs
@@ -166,8 +195,9 @@ class HANConv(MessagePassing):
         # msg: (E, out_dim[H*D])
         msgs = src_x * alpha.unsqueeze(-1)  # (E, H, D) * (E, H) -> (E, H, D)
         msgs = msgs.view(-1, self.out_dim)  # (E, H, D) -> (E, H*D)
-        return self.aggr_module(msgs, edge_index[1, :], dim=self.node_dim, dim_size=dim_size)
+        return self.aggr_module(
+            msgs, edge_index[1, :], dim=self.node_dim, dim_size=dim_size
+        )
 
     def __repr__(self):
-        return (f'{self.__class__.__name__}({self.out_dim}, ',
-                f'num_heads={self.num_heads})')
+        return f"{self.__class__.__name__}({self.out_dim}, num_heads={self.num_heads})"

@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 from rllm.types import ColType
 from rllm.data import TableData
+from rllm.nn.encoder import TabTransformerPreEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.conv.graph_conv import GCNConv
 
@@ -43,14 +44,13 @@ class TableEncoder(torch.nn.Module):
         super().__init__()
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(
-            table_conv(conv_dim=out_dim, use_pre_encoder=True, metadata=metadata)
-        )
-        for _ in range(num_layers - 1):
+        self.pre_encoder = TabTransformerPreEncoder(out_dim=out_dim, metadata=metadata)
+        for _ in range(num_layers):
             self.convs.append(table_conv(conv_dim=out_dim))
 
     def forward(self, table: TableData) -> Tensor:
         x = table.feat_dict
+        x = self.pre_encoder(x, return_dict=True)
         for conv in self.convs:
             x = conv(x)
         x = torch.cat(list(x.values()), dim=1)
@@ -128,6 +128,10 @@ class BRIDGE(torch.nn.Module):
     Args:
         table_encoder (TableEncoder): Encoder for tabular data.
         graph_encoder (GraphEncoder): Encoder for graph data.
+
+    Example:
+        >>> from rllm.nn.models.bridge import BRIDGE, TableEncoder, GraphEncoder
+        >>> model = BRIDGE(TableEncoder(16, 32, metadata={}), GraphEncoder(32, 8))
     """
 
     def __init__(

@@ -17,7 +17,8 @@ def knn_graph(
     include_self: Optional[bool] = False,
     n_jobs: int = 1,
 ):
-    r"""Creates a k-NN graph based on node features
+    r"""Creates a k-NN graph from node features.
+
     Args:
         x (Tensor): The node features.
         num_neighbors (int, optional): Number of neighbors. (default: 6)
@@ -33,12 +34,10 @@ def knn_graph(
             Euclidean distance when p = 2.
             (default: `minkowski`)
         p (float): Power parameter for the Minkowski metric (default: `2`).
-        metric_paramsdict (dict, optinal):
-            Additional keyword arguments
-            for the metric function.
-            (default: None)
-        include_self (bool, optinal): If set to True, the graph will
-            contain self-loops. (default: False)
+        metric_params (dict, optional): Additional keyword arguments for the
+            metric function. (default: :obj:`None`)
+        include_self (bool, optional): If set to :obj:`True`, the graph will
+            contain self-loops. (default: :obj:`False`)
         n_jobs (int): Number of workers to use for computation. (default: 1)
     """
 

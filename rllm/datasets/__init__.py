@@ -18,6 +18,12 @@ from .relbench.base import (
     RelBenchTableMeta
 )
 from .relbench.f1 import RelF1Dataset
+from .lakemlb.mstraffic import MSTrafficDataset
+from .lakemlb.ncbuilding import NCBuildingDataset
+from .lakemlb.gacars import GACarsDataset
+from .lakemlb.nnstocks import NNStocksDataset
+from .lakemlb.lhstocks import LHStocksDataset
+from .lakemlb.dsmusic import DSMusicDataset
 
 __all__ = [
     "Adult",
@@ -38,4 +44,10 @@ __all__ = [
     "RelBenchTask",
     "RelBenchTaskType",
     "RelBenchTableMeta",
+    "MSTrafficDataset",
+    "NCBuildingDataset",
+    "GACarsDataset",
+    "NNStocksDataset",
+    "LHStocksDataset",
+    "DSMusicDataset",
 ]

@@ -7,10 +7,10 @@ from rllm.transforms.graph_transforms.functional import remove_self_loops
 
 
 class RemoveSelfLoops(EdgeTransform):
-    r"""Remove self-loops from the adjacency matrix."""
+    r"""Removes diagonal self-loop edges from an adjacency matrix."""
 
     def __init__(self):
-        self.data = None
+        super().__init__()
 
     @lru_cache()
     def forward(self, adj: Tensor) -> Tensor:

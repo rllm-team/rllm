@@ -6,6 +6,7 @@ import torch
 from torch import Tensor
 
 from rllm.transforms.graph_transforms import EdgeTransform
+from rllm.transforms.graph_transforms.functional import add_remaining_self_loops
 from rllm.utils.sparse import sparse_mx_to_torch_sparse_tensor
 
 
@@ -64,7 +65,7 @@ class GDC(EdgeTransform):
     @torch.no_grad()
     def forward(self, adj: Tensor) -> Tensor:
         if self.self_loop_weight:
-            adj = self.add_weighted_self_loop(adj, self.self_loop_weight)
+            adj = add_remaining_self_loops(adj, fill_value=self.self_loop_weight)
 
         # 1.get the transition matrix
         trans_matrix = self.get_transition_matrix(adj, self.normalize_in)
@@ -83,17 +84,6 @@ class GDC(EdgeTransform):
         )
 
         return adj
-
-    def add_weighted_self_loop(
-        self,
-        adj: Tensor,
-        weight: float = 1.0,
-    ) -> Tensor:
-        adj = torch.eye(adj.size(0)) * weight + adj
-        indices = torch.nonzero(adj, as_tuple=False)
-        values = adj[indices[:, 0], indices[:, 1]]
-        sparse_tensor = torch.sparse_coo_tensor(indices.t(), values, adj.size())
-        return sparse_tensor
 
     def get_transition_matrix(
         self,
@@ -147,7 +137,10 @@ class GDC(EdgeTransform):
         elif normalize is None:
             pass
         else:
-            pass
+            raise ValueError(
+                f"Unsupported normalization '{normalize}'. "
+                "Expected one of: 'sym', 'col', 'row', None."
+            )
         return sparse_mx_to_torch_sparse_tensor(adj)
 
     def diffusion_matrix(  # noqa: D417
@@ -179,12 +172,12 @@ class GDC(EdgeTransform):
         if method == "ppr":
             # α (I_n + (α - 1) A)^-1
             diff_matrix = (kwargs["alpha"] - 1) * adj
-            diff_matrix = self.add_weighted_self_loop(diff_matrix).to_dense()
+            diff_matrix = add_remaining_self_loops(diff_matrix).to_dense()
             diff_matrix = kwargs["alpha"] * torch.inverse(diff_matrix)
 
         elif method == "heat":
             # exp(t (A - I_n))
-            diff_matrix = self.add_weighted_self_loop(adj, -1)
+            diff_matrix = add_remaining_self_loops(adj, fill_value=-1)
             diff_matrix = kwargs["t"] * diff_matrix
             diff_matrix = diff_matrix.exp()
 
@@ -233,7 +226,8 @@ class GDC(EdgeTransform):
             mx[mx < kwargs["eps"]] = 0
         elif method == "topk":
             k, dim = min(mx.size(0), kwargs["k"]), kwargs["dim"]
-            assert dim in [0, 1]
+            if dim not in [0, 1]:
+                raise ValueError(f"Expected dim to be 0 or 1, but got {dim}.")
             sort_idx = torch.argsort(mx, dim=dim, descending=True)
             if dim == 0:
                 top_idx = sort_idx[:k]

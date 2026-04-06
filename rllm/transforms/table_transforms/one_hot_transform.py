@@ -8,10 +8,7 @@ from .col_transform import ColTransform
 
 
 class OneHotTransform(ColTransform):
-    r"""A simple one-hot encoding Transform for categorical features.
-    The OneHotTransform class is designed to perform one-hot encoding on
-    categorical features in tabular data. This transformation converts
-    categorical feature values into a multidimensional tensor representation.
+    r"""One-hot encodes categorical features.
 
     Args:
         out_dim (int, optional):
@@ -39,7 +36,7 @@ class OneHotTransform(ColTransform):
             # If out_dim is not specified, use the maximum number of categories
             # If out_dim is specified, use the maximum of the specified value
             # and the number of categories
-            self.num_categories = max([stats[StatType.COUNT] for stats in stat_list])
+            self.num_categories = max(stats[StatType.COUNT] for stats in stat_list)
             one_hot_classes = (
                 self.num_categories
                 if self.num_categories > self.out_dim

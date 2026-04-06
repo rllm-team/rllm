@@ -7,7 +7,7 @@ from torch.nn import ModuleDict
 from rllm.types import ColType, StatType
 from rllm.data import HeteroGraphData
 from rllm.nn.models import TableResNet, HeteroSAGE
-from rllm.nn.pre_encoder import HeteroTemporalEncoder
+from rllm.nn.encoder import HeteroTemporalEncoder
 
 
 class RDL(torch.nn.Module):
@@ -28,10 +28,27 @@ class RDL(torch.nn.Module):
         hidden_dim (int): The hidden dimension.
         out_dim (int): The output dimension.
         tnn_hidden_dim (int): The hidden dimension for TNN.
+            (default: :obj:`128`)
         tnn_num_layers (int): The number of layers for TNN.
+            (default: :obj:`4`)
         hgnn_aggr (str): The aggregation method for HGNN.
+            (default: :obj:`'mean'`)
         hgnn_num_layers (int): The number of layers for HGNN.
-        use_temporal_encoder (bool): Whether to use temporal encoder.
+            (default: :obj:`2`)
+        use_temporal_encoder (bool): Whether to use the temporal encoder.
+            (default: :obj:`False`)
+        reg_task (bool): If :obj:`True`, uses a regression output head with
+            :class:`~torch.nn.GELU` activation instead of classification.
+            (default: :obj:`False`)
+
+    Example:
+        >>> from rllm.nn.models import RDL
+        >>> model = RDL(
+        ...     data=hdata,
+        ...     col_stats_dict=col_stats_dict,
+        ...     hidden_dim=128,
+        ...     out_dim=1,
+        ... )
     """
 
     def __init__(
@@ -54,8 +71,9 @@ class RDL(torch.nn.Module):
         super().__init__()
         # validate input
         for node_type in data.node_types:
-            assert node_type in col_stats_dict, \
-                f"Node type {node_type} not found in col_stats_dict"
+            assert (
+                node_type in col_stats_dict
+            ), f"Node type {node_type} not found in col_stats_dict"
 
         # build modules
         self.TNN_DICT = ModuleDict(
@@ -65,7 +83,8 @@ class RDL(torch.nn.Module):
                     out_dim=hidden_dim,
                     num_layers=tnn_num_layers,
                     metadata=col_stats_dict[node_type],
-                ) for node_type in data.node_types
+                )
+                for node_type in data.node_types
             }
         )
 
@@ -80,9 +99,7 @@ class RDL(torch.nn.Module):
                 channels=hidden_dim,
             )
         else:
-            self.TEMPORAL_ENCODER = self.register_parameter(
-                "TEMPORAL_ENCODER", None
-            )
+            self.TEMPORAL_ENCODER = self.register_parameter("TEMPORAL_ENCODER", None)
 
         self.HGNN = HeteroSAGE(
             node_types=data.node_types,
@@ -109,6 +126,7 @@ class RDL(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        r"""Reset all learnable parameters of the module."""
         for tnn in self.TNN_DICT.values():
             tnn.reset_parameters()
         if self.use_temporal_encoder:
@@ -123,6 +141,18 @@ class RDL(torch.nn.Module):
         batch: HeteroGraphData,
         target_table: str,
     ) -> Tensor:
+        r"""Run table encoding, optional temporal encoding, HGNN propagation,
+        and the output head.
+
+        Args:
+            batch (HeteroGraphData): Batched heterogeneous relational graph
+                data.
+            target_table (str): The node type to predict.
+
+        Returns:
+            Tensor: Output predictions for seed nodes in the target table,
+            of shape :obj:`[batch_size, out_dim]`.
+        """
         seed_time = batch[target_table].seed_time
         # 1. apply TNN to each node type (table)
         x_dict = {}
@@ -140,10 +170,7 @@ class RDL(torch.nn.Module):
                 x_dict[node_type] = x_dict[node_type] + rel_time
 
         # 3. apply HGNN
-        x_dict = self.HGNN(
-            x_dict,
-            batch.edge_index_dict
-        )
+        x_dict = self.HGNN(x_dict, batch.edge_index_dict)
 
         # 4. apply OUTPUT_HEAD to target table
         return self.OUTPUT_HEAD(x_dict[target_table][: seed_time.size(0)])

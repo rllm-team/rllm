@@ -8,7 +8,7 @@ from torch.nn import Sequential
 
 from rllm.types import ColType
 from rllm.data import TableData
-from rllm.nn.pre_encoder import ResNetPreEncoder
+from rllm.nn.encoder import ResNetPreEncoder
 from rllm.nn.conv.table_conv import ResNetConv
 
 
@@ -23,7 +23,15 @@ class TableResNet(torch.nn.Module):
         num_layers (int): The number of layers.
         metadata (Dict[ColType, List[Dict[str, Any]]]): The metadata of the table.
         normalization (str | None): The normalization method.
-        dropout (float): The dropout rate.
+            (default: :obj:`"layer_norm"`)
+        dropout (float): The dropout rate. (default: :obj:`0.2`)
+
+    Example:
+        >>> import torch
+        >>> from rllm.nn.models import TableResNet
+        >>> from rllm.types import ColType
+        >>> metadata = {ColType.NUMERICAL: [{"name": "x"}]}
+        >>> model = TableResNet(hidden_dim=64, out_dim=1, num_layers=2, metadata=metadata)
     """
 
     def __init__(
@@ -70,6 +78,7 @@ class TableResNet(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
         self.pre_encoder.reset_parameters()
         for conv in self.convs:
             conv.reset_parameters()
@@ -78,10 +87,19 @@ class TableResNet(torch.nn.Module):
                 layer.reset_parameters()
 
     def forward(self, table: TableData) -> Tensor:
+        r"""Encode a table into a fixed-size feature vector.
+
+        Args:
+            table (TableData): Input table data.
+
+        Returns:
+            Tensor: Output representations of shape
+            :obj:`[batch_size, out_dim]`.
+        """
         x = table.feat_dict
 
         x = self.pre_encoder(x)  # (B, n_cols, hidden_dim)
-        # flatten the pre_encoder output
+        # flatten the table_encoder output
         x = x.view(x.size(0), math.prod(x.shape[1:]))  # (B, n_cols * hidden_dim)
         x = self.convs(x)  # (B, hidden_dim)
         x = self.decoder(x)  # (B, hidden_dim)

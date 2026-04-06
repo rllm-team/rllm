@@ -9,23 +9,28 @@ import torch
 from torch import Tensor
 
 from rllm.types import ColType
-from rllm.preprocessing import TokenizerConfig, TransTabDataExtractor
+from rllm.preprocessing import TokenizerConfig
 from rllm.data.table_data import TableData
 from rllm.nn.loss import SupervisedVPCL, SelfSupervisedVPCL
-from rllm.nn.pre_encoder import TransTabPreEncoder
+from rllm.nn.encoder import TransTabPreEncoder
 from rllm.nn.conv.table_conv import TransTabConv
-from rllm.nn.models.base_model import LinearClassifier
 
 
 class TransTabCLSToken(torch.nn.Module):
-    r"""Add a learnable CLS token embedding to the beginning of each sequence.
-
-    This module maintains a trainable embedding vector of size `hidden_dim`
-    that is prepended to the input embeddings on each forward pass. If an
-    attention mask is provided, it is also updated to include the new token.
+    r"""Prepends a learnable ``[CLS]`` token to each input sequence.
 
     Args:
-        hidden_dim (int): Dimensionality of the CLS token embedding.
+        hidden_dim (int): Dimensionality of the ``[CLS]`` embedding.
+
+    Shape:
+        - Input: :math:`(N, S, H)` → Output: :math:`(N, S+1, H)`
+
+    Examples::
+
+        >>> cls = TransTabCLSToken(hidden_dim=8)
+        >>> out = cls(torch.randn(2, 5, 8))
+        >>> out["embedding"].shape
+        torch.Size([2, 6, 8])
     """
 
     def __init__(self, hidden_dim) -> None:
@@ -58,42 +63,32 @@ class TransTabCLSToken(torch.nn.Module):
 
 
 class TransTab(torch.nn.Module):
-    r"""TransTab: End-to-end TransTab model for downstream prediction tasks,
-    `"TransTab: Learning Transferable Tabular Transformers Across Tables"
-    <https://arxiv.org/abs/2205.09328>` _ paper.
+    r"""Base TransTab encoder for tabular data
+    (`"TransTab" <https://arxiv.org/abs/2205.09328>`_).
 
-    This model implements the full TransTab pipeline:
-      1) Extract raw DataFrame columns into token IDs and value tensors
-         (TransTabDataExtractor).
-      2) Convert tokens/values into feature embeddings and attention masks
-         (TransTabDataProcessor).
-      3) Prepend a learnable [CLS] token and encode the sequence via a
-         multi-layer Transformer stack (TransTabCLSToken + TransTabConv).
-      4) Produce a single-vector representation from the final CLS position,
-         optionally apply a contrastive projection head, and (subclasses may)
-         append a classification head.
+    Encodes column names and cell values into token embeddings, prepends a
+    learnable ``[CLS]`` token, and refines the sequence through ``num_layer``
+    Transformer layers.  The final ``[CLS]`` position is returned as a
+    fixed-size table-level embedding.
 
     Args:
-        categorical_columns (Optional[List[str]]): Names of categorical features.
-        numerical_columns (Optional[List[str]]): Names of numerical features.
-        binary_columns (Optional[List[str]]): Names of binary (0/1) features.
-        hidden_dim (int): Dimension of all internal embeddings (d_model).
-        num_layer (int): Number of Transformer encoder(conv) layers to stack.
-        num_attention_head (int): Number of attention heads per layer.
-        hidden_dropout_prob (float): Dropout probability in Transformer sublayers.
-        layer_norm_eps (float): Epsilon for all LayerNorm operations.
-        ffn_dim (int): Inner dimension of Transformer feedforward networks.
-        activation (str): Activation function for feedforward ("relu", etc.).
-        projection_dim (int): Output dimension of the contrastive projection head.
-        overlap_ratio (float): Overlap fraction used in contrastive partitioning.
-        num_partition (int): Number of partitions for contrastive sampling.
-        supervised (bool): If True, use supervised contrastive loss; otherwise unsupervised.
-        temperature (float): Temperature parameter for contrastive loss.
-        base_temperature (float): Base temperature for stability scaling.
-        tokenizer: Optional pretrained tokenizer instance (e.g., BertTokenizerFast).
-            If provided, will be used by TransTabDataExtractor; otherwise extractor
-            creates its own. (default: None)
-        **kwargs: Additional keyword arguments passed to TransTabDataExtractor.
+        categorical_columns (List[str], optional): Categorical column names. Default: ``None``.
+        numerical_columns (List[str], optional): Numerical column names. Default: ``None``.
+        binary_columns (List[str], optional): Binary column names. Default: ``None``.
+        hidden_dim (int): Shared embedding dimensionality. Default: ``128``.
+        num_layer (int): Number of Transformer layers. Default: ``2``.
+        num_attention_head (int): Number of attention heads. Default: ``8``.
+        hidden_dropout_prob (float): Dropout probability. Default: ``0.1``.
+        layer_norm_eps (float): LayerNorm :math:`\varepsilon`. Default: ``1e-5``.
+        ffn_dim (int): Feedforward inner dimension. Default: ``256``.
+        activation (str): Feedforward activation. Default: ``"relu"``.
+        tokenizer: Pre-trained tokenizer; created automatically when ``None``. Default: ``None``.
+        **kwargs: Forwarded to :class:`~rllm.nn.encoder.TransTabPreEncoder`.
+
+    Examples::
+
+        >>> from rllm.nn.models import TransTab
+        >>> model = TransTab(hidden_dim=32, num_layer=1, num_attention_head=4)
     """
 
     def __init__(
@@ -122,34 +117,10 @@ class TransTab(torch.nn.Module):
         self.hidden_dropout_prob = hidden_dropout_prob
         self.layer_norm_eps = layer_norm_eps
 
-        # 1) Record and deduplicate various column names (preserving order for reproducibility)
-        def deduplicate_preserving_order(lst):
-            """Remove duplicates while preserving order."""
-            if lst is None:
-                return None
-            seen = set()
-            result = []
-            for item in lst:
-                if item not in seen:
-                    seen.add(item)
-                    result.append(item)
-            return result
+        self.categorical_columns = categorical_columns
+        self.numerical_columns = numerical_columns
+        self.binary_columns = binary_columns
 
-        self.categorical_columns = deduplicate_preserving_order(categorical_columns)
-        self.numerical_columns = deduplicate_preserving_order(numerical_columns)
-        self.binary_columns = deduplicate_preserving_order(binary_columns)
-
-        # 2) Initialize DataExtractor
-        # Pass tokenizer explicitly if provided, otherwise let extractor create its own
-        self.extractor = TransTabDataExtractor(
-            categorical_columns=self.categorical_columns,
-            numerical_columns=self.numerical_columns,
-            binary_columns=self.binary_columns,
-            tokenizer=tokenizer,
-            **kwargs,
-        )
-
-        # 3) Initialize PreEncoder (for DataProcessor), metadata provides an empty list mapping
         metadata = {
             ColType.CATEGORICAL: [],
             ColType.BINARY: [],
@@ -158,12 +129,14 @@ class TransTab(torch.nn.Module):
         self.pre_encoder = TransTabPreEncoder(
             out_dim=hidden_dim,
             metadata=metadata,
-            vocab_size=self.extractor.tokenizer.vocab_size,
-            padding_idx=self.extractor.tokenizer.pad_token_id,
+            categorical_columns=categorical_columns,
+            numerical_columns=numerical_columns,
+            binary_columns=binary_columns,
+            tokenizer=tokenizer,
             hidden_dropout_prob=self.hidden_dropout_prob,
             layer_norm_eps=self.layer_norm_eps,
-            extractor=self.extractor,
             use_align_layer=True,
+            **kwargs,
         )
 
         self.convs = torch.nn.ModuleList()
@@ -182,20 +155,15 @@ class TransTab(torch.nn.Module):
                 )
             )
 
-        # 6) CLS token module, used to insert a learnable vector at the front of the sequence
         self.cls_token = TransTabCLSToken(hidden_dim=hidden_dim)
 
-        # Contrastive Learning
-        # Add a small projection head on top of the CLS embedding
         self.projection_head = torch.nn.Linear(hidden_dim, projection_dim, bias=False)
-        # CL hyperparameters
         self.supervised = supervised
         self.temperature = temperature
         self.base_temperature = base_temperature
         self.num_partition = num_partition
         self.overlap_ratio = overlap_ratio
         self.ce_loss = torch.nn.CrossEntropyLoss()
-        # device already set
 
     @property
     def device(self) -> torch.device:
@@ -206,114 +174,97 @@ class TransTab(torch.nn.Module):
         x: Union[pd.DataFrame, TableData, Dict[ColType, torch.Tensor]],
         y: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """
-        x: a batch of samples
-        y: optional label (placeholder only, ignored by the base class)
-        Return: final [CLS] vector, shape = (batch, hidden_dim)
+        r"""Encode a table batch into a ``[CLS]`` embedding of shape :math:`(N, H)`.
+
+        Args:
+            x (TableData): Input table batch.
+            y (Tensor, optional): Unused; kept for subclass API symmetry. Default: ``None``.
+
+        Returns:
+            Tensor: ``[CLS]`` embeddings of shape :math:`(N, H)`.
         """
         if isinstance(x, TableData) or hasattr(x, "feat_dict"):
-            # Pass TableData or TableData-like object to pre_encoder
             proc_out = self.pre_encoder(x)
         else:
             raise ValueError(
                 f"Expected input type TableData or object with feat_dict, got {type(x)}"
             )
 
-        # 1) DataProcessor gets embedding + mask
         emb = proc_out["embedding"]  # (batch, seq_len, hidden_dim)
         mask = proc_out["attention_mask"]  # (batch, seq_len)
 
-        # 2) Add CLS token at the beginning
+        # Prepend CLS token
         cls_out = self.cls_token(emb, attention_mask=mask)
         emb2 = cls_out["embedding"]  # (batch, seq_len+1, hidden_dim)
         mask2 = cls_out["attention_mask"]  # (batch, seq_len+1)
 
-        # 3) Transformer Encoding
+        # Transformer encoding
         for conv in self.convs:
             enc_out = conv(x=emb2, src_key_padding_mask=mask2)
             emb2 = enc_out
 
-        # 4) Take the first position (CLS) as the sample representation
         final_cls = enc_out[:, 0, :]  # (batch, hidden_dim)
         return final_cls
 
     def save(self, ckpt_dir: str) -> None:
-        """
-        Save the entire model:
-        1) pre_encoder.save → extractor/tokenizer + pre_encoder
-        2) Save the state_dict of this model (conv + cls_token)
-        """
-        # 1) save extractor + pre_encoder
+        r"""Save model weights to ``ckpt_dir``."""
         self.pre_encoder.save(ckpt_dir)
 
-        # 2) Save model weights
         os.makedirs(ckpt_dir, exist_ok=True)
         model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
         torch.save(self.state_dict(), model_path)
         print(f"Saved TransTab weights to {model_path}")
 
     def load(self, ckpt_dir: str) -> None:
-        """
-        Load the entire model:
-        1) Restore extractor/tokenizer + pre_encoder
-        2) Synchronize column mapping to model attributes
-        3) Load encoder + cls_token's state_dict (to CPU first)
-        4) Move the model to self.device
-        """
-        # 1) Restore extractor + pre_encoder
+        r"""Restore model weights from ``ckpt_dir`` (``strict=False``)."""
         self.pre_encoder.load(ckpt_dir)
 
-        # 2) Synchronous column mapping
-        self.categorical_columns = self.pre_encoder.extractor.categorical_columns
-        self.numerical_columns = self.pre_encoder.extractor.numerical_columns
-        self.binary_columns = self.pre_encoder.extractor.binary_columns
+        # Synchronize column mapping
+        self.categorical_columns = self.pre_encoder.categorical_columns
+        self.numerical_columns = self.pre_encoder.numerical_columns
+        self.binary_columns = self.pre_encoder.binary_columns
 
-        # 3) Load model weights to CPU
         model_path = os.path.join(ckpt_dir, "pytorch_model.bin")
-        state_dict = torch.load(model_path, map_location='cpu', weights_only=True)
+        state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
         missing, unexpected = self.load_state_dict(state_dict, strict=False)
         print(f"Loaded TransTab weights from {model_path}")
         print(f" Missing keys: {missing}")
         print(f" Unexpected keys: {unexpected}")
 
-        # 4) Cache the pre-trained pre_encoder status, which will be used in the subsequent update
+        # Cache the pre-trained table_encoder state for subsequent update calls
         pe_path = os.path.join(ckpt_dir, "input_encoder.bin")
-        self._preencoder_state = torch.load(
+        self._table_encoder_state = torch.load(
             pe_path, map_location="cpu", weights_only=True
         )
 
     def update(self, config: Dict[str, Any]) -> None:
         col_map = {k: v for k, v in config.items() if k in ("cat", "num", "bin")}
         if col_map:
-            ext = self.pre_encoder.extractor
-            ext.update(
+            self.pre_encoder.update(
                 cat=col_map.get("cat", None),
                 num=col_map.get("num", None),
                 bin=col_map.get("bin", None),
             )
-            self.categorical_columns = ext.categorical_columns
-            self.numerical_columns = ext.numerical_columns
-            self.binary_columns = ext.binary_columns
+            self.categorical_columns = self.pre_encoder.categorical_columns
+            self.numerical_columns = self.pre_encoder.numerical_columns
+            self.binary_columns = self.pre_encoder.binary_columns
 
-            print("Extended column mappings in TransTab via extractor.update().")
+            print("Extended column mappings in TransTab via table_encoder.update().")
 
         if "num_class" in config:
             self._adapt_to_new_num_class(config["num_class"])
 
     def _adapt_to_new_num_class(self, num_class: int) -> None:
-        """
-        If this model (or a subclass) defines self.clf,
-        rebuild the classification head and loss_fn when the number of classes changes.
-        """
+        r"""Rebuild ``self.clf`` and ``self.loss_fn`` for a new ``num_class``."""
         if not hasattr(self, "clf") or num_class == getattr(self, "num_class", None):
             return
         self.num_class = num_class
-        # Rebuilding the classification header
-        self.clf = LinearClassifier(
-            num_class=num_class, hidden_dim=self.cls_token.hidden_dim
+        hidden_dim = self.cls_token.hidden_dim
+        out_dim = 1 if num_class <= 2 else num_class
+        self.clf = torch.nn.Sequential(
+            torch.nn.LayerNorm(hidden_dim),
+            torch.nn.Linear(hidden_dim, out_dim),
         )
-        # Note: clf will be on the same device as the model after model.to(device) is called
-        # Reconstruction loss
         if num_class > 2:
             self.loss_fn = torch.nn.CrossEntropyLoss(reduction="none")
         else:
@@ -322,27 +273,29 @@ class TransTab(torch.nn.Module):
 
 
 class TransTabClassifier(TransTab):
-    r"""TransTabClassifier: Classification model built on TransTab.
+    r"""TransTab with a LayerNorm + Linear classification head on the ``[CLS]`` embedding.
 
-    Inherits the full TransTab pipeline (data extraction, preprocessing,
-    Transformer encoding, CLS token) and adds a linear classification head
-    on the final CLS embedding, computing either cross-entropy or binary
-    cross-entropy loss.
+    Supports binary (``num_class <= 2``, BCEWithLogitsLoss) and multi-class
+    (CrossEntropyLoss) settings.
 
     Args:
-        categorical_columns (Optional[List[str]]): Names of categorical features.
-        numerical_columns (Optional[List[str]]): Names of numerical features.
-        binary_columns (Optional[List[str]]): Names of binary (0/1) features.
-        num_class (int): Number of target classes (≤2 yields a single-logit binary head).
-        hidden_dim (int): Dimensionality of internal embeddings (d_model).
-        num_layer (int): Number of Transformer encoder layers to stack.
-        num_attention_head (int): Number of attention heads per Transformer layer.
-        hidden_dropout_prob (float): Dropout probability in Transformer sublayers.
-        ffn_dim (int): Inner dimension of Transformer feedforward networks.
-        activation (str): Activation function for feedforward layers ("relu", etc.).
-        tokenizer: Optional pretrained tokenizer instance. If provided, will be
-            used by the underlying TransTab model. (default: None)
-        **kwargs: Additional keyword arguments passed to `TransTab`.
+        categorical_columns (List[str], optional): Categorical column names. Default: ``None``.
+        numerical_columns (List[str], optional): Numerical column names. Default: ``None``.
+        binary_columns (List[str], optional): Binary column names. Default: ``None``.
+        num_class (int): Number of target classes. Default: ``2``.
+        hidden_dim (int): Shared embedding dimensionality. Default: ``128``.
+        num_layer (int): Number of Transformer layers. Default: ``2``.
+        num_attention_head (int): Number of attention heads. Default: ``8``.
+        hidden_dropout_prob (float): Dropout probability. Default: ``0.1``.
+        ffn_dim (int): Feedforward inner dimension. Default: ``256``.
+        activation (str): Feedforward activation. Default: ``"relu"``.
+        tokenizer: Pre-trained tokenizer. Default: ``None``.
+        **kwargs: Forwarded to :class:`TransTab`.
+
+    Examples::
+
+        >>> from rllm.nn.models import TransTabClassifier
+        >>> model = TransTabClassifier(num_class=2, hidden_dim=32)
     """
 
     def __init__(
@@ -375,8 +328,11 @@ class TransTabClassifier(TransTab):
         )
 
         self.num_class = num_class
-        # Classification head: receives a CLS vector of [batch, hidden_dim]
-        self.clf = LinearClassifier(num_class=num_class, hidden_dim=hidden_dim)
+        out_dim = 1 if num_class <= 2 else num_class
+        self.clf = torch.nn.Sequential(
+            torch.nn.LayerNorm(hidden_dim),
+            torch.nn.Linear(hidden_dim, out_dim),
+        )
 
         if num_class > 2:
             self.loss_fn = torch.nn.CrossEntropyLoss(reduction="none")
@@ -388,15 +344,13 @@ class TransTabClassifier(TransTab):
         x: Union[pd.DataFrame, TableData, Dict[ColType, torch.Tensor]],
         y: Optional[Union[pd.Series, torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        """
+        r"""
         Args:
-            x (DataFrame | TableData | Dict[ColType, Tensor]): Input batch.
-            y (Optional[Series | Tensor]): Ground-truth labels.
+            x (TableData): Input table batch.
+            y (Tensor or Series, optional): Labels; computes mean loss when provided. Default: ``None``.
 
         Returns:
-            Tuple containing:
-              - logits (Tensor): Classification logits.
-              - loss (Optional[Tensor]): Mean loss if `y` provided, else None.
+            Tuple[Tensor, Optional[Tensor]]: ``(logits [N,1] or [N,K], loss or None)``.
         """
         cls_emb = super().forward(x)
 
@@ -422,33 +376,35 @@ class TransTabClassifier(TransTab):
 
 
 class TransTabForCL(TransTab):
-    r"""TransTabForCL: Contrastive learning model subclassing TransTab.
+    r"""TransTab pre-training via vertical-partition contrastive learning (VPCL).
 
-    Implements vertical-partition contrastive learning (VPCL) by sampling
-    multiple column subsets per table, encoding each view through the
-    TransTab pipeline, projecting to a lower-dimensional space, and
-    computing either supervised or self-supervised contrastive loss.
+    Splits each table batch into ``num_partition`` overlapping column subsets,
+    encodes each view independently, projects the ``[CLS]`` outputs, and
+    optimises a supervised or self-supervised contrastive loss.
 
     Args:
-        categorical_columns (Optional[List[str]]): Names of categorical features.
-        numerical_columns (Optional[List[str]]): Names of numerical features.
-        binary_columns (Optional[List[str]]): Names of binary (0/1) features.
-        hidden_dim (int): Dimensionality of internal embeddings (d_model).
-        num_layer (int): Number of Transformer encoder layers to stack.
-        num_attention_head (int): Number of attention heads per layer.
-        hidden_dropout_prob (float): Dropout probability in Transformer sublayers.
-        ffn_dim (int): Inner dimension of Transformer feedforward networks.
-        projection_dim (int): Dimension of the contrastive projection head.
-        overlap_ratio (float): Fraction of overlap between adjacent partitions.
-        num_partition (int): Number of column partitions per sample.
-        supervised (bool): Use supervised contrastive loss if True;
-            otherwise self-supervised.
-        temperature (float): Temperature scaling for contrastive logits.
-        base_temperature (float): Base temperature for loss normalization.
-        activation (str): Activation function for feedforward layers.
-        tokenizer: Optional pretrained tokenizer instance. If provided, will be
-            used by the underlying TransTab model. (default: None)
-        **kwargs: Additional keyword arguments passed to `TransTab`.
+        categorical_columns (List[str], optional): Categorical column names. Default: ``None``.
+        numerical_columns (List[str], optional): Numerical column names. Default: ``None``.
+        binary_columns (List[str], optional): Binary column names. Default: ``None``.
+        hidden_dim (int): Shared embedding dimensionality. Default: ``128``.
+        num_layer (int): Number of Transformer layers. Default: ``2``.
+        num_attention_head (int): Number of attention heads. Default: ``8``.
+        hidden_dropout_prob (float): Dropout probability. Default: ``0``.
+        ffn_dim (int): Feedforward inner dimension. Default: ``256``.
+        projection_dim (int): Projection head output dimension. Default: ``128``.
+        overlap_ratio (float): Column overlap fraction between partitions, in :math:`[0,1)`. Default: ``0.1``.
+        num_partition (int): Number of column subsets per sample. Default: ``2``.
+        supervised (bool): Use supervised contrastive loss when ``True``. Default: ``True``.
+        temperature (float): Contrastive loss temperature. Default: ``10``.
+        base_temperature (float): Base temperature for loss normalisation. Default: ``10``.
+        activation (str): Feedforward activation. Default: ``"relu"``.
+        tokenizer: Pre-trained tokenizer. Default: ``None``.
+        **kwargs: Forwarded to :class:`TransTab`.
+
+    Examples::
+
+        >>> from rllm.nn.models import TransTabForCL
+        >>> model = TransTabForCL(hidden_dim=32, num_partition=2)
     """
 
     def __init__(
@@ -513,17 +469,13 @@ class TransTabForCL(TransTab):
         )
 
     def forward(self, x, y=None):
-        """
+        r"""
         Args:
-            x (DataFrame | TableData): Input batch.
-               - DataFrame: Will be split into column subsets for contrastive learning
-               - TableData: Pre-tokenized data, will extract df for column splitting
-            y (Optional[Tensor]): Labels for supervised contrastive loss.
+            x (pd.DataFrame or TableData): Input table batch.
+            y (Tensor, optional): Labels for supervised contrastive loss. Default: ``None``.
 
         Returns:
-            Tuple containing:
-              - None (no logits returned for CL model)
-              - loss (Tensor): Computed contrastive loss.
+            Tuple[None, Tensor]: ``(None, loss)`` — no logits during pre-training.
         """
         # Extract DataFrame from input
         if isinstance(x, pd.DataFrame):
@@ -538,10 +490,9 @@ class TransTabForCL(TransTab):
         # Build positive pairs by splitting columns at DataFrame level
         sub_df_list = self._build_positive_pairs(df, self.num_partition)
 
-        # Create tokenizer_config from model's own tokenizer
         tokenizer_config = TokenizerConfig(
-            tokenizer=self.extractor.tokenizer,
-            pad_token_id=self.extractor.tokenizer.pad_token_id,
+            tokenizer=self.pre_encoder.tokenizer,
+            pad_token_id=self.pre_encoder.tokenizer.pad_token_id,
             tokenize_combine=True,
             include_colname=True,
             save_colname_token_ids=True,
@@ -558,16 +509,15 @@ class TransTabForCL(TransTab):
                     if col in x.col_types
                 }
             else:
-                # If no col_types available, use extractor's column info
-                sub_col_types = self._infer_col_types_from_extractor(sub_df.columns)
+                sub_col_types = self._infer_col_types(sub_df.columns)
 
             sub_table = TableData(
                 df=sub_df,
                 col_types=sub_col_types,
-                categorical_as_text=True,
+                convert_text_coltypes={ColType.CATEGORICAL},
                 tokenizer_config=tokenizer_config,
             )
-            # Process through pre_encoder
+            # Process through table_encoder
             proc = self.pre_encoder(sub_table)
             emb = proc["embedding"]
             mask = proc["attention_mask"]
@@ -596,17 +546,16 @@ class TransTabForCL(TransTab):
 
         return None, loss
 
-    def _infer_col_types_from_extractor(self, columns):
+    def _infer_col_types(self, columns):
         col_types = {}
         for col in columns:
-            if col in self.extractor.categorical_columns:
-                col_types[col] = ColType.TEXT  # categorical_as_text=True
-            elif col in self.extractor.numerical_columns:
+            if col in self.pre_encoder.categorical_columns:
+                col_types[col] = ColType.TEXT
+            elif col in self.pre_encoder.numerical_columns:
                 col_types[col] = ColType.NUMERICAL
-            elif col in self.extractor.binary_columns:
+            elif col in self.pre_encoder.binary_columns:
                 col_types[col] = ColType.BINARY
             else:
-                # Default to TEXT if unknown
                 col_types[col] = ColType.TEXT
         return col_types
 

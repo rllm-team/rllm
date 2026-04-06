@@ -1,0 +1,47 @@
+from __future__ import annotations
+from typing import Any, Dict, List
+
+import torch
+
+from .table_pre_encoder import TablePreEncoder
+from .col_encoder._embedding_encoder import EmbeddingEncoder
+from .col_encoder._linear_encoder import LinearEncoder
+from rllm.types import ColType
+
+
+class TromptPreEncoder(TablePreEncoder):
+    r"""
+    The TromptPreEncoder class is a specialized pre-encoder for the
+    Trompt model. It initializes a column-specific encoder dict for
+    categorical and numerical features based on the provided metadata.
+    Specifically, it uses `EmbeddingEncoder` for categorical features and
+    `LinearEncoder` for numerical features.
+
+    Args:
+        out_dim (int): The output dimensionality.
+        metadata (Dict[rllm.types.ColType, List[Dict[str, Any]]]):
+            Metadata for each column type, specifying the statistics and
+            properties of the columns.
+        in_dim (int, optional): The input dimensionality for numerical features
+            (default: :obj:`1`).
+
+    """
+
+    def __init__(
+        self,
+        out_dim: int,
+        metadata: Dict[ColType, List[Dict[str, Any]]],
+        in_dim: int = 1,
+    ) -> None:
+        col_encoder_dict = {
+            ColType.CATEGORICAL: EmbeddingEncoder(
+                post_module=torch.nn.LayerNorm(out_dim)
+            ),
+            ColType.NUMERICAL: LinearEncoder(
+                in_dim=in_dim,
+                post_module=torch.nn.Sequential(
+                    torch.nn.ReLU(), torch.nn.LayerNorm(out_dim)
+                ),
+            ),
+        }
+        super().__init__(out_dim, metadata, col_encoder_dict)
