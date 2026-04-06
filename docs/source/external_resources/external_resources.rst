@@ -10,3 +10,5 @@ External Resources
 - Wang *et al.*: **How to use rLLM to handle Tabular Data Governance for AI Tasks** [`Bilibili <https://www.bilibili.com/video/BV1qz421i7Yz>`__], supported by the CCF-Huawei Populus Grove Fund (CCF-华为胡杨林基金数据库专项)
 
 - Special Topic on Table Learning (Spring 2025, SJTU) [`Website <https://zhengwang100.github.io/course/table-learning-2025/>`__, `Youtube <https://www.youtube.com/playlist?list=PLtbYCaVzygjLZrYCuoz6nTJdUzMzIUohh>`__]
+
+- TLSQL, a SQL-like API for table learning [`Paper <https://arxiv.org/abs/2601.14109>`__, `Code <https://github.com/rllm-team/tlsql>`__]
