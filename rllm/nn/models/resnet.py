@@ -15,7 +15,7 @@ from rllm.nn.conv.table_conv import ResNetConv
 class TableResNet(torch.nn.Module):
     r"""The ResNet-like TNN introduced in the
     `"Revisiting Deep Learning Models for Tabular Data"
-    <https://arxiv.org/abs/2106.11959>`_ paper.
+    <https://arxiv.org/abs/2106.11959>` _ paper.
 
     Args:
         hidden_dim (int): The hidden dimension.
