@@ -91,7 +91,7 @@ class Predictor:
             assert var in input_variables, \
                 f"Variable '{var}' not found in input variables."
 
-        # Make prediction, remeber `row` is a default argument.
+        # Make prediction, remember `row` is a default argument.
         outputs = []
         for index, row in tqdm(df.iterrows(), total=len(df)):
             for i in range(3):
