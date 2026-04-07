@@ -143,9 +143,11 @@ class Enhancer:
                     try:
                         result = self._llm.predict(self.prompt, row=row, **kwargs)
                         break
-                    except Exception:
+                    except Exception as exc:
                         if i == 2:
-                            raise
+                            raise type(exc)(
+                                f"Failed to generate explanation for row index {index}: {exc}"
+                            ) from exc
                         time.sleep(1.5 * (i + 1))
                 outputs.append(result)
                 time.sleep(0.5)
