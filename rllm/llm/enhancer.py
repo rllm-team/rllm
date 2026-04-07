@@ -136,7 +136,7 @@ class Enhancer:
                 assert var in input_variables, \
                     f"Variable '{var}' not found in input variables."
 
-            # Make explanation, remeber `row` is a default argument.
+            # Make explanation, remember `row` is a default argument.
             outputs = []
             for index, row in tqdm(df.iterrows(), total=len(df)):
                 for i in range(3):
