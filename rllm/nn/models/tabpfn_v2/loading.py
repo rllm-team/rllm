@@ -125,6 +125,13 @@ def _remap_legacy_tabpfn_state_dict(
         state_dict, r"y_encoder\.(\d+)\.layer\.bias"
     )
 
+    def _copy_if_shape_match(target_key: str | None, source_key: str | None) -> None:
+        if target_key is None or source_key is None:
+            return
+        src = state_dict[source_key]
+        if src.shape == remapped_state[target_key].shape:
+            remapped_state[target_key] = src
+
     if source_encoder_weight is not None:
         src = state_dict[source_encoder_weight]
         adapted = _adapt_encoder_weight(
@@ -141,15 +148,8 @@ def _remap_legacy_tabpfn_state_dict(
         if adapted is not None:
             remapped_state[encoder_linear_bias_key] = adapted
 
-    if source_y_weight is not None:
-        src = state_dict[source_y_weight]
-        if src.shape == remapped_state[y_weight_key].shape:
-            remapped_state[y_weight_key] = src
-
-    if source_y_bias is not None and y_bias_key is not None:
-        src = state_dict[source_y_bias]
-        if src.shape == remapped_state[y_bias_key].shape:
-            remapped_state[y_bias_key] = src
+    _copy_if_shape_match(y_weight_key, source_y_weight)
+    _copy_if_shape_match(y_bias_key, source_y_bias)
 
     return remapped_state
 
@@ -264,8 +264,7 @@ def load_model(
         two_sets_of_queries=False,
     )
 
-    remapped_state_dict = _remap_legacy_tabpfn_state_dict(state_dict, model)
-    model.load_state_dict(remapped_state_dict, strict=True)
+    model.load_state_dict(state_dict, strict=True)
     model.eval()
     criterion_to_return = (
         loss_criterion
