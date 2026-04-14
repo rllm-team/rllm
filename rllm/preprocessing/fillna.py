@@ -28,7 +28,7 @@ class FillNAConfig:
     categorical_fill_value: Union[int, str] = -1
     text_fill_value: str = ""
     timestamp_strategy: Literal["ffill", "bfill", "median", "constant"] = "ffill"
-    timestamp_fill_value = None
+    timestamp_fill_value: object = None
 
 
 def fillna_numerical(
