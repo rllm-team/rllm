@@ -8,6 +8,21 @@ from rllm.types import ColType
 
 @dataclass
 class FillNAConfig:
+    """Configuration for missing-value imputation by column type.
+
+    Args:
+        numerical_strategy (Literal["mean", "median", "mode", "constant"]):
+            Strategy for numerical columns.
+        numerical_fill_value (float): Constant fallback for numerical columns.
+        categorical_fill_value (Union[int, str]): Fill value for categorical
+            columns.
+        text_fill_value (str): Fill value for text columns.
+        timestamp_strategy (Literal["ffill", "bfill", "median", "constant"]):
+            Strategy for timestamp columns.
+        timestamp_fill_value: Constant fallback for timestamp columns when
+            ``timestamp_strategy="constant"``.
+    """
+
     numerical_strategy: Literal["mean", "median", "mode", "constant"] = "mean"
     numerical_fill_value: float = 0.0
     categorical_fill_value: Union[int, str] = -1
