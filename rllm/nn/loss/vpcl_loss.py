@@ -19,7 +19,7 @@ class SelfSupervisedVPCL(ContrastiveLoss):
     distinct "views" of the same sample.
 
     Positive pairs are formed between different partition embeddings derived from
-    the **same row**, while negative pairs are formed across different rows.
+    the same row, while negative pairs are formed across different rows.
     This formulation encourages consistency among embeddings of the same record
     under different column subsets, without relying on labels.
 
@@ -130,7 +130,7 @@ class SupervisedVPCL(ContrastiveLoss):
     row is divided into multiple column subsets (partitions) that serve as distinct views.
 
     Each partition embedding is trained to align with embeddings from samples of the
-    **same class label** while repelling embeddings from **different classes**.
+    same class label while repelling embeddings from different classes.
     Positive pairs are drawn across partitions from different samples that share
     identical labels, and negatives are drawn from different labels.
     This generalizes supervised contrastive learning (SupCon) to the
