@@ -7,6 +7,7 @@ pandas==1.5.3
 scikit_learn==1.3.2
 scipy==1.10.1
 tqdm==4.66.1
+sphinx==7.2.6
 sphinx_jinja
 sphinxemoji
 sphinx_copybutton
