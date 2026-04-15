@@ -13,7 +13,21 @@ from rllm.types import ColType
 
 @dataclass
 class TokenizerConfig:
-    """Configuration for text tokenization."""
+    """Configuration for text tokenization.
+
+    Args:
+        tokenizer (Callable[[list[str]], Any]): Tokenizer callable that accepts
+            a list of strings.
+        batch_size (Optional[int]): Optional mini-batch size for tokenization.
+        pad_token_id (int): Padding token ID used when masks are generated.
+        tokenize_combine (bool): Whether to tokenize all text columns as one
+            merged string per row.
+        include_colname (bool): Whether to prepend column names to cell values.
+        save_colname_token_ids (bool): Whether to cache tokenized column-name
+            ids for downstream reuse.
+        segment_sep (str): Separator between merged text segments.
+        name_value_sep (str): Separator between column name and text value.
+    """
 
     tokenizer: Callable[[list[str]], Any]
     batch_size: Optional[int] = None
@@ -32,19 +46,18 @@ def process_tokenized_column(
     include_colname: bool = True,
     name_value_sep: str = " ",
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """
-    Process a tokenized column: convert to strings, optionally add column name prefix,
-    and tokenize.
+    r"""Tokenize a single text column.
 
     Args:
-        col_series: pandas Series with text data
-        col_name: Name of the column
-        tokenizer_config: TokenizerConfig object
-        include_colname: Whether to include column name as prefix
-        name_value_sep: Separator between column name and value
+        col_series (Series): Input text column.
+        col_name (str): Column name.
+        tokenizer_config (TokenizerConfig): Tokenizer configuration.
+        include_colname (bool): Whether to prepend the column name.
+        name_value_sep (str): Separator between column name and value.
 
     Returns:
-        Tuple of (input_ids [N, L], attention_mask [N, L]) as LongTensors
+        tuple[torch.Tensor, torch.Tensor]: ``(input_ids, attention_mask)``,
+        both with shape :math:`(N, L)`.
     """
     col_str = col_series.astype(str).fillna("")
 
@@ -70,18 +83,19 @@ def tokenize_strings(
     standardize_func: Callable,
     batch_size: Optional[int] = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """
-    Tokenize a list of strings(texts) and return (input_ids [B,L], attention_mask [B,L]) as LongTensors.
+    r"""Tokenize a list of strings.
 
     Args:
-        seqs: List of strings to tokenize
-        tokenizer: Tokenizer function
-        pad_token_id: Padding token ID
-        standardize_func: Function to standardize tokenizer output
-        batch_size: Batch size for tokenization (None for all at once)
+        seqs (list[str]): Strings to tokenize.
+        tokenizer (Callable): Tokenizer callable.
+        pad_token_id (int): Padding token ID.
+        standardize_func (Callable): Function that normalizes tokenizer output
+            into ids and masks.
+        batch_size (Optional[int]): Mini-batch size. ``None`` means one shot.
 
     Returns:
-        Tuple of (input_ids [B, L], attention_mask [B, L])
+        tuple[torch.Tensor, torch.Tensor]: ``(input_ids, attention_mask)``,
+        both with shape :math:`(B, L)`.
     """
     if batch_size is None:
         input_ids, attention_mask = standardize_func(tokenizer(seqs), pad_token_id)
@@ -100,8 +114,7 @@ def tokenize_strings(
 def standardize_tokenizer_output(
     tok_output, pad_token_id: int
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """
-    Standardize diverse tokenizer outputs into (input_ids [B, L], attention_mask [B, L]) as LongTensors.
+    r"""Standardize tokenizer outputs into ``(input_ids, attention_mask)``.
 
     Supported input formats:
     - Mapping (e.g., transformers.BatchEncoding): keys "input_ids", optional "attention_mask"
@@ -115,11 +128,12 @@ def standardize_tokenizer_output(
     - Ensures input_ids and attention_mask share the same shape and dtype=torch.long.
 
     Args:
-        tok_output: Output from tokenizer
-        pad_token_id: Padding token ID
+        tok_output: Raw output from a tokenizer.
+        pad_token_id (int): Padding token ID.
 
     Returns:
-        Tuple of (input_ids [B, L], attention_mask [B, L])
+        tuple[torch.Tensor, torch.Tensor]: ``(input_ids, attention_mask)``,
+        both with shape :math:`(B, L)` and dtype ``torch.long``.
     """
 
     def _ensure_batch_tensor(x) -> torch.Tensor:
@@ -213,18 +227,17 @@ def tokenize_merged_cols(
     tokenizer_config: "TokenizerConfig",
     target_col: Optional[str] = None,
 ) -> Optional[tuple]:
-    """
-    Merge all TEXT columns per row into a single text (optionally prefixed by column names),
-    then tokenize. Returns (input_ids [B,L], attention_mask [B,L]); returns None if none exist.
+    r"""Merge all text columns per row and tokenize.
 
     Args:
-        df: DataFrame containing the data
-        col_types: Dictionary mapping column names to ColTypes
-        target_col: Name of target column to exclude
-        tokenizer_config: TokenizerConfig object
+        df (DataFrame): Input table.
+        col_types (dict): Mapping of column name to :class:`ColType`.
+        tokenizer_config (TokenizerConfig): Tokenizer configuration.
+        target_col (Optional[str]): Target column excluded from text merge.
 
     Returns:
-        Tuple of (input_ids [B, L], attention_mask [B, L]) or None
+        Optional[tuple]: ``(input_ids, attention_mask)`` with shape
+        :math:`(B, L)` if text columns exist; otherwise ``None``.
     """
 
     text_cols = [
@@ -274,17 +287,17 @@ def save_column_name_tokens(
     pad_token_id: int,
     standardize_func: Callable,
 ) -> dict[str, tuple[torch.Tensor, torch.Tensor]]:
-    """
-    Tokenize all column names once and return them as a dictionary.
+    r"""Tokenize all column names once.
 
     Args:
-        col_types: Dictionary mapping column names to ColTypes
-        tokenizer: Tokenizer function
-        pad_token_id: Padding token ID
-        standardize_func: Function to standardize tokenizer output
+        col_types (dict): Mapping of column names to :class:`ColType`.
+        tokenizer (Callable): Tokenizer callable.
+        pad_token_id (int): Padding token ID.
+        standardize_func (Callable): Function that normalizes tokenizer output.
 
     Returns:
-        Dict[str, (input_ids [L], attention_mask [L])]
+        dict[str, tuple[torch.Tensor, torch.Tensor]]: Mapping from column name
+        to token ids and attention mask, each with shape :math:`(L,)`.
     """
     column_names = list(col_types.keys())
     # [C, L], [C, L]
