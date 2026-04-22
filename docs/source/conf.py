@@ -29,6 +29,18 @@ version = '1.0'
 
 # -- General configuration ---------------------------------------------------
 
+autodoc_mock_imports = [
+    "torch",
+    "transformers",
+    "datasets",
+    "peft",
+    "langchain",
+    "langchain_community",
+    "langchain_core",
+    "langchain_openai",
+    "langchain_huggingface",
+]
+
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
