@@ -18,6 +18,7 @@ from rllm.data_augment import AugmentorPipeline, DataAugmentor
 from rllm.data_augment._add_fingerprint_features_augmentor import (
     AddFingerprintFeaturesAugmentor,
 )
+from rllm.data_augment._add_svd_features_augmentor import AddSVDFeaturesAugmentor
 from rllm.data_augment._encode_categorical_features_augmentor import (
     EncodeCategoricalFeaturesAugmentor,
 )
@@ -73,6 +74,7 @@ class AugmentorConfig:
         "kdi_random_alpha_uni",
         "adaptive",
         "norm_and_kdi",
+        "squashing_scaler_default",
         # KDI with alpha collection
         "kdi_alpha_0.3_uni",
         "kdi_alpha_0.5_uni",
@@ -109,9 +111,10 @@ class AugmentorConfig:
         "ordinal_shuffled",
         "ordinal_very_common_categories_shuffled",
     ] = "none"
-    append_original: bool = False
-    subsample_features: float = -1
+    append_original: bool | Literal["auto"] = False
+    subsample_features: int | float = -1
     global_transformer_name: str | None = None
+    transform_sequence: tuple[str, ...] | None = None
 
     @override
     def __str__(self) -> str:
@@ -126,6 +129,11 @@ class AugmentorConfig:
             + (
                 f"_global_transformer_{self.global_transformer_name}"
                 if self.global_transformer_name is not None
+                else ""
+            )
+            + (
+                f"_seq_{'-'.join(self.transform_sequence)}"
+                if self.transform_sequence is not None
                 else ""
             )
         )
@@ -303,13 +311,11 @@ class EnsembleConfig:
         # Replicate each config balance_count times
         configs_ = balance(augmentor_configs, balance_count)
 
-        # Number still needed to reach n
+        # Keep config order stable for the leftover items so official-style
+        # preset ordering is preserved when n is small (e.g. n_estimators=1).
         leftover = n - len(configs_)
-
         if leftover > 0:
-            # Randomly pick leftover items from *all* augmentor configs
-            picks = rng.choice(len(augmentor_configs), size=leftover, replace=True)
-            configs_.extend(augmentor_configs[i] for i in picks)
+            configs_.extend(augmentor_configs[:leftover])
 
         return [
             ClassifierEnsembleConfig(
@@ -388,10 +394,10 @@ class EnsembleConfig:
         balance_count = n // len(combos)
         configs_ = balance(combos, balance_count)
 
-        # Fill in the rest with random choices
+        # Preserve combo order for the leftover items to keep preset behavior stable.
         rand_count = n % len(combos)
         if rand_count > 0:
-            configs_ += [combos[i] for i in rng.choice(len(combos), size=rand_count)]
+            configs_ += combos[:rand_count]
 
         return [
             RegressorEnsembleConfig(
@@ -447,7 +453,7 @@ class EnsembleConfig:
                     transform_name=self.augment_config.name,
                     append_to_original=self.augment_config.append_original,
                     subsample_features=self.augment_config.subsample_features,
-                    global_transformer_name=self.augment_config.global_transformer_name,
+                    transform_sequence=self.augment_config.transform_sequence,
                     apply_to_categorical=(
                         self.augment_config.categorical_name == "numeric"
                     ),
@@ -459,6 +465,17 @@ class EnsembleConfig:
                 ),
             ],
         )
+
+        if (
+            self.augment_config.global_transformer_name is not None
+            and self.augment_config.global_transformer_name != "None"
+        ):
+            augmentors.append(
+                AddSVDFeaturesAugmentor(
+                    global_transformer_name=self.augment_config.global_transformer_name,
+                    random_state=random_state,
+                )
+            )
 
         if self.add_fingerprint_feature:
             augmentors.append(
@@ -524,6 +541,7 @@ def fit_single_augmentation(
         categorical features.
     """
     static_seed, _ = infer_random_state(random_state)
+    input_feature_count = X_train.shape[1]
     if config.subsample_ix is not None:
         X_train = X_train[config.subsample_ix].copy()
         y_train = y_train[config.subsample_ix].copy()
@@ -532,6 +550,16 @@ def fit_single_augmentation(
         y_train = y_train.copy()
     augmentor = config.to_pipeline(random_state=static_seed)
     X_train_aug, cat_features = augmentor.fit_transform(X_train, cat_ix)
+    # Preserve the original categorical schema when preprocessing keeps the
+    # original feature layout but a pipeline step temporarily treats those
+    # columns as numeric. This mirrors the official TabPFN interface, which
+    # still reports categorical positions from the inferred feature schema.
+    if (
+        len(cat_features) == 0
+        and len(cat_ix) > 0
+        and X_train_aug.shape[1] == input_feature_count
+    ):
+        cat_features = list(cat_ix)
 
     if isinstance(config, RegressorEnsembleConfig):
         if config.target_transform is not None:

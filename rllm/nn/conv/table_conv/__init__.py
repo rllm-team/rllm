@@ -4,8 +4,6 @@ from .excelformer_conv import ExcelFormerConv
 from .trompt_conv import TromptConv
 from .saint_conv import SAINTConv
 from .transtab_conv import TransTabConv
-from ...transformer_encoder import PerFeatureEncoderLayer
-from ...multi_head_attention import MultiHeadAttention
 from .resnet_conv import ResNetConv
 
 __all__ = [
@@ -15,7 +13,5 @@ __all__ = [
     "TromptConv",
     "SAINTConv",
     "TransTabConv",
-    "PerFeatureEncoderLayer",
-    "MultiHeadAttention",
     "ResNetConv",
 ]

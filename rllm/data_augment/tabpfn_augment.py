@@ -1,4 +1,4 @@
-"""Data augmentation utilities for TabPFN v2 classification and regression."""
+"""Data augmentation utilities for the retained TabPFN runtime."""
 
 from __future__ import annotations
 
@@ -11,6 +11,11 @@ from rllm.data_augment.ensemble_augmentors import (
     default_classifier_augmentor_configs,
     default_regressor_augmentor_configs,
     fit_augmentation,
+)
+from rllm.data_augment.tabpfn_recipe import (
+    RecipeOptions,
+    build_classifier_recipe_configs,
+    build_regressor_recipe_configs,
 )
 
 if TYPE_CHECKING:
@@ -37,6 +42,7 @@ def prepare_classification_ensemble(
     n_workers: int = 1,
     parallel_mode: str = "block",
     cat_ix: list[int] | None = None,
+    recipe_options: RecipeOptions | None = None,
 ) -> Iterator:
     """Prepare classification ensemble configurations and their preprocessing.
 
@@ -48,7 +54,7 @@ def prepare_classification_ensemble(
         y_train: Training target array of shape (n_samples,).
         n_estimators: Number of ensemble estimators. Default is 4.
         subsample_size: Size of subsamples for each estimator.
-            If None, uses min(10_000, len(X_train)). Default is None.
+            If None, no row subsampling is applied. Default is None.
         add_fingerprint_feature: Whether to add fingerprint features. Default is True.
         feature_shift_decoder: Feature shift method ("shuffle" or other). Default is "shuffle".
         polynomial_features: Whether to use polynomial features ("no" or other). Default is "no".
@@ -63,11 +69,11 @@ def prepare_classification_ensemble(
     Returns:
         Iterator over preprocessed ensemble configurations.
     """
-    if subsample_size is None:
-        subsample_size = min(10_000, len(X_train))
-
     if augmentor_configs is None:
-        augmentor_configs = default_classifier_augmentor_configs()
+        if recipe_options is None:
+            augmentor_configs = default_classifier_augmentor_configs()
+        else:
+            augmentor_configs = build_classifier_recipe_configs(recipe_options)
 
     if cat_ix is None:
         cat_ix = []
@@ -112,6 +118,7 @@ def prepare_regression_ensemble(
     n_workers: int = 1,
     parallel_mode: str = "block",
     cat_ix: list[int] | None = None,
+    recipe_options: RecipeOptions | None = None,
 ) -> Iterator:
     """Prepare regression ensemble configurations and their preprocessing.
 
@@ -120,7 +127,7 @@ def prepare_regression_ensemble(
         y_train: Training target array of shape (n_samples,).
         n_estimators: Number of ensemble estimators. Default is 4.
         subsample_size: Size of subsamples for each estimator.
-            If None, uses min(10_000, len(X_train)). Default is None.
+            If None, no row subsampling is applied. Default is None.
         add_fingerprint_feature: Whether to add fingerprint features. Default is True.
         feature_shift_decoder: Feature shift method. Default is "shuffle".
         polynomial_features: Whether to use polynomial features. Default is "no".
@@ -134,11 +141,11 @@ def prepare_regression_ensemble(
     Returns:
         Iterator over preprocessed ensemble configurations.
     """
-    if subsample_size is None:
-        subsample_size = min(10_000, len(X_train))
-
     if augmentor_configs is None:
-        augmentor_configs = default_regressor_augmentor_configs()
+        if recipe_options is None:
+            augmentor_configs = default_regressor_augmentor_configs()
+        else:
+            augmentor_configs = build_regressor_recipe_configs(recipe_options)
 
     if target_transforms is None:
         target_transforms = [None]

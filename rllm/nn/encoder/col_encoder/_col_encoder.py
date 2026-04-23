@@ -50,6 +50,7 @@ class ColEncoder(torch.nn.Module, ABC):
         out_dim: Optional[int] = None,
         stats_list: Optional[List[Dict[StatType]]] = None,
         post_module: Optional[torch.nn.Module] = None,
+        preserve_invalid_values: bool = False,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""
@@ -58,6 +59,7 @@ class ColEncoder(torch.nn.Module, ABC):
         self.out_dim = out_dim
         self.stats_list = stats_list
         self.post_module = post_module
+        self.preserve_invalid_values = preserve_invalid_values
 
     @abstractmethod
     def post_init(self):
@@ -96,8 +98,11 @@ class ColEncoder(torch.nn.Module, ABC):
             x = self.encode_forward(feat, **kwargs)
         except TypeError:
             x = self.encode_forward(feat)
-        # Handle NaN in case na_mode is None
-        x = torch.nan_to_num(x, nan=0)
+        # Most encoders historically replaced NaNs with zero here. Some
+        # preprocessing steps, such as the TabPFN reshape/select stages, need
+        # to preserve NaN/Inf values until a later explicit handling step.
+        if not self.preserve_invalid_values:
+            x = torch.nan_to_num(x, nan=0)
         return x
 
     @abstractmethod

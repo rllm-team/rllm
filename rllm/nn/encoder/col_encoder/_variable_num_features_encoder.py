@@ -68,8 +68,7 @@ class VariableNumFeaturesEncoder(ColEncoder):
                     out = self.post_module(out)
                 return out
 
-            train_x = x[:single_eval_pos]
-            sel = (train_x[1:] == train_x[0]).sum(0) != (train_x.shape[0] - 1)
+            sel = (x[1:] == x[0]).sum(0) != (x.shape[0] - 1)
             used_feature_count = torch.clip(
                 sel.sum(-1).unsqueeze(-1),
                 min=1,
@@ -80,6 +79,12 @@ class VariableNumFeaturesEncoder(ColEncoder):
                 if self.normalize_by_sqrt:
                     scale = torch.sqrt(scale)
                 x = x * scale
+
+            # Match TabPFN's NormalizeFeatureGroupsEncoderStep behavior:
+            # constant features, including padded zero-columns, are set to 0
+            # after scaling so they never contribute to the linear projection.
+            x = x.clone()
+            x[:, ~sel] = 0
 
             zeros = torch.zeros(
                 *x.shape[:-1],

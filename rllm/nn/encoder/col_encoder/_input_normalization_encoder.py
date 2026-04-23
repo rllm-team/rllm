@@ -137,7 +137,7 @@ def normalize_data(
         if std_only:
             mean = torch.zeros_like(mean)
 
-    data = (data - mean) / (std + 1e-16)
+    data = (data - mean) / (std + torch.finfo(std.dtype).eps)
 
     if clip:
         data = torch.clip(data, min=-100, max=100)

@@ -10,17 +10,18 @@ import numpy as np
 from pandas.core.common import contextlib
 from scipy.stats import shapiro
 from sklearn.compose import ColumnTransformer, make_column_selector
-from sklearn.decomposition import TruncatedSVD
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import (
     FunctionTransformer,
     PowerTransformer,
-    QuantileTransformer,
     RobustScaler,
     StandardScaler,
 )
 from typing_extensions import override
 
+from rllm.data_augment.adaptive_quantile_transformer import (
+    AdaptiveQuantileTransformer,
+)
 from rllm.data_augment.data_augmentor import (
     DataAugmentor,
 )
@@ -39,6 +40,8 @@ from rllm.data_augment.utils import (
     skew,
 )
 from rllm.data_augment.safe_power_transformer import SafePowerTransformer
+from rllm.data_augment.soft_clipping_transformer import SoftClippingTransformer
+from rllm.data_augment.squashing_scaler_transformer import SquashingScaler
 
 if TYPE_CHECKING:
     from sklearn.base import TransformerMixin
@@ -46,6 +49,8 @@ if TYPE_CHECKING:
 
 class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
     """Reshape the feature distributions using different transformations."""
+
+    APPEND_TO_ORIGINAL_THRESHOLD = 500
 
     @staticmethod
     def get_column_types(X: np.ndarray) -> list[str]:
@@ -124,9 +129,9 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
                     ),
                     (
                         "other",
-                        QuantileTransformer(
+                        AdaptiveQuantileTransformer(
                             output_distribution="normal",
-                            n_quantiles=num_examples // 10,
+                            n_quantiles=max(num_examples // 10, 2),
                             random_state=random_state,
                         ),
                         # "other" or "ordinal"
@@ -185,37 +190,40 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
                 inverse_func=np.log,
                 check_inverse=False,
             ),
-            "quantile_uni_coarse": QuantileTransformer(
+            "quantile_uni_coarse": AdaptiveQuantileTransformer(
                 output_distribution="uniform",
                 n_quantiles=max(num_examples // 10, 2),
                 random_state=random_state,
             ),
-            "quantile_norm_coarse": QuantileTransformer(
+            "quantile_norm_coarse": AdaptiveQuantileTransformer(
                 output_distribution="normal",
                 n_quantiles=max(num_examples // 10, 2),
                 random_state=random_state,
             ),
-            "quantile_uni": QuantileTransformer(
+            "quantile_uni": AdaptiveQuantileTransformer(
                 output_distribution="uniform",
                 n_quantiles=max(num_examples // 5, 2),
                 random_state=random_state,
             ),
-            "quantile_norm": QuantileTransformer(
+            "quantile_norm": AdaptiveQuantileTransformer(
                 output_distribution="normal",
                 n_quantiles=max(num_examples // 5, 2),
                 random_state=random_state,
             ),
-            "quantile_uni_fine": QuantileTransformer(
+            "quantile_uni_fine": AdaptiveQuantileTransformer(
                 output_distribution="uniform",
                 n_quantiles=num_examples,
                 random_state=random_state,
             ),
-            "quantile_norm_fine": QuantileTransformer(
+            "quantile_norm_fine": AdaptiveQuantileTransformer(
                 output_distribution="normal",
                 n_quantiles=num_examples,
                 random_state=random_state,
             ),
             "robust": RobustScaler(unit_variance=True),
+            "standard": StandardScaler(),
+            "soft_clip": SoftClippingTransformer(),
+            "squashing_scaler_default": SquashingScaler(),
             "none": FunctionTransformer(_identity),
             **get_all_kdi_transformers(),
         }
@@ -225,7 +233,7 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
                 [
                     (
                         "norm",
-                        QuantileTransformer(
+                        AdaptiveQuantileTransformer(
                             output_distribution="normal",
                             n_quantiles=max(num_examples // 10, 2),
                             random_state=random_state,
@@ -287,6 +295,38 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
                     ),
                 ],
             ),
+            "svd_quarter_components": FeatureUnion(
+                [
+                    ("passthrough", FunctionTransformer(func=_identity)),
+                    (
+                        "svd",
+                        Pipeline(
+                            steps=[
+                                (
+                                    "save_standard",
+                                    make_standard_scaler_safe(
+                                        ("standard", StandardScaler(with_mean=False)),
+                                    ),
+                                ),
+                                (
+                                    "svd",
+                                    TruncatedSVD(
+                                        algorithm="arpack",
+                                        n_components=max(
+                                            1,
+                                            min(
+                                                num_examples // 10 + 1,
+                                                num_features // 4,
+                                            ),
+                                        ),
+                                        random_state=random_state,
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ),
+                ],
+            ),
         }
 
     def __init__(
@@ -294,9 +334,9 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
         *,
         transform_name: str = "safepower",
         apply_to_categorical: bool = False,
-        append_to_original: bool = False,
+        append_to_original: bool | str = False,
         subsample_features: float = -1,
-        global_transformer_name: str | None = None,
+        transform_sequence: tuple[str, ...] | None = None,
         random_state: int | np.random.Generator | None = None,
     ):
         super().__init__()
@@ -304,8 +344,8 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
         self.apply_to_categorical = apply_to_categorical
         self.append_to_original = append_to_original
         self.random_state = random_state
-        self.subsample_features = float(subsample_features)
-        self.global_transformer_name = global_transformer_name
+        self.subsample_features = subsample_features
+        self.transform_sequence = transform_sequence
         self.transformer_: Pipeline | ColumnTransformer | None = None
 
     def _set_transformer_and_cat_ix(  # noqa: PLR0912
@@ -319,38 +359,41 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
 
         static_seed, rng = infer_random_state(self.random_state)
 
-        if (
-            self.global_transformer_name is not None
-            and self.global_transformer_name != "None"
-            and not (self.global_transformer_name == "svd" and n_features < 2)
-        ):
-            global_transformer_ = self.get_all_global_transformers(
-                n_samples,
-                n_features,
-                random_state=static_seed,
-            )[self.global_transformer_name]
-        else:
-            global_transformer_ = None
-
         all_augmentors = self.get_all_augmentors(
             n_samples,
             random_state=static_seed,
         )
         if self.subsample_features > 0:
-            subsample_features = int(self.subsample_features * n_features) + 1
-            # sampling more features than exist
-            replace = subsample_features > n_features
-            self.subsampled_features_ = rng.choice(
-                list(range(n_features)),
-                subsample_features,
-                replace=replace,
-            )
-            categorical_features = [
-                new_idx
-                for new_idx, idx in enumerate(self.subsampled_features_)
-                if idx in categorical_features
-            ]
-            n_features = subsample_features
+            if isinstance(self.subsample_features, int):
+                if n_features > self.subsample_features:
+                    subsample_features = self.subsample_features
+                    self.subsampled_features_ = rng.choice(
+                        list(range(n_features)),
+                        subsample_features,
+                        replace=False,
+                    )
+                    categorical_features = [
+                        new_idx
+                        for new_idx, idx in enumerate(self.subsampled_features_)
+                        if idx in categorical_features
+                    ]
+                    n_features = subsample_features
+                else:
+                    self.subsampled_features_ = np.arange(n_features)
+            else:
+                subsample_features = int(self.subsample_features * n_features) + 1
+                subsample_features = min(subsample_features, n_features)
+                self.subsampled_features_ = rng.choice(
+                    list(range(n_features)),
+                    subsample_features,
+                    replace=False,
+                )
+                categorical_features = [
+                    new_idx
+                    for new_idx, idx in enumerate(self.subsampled_features_)
+                    if idx in categorical_features
+                ]
+                n_features = subsample_features
         else:
             self.subsampled_features_ = np.arange(n_features)
 
@@ -358,6 +401,18 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
         transformers = []
 
         numerical_ix = [i for i in range(n_features) if i not in categorical_features]
+
+        if self.append_to_original == "auto":
+            max_features_per_estimator = (
+                int(self.subsample_features)
+                if isinstance(self.subsample_features, int)
+                and self.subsample_features > 0
+                else self.APPEND_TO_ORIGINAL_THRESHOLD
+            )
+            self.append_to_original = bool(
+                n_features < self.APPEND_TO_ORIGINAL_THRESHOLD
+                and n_features < (max_features_per_estimator / 2)
+            )
 
         # -------- Append to original ------
         # If we append to original, all the categorical indices are kept in place
@@ -394,7 +449,15 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
 
         # NOTE: No need to keep track of categoricals here, already done above
         if self.transform_name != "per_feature":
-            _transformer = all_augmentors[self.transform_name]
+            if self.transform_sequence:
+                steps = []
+                for idx, name in enumerate(self.transform_sequence):
+                    if name not in all_augmentors:
+                        raise KeyError(f"Unknown transform in sequence: {name}")
+                    steps.append((f"seq_{idx}_{name}", all_augmentors[name]))
+                _transformer = Pipeline(steps)
+            else:
+                _transformer = all_augmentors[self.transform_name]
             transformers.append(("feat_transform", _transformer, trans_ixs))
         else:
             augmentors = list(all_augmentors.values())
@@ -410,18 +473,6 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
             remainder="drop",
             sparse_threshold=0.0,  # No sparse
         )
-
-        # Apply a global transformer which accepts the entire dataset instead of
-        # one column
-        # NOTE: We assume global_transformer does not destroy the semantic meaning of
-        # categorical_features_.
-        if global_transformer_:
-            transformer = Pipeline(
-                [
-                    ("preprocess", transformer),
-                    ("global_transformer", global_transformer_),
-                ],
-            )
 
         self.transformer_ = transformer
 

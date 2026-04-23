@@ -8,8 +8,7 @@ from .rdl import RDL
 from .relgnn import RelGNN, RelGNNModel
 
 
-# from .tabpfn import TabPFNClassifier, TabPFNRegressor
-from .tabpfnv2 import TabPFNv2
+from .tabpfn import TabPFN
 
 __all__ = [
     "RECT_L",
@@ -17,9 +16,7 @@ __all__ = [
     "TransTab",
     "TransTabClassifier",
     "TransTabForCL",
-    # "TabPFNClassifier",
-    # "TabPFNRegressor",
-    "TabPFNv2",
+    "TabPFN",
     "LinearClassifier",
     "TableResNet",
     "HeteroSAGE",

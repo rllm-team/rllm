@@ -6,6 +6,41 @@ import urllib
 from typing import Optional
 
 
+def _download_from_mirrors(
+    *,
+    repo: str,
+    filename: str,
+    download_path: str,
+) -> bool:
+    urls = [
+        f"https://huggingface.co/{repo}/resolve/main/{filename}?download=true",
+        f"https://hf-mirror.com/{repo}/resolve/main/{filename}?download=true",
+    ]
+    for url in urls:
+        try:
+            download_url(url=url, folder=download_path, filename=filename)
+            print(f"Downloaded successfully from {url}")
+            return True
+        except Exception as e:  # noqa: BLE001
+            print(f"Failed to download from {url}: {e}")
+    return False
+
+
+def _download_direct_url(
+    *,
+    url: str,
+    filename: str,
+    download_path: str,
+) -> bool:
+    try:
+        download_url(url=url, folder=download_path, filename=filename)
+        print(f"Downloaded successfully from {url}")
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"Failed to download from {url}: {e}")
+        return False
+
+
 def download_url(
     url: str,
     folder: str,
@@ -76,18 +111,51 @@ def download_model_from_huggingface(
     download_path: str,
 ) -> bool:
     """Download a model checkpoint from primary/fallback mirrors."""
-    urls = [
-        f"https://huggingface.co/{repo}/resolve/main/{model_name}?download=true",
-        f"https://hf-mirror.com/{repo}/resolve/main/{model_name}?download=true",
-    ]
     os.makedirs(download_path, exist_ok=True)
-    for url in urls:
-        try:
-            download_url(url=url, folder=download_path, filename=model_name)
-            print(f"Downloaded successfully from {url}")
-            return True
-        except Exception as e:  # noqa: BLE001
-            print(f"Failed to download from {url}: {e}")
+    model_ok = _download_from_mirrors(
+        repo=repo,
+        filename=model_name,
+        download_path=download_path,
+    )
+    if not model_ok:
+        print("Download failed from both URLs.")
+        return False
 
-    print("Download failed from both URLs.")
-    return False
+    companion_files: list[str] = []
+    if "tabpfn-v2.6-" in model_name:
+        companion_files.append("pre_generated_column_embeddings_v2_6.pt")
+
+    for companion in companion_files:
+        companion_path = osp.join(download_path, companion)
+        if osp.exists(companion_path):
+            continue
+        companion_ok = _download_from_mirrors(
+            repo=repo,
+            filename=companion,
+            download_path=download_path,
+        )
+        if not companion_ok:
+            print(
+                f"Optional companion file was not downloaded: {companion}. "
+                "The checkpoint download itself succeeded."
+            )
+
+    column_embedding_filename = "pre_generated_column_embeddings_v2_6.pt"
+    column_embedding_path = osp.join(download_path, column_embedding_filename)
+    if not osp.exists(column_embedding_path):
+        column_embedding_ok = _download_direct_url(
+            url=(
+                "https://raw.githubusercontent.com/PriorLabs/TabPFN/main/"
+                "src/tabpfn/architectures/shared/tabpfn_col_embedding.pt"
+            ),
+            filename=column_embedding_filename,
+            download_path=download_path,
+        )
+        if not column_embedding_ok:
+            print(
+                "Optional companion file was not downloaded: "
+                "pre_generated_column_embeddings_v2_6.pt. "
+                "The checkpoint download itself succeeded."
+            )
+
+    return True
