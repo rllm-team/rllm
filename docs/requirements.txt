@@ -1,4 +1,7 @@
-numpy==1.24.4
+numpy==1.26.4
+langchain==1.0.3
+langchain_community==0.4.1
+langchain_core==1.0.1
 networkx==3.0
 pandas==1.5.3
 scikit_learn==1.3.2
@@ -11,3 +14,7 @@ sphinx_copybutton
 nbsphinx
 nbsphinx_link
 furo
+torch==2.1.2
+langchain_huggingface==1.0.0
+datasets==2.16.1
+transformers==4.44.0
