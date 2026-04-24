@@ -1,129 +1,104 @@
 Design of LLM Methods
-===============
+=====================
 
 Large language models (LLMs) excel at zero-shot tasks involving text.
-In this tutorial, we demonstrate how to use LLMs as predictors to label a subset of nodes, followed by applying Graph Neural Networks (GNNs) for node classification.
+In this tutorial, we demonstrate how to use LLMs as predictors to label a subset of entities in relational tables, followed by applying BRIDGE model for relational machine learning.
 
-We begin by loading the original dataset and selecting nodes for annotation.
+We begin by loading the original dataset, building a graph and selecting nodes by degree for annotation.
 
 .. code-block:: python
 
     import os.path as osp
-    import rllm.transforms as T
-    from rllm.datasets.tagdataset import TAGDataset
-    from node_selection.node_selection import active_generate_mask
+    import random
+
+    import torch
+    import networkx as nx
+    import dashscope
+    from langchain_community.llms import Tongyi
+
+    from examples.bridge.bridge import build_bridge_model, train_bridge_model
+    from examples.bridge.utils import data_prepare
+    from rllm.datasets import TLF2KDataset
+    from rllm.llm import Predictor
+    from rllm.llm.llm_module.langchain_llm import LangChainLLM
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     path = osp.join(osp.dirname(osp.realpath(__file__)), "../..", "data")
 
-    transform = GCNTransform(normalize_features="l2")
-    dataset = TAGDataset(
-        path,
-        args.dataset,
-        use_cache=args.use_cache,
-        transform=transform,
-        force_reload=True,
+    dataset = TLF2KDataset(cached_dir=path, force_reload=True)
+
+    target_table, non_table_embeddings, adj, emb_size = data_prepare(dataset, "tlf2k", device)
+    _, val_mask, test_mask = (
+    target_table.train_mask.cpu(),
+    target_table.val_mask.cpu(),
+    target_table.test_mask.cpu(),
     )
-    data = dataset[0]
-    train_mask, val_mask, test_mask = active_generate_mask(data, method='Random')
+    label_names = sorted(set(map(str, target_table.df[target_table.target_col].tolist())))
+    select_mask = ~(test_mask | val_mask)
+    train_num = min(100, select_mask.sum())
+    val_num = min(100, val_mask.sum())
 
-Next, we query LLM for node label predictions and confidence scores.
+    target_nodes = list(range(len(target_table.df)))
+    edges = adj.coalesce().indices().t().tolist()
+    G = nx.Graph(edges)
+    target_degrees = [(node, G.degree(node)) for node in target_nodes if select_mask[node]]
+    target_degrees.sort(key=lambda x: x[1], reverse=True)
+    top_nodes = [node for node, _ in target_degrees][:train_num]
+    train_indices = torch.tensor(top_nodes, dtype=torch.long)
+    train_mask = torch.zeros(target_table.df.shape[0], dtype=torch.bool)
+    train_mask[train_indices] = True
+    target_table.train_mask = train_mask
 
-.. code-block:: python
+    val_indices = torch.nonzero(val_mask).squeeze()
+    val_indices = val_indices[torch.randperm(len(val_indices))[:val_num]]
+    val_mask[:] = False
+    val_mask[val_indices] = True
+    target_table.val_mask = val_mask
 
-    import os
-    import torch
-    from annotation.annotation import annotate
-    from langchain_community.llms import LlamaCpp
-    from rllm.llm.llm_module.langchain_llm import LangChainLLM
+    mask = train_mask | val_mask
 
-    model_path = "/path/to/llm"
-    llm = LangChainLLM(LlamaCpp(model_path=model_path, n_gpu_layers=33))
-    pl_indices = torch.nonzero(train_mask | val_mask, as_tuple=False).squeeze()
-    data = annotate(data, pl_indices, llm)
-
-Here we define a simple GCN.
-
-.. code-block:: python
-
-    import torch.nn.functional as F
-    from rllm.nn.conv import GCNConv
-
-    class GCN(torch.nn.Module):
-        def __init__(self, in_dim, hidden_dim, out_dim):
-            super().__init__()
-            self.conv1 = GCNConv(in_dim, hidden_dim)
-            self.conv2 = GCNConv(hidden_dim, out_dim)
-
-        def forward(self, x, adj):
-            x = F.dropout(x, p=0.5, training=self.training)
-            x = F.relu(self.conv1(x, adj))
-            x = F.dropout(x, p=0.5, training=self.training)
-            x = self.conv2(x, adj)
-            return x
-
-Finally, we use the obtained pseudo-labels for GCN training.
+Next, we query LLM for label predictions.
 
 .. code-block:: python
 
-    from tqdm import tqdm
+    pseudo_labels = -1 * torch.ones(target_table.df.shape[0], dtype=torch.long)
 
-    class Trainer:
-        def __init__(self, data, model, optimizer, masks, weighted_loss):
-            self.data = data
-            self.model = model
-            self.optimizer = optimizer
-            self.train_mask = masks['train_mask']
-            self.val_mask = masks['val_mask']
-            self.test_mask = masks['test_mask']
-            self.weighted_loss = weighted_loss
+    df = target_table.df.loc[mask.cpu().numpy()].drop(columns=[target_table.target_col])
 
-        def train(self):
-            self.model.train()
-            self.optimizer.zero_grad()
-            out = self.model(data.x, data.adj)
-            loss_fn = torch.nn.CrossEntropyLoss()
-            if self.weighted_loss:
-                loss = loss_fn(out[train_mask], data.pl[train_mask]) * data.conf[train_mask].mean()
-            else:
-                loss = loss_fn(out[train_mask], data.pl[train_mask])
-            loss.backward()
-            self.optimizer.step()
-            return loss.item()
+    scenario = "Classify the artists into one of the given labels."
+    labels = ", ".join(label_names)
 
-        @torch.no_grad()
-        def test(self):
-            self.model.eval()
-            out = self.model(data.x, data.adj)
-            pred = out.argmax(dim=1)
+    DASHSCOPE_API_KEY = "your-api-key"
+    llm = Tongyi(dashscope_api_key=DASHSCOPE_API_KEY, model_kwargs={"api_key": DASHSCOPE_API_KEY, "model": "qwen-max-2025-01-25"}, client=dashscope.Generation)
 
-            accs = []
-            correct = float(pred[train_mask].eq(data.pl[train_mask]).sum().item())
-            accs.append(correct / int(train_mask.sum()))
+    predictor = Predictor(llm=LangChainLLM(llm), type="classification")
+    outputs = predictor(df, scenario=scenario, labels=labels)
 
-            correct = float(pred[val_mask].eq(data.pl[val_mask]).sum().item())
-            accs.append(correct / int(val_mask.sum()))
+    select_pred = []
+    for output in outputs:
+        output = output.lower()
+        matches = []
+        for label in label_names:
+            if label.lower() in output.lower():
+                matches.append(label)
+        if matches:
+            matched = max(matches, key=len)
+        else:
+            matched = random.choice(label_names)
+        select_pred.append(label_names.index(matched))
 
-            correct = float(pred[test_mask].eq(data.y[test_mask]).sum().item())
-            accs.append(correct / int(test_mask.sum()))
+    select_pred = torch.tensor(select_pred)
+    pseudo_labels[mask] = select_pred
 
-            return accs
+Finally, we use the obtained pseudo-labels to train a BRIDGE model.
 
-    model = GCN(
-        in_dim=data.x.shape[1],
-        hidden_dim=64,
-        out_dim=data.num_classes,
-    )
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
-    masks = {'train_mask': train_mask, 'val_mask':val_mask, 'test_mask': test_mask}
+.. code-block:: python
 
-    trainer = Trainer(data, model, optimizer, masks, weighted_loss=True)
-    best_val_acc = test_acc = 0
-    for epoch in tqdm(range(30)):
-        train_loss = trainer.train()
+    real_labels = torch.tensor([label_names.index(_) if _ in label_names else random.choice(label_names) for _ in target_table.df[target_table.target_col].astype(str).tolist()])
+    y = real_labels.long().to(device)
+    y[train_mask | val_mask] = pseudo_labels.long().to(device)[train_mask | val_mask]
+    target_table.y = y
 
-        train_acc, val_acc, tmp_test_acc = trainer.test()
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            test_acc = tmp_test_acc
-
-    print(f"Test acc at best Val: {test_acc:.4f}")
+    model = build_bridge_model(target_table.num_classes, target_table.metadata, emb_size).to(device)
+    train_bridge_model(model, target_table, non_table_embeddings, adj, 100, 0.001, 1e-4)
