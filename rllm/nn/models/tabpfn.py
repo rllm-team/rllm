@@ -10,11 +10,7 @@ import warnings
 
 import torch
 
-from rllm.data_augment import (
-    RecipeOptions,
-    prepare_classification_ensemble,
-    prepare_regression_ensemble,
-)
+from rllm.data_augment import TabPFNEnsembleAugmentor
 from .tabpfn_internal.config import (
     ExportMode,
     ModelVersion,
@@ -503,21 +499,20 @@ class TabPFN(torch.nn.Module):
         if self.model_type == "clf":
             y_train = y_train.astype(np.int64, copy=False)
             self.n_classes = len(np.unique(y_train))
+            augmentor = TabPFNEnsembleAugmentor.for_classification(
+                n_estimators=self.n_estimators,
+                subsample_size=self._resolve_fit_subsample_size(len(X_train)),
+                add_fingerprint_feature=self.add_fingerprint_feature,
+                feature_shift_decoder=self.feature_shift_decoder,
+                polynomial_features=self.polynomial_features,
+                class_shift_method=self.class_shift_method,
+            )
             self.augmentors = list(
-                prepare_classification_ensemble(
+                augmentor.fit(
                     X_train=X_train,
                     y_train=y_train,
-                    n_estimators=self.n_estimators,
-                    subsample_size=self._resolve_fit_subsample_size(len(X_train)),
-                    add_fingerprint_feature=self.add_fingerprint_feature,
-                    feature_shift_decoder=self.feature_shift_decoder,
-                    polynomial_features=self.polynomial_features,
-                    class_shift_method=self.class_shift_method,
                     random_state=random_state,
                     cat_ix=cat_ix,
-                    n_workers=self.n_workers,
-                    parallel_mode=self.parallel_mode,
-                    recipe_options=self._build_recipe_options(),
                 )
             )
             if self.version_config.enable_temperature_scaling:
@@ -535,20 +530,19 @@ class TabPFN(torch.nn.Module):
                 + self.y_train_mean_
             )
             self.raw_space_bardist_ = self.bardist.__class__(scaled_borders).float()
+            augmentor = TabPFNEnsembleAugmentor.for_regression(
+                n_estimators=self.n_estimators,
+                subsample_size=self._resolve_fit_subsample_size(len(X_train)),
+                add_fingerprint_feature=self.add_fingerprint_feature,
+                feature_shift_decoder=self.feature_shift_decoder,
+                polynomial_features=self.polynomial_features,
+            )
             self.augmentors = list(
-                prepare_regression_ensemble(
+                augmentor.fit(
                     X_train=X_train,
                     y_train=y_train,
-                    n_estimators=self.n_estimators,
-                    subsample_size=self._resolve_fit_subsample_size(len(X_train)),
-                    add_fingerprint_feature=self.add_fingerprint_feature,
-                    feature_shift_decoder=self.feature_shift_decoder,
-                    polynomial_features=self.polynomial_features,
                     random_state=random_state,
                     cat_ix=cat_ix,
-                    n_workers=self.n_workers,
-                    parallel_mode=self.parallel_mode,
-                    recipe_options=self._build_recipe_options(),
                 )
             )
         self._fit_cat_ix = list(cat_ix)
@@ -566,16 +560,6 @@ class TabPFN(torch.nn.Module):
             X=X_df,
             ord_encoder=self._ordinal_encoder,
             fit_encoder=False,
-        )
-
-    def _build_recipe_options(self) -> RecipeOptions:
-        return RecipeOptions(
-            recipe=self.version_config.preprocessing_recipe,
-            use_robust_scaling=self.version_config.use_robust_scaling,
-            use_soft_clipping=self.version_config.use_soft_clipping,
-            use_quantile_transform=self.version_config.use_quantile_transform,
-            use_standard_scaling=self.version_config.use_standard_scaling,
-            keep_svd_augmentation=True,
         )
 
     def _sdp_context(self):

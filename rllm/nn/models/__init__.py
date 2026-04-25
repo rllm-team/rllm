@@ -6,8 +6,6 @@ from .resnet import TableResNet
 from .heterosage import HeteroSAGE
 from .rdl import RDL
 from .relgnn import RelGNN, RelGNNModel
-
-
 from .tabpfn import TabPFN
 
 __all__ = [

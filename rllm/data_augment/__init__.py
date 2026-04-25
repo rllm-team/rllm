@@ -1,17 +1,16 @@
 from .data_augmentor import DataAugmentor
 from .augmentor_pipeline import AugmentorPipeline
-from .tabpfn_augment import (
-    prepare_classification_ensemble,
-    prepare_regression_ensemble,
-)
-from .tabpfn_recipe import RecipeOptions
+from .ensemble_augmentor import EnsembleAugmentor
+from .ensemble_config import AugmentorConfig, EnsembleConfig
+from .tabpfn_augmentor import TabPFNEnsembleAugmentor
 
 __all__ = [
     # base classes
     "DataAugmentor",
     "AugmentorPipeline",
+    "AugmentorConfig",
+    "EnsembleConfig",
+    "EnsembleAugmentor",
     # TabPFN inference augmentors
-    "prepare_classification_ensemble",
-    "prepare_regression_ensemble",
-    "RecipeOptions",
+    "TabPFNEnsembleAugmentor",
 ]

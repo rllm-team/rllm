@@ -38,8 +38,17 @@ class AugmentorPipeline(UserList):
             X: 2d array of shape (n_samples, n_features)
             categorical_features: list of indices of categorical features.
         """
+        input_feature_count = X.shape[1]
+        original_categorical_features = list(categorical_features)
         for augmentor in self.augmentors:
             X, categorical_features = augmentor.fit_transform(X, categorical_features)
+
+        if (
+            len(categorical_features) == 0
+            and len(original_categorical_features) > 0
+            and X.shape[1] == input_feature_count
+        ):
+            categorical_features = original_categorical_features
 
         self.categorical_features_ = categorical_features
         return (X, categorical_features)
