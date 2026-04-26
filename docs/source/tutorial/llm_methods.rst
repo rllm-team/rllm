@@ -30,18 +30,19 @@ We begin by loading the original dataset, building a graph and selecting nodes b
 
     target_table, non_table_embeddings, adj, emb_size = data_prepare(dataset, "tlf2k", device)
     _, val_mask, test_mask = (
-    target_table.train_mask.cpu(),
-    target_table.val_mask.cpu(),
-    target_table.test_mask.cpu(),
+        target_table.train_mask.cpu(),
+        target_table.val_mask.cpu(),
+        target_table.test_mask.cpu(),
     )
     label_names = sorted(set(map(str, target_table.df[target_table.target_col].tolist())))
     select_mask = ~(test_mask | val_mask)
-    train_num = min(100, select_mask.sum())
-    val_num = min(100, val_mask.sum())
+    train_num = min(100, select_mask.sum().item())
+    val_num = min(100, val_mask.sum().item())
 
     target_nodes = list(range(len(target_table.df)))
     edges = adj.coalesce().indices().t().tolist()
     G = nx.Graph(edges)
+    G.add_nodes_from(target_nodes)
     target_degrees = [(node, G.degree(node)) for node in target_nodes if select_mask[node]]
     target_degrees.sort(key=lambda x: x[1], reverse=True)
     top_nodes = [node for node, _ in target_degrees][:train_num]
@@ -50,7 +51,7 @@ We begin by loading the original dataset, building a graph and selecting nodes b
     train_mask[train_indices] = True
     target_table.train_mask = train_mask
 
-    val_indices = torch.nonzero(val_mask).squeeze()
+    val_indices = torch.nonzero(val_mask).flatten()
     val_indices = val_indices[torch.randperm(len(val_indices))[:val_num]]
     val_mask[:] = False
     val_mask[val_indices] = True
@@ -95,9 +96,10 @@ Finally, we use the obtained pseudo-labels to train a BRIDGE model.
 
 .. code-block:: python
 
-    real_labels = torch.tensor([label_names.index(_) if _ in label_names else random.choice(label_names) for _ in target_table.df[target_table.target_col].astype(str).tolist()])
+    real_labels = torch.tensor([label_names.index(_) if _ in label_names else random.randrange(len(label_names)) for _ in target_table.df[target_table.target_col].astype(str).tolist()])
     y = real_labels.long().to(device)
-    y[train_mask | val_mask] = pseudo_labels.long().to(device)[train_mask | val_mask]
+    labeled_mask = (train_mask | val_mask).to(device)
+    y[labeled_mask] = pseudo_labels.long().to(device)[labeled_mask]
     target_table.y = y
 
     model = build_bridge_model(target_table.num_classes, target_table.metadata, emb_size).to(device)
