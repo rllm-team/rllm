@@ -49,9 +49,7 @@ class EnsembleAugmentor:
         augmentors: list[DataAugmentor] = []
 
         if isinstance(config.polynomial_features, int):
-            assert config.polynomial_features > 0, (
-                "Poly. features to add must be >0!"
-            )
+            assert config.polynomial_features > 0, "Poly. features to add must be >0!"
             use_poly_features = True
             max_poly_features = config.polynomial_features
         elif config.polynomial_features == "all":

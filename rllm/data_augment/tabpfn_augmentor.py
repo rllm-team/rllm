@@ -18,14 +18,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
-def build_classifier_recipe_configs() -> list[AugmentorConfig]:
-    return _build_recipe_configs(append_original_for_categorical=False)
-
-
-def build_regressor_recipe_configs() -> list[AugmentorConfig]:
-    return _build_recipe_configs(append_original_for_categorical="auto")
-
-
 def _build_recipe_configs(
     *,
     append_original_for_categorical: bool | Literal["auto"],
@@ -68,7 +60,25 @@ class TabPFNEnsembleAugmentor(EnsembleAugmentor):
     ):
         self.task = task
         if augmentor_configs is None:
-            augmentor_configs = self._default_augmentor_configs()
+            augmentor_configs = [
+                AugmentorConfig(
+                    "quantile_uni",
+                    append_original=False,
+                    categorical_name="numeric",
+                    global_transformer_name=None,
+                    subsample_features=680,
+                    transform_sequence=None,
+                ),
+                AugmentorConfig(
+                    "quantile_uni",
+                    append_original=False if task == "classification" else "auto",
+                    categorical_name="ordinal_very_common_categories_shuffled",
+                    global_transformer_name="svd_quarter_components",
+                    subsample_features=500,
+                    transform_sequence=None,
+                ),
+            ]
+
         super().__init__([])
         self.task = task
         self.n_estimators = n_estimators
@@ -127,13 +137,6 @@ class TabPFNEnsembleAugmentor(EnsembleAugmentor):
             polynomial_features=polynomial_features,
             target_transforms=target_transforms,
         )
-
-    def _default_augmentor_configs(self) -> list[AugmentorConfig]:
-        if self.task == "classification":
-            return build_classifier_recipe_configs()
-        if self.task == "regression":
-            return build_regressor_recipe_configs()
-        raise ValueError(f"Invalid task: {self.task}")
 
     def _generate_configs(
         self,
