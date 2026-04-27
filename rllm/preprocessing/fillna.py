@@ -9,6 +9,9 @@ from rllm.types import ColType
 @dataclass
 class FillNAConfig:
     """Configuration for missing-value imputation by column type.
+    It centralizes fill strategies and fallback values for numerical,
+    categorical, text, and timestamp columns. These options are consumed by
+    :func:`fillna_by_coltype` and related helpers during preprocessing.
 
     Args:
         numerical_strategy (Literal["mean", "median", "mode", "constant"]):
@@ -199,7 +202,6 @@ def fillna_by_coltype(
 ) -> Series:
     """
     Fill missing values based on column type.
-
     Dispatches to the appropriate fill function according to ``col_type`` and
     forwards any extra keyword arguments to it.
 
