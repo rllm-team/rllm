@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, TypeVar
 import numpy as np
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer, StandardScaler
+from sklearn.preprocessing import FunctionTransformer
 
 if TYPE_CHECKING:
     from sklearn.base import TransformerMixin
@@ -45,21 +45,6 @@ def balance(x: Iterable[T], n: int) -> list[T]:
     return list(chain.from_iterable(repeat(elem, n) for elem in x))
 
 
-def skew(x: np.ndarray) -> float:
-    """Calculate skewness of an array.
-
-    Uses the formula: 3 * (mean - median) / std.
-    This is a simplified measure of distribution asymmetry.
-
-    Args:
-        x: Input array of numeric values.
-
-    Returns:
-        Skewness value as a float.
-    """
-    return float(3 * (np.nanmean(x, 0) - np.nanmedian(x, 0)) / np.std(x, 0))
-
-
 def _inf_to_nan_func(x: np.ndarray) -> np.ndarray:
     """Convert infinite values to NaN while preserving existing NaN.
 
@@ -70,20 +55,6 @@ def _inf_to_nan_func(x: np.ndarray) -> np.ndarray:
         Array with all inf and -inf replaced by NaN.
     """
     return np.nan_to_num(x, nan=np.nan, neginf=np.nan, posinf=np.nan)
-
-
-def _exp_minus_1(x: np.ndarray) -> np.ndarray:
-    """Compute exp(x) - 1 element-wise.
-
-    Inverse transformation for log(x + 1).
-
-    Args:
-        x: Input array.
-
-    Returns:
-        Array with exp(x) - 1 applied element-wise.
-    """
-    return np.exp(x) - 1  # type: ignore
 
 
 T = TypeVar("T")
@@ -149,52 +120,6 @@ def make_standard_scaler_safe(
             *[(n + "_pre ", deepcopy(t)) for n, t in _make_finite_transformer],
             ("placeholder", _name_scaler_tuple) if no_name else _name_scaler_tuple,
             *[(n + "_post", deepcopy(t)) for n, t in _make_finite_transformer],
-        ],
-    )
-
-
-def make_box_cox_safe(input_transformer: TransformerMixin | Pipeline) -> Pipeline:
-    """Wrap Box-Cox transformer to ensure strictly positive input data.
-
-    The Box-Cox transformation requires strictly positive values. This wrapper
-    applies MinMaxScaler first to shift data to [0.1, 1] range, ensuring
-    positivity. Clipping handles out-of-range test data.
-
-    Args:
-        input_transformer: Box-Cox or similar transformer requiring positive data.
-
-    Returns:
-        Pipeline with MinMaxScaler followed by the input transformer.
-    """
-    from sklearn.preprocessing import MinMaxScaler
-
-    return Pipeline(
-        steps=[
-            ("mm", MinMaxScaler(feature_range=(0.1, 1), clip=True)),
-            ("box_cox", input_transformer),
-        ],
-    )
-
-
-def add_safe_standard_to_safe_power_without_standard(
-    input_transformer: TransformerMixin,
-) -> Pipeline:
-    """Add safe StandardScaler after PowerTransformer to handle inf values.
-
-    PowerTransformer can sometimes produce inf values in edge cases, causing
-    subsequent StandardScaler to fail. This wrapper adds a safe StandardScaler
-    that handles non-finite values gracefully.
-
-    Args:
-        input_transformer: Typically a PowerTransformer instance.
-
-    Returns:
-        Pipeline with the transformer followed by a safe StandardScaler.
-    """
-    return Pipeline(
-        steps=[
-            ("input_transformer", input_transformer),
-            ("standard", make_standard_scaler_safe(("standard", StandardScaler()))),
         ],
     )
 

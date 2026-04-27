@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
+from typing import overload
 
 import numpy as np
 
@@ -34,16 +35,50 @@ from rllm.data_augment.utils import infer_random_state
 
 
 class EnsembleAugmentor:
-    """Fit a collection of ensemble configurations into augmentation pipelines."""
+    """An augmentor composed of multiple ``AugmentorPipeline`` objects."""
 
-    def __init__(self, configs: Sequence[EnsembleConfig]):
+    def __init__(
+        self,
+        configs: Sequence[EnsembleConfig],
+        *,
+        random_state: int | np.random.Generator | None = None,
+    ):
         self.configs = list(configs)
+        self.random_state = random_state
+        self.augmentor_pipelines = self._build_augmentor_pipelines()
+
+    def __len__(self) -> int:
+        return len(self.augmentor_pipelines)
+
+    @overload
+    def __getitem__(self, index: int) -> AugmentorPipeline: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> list[AugmentorPipeline]: ...
+
+    def __getitem__(
+        self,
+        index: int | slice,
+    ) -> AugmentorPipeline | list[AugmentorPipeline]:
+        return self.augmentor_pipelines[index]
+
+    def __iter__(self) -> Iterator[AugmentorPipeline]:
+        return iter(self.augmentor_pipelines)
+
+    def _build_augmentor_pipelines(self) -> list[AugmentorPipeline]:
+        """Build one augmentation pipeline per ensemble config."""
+        _, rng = infer_random_state(self.random_state)
+        seeds = rng.integers(0, np.iinfo(np.int32).max, len(self.configs))
+        return [
+            self.to_pipeline(config, random_state=seed)
+            for config, seed in zip(self.configs, seeds)
+        ]
 
     @staticmethod
     def to_pipeline(
         config: EnsembleConfig,
         *,
-        random_state: int | np.random.Generator | None,
+        random_state: int | np.random.Generator | None = None,
     ) -> AugmentorPipeline:
         """Convert an ensemble configuration to an augmenting pipeline."""
         augmentors: list[DataAugmentor] = []
@@ -75,31 +110,27 @@ class EnsembleAugmentor:
             [
                 RemoveConstantFeaturesAugmentor(),
                 ReshapeFeatureDistributionsAugmentor(
-                    transform_name=config.augment_config.name,
-                    append_to_original=config.augment_config.append_original,
-                    subsample_features=config.augment_config.subsample_features,
-                    transform_sequence=config.augment_config.transform_sequence,
-                    apply_to_categorical=(
-                        config.augment_config.categorical_name == "numeric"
-                    ),
+                    transform_name=config.augmentor,
+                    append_to_original=config.append_original,
+                    subsample_features=config.subsample_features,
+                    transform_sequence=config.transform_sequence,
+                    apply_to_categorical=(config.categorical_name == "numeric"),
                     random_state=random_state,
                 ),
                 EncodeCategoricalFeaturesAugmentor(
-                    config.augment_config.categorical_name,
+                    config.categorical_name,
                     random_state=random_state,
                 ),
             ]
         )
 
         if (
-            config.augment_config.global_transformer_name is not None
-            and config.augment_config.global_transformer_name != "None"
+            config.global_transformer_name is not None
+            and config.global_transformer_name != "None"
         ):
             augmentors.append(
                 AddSVDFeaturesAugmentor(
-                    global_transformer_name=(
-                        config.augment_config.global_transformer_name
-                    ),
+                    global_transformer_name=config.global_transformer_name,
                     random_state=random_state,
                 )
             )
@@ -120,21 +151,19 @@ class EnsembleAugmentor:
 
     def fit_single_augmentation(
         self,
-        config: EnsembleConfig,
+        ensemble_index: int,
+        augmentor_pipeline: AugmentorPipeline,
         X_train: np.ndarray,
         y_train: np.ndarray,
-        random_state: int | np.random.Generator | None = None,
         *,
         cat_ix: list[int],
     ) -> tuple[
-        EnsembleConfig,
-        AugmentorPipeline,
         np.ndarray,
         np.ndarray,
         list[int],
     ]:
         """Fit augmentation pipeline for a single ensemble configuration."""
-        static_seed, _ = infer_random_state(random_state)
+        config = self.configs[ensemble_index]
         if config.subsample_ix is not None:
             X_train = X_train[config.subsample_ix].copy()
             y_train = y_train[config.subsample_ix].copy()
@@ -142,8 +171,7 @@ class EnsembleAugmentor:
             X_train = X_train.copy()
             y_train = y_train.copy()
 
-        augmentor = self.to_pipeline(config, random_state=static_seed)
-        X_train_aug, cat_features = augmentor.fit_transform(X_train, cat_ix)
+        X_train_aug, cat_features = augmentor_pipeline.fit_transform(X_train, cat_ix)
 
         if isinstance(config, RegressorEnsembleConfig):
             if config.target_transform is not None:
@@ -156,19 +184,16 @@ class EnsembleAugmentor:
         else:
             raise ValueError(f"Invalid ensemble config type: {type(config)}")
 
-        return (config, augmentor, X_train_aug, y_train, cat_features)
+        return (X_train_aug, y_train, cat_features)
 
     def fit(
         self,
         X_train: np.ndarray,
         y_train: np.ndarray,
         *,
-        random_state: int | np.random.Generator | None,
         cat_ix: list[int] | None = None,
     ) -> Iterator[
         tuple[
-            EnsembleConfig,
-            AugmentorPipeline,
             np.ndarray,
             np.ndarray,
             list[int],
@@ -178,13 +203,11 @@ class EnsembleAugmentor:
         if cat_ix is None:
             cat_ix = []
 
-        _, rng = infer_random_state(random_state)
-        seeds = rng.integers(0, np.iinfo(np.int32).max, len(self.configs))
-        for config, seed in zip(self.configs, seeds):
+        for ensemble_index, augmentor_pipeline in enumerate(self.augmentor_pipelines):
             yield self.fit_single_augmentation(
-                config,
+                ensemble_index,
+                augmentor_pipeline,
                 X_train,
                 y_train,
-                seed,
                 cat_ix=cat_ix,
             )

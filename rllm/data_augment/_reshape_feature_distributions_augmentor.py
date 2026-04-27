@@ -7,41 +7,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from pandas.core.common import contextlib
-from scipy.stats import shapiro
-from sklearn.compose import ColumnTransformer, make_column_selector
-from sklearn.pipeline import FeatureUnion, Pipeline
-from sklearn.preprocessing import (
-    FunctionTransformer,
-    PowerTransformer,
-    RobustScaler,
-    StandardScaler,
-)
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer, QuantileTransformer
 from typing_extensions import override
 
-from rllm.data_augment.adaptive_quantile_transformer import (
-    AdaptiveQuantileTransformer,
-)
-from rllm.data_augment.data_augmentor import (
-    DataAugmentor,
-)
-from rllm.data_augment.kdi_transformer_with_nan import (
-    KDITransformerWithNaN,
-    get_all_kdi_transformers,
-)
-from rllm.data_augment.none_transformer import NoneTransformer
-from rllm.data_augment.utils import (
-    _exp_minus_1,
-    _identity,
-    add_safe_standard_to_safe_power_without_standard,
-    infer_random_state,
-    make_box_cox_safe,
-    make_standard_scaler_safe,
-    skew,
-)
-from rllm.data_augment.safe_power_transformer import SafePowerTransformer
-from rllm.data_augment.soft_clipping_transformer import SoftClippingTransformer
-from rllm.data_augment.squashing_scaler_transformer import SquashingScaler
+from rllm.data_augment.data_augmentor import DataAugmentor
+from rllm.data_augment.utils import _identity, infer_random_state
 
 if TYPE_CHECKING:
     from sklearn.base import TransformerMixin
@@ -53,286 +25,82 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
     APPEND_TO_ORIGINAL_THRESHOLD = 500
 
     @staticmethod
-    def get_column_types(X: np.ndarray) -> list[str]:
-        """Returns a list of column types for the given data, that indicate how
-        the data should be preprocessed.
-        """
-        # TODO(eddiebergman): Bad to keep calling skew again and again here...
-        column_types = []
-        for col in range(X.shape[1]):
-            if np.unique(X[:, col]).size < 10:
-                column_types.append(f"ordinal_{col}")
-            elif (
-                skew(X[:, col]) > 1.1
-                and np.min(X[:, col]) >= 0
-                and np.max(X[:, col]) <= 1
-            ):
-                column_types.append(f"skewed_pos_1_0_{col}")
-            elif skew(X[:, col]) > 1.1 and np.min(X[:, col]) > 0:
-                column_types.append(f"skewed_pos_{col}")
-            elif skew(X[:, col]) > 1.1:
-                column_types.append(f"skewed_{col}")
-            elif shapiro(X[0:3000, col]).statistic > 0.95:
-                column_types.append(f"normal_{col}")
-            else:
-                column_types.append(f"other_{col}")
-        return column_types
+    def make_quantile_transformer(
+        *,
+        num_examples: int,
+        n_quantiles: int,
+        output_distribution: str,
+        random_state: int | None,
+        subsample: int = 100_000,
+    ) -> QuantileTransformer:
+        return QuantileTransformer(
+            output_distribution=output_distribution,
+            n_quantiles=max(1, min(n_quantiles, num_examples, int(subsample * 0.2))),
+            subsample=subsample,
+            random_state=random_state,
+        )
 
     @staticmethod
-    def get_adaptive_augmentors(
-        num_examples: int = 100,
-        random_state: int | None = None,
-    ) -> dict[str, ColumnTransformer]:
-        """Returns a dictionary of adaptive column transformers that can be used to
-        augment the data. Adaptive column transformers are used to augment the
-        data based on the column type, they receive a pandas dataframe with column
-        names, that indicate the column type. Column types are not datatypes,
-        but rather a string that indicates how the data should be augmented.
-
-        Args:
-            num_examples: The number of examples in the dataset.
-            random_state: The random state to use for the transformers.
-        """
-        return {
-            "adaptive": ColumnTransformer(
-                [
-                    (
-                        "skewed_pos_1_0",
-                        FunctionTransformer(
-                            func=np.exp,
-                            inverse_func=np.log,
-                            check_inverse=False,
-                        ),
-                        make_column_selector("skewed_pos_1_0*"),
-                    ),
-                    (
-                        "skewed_pos",
-                        make_box_cox_safe(
-                            add_safe_standard_to_safe_power_without_standard(
-                                SafePowerTransformer(
-                                    standardize=False,
-                                    method="box-cox",
-                                ),
-                            ),
-                        ),
-                        make_column_selector("skewed_pos*"),
-                    ),
-                    (
-                        "skewed",
-                        add_safe_standard_to_safe_power_without_standard(
-                            SafePowerTransformer(
-                                standardize=False,
-                                method="yeo-johnson",
-                            ),
-                        ),
-                        make_column_selector("skewed*"),
-                    ),
-                    (
-                        "other",
-                        AdaptiveQuantileTransformer(
-                            output_distribution="normal",
-                            n_quantiles=max(num_examples // 10, 2),
-                            random_state=random_state,
-                        ),
-                        # "other" or "ordinal"
-                        make_column_selector("other*"),
-                    ),
-                    (
-                        "ordinal",
-                        NoneTransformer(),
-                        # "other" or "ordinal"
-                        make_column_selector("ordinal*"),
-                    ),
-                    (
-                        "normal",
-                        NoneTransformer(),
-                        make_column_selector("normal*"),
-                    ),
-                ],
-                remainder="passthrough",
-            ),
-        }
-
-    @staticmethod
-    def get_all_augmentors(
+    def get_feature_transformers(
         num_examples: int,
         random_state: int | None = None,
     ) -> dict[str, TransformerMixin | Pipeline]:
-        all_augmentors = {
-            "power": add_safe_standard_to_safe_power_without_standard(
-                PowerTransformer(standardize=False),
-            ),
-            "safepower": add_safe_standard_to_safe_power_without_standard(
-                SafePowerTransformer(standardize=False),
-            ),
-            "power_box": make_box_cox_safe(
-                add_safe_standard_to_safe_power_without_standard(
-                    PowerTransformer(standardize=False, method="box-cox"),
-                ),
-            ),
-            "safepower_box": make_box_cox_safe(
-                add_safe_standard_to_safe_power_without_standard(
-                    SafePowerTransformer(standardize=False, method="box-cox"),
-                ),
-            ),
-            "log": FunctionTransformer(
-                func=np.log,
-                inverse_func=np.exp,
-                check_inverse=False,
-            ),
-            "1_plus_log": FunctionTransformer(
-                func=np.log1p,
-                inverse_func=_exp_minus_1,
-                check_inverse=False,
-            ),
-            "exp": FunctionTransformer(
-                func=np.exp,
-                inverse_func=np.log,
-                check_inverse=False,
-            ),
-            "quantile_uni_coarse": AdaptiveQuantileTransformer(
-                output_distribution="uniform",
-                n_quantiles=max(num_examples // 10, 2),
-                random_state=random_state,
-            ),
-            "quantile_norm_coarse": AdaptiveQuantileTransformer(
-                output_distribution="normal",
-                n_quantiles=max(num_examples // 10, 2),
-                random_state=random_state,
-            ),
-            "quantile_uni": AdaptiveQuantileTransformer(
-                output_distribution="uniform",
-                n_quantiles=max(num_examples // 5, 2),
-                random_state=random_state,
-            ),
-            "quantile_norm": AdaptiveQuantileTransformer(
-                output_distribution="normal",
-                n_quantiles=max(num_examples // 5, 2),
-                random_state=random_state,
-            ),
-            "quantile_uni_fine": AdaptiveQuantileTransformer(
-                output_distribution="uniform",
-                n_quantiles=num_examples,
-                random_state=random_state,
-            ),
-            "quantile_norm_fine": AdaptiveQuantileTransformer(
-                output_distribution="normal",
-                n_quantiles=num_examples,
-                random_state=random_state,
-            ),
-            "robust": RobustScaler(unit_variance=True),
-            "standard": StandardScaler(),
-            "soft_clip": SoftClippingTransformer(),
-            "squashing_scaler_default": SquashingScaler(),
-            "none": FunctionTransformer(_identity),
-            **get_all_kdi_transformers(),
-        }
-
-        with contextlib.suppress(Exception):
-            all_augmentors["norm_and_kdi"] = FeatureUnion(
-                [
-                    (
-                        "norm",
-                        AdaptiveQuantileTransformer(
-                            output_distribution="normal",
-                            n_quantiles=max(num_examples // 10, 2),
-                            random_state=random_state,
-                        ),
-                    ),
-                    (
-                        "kdi",
-                        KDITransformerWithNaN(alpha=1.0, output_distribution="uniform"),
-                    ),
-                ],
-            )
-
-        all_augmentors.update(
-            ReshapeFeatureDistributionsAugmentor.get_adaptive_augmentors(
-                num_examples,
-                random_state=random_state,
-            ),
-        )
-
-        return all_augmentors
-
-    def get_all_global_transformers(
-        self,
-        num_examples: int,
-        num_features: int,
-        random_state: int | None = None,
-    ) -> dict[str, FeatureUnion | Pipeline]:
         return {
-            "scaler": make_standard_scaler_safe(("standard", StandardScaler())),
-            "svd": FeatureUnion(
-                [
-                    ("passthrough", FunctionTransformer(func=_identity)),
-                    (
-                        "svd",
-                        Pipeline(
-                            steps=[
-                                (
-                                    "save_standard",
-                                    make_standard_scaler_safe(
-                                        ("standard", StandardScaler(with_mean=False)),
-                                    ),
-                                ),
-                                (
-                                    "svd",
-                                    TruncatedSVD(
-                                        algorithm="arpack",
-                                        n_components=max(
-                                            1,
-                                            min(
-                                                num_examples // 10 + 1,
-                                                num_features // 2,
-                                            ),
-                                        ),
-                                        random_state=random_state,
-                                    ),
-                                ),
-                            ],
-                        ),
-                    ),
-                ],
+            "quantile_uni_coarse": (
+                ReshapeFeatureDistributionsAugmentor.make_quantile_transformer(
+                    num_examples=num_examples,
+                    output_distribution="uniform",
+                    n_quantiles=max(num_examples // 10, 2),
+                    random_state=random_state,
+                )
             ),
-            "svd_quarter_components": FeatureUnion(
-                [
-                    ("passthrough", FunctionTransformer(func=_identity)),
-                    (
-                        "svd",
-                        Pipeline(
-                            steps=[
-                                (
-                                    "save_standard",
-                                    make_standard_scaler_safe(
-                                        ("standard", StandardScaler(with_mean=False)),
-                                    ),
-                                ),
-                                (
-                                    "svd",
-                                    TruncatedSVD(
-                                        algorithm="arpack",
-                                        n_components=max(
-                                            1,
-                                            min(
-                                                num_examples // 10 + 1,
-                                                num_features // 4,
-                                            ),
-                                        ),
-                                        random_state=random_state,
-                                    ),
-                                ),
-                            ],
-                        ),
-                    ),
-                ],
+            "quantile_norm_coarse": (
+                ReshapeFeatureDistributionsAugmentor.make_quantile_transformer(
+                    num_examples=num_examples,
+                    output_distribution="normal",
+                    n_quantiles=max(num_examples // 10, 2),
+                    random_state=random_state,
+                )
             ),
+            "quantile_uni": (
+                ReshapeFeatureDistributionsAugmentor.make_quantile_transformer(
+                    num_examples=num_examples,
+                    output_distribution="uniform",
+                    n_quantiles=max(num_examples // 5, 2),
+                    random_state=random_state,
+                )
+            ),
+            "quantile_norm": (
+                ReshapeFeatureDistributionsAugmentor.make_quantile_transformer(
+                    num_examples=num_examples,
+                    output_distribution="normal",
+                    n_quantiles=max(num_examples // 5, 2),
+                    random_state=random_state,
+                )
+            ),
+            "quantile_uni_fine": (
+                ReshapeFeatureDistributionsAugmentor.make_quantile_transformer(
+                    num_examples=num_examples,
+                    output_distribution="uniform",
+                    n_quantiles=num_examples,
+                    random_state=random_state,
+                )
+            ),
+            "quantile_norm_fine": (
+                ReshapeFeatureDistributionsAugmentor.make_quantile_transformer(
+                    num_examples=num_examples,
+                    output_distribution="normal",
+                    n_quantiles=num_examples,
+                    random_state=random_state,
+                )
+            ),
+            "none": FunctionTransformer(_identity),
         }
 
     def __init__(
         self,
         *,
-        transform_name: str = "safepower",
+        transform_name: str = "quantile_uni",
         apply_to_categorical: bool = False,
         append_to_original: bool | str = False,
         subsample_features: float = -1,
@@ -354,12 +122,9 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
         n_features: int,
         categorical_features: list[int],
     ) -> tuple[Pipeline | ColumnTransformer, list[int]]:
-        if "adaptive" in self.transform_name:
-            raise NotImplementedError("Adaptive preprocessing raw removed.")
-
         static_seed, rng = infer_random_state(self.random_state)
 
-        all_augmentors = self.get_all_augmentors(
+        feature_transformers = self.get_feature_transformers(
             n_samples,
             random_state=static_seed,
         )
@@ -447,26 +212,18 @@ class ReshapeFeatureDistributionsAugmentor(DataAugmentor):
                 f" and {self.append_to_original=}",
             )
 
-        # NOTE: No need to keep track of categoricals here, already done above
-        if self.transform_name != "per_feature":
-            if self.transform_sequence:
-                steps = []
-                for idx, name in enumerate(self.transform_sequence):
-                    if name not in all_augmentors:
-                        raise KeyError(f"Unknown transform in sequence: {name}")
-                    steps.append((f"seq_{idx}_{name}", all_augmentors[name]))
-                _transformer = Pipeline(steps)
-            else:
-                _transformer = all_augmentors[self.transform_name]
-            transformers.append(("feat_transform", _transformer, trans_ixs))
+        if self.transform_sequence:
+            steps = []
+            for idx, name in enumerate(self.transform_sequence):
+                if name not in feature_transformers:
+                    raise KeyError(f"Unknown transform in sequence: {name}")
+                steps.append((f"seq_{idx}_{name}", feature_transformers[name]))
+            feature_transformer = Pipeline(steps)
         else:
-            augmentors = list(all_augmentors.values())
-            transformers.extend(
-                [
-                    (f"transformer_{i}", rng.choice(augmentors), [i])  # type: ignore
-                    for i in trans_ixs
-                ],
-            )
+            if self.transform_name not in feature_transformers:
+                raise KeyError(f"Unknown transform: {self.transform_name}")
+            feature_transformer = feature_transformers[self.transform_name]
+        transformers.append(("feat_transform", feature_transformer, trans_ixs))
 
         transformer = ColumnTransformer(
             transformers,

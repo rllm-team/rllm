@@ -1,6 +1,4 @@
-"""Defines the augmentation configurations that define the ensembling of
-different members.
-"""
+"""Defines augmentation configurations for TabPFN ensemble members."""
 
 #  Copyright (c) Prior Labs GmbH 2025.
 
@@ -22,67 +20,68 @@ if TYPE_CHECKING:
     from sklearn.pipeline import Pipeline
 
 
-@dataclass
-class AugmentorConfig:
-    """Configuration for data augmentors."""
+AugmentorName = Literal[
+    "quantile_uni_coarse",
+    "quantile_norm_coarse",
+    "quantile_uni",
+    "quantile_norm",
+    "quantile_uni_fine",
+    "quantile_norm_fine",
+    "none",
+]
+CategoricalAugmentorName = Literal[
+    "none",
+    "numeric",
+    "onehot",
+    "ordinal",
+    "ordinal_shuffled",
+    "ordinal_very_common_categories_shuffled",
+]
 
-    name: Literal[
-        "per_feature",
-        "power",
-        "safepower",
-        "power_box",
-        "safepower_box",
-        "quantile_uni_coarse",
-        "quantile_norm_coarse",
-        "quantile_uni",
-        "quantile_norm",
-        "quantile_uni_fine",
-        "quantile_norm_fine",
-        "robust",
-        "kdi",
-        "none",
-        "kdi_random_alpha",
-        "kdi_uni",
-        "kdi_random_alpha_uni",
-        "adaptive",
-        "norm_and_kdi",
-        "squashing_scaler_default",
-        "kdi_alpha_0.3_uni",
-        "kdi_alpha_0.5_uni",
-        "kdi_alpha_0.8_uni",
-        "kdi_alpha_1.0_uni",
-        "kdi_alpha_1.2_uni",
-        "kdi_alpha_1.5_uni",
-        "kdi_alpha_2.0_uni",
-        "kdi_alpha_3.0_uni",
-        "kdi_alpha_5.0_uni",
-        "kdi_alpha_0.3",
-        "kdi_alpha_0.5",
-        "kdi_alpha_0.8",
-        "kdi_alpha_1.0",
-        "kdi_alpha_1.2",
-        "kdi_alpha_1.5",
-        "kdi_alpha_2.0",
-        "kdi_alpha_3.0",
-        "kdi_alpha_5.0",
-    ]
-    categorical_name: Literal[
-        "none",
-        "numeric",
-        "onehot",
-        "ordinal",
-        "ordinal_shuffled",
-        "ordinal_very_common_categories_shuffled",
-    ] = "none"
+
+def generate_index_permutations(
+    n: int,
+    *,
+    max_index: int,
+    subsample: int | float,
+    random_state: int | np.random.Generator | None,
+) -> list[npt.NDArray[np.int64]]:
+    """Generate indices for row subsampling."""
+    _, rng = infer_random_state(random_state)
+    if isinstance(subsample, int):
+        if not (1 <= subsample <= max_index):
+            raise ValueError(f"{subsample=} must be in [1, {max_index}] if int")
+        return [rng.permutation(max_index)[:subsample] for _ in range(n)]
+
+    if isinstance(subsample, float):
+        if not (0 < subsample < 1):
+            raise ValueError(f"{subsample=} must be in (0, 1) if float")
+        subsample = int(subsample * max_index) + 1
+        return [rng.permutation(max_index)[:subsample] for _ in range(n)]
+
+    raise ValueError(f"{subsample=} must be int or float.")
+
+
+@dataclass
+class EnsembleConfig:
+    """Configuration for one ensemble member and its augmentation pipeline."""
+
+    augmentor: AugmentorName
+    categorical_name: CategoricalAugmentorName = "none"
     append_original: bool | Literal["auto"] = False
     subsample_features: int | float = -1
     global_transformer_name: str | None = None
     transform_sequence: tuple[str, ...] | None = None
+    add_fingerprint_feature: bool = True
+    polynomial_features: Literal["no", "all"] | int = "no"
+    feature_shift_count: int = 0
+    feature_shift_decoder: Literal["shuffle", "rotate"] | None = "shuffle"
+    subsample_ix: npt.NDArray[np.int64] | None = None
 
     @override
     def __str__(self) -> str:
         return (
-            f"{self.name}_cat:{self.categorical_name}"
+            f"{self.augmentor}_cat:{self.categorical_name}"
             + ("_and_none" if self.append_original else "")
             + (
                 f"_subsample_feats_{self.subsample_features}"
@@ -101,40 +100,15 @@ class AugmentorConfig:
             )
         )
 
-
-def generate_index_permutations(
-    n: int,
-    *,
-    max_index: int,
-    subsample: int | float,
-    random_state: int | np.random.Generator | None,
-) -> list[npt.NDArray[np.int64]]:
-    """Generate indices for subsampling from the data."""
-    _, rng = infer_random_state(random_state)
-    if isinstance(subsample, int):
-        if not (1 <= subsample <= max_index):
-            raise ValueError(f"{subsample=} must be in [1, {max_index}] if int")
-        return [rng.permutation(max_index)[:subsample] for _ in range(n)]
-
-    if isinstance(subsample, float):
-        if not (0 < subsample < 1):
-            raise ValueError(f"{subsample=} must be in (0, 1) if float")
-        subsample = int(subsample * max_index) + 1
-        return [rng.permutation(max_index)[:subsample] for _ in range(n)]
-
-    raise ValueError(f"{subsample=} must be int or float.")
-
-
-@dataclass
-class EnsembleConfig:
-    """Configuration for an ensemble member."""
-
-    augment_config: AugmentorConfig
-    add_fingerprint_feature: bool
-    polynomial_features: Literal["no", "all"] | int
-    feature_shift_count: int
-    feature_shift_decoder: Literal["shuffle", "rotate"] | None
-    subsample_ix: npt.NDArray[np.int64] | None
+    def pipeline_kwargs(self) -> dict:
+        return {
+            "augmentor": self.augmentor,
+            "categorical_name": self.categorical_name,
+            "append_original": self.append_original,
+            "subsample_features": self.subsample_features,
+            "global_transformer_name": self.global_transformer_name,
+            "transform_sequence": self.transform_sequence,
+        }
 
     @classmethod
     def generate_for_classification(
@@ -146,12 +120,12 @@ class EnsembleConfig:
         add_fingerprint_feature: bool,
         polynomial_features: Literal["no", "all"] | int,
         feature_shift_decoder: Literal["shuffle", "rotate"] | None,
-        augmentor_configs: Sequence[AugmentorConfig],
+        pipeline_configs: Sequence[EnsembleConfig],
         class_shift_method: Literal["rotate", "shuffle"] | None,
         n_classes: int,
         random_state: int | np.random.Generator | None,
     ) -> list[ClassifierEnsembleConfig]:
-        """Generate ensemble configurations for classification."""
+        """Generate one config per classifier ensemble member."""
         static_seed, rng = infer_random_state(random_state)
         start = rng.integers(0, 1000)
         featshifts = np.arange(start, start + n)
@@ -192,15 +166,15 @@ class EnsembleConfig:
         else:
             raise ValueError(f"Invalid subsample_samples: {subsample_size}")
 
-        balance_count = n // len(augmentor_configs)
-        configs_ = balance(augmentor_configs, balance_count)
+        balance_count = n // len(pipeline_configs)
+        configs_ = balance(pipeline_configs, balance_count)
         leftover = n - len(configs_)
         if leftover > 0:
-            configs_.extend(augmentor_configs[:leftover])
+            configs_.extend(pipeline_configs[:leftover])
 
         return [
             ClassifierEnsembleConfig(
-                augment_config=augment_config,
+                **pipeline_config.pipeline_kwargs(),
                 feature_shift_count=featshift,
                 add_fingerprint_feature=add_fingerprint_feature,
                 polynomial_features=polynomial_features,
@@ -208,7 +182,7 @@ class EnsembleConfig:
                 subsample_ix=subsample_ix,
                 class_permutation=class_perm,
             )
-            for featshift, augment_config, subsample_ix, class_perm in zip(
+            for featshift, pipeline_config, subsample_ix, class_perm in zip(
                 featshifts,
                 configs_,
                 subsamples,
@@ -226,11 +200,11 @@ class EnsembleConfig:
         add_fingerprint_feature: bool,
         polynomial_features: Literal["no", "all"] | int,
         feature_shift_decoder: Literal["shuffle", "rotate"] | None,
-        augmentor_configs: Sequence[AugmentorConfig],
+        pipeline_configs: Sequence[EnsembleConfig],
         target_transforms: Sequence[TransformerMixin | Pipeline | None],
         random_state: int | np.random.Generator | None,
     ) -> list[RegressorEnsembleConfig]:
-        """Generate ensemble configurations for regression."""
+        """Generate one config per regression ensemble member."""
         static_seed, rng = infer_random_state(random_state)
         start = rng.integers(0, 1000)
         featshifts = np.arange(start, start + n)
@@ -248,7 +222,7 @@ class EnsembleConfig:
         else:
             raise ValueError(f"Invalid subsample_samples: {subsample_size}")
 
-        combos = list(product(augmentor_configs, target_transforms))
+        combos = list(product(pipeline_configs, target_transforms))
         balance_count = n // len(combos)
         configs_ = balance(combos, balance_count)
         rand_count = n % len(combos)
@@ -257,7 +231,7 @@ class EnsembleConfig:
 
         return [
             RegressorEnsembleConfig(
-                augment_config=augment_config,
+                **pipeline_config.pipeline_kwargs(),
                 feature_shift_count=featshift,
                 add_fingerprint_feature=add_fingerprint_feature,
                 polynomial_features=polynomial_features,
@@ -265,7 +239,7 @@ class EnsembleConfig:
                 subsample_ix=subsample_ix,
                 target_transform=target_transform,
             )
-            for featshift, subsample_ix, (augment_config, target_transform) in zip(
+            for featshift, subsample_ix, (pipeline_config, target_transform) in zip(
                 featshifts,
                 subsamples,
                 configs_,
@@ -277,11 +251,11 @@ class EnsembleConfig:
 class ClassifierEnsembleConfig(EnsembleConfig):
     """Configuration for a classifier ensemble member."""
 
-    class_permutation: np.ndarray | None
+    class_permutation: np.ndarray | None = None
 
 
 @dataclass
 class RegressorEnsembleConfig(EnsembleConfig):
     """Configuration for a regression ensemble member."""
 
-    target_transform: TransformerMixin | Pipeline | None
+    target_transform: TransformerMixin | Pipeline | None = None

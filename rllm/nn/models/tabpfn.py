@@ -397,8 +397,9 @@ class TabPFN(torch.nn.Module):
             self.znorm_space_bardist_ = deepcopy(self.bardist).float()
             self.raw_space_bardist_ = deepcopy(self.bardist).float()
 
-        # Ensemble configurations (will be set during fit)
-        self.augmentors = None
+        self.ensemble_augmentor: TabPFNEnsembleAugmentor | None = None
+        # Fitted ensemble results produced by TabPFNEnsembleAugmentor.fit().
+        self.ensemble_results = None
         self.n_classes = None
 
     def _resolve_default_subsample_size(self, subsample_size: int | None) -> int | None:
@@ -455,7 +456,10 @@ class TabPFN(torch.nn.Module):
             logits = logits / float(self.softmax_temperature)
 
         if logits.ndim >= 3:
-            if self.average_before_softmax or self.version_config.enable_temperature_scaling:
+            if (
+                self.average_before_softmax
+                or self.version_config.enable_temperature_scaling
+            ):
                 probs = torch.nn.functional.softmax(logits.mean(dim=0), dim=-1)
             else:
                 probs = torch.nn.functional.softmax(logits, dim=-1).mean(dim=0)
@@ -499,22 +503,26 @@ class TabPFN(torch.nn.Module):
         if self.model_type == "clf":
             y_train = y_train.astype(np.int64, copy=False)
             self.n_classes = len(np.unique(y_train))
-            augmentor = TabPFNEnsembleAugmentor.for_classification(
+            ensemble_augmentor = TabPFNEnsembleAugmentor(
                 n_estimators=self.n_estimators,
+                task="classification",
                 subsample_size=self._resolve_fit_subsample_size(len(X_train)),
                 add_fingerprint_feature=self.add_fingerprint_feature,
                 feature_shift_decoder=self.feature_shift_decoder,
                 polynomial_features=self.polynomial_features,
                 class_shift_method=self.class_shift_method,
+                random_state=random_state,
+                max_index=len(X_train),
+                n_classes=int(y_train.max()) + 1,
             )
-            self.augmentors = list(
-                augmentor.fit(
+            self.ensemble_results = list(
+                ensemble_augmentor.fit(
                     X_train=X_train,
                     y_train=y_train,
-                    random_state=random_state,
                     cat_ix=cat_ix,
                 )
             )
+            self.ensemble_augmentor = ensemble_augmentor
             if self.version_config.enable_temperature_scaling:
                 self._fit_temperature_scaling(X_train_raw, y_train, cat_ix)
             if self.version_config.enable_threshold_tuning:
@@ -530,21 +538,24 @@ class TabPFN(torch.nn.Module):
                 + self.y_train_mean_
             )
             self.raw_space_bardist_ = self.bardist.__class__(scaled_borders).float()
-            augmentor = TabPFNEnsembleAugmentor.for_regression(
+            ensemble_augmentor = TabPFNEnsembleAugmentor(
                 n_estimators=self.n_estimators,
+                task="regression",
                 subsample_size=self._resolve_fit_subsample_size(len(X_train)),
                 add_fingerprint_feature=self.add_fingerprint_feature,
                 feature_shift_decoder=self.feature_shift_decoder,
                 polynomial_features=self.polynomial_features,
+                random_state=random_state,
+                max_index=len(X_train),
             )
-            self.augmentors = list(
-                augmentor.fit(
+            self.ensemble_results = list(
+                ensemble_augmentor.fit(
                     X_train=X_train,
                     y_train=y_train,
-                    random_state=random_state,
                     cat_ix=cat_ix,
                 )
             )
+            self.ensemble_augmentor = ensemble_augmentor
         self._fit_cat_ix = list(cat_ix)
         self._X_train_fit = X_train
         self._y_train_fit = y_train
@@ -581,12 +592,12 @@ class TabPFN(torch.nn.Module):
             return nullcontext()
 
     def _build_member_models(self) -> list[torch.nn.Module]:
-        if self.augmentors is None:
+        if self.ensemble_results is None:
             return []
 
         member_models: list[torch.nn.Module] = []
         base_device = next(self.model.parameters()).device
-        for cfg, _augmentor, X_train_proc, y_train_proc, cat_ix_proc in self.augmentors:
+        for X_train_proc, y_train_proc, cat_ix_proc in self.ensemble_results:
             member_model = deepcopy(self.model)
             member_model.cache_trainset_representation = (
                 self.model.cache_trainset_representation
@@ -616,10 +627,38 @@ class TabPFN(torch.nn.Module):
 
         return member_models
 
+    def _get_augmentor_pipelines(self) -> list[Any]:
+        if self.ensemble_augmentor is None:
+            raise RuntimeError(
+                "Model must be fitted before prediction. Call fit() first."
+            )
+        pipelines = self.ensemble_augmentor.augmentor_pipelines
+        if self.ensemble_results is not None and len(pipelines) != len(
+            self.ensemble_results
+        ):
+            raise RuntimeError(
+                "Fitted augmentor pipelines are missing or stale. Call fit() again."
+            )
+        return pipelines
+
+    def _get_ensemble_configs(self) -> list[Any]:
+        if self.ensemble_augmentor is None:
+            raise RuntimeError(
+                "Model must be fitted before prediction. Call fit() first."
+            )
+        configs = self.ensemble_augmentor.configs
+        if self.ensemble_results is not None and len(configs) != len(
+            self.ensemble_results
+        ):
+            raise RuntimeError(
+                "Fitted ensemble configs are missing or stale. Call fit() again."
+            )
+        return configs
+
     def _predict_single_member(
         self,
         cfg: Any,
-        augmentor: Any,
+        augmentor_pipeline: Any,
         member_model: torch.nn.Module,
         X_train_proc: np.ndarray,
         y_train_proc: np.ndarray,
@@ -629,7 +668,7 @@ class TabPFN(torch.nn.Module):
         return_debug: bool = False,
     ) -> torch.Tensor:
         device = next(self.model.parameters()).device
-        X_test_proc, _ = augmentor.transform(X_test)
+        X_test_proc, _ = augmentor_pipeline.transform(X_test)
         X_test_tensor = torch.as_tensor(X_test_proc, dtype=torch.float32, device=device)
         member_model = member_model.to(device)
         only_return_standard_out = not return_debug
@@ -708,11 +747,11 @@ class TabPFN(torch.nn.Module):
         Returns:
             Predictions array.
         """
-        if self.augmentors is None:
+        if self.ensemble_results is None:
             raise RuntimeError(
                 "Model must be fitted before prediction. Call fit() first."
             )
-        if len(self._member_models) != len(self.augmentors):
+        if len(self._member_models) != len(self.ensemble_results):
             raise RuntimeError(
                 "Cached ensemble member models are missing or stale. Call fit() again."
             )
@@ -721,20 +760,23 @@ class TabPFN(torch.nn.Module):
         outputs: list[torch.Tensor] = []
 
         # Iterate through all preprocessing configurations
-        for member_model, (
-            cfg,
-            augmentor,
+        for member_model, augmentor_pipeline, cfg, (
             X_train_proc,
             y_train_proc,
             cat_ix_proc,
-        ) in zip(self._member_models, self.augmentors):
+        ) in zip(
+            self._member_models,
+            self._get_augmentor_pipelines(),
+            self._get_ensemble_configs(),
+            self.ensemble_results,
+        ):
             member_batches = []
             for start in range(0, len(X_test), self.inference_batch_size):
                 end = min(len(X_test), start + self.inference_batch_size)
                 member_batches.append(
                     self._predict_single_member(
                         cfg,
-                        augmentor,
+                        augmentor_pipeline,
                         member_model,
                         X_train_proc,
                         y_train_proc,
@@ -768,31 +810,34 @@ class TabPFN(torch.nn.Module):
             raise RuntimeError(
                 "predict_raw_logits is only available for classification."
             )
-        if self.augmentors is None:
+        if self.ensemble_results is None:
             raise RuntimeError(
                 "Model must be fitted before prediction. Call fit() first."
             )
-        if len(self._member_models) != len(self.augmentors):
+        if len(self._member_models) != len(self.ensemble_results):
             raise RuntimeError(
                 "Cached ensemble member models are missing or stale. Call fit() again."
             )
 
         X_test = self._clean_predict_inputs(X_test)
         outputs: list[torch.Tensor] = []
-        for member_model, (
-            cfg,
-            augmentor,
+        for member_model, augmentor_pipeline, cfg, (
             X_train_proc,
             y_train_proc,
             cat_ix_proc,
-        ) in zip(self._member_models, self.augmentors):
+        ) in zip(
+            self._member_models,
+            self._get_augmentor_pipelines(),
+            self._get_ensemble_configs(),
+            self.ensemble_results,
+        ):
             member_batches = []
             for start in range(0, len(X_test), self.inference_batch_size):
                 end = min(len(X_test), start + self.inference_batch_size)
                 member_batches.append(
                     self._predict_single_member(
                         cfg,
-                        augmentor,
+                        augmentor_pipeline,
                         member_model,
                         X_train_proc,
                         y_train_proc,
@@ -811,19 +856,25 @@ class TabPFN(torch.nn.Module):
             raise RuntimeError(
                 "predict_debug_outputs is only available for classification."
             )
-        if self.augmentors is None or len(self._member_models) != len(self.augmentors):
+        if self.ensemble_results is None or len(self._member_models) != len(
+            self.ensemble_results
+        ):
             raise RuntimeError("Model must be fitted before debug prediction.")
-        if member_index < 0 or member_index >= len(self.augmentors):
+        if member_index < 0 or member_index >= len(self.ensemble_results):
             raise IndexError(f"Invalid member_index: {member_index}")
 
         X_test = self._clean_predict_inputs(X_test)
-        cfg, augmentor, X_train_proc, y_train_proc, cat_ix_proc = self.augmentors[
-            member_index
-        ]
+        augmentor_pipeline = self._get_augmentor_pipelines()[member_index]
+        cfg = self._get_ensemble_configs()[member_index]
+        (
+            X_train_proc,
+            y_train_proc,
+            cat_ix_proc,
+        ) = self.ensemble_results[member_index]
         member_model = self._member_models[member_index]
         debug = self._predict_single_member(
             cfg,
-            augmentor,
+            augmentor_pipeline,
             member_model,
             X_train_proc,
             y_train_proc,
@@ -954,8 +1005,11 @@ class TabPFN(torch.nn.Module):
             "model_state_dict": self.model.state_dict(),
             "tabpfn_config": self.config,
             "postprocessor_state": self.postprocessor.state_dict(),
-            "augmentors": (
-                list(self.augmentors) if self.augmentors is not None else None
+            "ensemble_augmentor": self.ensemble_augmentor,
+            "ensemble_results": (
+                list(self.ensemble_results)
+                if self.ensemble_results is not None
+                else None
             ),
             "member_models": self._member_models,
             "fit_cat_ix": self._fit_cat_ix,
@@ -1019,7 +1073,45 @@ class TabPFN(torch.nn.Module):
             source_model_version=str(source_model_version),
             target_model_version=model.version_config.model_version,
         )
-        model.augmentors = data.get("augmentors")
+        model.ensemble_augmentor = data.get("ensemble_augmentor")
+        ensemble_results = data.get(
+            "ensemble_results",
+            data.get("ensemble_members", data.get("augmentors")),
+        )
+        if (
+            ensemble_results is not None
+            and len(ensemble_results) > 0
+            and len(ensemble_results[0]) == 5
+        ):
+            configs = [member[0] for member in ensemble_results]
+            pipelines = [member[1] for member in ensemble_results]
+            ensemble_results = [
+                (member[2], member[3], member[4])
+                for member in ensemble_results
+            ]
+            if model.ensemble_augmentor is None:
+                model.ensemble_augmentor = TabPFNEnsembleAugmentor(
+                    task=(
+                        "classification"
+                        if model.model_type == "clf"
+                        else "regression"
+                    )
+                )
+            model.ensemble_augmentor.configs = configs
+            model.ensemble_augmentor.augmentor_pipelines = pipelines
+        elif (
+            ensemble_results is not None
+            and len(ensemble_results) > 0
+            and len(ensemble_results[0]) == 4
+        ):
+            configs = [member[0] for member in ensemble_results]
+            ensemble_results = [
+                (member[1], member[2], member[3])
+                for member in ensemble_results
+            ]
+            if model.ensemble_augmentor is not None:
+                model.ensemble_augmentor.configs = configs
+        model.ensemble_results = ensemble_results
         model._member_models = data.get("member_models", [])
         model._fit_cat_ix = list(data.get("fit_cat_ix", []))
         model._ordinal_encoder = data.get("ordinal_encoder")
