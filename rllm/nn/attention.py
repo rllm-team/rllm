@@ -23,7 +23,7 @@ def gqa_is_supported() -> bool:
 
 
 class Attention(nn.Module):
-    """Base attention module used by official-style transformer blocks."""
+    """Base projected scaled-dot-product attention module."""
 
     def __init__(
         self,
@@ -55,66 +55,42 @@ class Attention(nn.Module):
         torch.nn.init.xavier_uniform_(self.v_projection.weight)
         torch.nn.init.zeros_(self.out_projection.weight)
 
-
-class AlongRowAttention(Attention):
-    """Attention across feature groups within a single row."""
-
-    def forward(self, row_input: torch.Tensor) -> torch.Tensor:
-        batch_rows, num_feature_groups, _ = row_input.shape
-        query_flat = self.q_projection(row_input)
-        key_flat = self.k_projection(row_input)
-        value_flat = self.v_projection(row_input)
-        query = query_flat.view(
-            batch_rows,
-            num_feature_groups,
-            -1,
-            self.head_dim,
-        )
-        key = key_flat.view(batch_rows, num_feature_groups, -1, self.head_dim)
-        value = value_flat.view(batch_rows, num_feature_groups, -1, self.head_dim)
-        output = _batched_scaled_dot_product_attention(query, key, value)
-        output = output.reshape(
-            batch_rows,
-            num_feature_groups,
-            self.num_heads * self.head_dim,
-        )
-        return self.out_projection(output)
-
-
-class AlongColumnAttention(Attention):
-    """Attention across rows within a single feature group."""
-
     def forward(
         self,
-        column_input: torch.Tensor,
-        single_eval_pos: int | None = None,
+        query_input: torch.Tensor,
+        key_value_input: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        batch_columns, num_rows, _ = column_input.shape
-        num_train_rows = num_rows if single_eval_pos is None else int(single_eval_pos)
+        """Apply attention from ``query_input`` to ``key_value_input``.
 
-        query_flat = self.q_projection(column_input)
-        key_flat = self.k_projection(column_input[:, :num_train_rows])
-        value_flat = self.v_projection(column_input[:, :num_train_rows])
-        query = query_flat.view(batch_columns, num_rows, -1, self.head_dim)
-        key = key_flat.view(batch_columns, num_train_rows, -1, self.head_dim)
-        value = value_flat.view(batch_columns, num_train_rows, -1, self.head_dim)
+        If ``key_value_input`` is omitted, this is standard self-attention.
+        Inputs are expected to have shape ``[batch, sequence, embedding_size]``.
+        """
 
-        if single_eval_pos == num_rows:
-            output = _batched_scaled_dot_product_attention(query, key, value)
-        else:
-            train_output = _batched_scaled_dot_product_attention(
-                query[:, :num_train_rows],
-                key,
-                value,
-            )
-            test_output = _batched_scaled_dot_product_attention(
-                query[:, num_train_rows:],
-                key[:, :, :1],
-                value[:, :, :1],
-            )
-            output = torch.cat([train_output, test_output], dim=1)
+        if key_value_input is None:
+            key_value_input = query_input
 
-        output = output.reshape(batch_columns, num_rows, self.num_heads * self.head_dim)
+        batch_size, query_length, _ = query_input.shape
+        key_length = key_value_input.shape[1]
+
+        query_flat = self.q_projection(query_input)
+        key_flat = self.k_projection(key_value_input)
+        value_flat = self.v_projection(key_value_input)
+
+        query = query_flat.view(
+            batch_size,
+            query_length,
+            self.num_heads,
+            self.head_dim,
+        )
+        key = key_flat.view(batch_size, key_length, self.num_heads, self.head_dim)
+        value = value_flat.view(batch_size, key_length, self.num_heads, self.head_dim)
+
+        output = _batched_scaled_dot_product_attention(query, key, value)
+        output = output.reshape(
+            batch_size,
+            query_length,
+            self.num_heads * self.head_dim,
+        )
         return self.out_projection(output)
 
 
@@ -123,6 +99,8 @@ def _batched_scaled_dot_product_attention(
     key: torch.Tensor,
     value: torch.Tensor,
 ) -> torch.Tensor:
+    """Apply SDPA to tensors shaped ``[batch, sequence, heads, head_dim]``."""
+
     query_heads = query.permute(0, 2, 1, 3)
     key_heads = key.permute(0, 2, 1, 3)
     value_heads = value.permute(0, 2, 1, 3)
@@ -162,16 +140,3 @@ def _batched_scaled_dot_product_attention(
             )
     output = outputs[0] if len(outputs) == 1 else torch.cat(outputs)
     return output.permute(0, 2, 1, 3)
-
-
-class LowerPrecisionRMSNorm(nn.RMSNorm):
-    """RMSNorm variant that keeps low precision in autocast mode."""
-
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        if (
-            input.dtype in (torch.float16, torch.bfloat16)
-            and sum(self.normalized_shape) < 512
-        ):
-            with torch.amp.autocast("cuda" if input.is_cuda else "cpu", enabled=False):
-                return super().forward(input)
-        return super().forward(input)

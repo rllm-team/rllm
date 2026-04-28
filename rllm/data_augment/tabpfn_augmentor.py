@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Literal
 
 import numpy as np
+from sklearn.preprocessing import FunctionTransformer
 
 from rllm.data_augment.ensemble_augmentor import EnsembleAugmentor
 from rllm.data_augment.ensemble_config import EnsembleConfig
@@ -108,7 +109,7 @@ class TabPFNEnsembleAugmentor(EnsembleAugmentor):
                 polynomial_features=polynomial_features,
                 max_index=max_index,
                 pipeline_configs=pipeline_configs,
-                target_transforms=target_transforms or [None],
+                target_transforms=target_transforms or [FunctionTransformer()],
                 random_state=random_state,
             )
         else:

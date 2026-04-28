@@ -31,7 +31,7 @@ ENCODING_SIZE_MULTIPLIER = 2
 
 
 def load_column_embeddings(path: str | Path) -> torch.Tensor:
-    """Load persisted TabPFN column embeddings from the checkpoint directory."""
+    """Load persisted TabPFN column embeddings from a companion .pt file."""
 
     col_embedding_path = Path(path)
     return torch.load(col_embedding_path, map_location="cpu", weights_only=True)

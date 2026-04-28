@@ -9,18 +9,20 @@ import warnings
 import torch
 
 from rllm.data_augment import TabPFNEnsembleAugmentor
-from .tabpfn_internal.input_cleaning import (
+from .tabpfn_runtime.input_cleaning import (
     clean_data as clean_tabpfn_data,
     fix_dtypes as fix_tabpfn_dtypes,
     process_text_na_dataframe,
 )
-from .tabpfn_internal.loading import initialize_tabpfn_model
-from .tabpfn_internal.regression import translate_probs_across_borders
+from .tabpfn_runtime.loading import initialize_tabpfn_model
+from .tabpfn_runtime.utils import translate_probs_across_borders
+from .tabpfn_runtime.utils import transform_borders_one
 from rllm.types import ColType
 
 
 ArrayLike = np.ndarray | torch.Tensor
 ModelVersion = Literal["v2_6"]
+InferencePrecision = Literal["auto", "autocast"] | torch.dtype
 
 
 def _to_numpy(x: ArrayLike) -> np.ndarray:
@@ -29,8 +31,63 @@ def _to_numpy(x: ArrayLike) -> np.ndarray:
     return np.asarray(x)
 
 
+def _is_autocast_available(device: torch.device) -> bool:
+    if device.type == "cpu":
+        return False
+    try:
+        from torch.amp.autocast_mode import is_autocast_available
+
+        return bool(is_autocast_available(device.type))
+    except Exception:
+        return False
+
+
 class TabPFN(torch.nn.Module):
-    """TabPFN checkpoint wrapper with PyTorch and sklearn-style inference APIs."""
+    """TabPFN model wrapper for classification and regression tasks.
+
+    This class wraps the retained TabPFN checkpoint and provides a PyTorch
+    ``nn.Module`` interface plus sklearn-style ``fit``/``predict`` helpers.
+    Calling ``fit`` prepares TabPFN's train-context preprocessing and ensemble
+    configurations; it does not update the checkpoint weights.
+
+    Args:
+        model_dir (str): Directory containing the TabPFN checkpoint files.
+        model_type (str): Task type, either ``"clf"`` for classification or
+            ``"reg"`` for regression. Default: ``"clf"``.
+        model_id (int): Model ID to load. Default: ``0``.
+        static_seed (int): Stored for API compatibility with earlier wrappers.
+            Default: ``0``.
+        n_estimators (int): Number of ensemble estimators. Default: ``4``.
+        subsample_size (int, optional): Maximum number of training samples used
+            by each estimator. If ``None``, each estimator can use all training
+            samples. Default: ``None``.
+        add_fingerprint_feature (bool): Whether to add fingerprint features.
+            Default: ``True``.
+        feature_shift_decoder (str): Feature shift decoder strategy. Default:
+            ``"shuffle"``.
+        polynomial_features (str or int): Polynomial feature strategy. For
+            regression on v2.6, ``"no"`` is internally mapped to ``10`` to match
+            the retained runtime. Default: ``"no"``.
+        class_shift_method (str): Class shift strategy for classification
+            ensembles. Default: ``"shuffle"``.
+        softmax_temperature (float): Temperature for classification logits and
+            regression bucket logits. Default: ``0.9``.
+        average_before_softmax (bool): Whether to average classification logits
+            before softmax. Default: ``False``.
+        metadata (dict, optional): Reserved for compatibility with table-model
+            construction APIs. Default: ``None``.
+        version (str): Retained TabPFN checkpoint version. Default: ``"v2_6"``.
+        enable_flash_attention (bool): Whether to allow PyTorch SDPA flash
+            attention kernels during inference. Default: ``False``.
+        inference_batch_size (int): Number of test rows evaluated per ensemble
+            member at once. Default: ``4096``.
+        inference_precision: Inference precision policy. Pass ``torch.float32``
+            or ``torch.float64`` to force input/model arithmetic precision, ``"auto"``
+            to enable PyTorch autocast on supported non-CPU devices, or
+            ``"autocast"`` to require autocast support. Default: ``torch.float32``.
+        strict_version_match (bool): Whether checkpoint/runtime version
+            mismatches should raise an error. Default: ``True``.
+    """
 
     def __init__(
         self,
@@ -50,6 +107,7 @@ class TabPFN(torch.nn.Module):
         version: ModelVersion = "v2_6",
         enable_flash_attention: bool = False,
         inference_batch_size: int = 4096,
+        inference_precision: InferencePrecision = torch.float32,
         strict_version_match: bool = True,
     ):
         super().__init__()
@@ -67,6 +125,9 @@ class TabPFN(torch.nn.Module):
         self.softmax_temperature = softmax_temperature
         self.average_before_softmax = average_before_softmax
         self.inference_batch_size = int(inference_batch_size)
+        self.inference_precision = inference_precision
+        self.use_autocast_ = False
+        self.forced_inference_dtype_: torch.dtype | None = torch.float32
         self.strict_version_match = bool(strict_version_match)
         self.model_version = version
         self.enable_flash_attention = bool(enable_flash_attention)
@@ -87,8 +148,6 @@ class TabPFN(torch.nn.Module):
             model_dir=model_dir,
             model_type=model_type,
             model_id=model_id,
-            static_seed=static_seed,
-            metadata=metadata,
             version=version,
             strict_version_match=self.strict_version_match,
         )
@@ -136,7 +195,19 @@ class TabPFN(torch.nn.Module):
         cat_ix: list[int] | None = None,
         random_state: int = 0,
     ):
-        """Prepare ensemble preprocessing and train-context caches for inference."""
+        """Prepare ensemble configurations for inference.
+
+        Args:
+            X_train: Training features of shape ``(n_samples, n_features)``.
+            y_train: Training labels or regression targets of shape
+                ``(n_samples,)``.
+            cat_ix: Categorical feature indices. Default: ``None``.
+            random_state: Random state for ensemble preprocessing. Default:
+                ``0``.
+
+        Returns:
+            self: The fitted wrapper.
+        """
         cat_ix = [] if cat_ix is None else list(cat_ix)
         X_train = _to_numpy(X_train)
         y_train = _to_numpy(y_train).reshape(-1)
@@ -197,17 +268,52 @@ class TabPFN(torch.nn.Module):
         if not torch.cuda.is_available():
             return nullcontext()
         try:
-            return torch.backends.cuda.sdp_kernel(
-                enable_flash=True,
-                enable_math=True,
-                enable_mem_efficient=True,
+            from torch.nn.attention import SDPBackend, sdpa_kernel
+
+            return sdpa_kernel(
+                [
+                    SDPBackend.FLASH_ATTENTION,
+                    SDPBackend.EFFICIENT_ATTENTION,
+                    SDPBackend.MATH,
+                ]
             )
         except Exception:
             warnings.warn(
-                "Flash attention kernel selection failed; falling back to default SDPA.",
+                "Flash attention kernel selection failed; falling back to "
+                "default SDPA.",
                 stacklevel=2,
             )
             return nullcontext()
+
+    def _resolve_inference_precision(
+        self,
+        device: torch.device,
+    ) -> tuple[bool, torch.dtype | None]:
+        if self.inference_precision in ("auto", "autocast"):
+            use_autocast = _is_autocast_available(device)
+            if self.inference_precision == "autocast" and not use_autocast:
+                raise ValueError(
+                    "inference_precision='autocast' was requested, but PyTorch "
+                    f"autocast is not available for device={device}."
+                )
+            self.use_autocast_ = use_autocast
+            self.forced_inference_dtype_ = None
+            return use_autocast, None
+
+        if isinstance(self.inference_precision, torch.dtype):
+            self.use_autocast_ = False
+            self.forced_inference_dtype_ = self.inference_precision
+            return False, self.inference_precision
+
+        raise ValueError(
+            "inference_precision must be one of {'auto', 'autocast'} or a torch.dtype."
+        )
+
+    def _autocast_context(self, device: torch.device):
+        use_autocast, _forced_dtype = self._resolve_inference_precision(device)
+        if device.type == "mps":
+            return nullcontext()
+        return torch.autocast(device.type, enabled=use_autocast)
 
     def _iter_ensemble_members(self):
         if self.ensemble_augmentor is None:
@@ -234,47 +340,61 @@ class TabPFN(torch.nn.Module):
         augmentor_pipeline: Any,
         X_train_proc: np.ndarray,
         y_train_proc: np.ndarray,
-        cat_ix_proc: list[int],
         X_test: np.ndarray,
     ) -> torch.Tensor:
         device = next(self.model.parameters()).device
+        _use_autocast, forced_dtype = self._resolve_inference_precision(device)
+        input_dtype = forced_dtype if forced_dtype is not None else torch.float32
+        self.model.to(device=device, dtype=input_dtype)
         X_test_proc, _ = augmentor_pipeline.transform(X_test)
-        X_test_tensor = torch.as_tensor(X_test_proc, dtype=torch.float32, device=device)
-        self.model.to(device)
+        X_test_tensor = torch.as_tensor(X_test_proc, dtype=input_dtype, device=device)
 
         X_train_tensor = torch.as_tensor(
-            X_train_proc, dtype=torch.float32, device=device
+            X_train_proc, dtype=input_dtype, device=device
         )
         y_train_tensor = torch.as_tensor(
-            y_train_proc, dtype=torch.float32, device=device
+            y_train_proc, dtype=input_dtype, device=device
         )
         X_full = torch.cat([X_train_tensor, X_test_tensor], dim=0).unsqueeze(1)
         y_train_tensor = y_train_tensor.unsqueeze(1)
-        with torch.inference_mode(), self._sdp_context():
+        with torch.inference_mode(), self._sdp_context(), self._autocast_context(device):
             output = self.model(
                 X_full,
                 y_train_tensor,
                 only_return_standard_out=True,
-                categorical_inds=cat_ix_proc,
                 single_eval_pos=len(y_train_proc),
             )
         output = output.squeeze(1)
         if self.model_type == "reg":
+            output = output.float()
             if self.softmax_temperature != 1:
                 output = output / self.softmax_temperature
-            if cfg.target_transform is None:
-                probs = translate_probs_across_borders(
-                    output,
-                    frm=self.znorm_space_bardist_.borders.to(output.device),
-                    to=self.znorm_space_bardist_.borders.to(output.device),
-                )
-                return self.raw_space_bardist_.mean(probs.log()).float()
-            mean_pred = self.znorm_space_bardist_.mean(output).float()
+
+            target_borders = self.znorm_space_bardist_.borders.to(output.device)
             if cfg.target_transform is not None:
-                mean_np = mean_pred.cpu().numpy().reshape(-1, 1)
-                mean_np = cfg.target_transform.inverse_transform(mean_np).ravel()
-                mean_pred = torch.as_tensor(mean_np, device=device, dtype=torch.float32)
-            return mean_pred * self.y_train_std_ + self.y_train_mean_
+                logit_cancel_mask, _descending_borders, borders_t = (
+                    transform_borders_one(
+                        self.znorm_space_bardist_.borders.cpu().numpy(),
+                        target_transform=cfg.target_transform,
+                        repair_nan_borders_after_transform=True,
+                    )
+                )
+                if logit_cancel_mask is not None:
+                    output = output.clone()
+                    output[..., logit_cancel_mask] = float("-inf")
+                source_borders = torch.as_tensor(
+                    borders_t,
+                    device=output.device,
+                    dtype=target_borders.dtype,
+                )
+            else:
+                source_borders = target_borders
+
+            return translate_probs_across_borders(
+                output,
+                frm=source_borders,
+                to=target_borders,
+            )
 
         if cfg.class_permutation is not None:
             output = output[..., cfg.class_permutation]
@@ -284,13 +404,25 @@ class TabPFN(torch.nn.Module):
         self,
         X_test: ArrayLike,
     ) -> np.ndarray:
+        """Run ensemble inference with the fitted TabPFN train context.
+
+        For classification, returns predicted probabilities with shape
+        ``(n_test, n_classes)``. For regression, returns predicted values with
+        shape ``(n_test,)``.
+
+        Args:
+            X_test: Test features of shape ``(n_test, n_features)``.
+
+        Returns:
+            A NumPy array containing probabilities or regression predictions.
+        """
         X_test = self._clean_predict_inputs(X_test)
         outputs: list[torch.Tensor] = []
 
         for (
             augmentor_pipeline,
             cfg,
-            (X_train_proc, y_train_proc, cat_ix_proc),
+            (X_train_proc, y_train_proc, _cat_ix_proc),
         ) in self._iter_ensemble_members():
             member_batches = []
             for start in range(0, len(X_test), self.inference_batch_size):
@@ -301,7 +433,6 @@ class TabPFN(torch.nn.Module):
                         augmentor_pipeline,
                         X_train_proc,
                         y_train_proc,
-                        cat_ix_proc,
                         X_test[start:end],
                     )
                 )
@@ -309,7 +440,12 @@ class TabPFN(torch.nn.Module):
             outputs.append(output)
 
         if self.model_type == "reg":
-            output_final = torch.stack(outputs).mean(dim=0)
+            outputs_stack = torch.stack(outputs)
+            if self.average_before_softmax:
+                probs = outputs_stack.log().mean(dim=0).softmax(dim=-1)
+            else:
+                probs = outputs_stack.mean(dim=0)
+            output_final = self.raw_space_bardist_.mean(probs.log())
             return output_final.float().cpu().numpy()
 
         logits_stack = torch.stack(outputs)[:, :, : self.n_classes].float()

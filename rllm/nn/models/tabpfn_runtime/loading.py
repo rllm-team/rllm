@@ -12,11 +12,10 @@ import torch
 from torch import nn
 
 from rllm.nn.loss import FullSupportBarDistribution
-from rllm.types import ColType
-from rllm.utils import download_model_from_huggingface
+from rllm.utils import download_model_from_huggingface, download_url
 
-from .tabpfn_backbone import TabPFNModel
-from .tabpfn_utils import PREGENERATED_COLUMN_EMBEDDINGS_FILENAME
+from .backbone import TabPFNModel
+from .utils import PREGENERATED_COLUMN_EMBEDDINGS_FILENAME
 
 logger = logging.getLogger(__name__)
 ModelVersion = Literal["v2_6"]
@@ -77,11 +76,9 @@ def get_filename_from_model_name(
 
 
 def get_hf_repo_from_model_name(
-    model_type: str,
     *,
     version: ModelVersion = "v2_6",
 ) -> str:
-    del model_type
     if version != "v2_6":
         raise ValueError(
             f"Unsupported TabPFN version: {version}. Only 'v2_6' is available."
@@ -94,15 +91,11 @@ def load_model_criterion_config(
     model_type: str,
     model_id: int | None = None,
     *,
-    check_bar_distribution_criterion: bool,
     cache_trainset_representation: bool,
-    model_seed: int,
-    metadata: dict[ColType, list[dict[Any, Any]]] | None = None,
     version: ModelVersion = "v2_6",
     strict_version_match: bool = True,
 ) -> tuple[torch.nn.Module, dict[str, Any], Any]:
-    """Load the model, criterion, and config from the given path."""
-    del check_bar_distribution_criterion
+    """Load the model, criterion, and config, downloading the checkpoint if needed."""
 
     model_name = get_filename_from_model_name(
         model_type,
@@ -114,15 +107,38 @@ def load_model_criterion_config(
     print(f"Loading model from {model_dir}...")
     if not os.path.exists(model_path):
         download_model_from_huggingface(
-            repo=get_hf_repo_from_model_name(model_type, version=version),
+            repo=get_hf_repo_from_model_name(version=version),
             model_name=model_name,
             download_path=model_dir,
         )
+
+    column_embedding_path = os.path.join(
+        model_dir,
+        PREGENERATED_COLUMN_EMBEDDINGS_FILENAME,
+    )
+    if not os.path.exists(column_embedding_path):
+        try:
+            url = (
+                "https://raw.githubusercontent.com/PriorLabs/TabPFN/main/"
+                "src/tabpfn/architectures/shared/tabpfn_col_embedding.pt"
+            )
+            download_url(
+                url=url,
+                folder=model_dir,
+                filename=PREGENERATED_COLUMN_EMBEDDINGS_FILENAME,
+            )
+            print(f"Downloaded successfully from {url}")
+        except Exception as e:  # noqa: BLE001
+            print(
+                "Optional companion file was not downloaded: "
+                f"{PREGENERATED_COLUMN_EMBEDDINGS_FILENAME}. "
+                "The checkpoint download itself succeeded. "
+                f"Error: {e}"
+            )
+
     loaded_model, config, criterion = load_model(
         path=Path(model_path),
-        model_seed=model_seed,
         model_type=model_type,
-        metadata=metadata,
         version=version,
         strict_version_match=strict_version_match,
     )
@@ -134,21 +150,16 @@ def initialize_tabpfn_model(
     model_dir: str,
     model_type: str,
     model_id: int,
-    static_seed: int,
-    metadata: dict[ColType, list[dict[Any, Any]]] | None = None,
     version: ModelVersion = "v2_6",
     strict_version_match: bool = True,
 ) -> tuple[torch.nn.Module, dict[str, Any], object]:
-    """Load the TabPFN model, config, and optional regression criterion."""
+    """Load the TabPFN model, config, and regression criterion when applicable."""
     if model_type == "clf":
         return load_model_criterion_config(
             model_dir=model_dir,
             model_type=model_type,
             model_id=model_id,
-            check_bar_distribution_criterion=False,
             cache_trainset_representation=False,
-            model_seed=static_seed,
-            metadata=metadata,
             version=version,
             strict_version_match=strict_version_match,
         )
@@ -157,10 +168,7 @@ def initialize_tabpfn_model(
         model_dir=model_dir,
         model_type=model_type,
         model_id=model_id,
-        check_bar_distribution_criterion=True,
         cache_trainset_representation=False,
-        model_seed=static_seed,
-        metadata=metadata,
         version=version,
         strict_version_match=strict_version_match,
     )
@@ -169,9 +177,7 @@ def initialize_tabpfn_model(
 def load_model(
     *,
     path: Path,
-    model_seed: int,
     model_type: Literal["clf", "reg"],
-    metadata: dict[ColType, list[dict[Any, Any]]] | None = None,
     version: ModelVersion = "v2_6",
     strict_version_match: bool = True,
 ) -> tuple[
@@ -179,8 +185,7 @@ def load_model(
     dict[str, Any],
     object,
 ]:
-    """Load the retained TabPFN checkpoint."""
-    del model_seed, metadata
+    """Load a retained TabPFN v2.6 checkpoint into the local runtime."""
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=FutureWarning)
@@ -333,7 +338,7 @@ def _remap_checkpoint_keys(
     for key, value in state_dict.items():
         new_key = key
         if key.startswith("blocks."):
-            new_key = f"backbone.{key}"
+            new_key = f"transformer_encoder.{key}"
         elif key.startswith("feature_group_embedder."):
             new_key = f"x_pre_encoder.{key}"
         elif key.startswith("target_embedder."):

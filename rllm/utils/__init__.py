@@ -28,6 +28,7 @@ from .atomic_routes import get_atomic_routes
 __all__ = [
     "download_url",
     "download_google_url",
+    "download_model_from_huggingface",
     "extract_zip",
     "sparse_mx_to_torch_sparse_tensor",
     "is_torch_sparse_tensor",

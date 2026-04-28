@@ -72,6 +72,8 @@ class OrderPreservingColumnTransformer(ColumnTransformer):
 
 
 def get_ordinal_encoder() -> OrderPreservingColumnTransformer:
+    """Create the categorical encoder used by TabPFN preprocessing."""
+
     oe = OrdinalEncoder(
         categories="auto",
         dtype=np.float64,
@@ -92,6 +94,8 @@ def fix_dtypes(
     cat_indices: Sequence[int] | None,
     numeric_dtype: str = "float64",
 ) -> pd.DataFrame:
+    """Convert supported table inputs to a DataFrame with TabPFN dtypes."""
+
     if isinstance(X, pd.DataFrame):
         convert_dtype = True
     elif isinstance(X, np.ndarray):
@@ -136,6 +140,8 @@ def process_text_na_dataframe(
     *,
     fit_encoder: bool = False,
 ) -> np.ndarray:
+    """Encode text columns while preserving missing values as NaNs."""
+
     string_cols = X.select_dtypes(include=["string", "object"]).columns
     if len(string_cols) > 0:
         X[string_cols] = X[string_cols].fillna(placeholder)
@@ -161,6 +167,8 @@ def clean_data(
     X: np.ndarray,
     cat_indices: Sequence[int] | None,
 ) -> tuple[np.ndarray, ColumnTransformer]:
+    """Clean training features and return the fitted ordinal encoder."""
+
     X_pandas = fix_dtypes(X=X, cat_indices=cat_indices)
     ord_encoder = get_ordinal_encoder()
     X_numpy = process_text_na_dataframe(

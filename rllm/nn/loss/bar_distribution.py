@@ -4,49 +4,80 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 from typing_extensions import override
 
 import torch
 from torch import nn
 
+from rllm.nn.loss.base_loss import BaseLoss
+
 if TYPE_CHECKING:
-    import matplotlib.pyplot as plt
+    from matplotlib import pyplot as plt
+
+Reduction = Literal["none", "mean", "sum"]
 
 
-# TODO: Merge functionality from BarDistribution and FullSupportBarDistribution
-class BarDistribution(nn.Module):
-    def __init__(self, borders: torch.Tensor, *, ignore_nan_targets: bool = True):
-        """Loss for a distribution over bars. The bars are defined by the borders.
-        The loss is the negative log density of the distribution. The density is defined
-        as a softmax over the logits, where the softmax is scaled by the width of the
-        bars. This means that the density is 0 outside of the borders and the density
-        is 1 on the borders.
+def _reduce_loss(loss: torch.Tensor, reduction: Reduction) -> torch.Tensor:
+    if reduction == "none":
+        return loss
+    if reduction == "mean":
+        return loss.mean()
+    if reduction == "sum":
+        return loss.sum()
+    raise ValueError(f"Unsupported reduction: {reduction}")
 
-        Args:
-            borders:
-                Here borders should start with min and end with max, where all values
-                lie in (min,max) and are sorted
-            ignore_nan_targets:
-                if `True`, nan targets will be ignored,
-                if `False`, an error will be raised.
-        """
+
+class BarDistribution(BaseLoss):
+    r"""Negative log-density loss for piecewise-constant regression outputs.
+
+    The model predicts logits over adjacent intervals defined by ``borders``.
+    After softmax, each bucket probability is divided by the bucket width so the
+    loss is a density, not a plain class cross entropy.  The default
+    ``reduction="none"`` is intentionally compatible with the TabPFN runtime,
+    which aggregates losses outside of this module.
+
+    Args:
+        borders: Sorted 1-D tensor of bucket boundaries.
+        ignore_nan_targets: If ``True``, NaN targets contribute zero loss.
+            If ``False``, NaN targets raise ``ValueError``.
+        reduction: ``"none"``, ``"mean"``, or ``"sum"``.
+    """
+
+    def __init__(
+        self,
+        borders: torch.Tensor,
+        *,
+        ignore_nan_targets: bool = True,
+        reduction: Reduction = "none",
+    ) -> None:
         super().__init__()
-        assert len(borders.shape) == 1
+        if borders.ndim != 1:
+            raise ValueError(f"borders must be 1-D, got shape {tuple(borders.shape)}")
+        if borders.numel() < 2:
+            raise ValueError("borders must contain at least two values.")
+
         borders = borders.contiguous()
         self.register_buffer("borders", borders)
         full_width = self.bucket_widths.sum()
 
-        assert (1 - (full_width / (self.borders[-1] - self.borders[0]))).abs() < 1e-2, (
-            f"diff: {full_width - (self.borders[-1] - self.borders[0])} with"
-            f" {full_width} {self.borders[-1]} {self.borders[0]}"
-        )
+        support_width = self.borders[-1] - self.borders[0]
+        if not torch.isclose(full_width, support_width, rtol=1e-2, atol=1e-6):
+            raise ValueError(
+                "Bucket widths do not cover the support: "
+                f"diff={full_width - support_width}, "
+                f"full_width={full_width}, "
+                f"left={self.borders[0]}, right={self.borders[-1]}"
+            )
 
         # This also allows size zero buckets
-        assert (self.bucket_widths >= 0.0).all(), "Please provide sorted borders!"
+        if not (self.bucket_widths >= 0.0).all():
+            raise ValueError("Please provide sorted borders.")
+        if reduction not in {"none", "mean", "sum"}:
+            raise ValueError(f"Unsupported reduction: {reduction}")
 
         self.ignore_nan_targets = ignore_nan_targets
-        self.to(borders.device)
+        self.reduction = reduction
 
     @property
     def bucket_widths(self) -> torch.Tensor:
@@ -55,6 +86,13 @@ class BarDistribution(nn.Module):
     @property
     def num_bars(self) -> int:
         return len(self.borders) - 1
+
+    def _check_logits(self, logits: torch.Tensor) -> None:
+        if logits.shape[-1] != self.num_bars:
+            raise ValueError(
+                f"Expected logits last dimension to be {self.num_bars}, "
+                f"got {logits.shape[-1]}."
+            )
 
     def cdf(self, logits: torch.Tensor, ys: torch.Tensor) -> torch.Tensor:
         """Calculates the cdf of the distribution described by the logits.
@@ -68,21 +106,26 @@ class BarDistribution(nn.Module):
                 tensor of shape (batch_size, ..., n_ys to eval) or (n_ys to eval)
                 with the targets.
         """
+        self._check_logits(logits)
+        ys = ys.to(device=logits.device, dtype=logits.dtype)
         if len(ys.shape) < len(logits.shape) and len(ys.shape) == 1:
             # bring new borders to the same dim as logits up to the last dim
             ys = ys.repeat(logits.shape[:-1] + (1,))
         else:
-            assert (
-                ys.shape[:-1] == logits.shape[:-1]
-            ), f"ys.shape: {ys.shape} logits.shape: {logits.shape}"
+            if ys.shape[:-1] != logits.shape[:-1]:
+                raise ValueError(
+                    f"ys.shape: {ys.shape} logits.shape: {logits.shape}"
+                )
         probs = torch.softmax(logits, dim=-1)
         buckets_of_ys = self.map_to_bucket_idx(ys).clamp(0, self.num_bars - 1)
+        borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        bucket_widths = self.bucket_widths.to(device=logits.device, dtype=logits.dtype)
 
         prob_so_far = torch.cumsum(probs, dim=-1) - probs
         prob_left_of_bucket = prob_so_far.gather(-1, buckets_of_ys)
 
         share_of_bucket_left = (
-            (ys - self.borders[buckets_of_ys]) / self.bucket_widths[buckets_of_ys]
+            (ys - borders[buckets_of_ys]) / bucket_widths[buckets_of_ys]
         ).clamp(0.0, 1.0)
         prob_in_bucket = probs.gather(-1, buckets_of_ys) * share_of_bucket_left
 
@@ -90,8 +133,8 @@ class BarDistribution(nn.Module):
 
         # just to fix numerical inaccuracies, if we had *exact* computation above we
         # would not need the following:
-        prob_left_of_ys[ys <= self.borders[0]] = 0.0
-        prob_left_of_ys[ys >= self.borders[-1]] = 1.0
+        prob_left_of_ys[ys <= borders[0]] = 0.0
+        prob_left_of_ys[ys >= borders[-1]] = 1.0
         assert not torch.isnan(prob_left_of_ys).any()
 
         return prob_left_of_ys.clip(0.0, 1.0)
@@ -107,9 +150,12 @@ class BarDistribution(nn.Module):
         This function returns the logits if the self.borders were changed
         to new_borders. This is useful to average the logits of different models.
         """
-        if (len(self.borders) == len(new_borders)) and (
-            self.borders == new_borders
-        ).all():
+        new_borders = new_borders.to(device=logits.device, dtype=logits.dtype)
+        current_borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        if (len(current_borders) == len(new_borders)) and torch.equal(
+            current_borders,
+            new_borders,
+        ):
             return logits.softmax(-1)
 
         prob_left_of_borders = self.cdf(logits, new_borders)
@@ -152,13 +198,17 @@ class BarDistribution(nn.Module):
             del state["bucket_widths"]
         super().__setstate__(state)
         self.__dict__.setdefault("append_mean_pred", False)
+        self.__dict__.setdefault("ignore_nan_targets", True)
+        self.__dict__.setdefault("reduction", "none")
 
     def map_to_bucket_idx(self, y: torch.Tensor) -> torch.Tensor:
         # assert the borders are actually sorted
-        assert (self.borders[1:] - self.borders[:-1] >= 0.0).all()
-        target_sample = torch.searchsorted(self.borders, y) - 1
-        target_sample[y == self.borders[0]] = 0
-        target_sample[y == self.borders[-1]] = self.num_bars - 1
+        borders = self.borders.to(device=y.device, dtype=y.dtype)
+        if not (borders[1:] - borders[:-1] >= 0.0).all():
+            raise ValueError("Please provide sorted borders.")
+        target_sample = torch.searchsorted(borders, y) - 1
+        target_sample[y == borders[0]] = 0
+        target_sample[y == borders[-1]] = self.num_bars - 1
         return target_sample
 
     def ignore_init(self, y: torch.Tensor) -> torch.Tensor:
@@ -167,13 +217,14 @@ class BarDistribution(nn.Module):
             raise ValueError(f"Found NaN in target {y}")
 
         # this is just a default value, it will be ignored anyway
-        y[ignore_loss_mask] = self.borders[0]
+        y[ignore_loss_mask] = self.borders.to(device=y.device, dtype=y.dtype)[0]
         return ignore_loss_mask
 
     def compute_scaled_log_probs(self, logits: torch.Tensor) -> torch.Tensor:
         # this is equivalent to log(p(y)) of the density p
         bucket_log_probs = torch.log_softmax(logits, -1)
-        return bucket_log_probs - torch.log(self.bucket_widths)
+        bucket_widths = self.bucket_widths.to(device=logits.device, dtype=logits.dtype)
+        return bucket_log_probs - torch.log(bucket_widths)
 
     def full_ce(self, logits: torch.Tensor, probs: torch.Tensor) -> torch.Tensor:
         return -(probs * torch.log_softmax(logits, -1)).sum(-1)
@@ -182,20 +233,37 @@ class BarDistribution(nn.Module):
         self,
         logits: torch.Tensor,
         y: torch.Tensor,
-        mean_prediction_logits: torch.Tensor | None = None,
+        mean_prediction_logits: torch.Tensor | Any | None = None,
+        *,
+        cat_ix: Any | None = None,
     ) -> torch.Tensor:
         # gives the negative log density (the _loss_),
         # y: T x B, logits: T x B x self.num_bars
-        y = y.clone().view(*logits.shape[:-1])  # no trailing one dimension
+        # Backward compatibility:
+        # - Legacy TabPFN paths may pass `cat_ix[1]` as the third positional arg.
+        # - Historical BO code may pass `mean_prediction_logits` as the third arg.
+        if mean_prediction_logits is not None and not torch.is_tensor(
+            mean_prediction_logits
+        ):
+            if cat_ix is not None:
+                raise ValueError(
+                    "Received both positional and keyword cat_ix. "
+                    "Please pass cat_ix only once."
+                )
+            cat_ix = mean_prediction_logits
+            mean_prediction_logits = None
+        # Keep this argument for caller compatibility with generic loss paths.
+        del cat_ix
+        self._check_logits(logits)
+        y = y.to(device=logits.device, dtype=logits.dtype).clone().view(
+            *logits.shape[:-1],
+        )  # no trailing one dimension
         ignore_loss_mask = self.ignore_init(y)
         target_sample = self.map_to_bucket_idx(y)
-        assert (target_sample >= 0).all()
-        assert (
-            target_sample < self.num_bars
-        ).all(), f"y {y} not in support set for borders (min_y, max_y) {self.borders}"
-
-        last_dim = logits.shape[-1]
-        assert last_dim == self.num_bars, f"{last_dim} v {self.num_bars}"
+        if not (target_sample >= 0).all() or not (target_sample < self.num_bars).all():
+            raise ValueError(
+                f"y {y} not in support set for borders (min_y, max_y) {self.borders}"
+            )
 
         scaled_bucket_log_probs = self.compute_scaled_log_probs(logits)
 
@@ -204,6 +272,7 @@ class BarDistribution(nn.Module):
             -1,
             target_sample[..., None],
         ).squeeze(-1)
+        nll_loss[ignore_loss_mask] = 0.0
 
         # TODO(eddiebergman): Verify if this is still relevant
         # TO BE REMOVED AFTER BO SUBMISSION
@@ -213,8 +282,7 @@ class BarDistribution(nn.Module):
                 0,
             )
 
-        nll_loss[ignore_loss_mask] = 0.0
-        return nll_loss
+        return _reduce_loss(nll_loss, self.reduction)
 
     # TODO(eddiebergman): Verify if this is still relevant
     def mean_loss(
@@ -237,7 +305,9 @@ class BarDistribution(nn.Module):
         return -scaled_mean_log_probs.gather(1, target_mean.T).mean(1).unsqueeze(0)
 
     def mean(self, logits: torch.Tensor) -> torch.Tensor:
-        bucket_means = self.borders[:-1] + self.bucket_widths / 2
+        borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        bucket_widths = self.bucket_widths.to(device=logits.device, dtype=logits.dtype)
+        bucket_means = borders[:-1] + bucket_widths / 2
         p = torch.softmax(logits, -1)
         return p @ bucket_means
 
@@ -253,18 +323,36 @@ class BarDistribution(nn.Module):
         probs = logits.softmax(-1)
         return -torch.cumsum(probs, -1).sum(axis=-1)  # type: ignore
 
-    def icdf(self, logits: torch.Tensor, left_prob: float) -> torch.Tensor:
+    def icdf(
+        self,
+        logits: torch.Tensor,
+        left_prob: float | torch.Tensor,
+    ) -> torch.Tensor:
         """Implementation of the quantile function
         :param logits: Tensor of any shape, with the last dimension being logits
-        :param left_prob: float: The probability mass to the left of the result.
+        :param left_prob: Probability mass to the left of the result. It can be
+            a scalar or a tensor matching ``logits.shape[:-1]``.
         :return: Position with `left_prob` probability weight to the left.
         """
+        self._check_logits(logits)
         probs = logits.softmax(-1)
         cumprobs = torch.cumsum(probs, -1)
+        left_prob_tensor = torch.as_tensor(
+            left_prob,
+            device=logits.device,
+            dtype=logits.dtype,
+        )
+        if left_prob_tensor.ndim == 0:
+            left_prob_tensor = left_prob_tensor.expand(cumprobs.shape[:-1])
+        elif left_prob_tensor.shape != cumprobs.shape[:-1]:
+            raise ValueError(
+                "left_prob must be a scalar or match logits.shape[:-1], got "
+                f"{tuple(left_prob_tensor.shape)} for logits shape {tuple(logits.shape)}"
+            )
         idx = (
             torch.searchsorted(
                 cumprobs,
-                left_prob * torch.ones(*cumprobs.shape[:-1], 1, device=logits.device),
+                left_prob_tensor.unsqueeze(-1),
             )
             .squeeze(-1)
             .clamp(0, cumprobs.shape[-1] - 1)
@@ -274,13 +362,14 @@ class BarDistribution(nn.Module):
             -1,
         )
 
-        rest_prob = left_prob - cumprobs.gather(-1, idx[..., None]).squeeze(-1)
-        left_border = self.borders[idx]
-        right_border = self.borders[idx + 1]
+        rest_prob = left_prob_tensor - cumprobs.gather(-1, idx[..., None]).squeeze(-1)
+        borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        left_border = borders[idx]
+        right_border = borders[idx + 1]
         return left_border + (right_border - left_border) * rest_prob / probs.gather(
             -1,
             idx[..., None],
-        ).squeeze(-1)
+        ).squeeze(-1).clamp_min(torch.finfo(logits.dtype).tiny)
 
     def quantile(
         self,
@@ -326,9 +415,11 @@ class BarDistribution(nn.Module):
         return self.icdf(logits, rest_prob)
 
     def mode(self, logits: torch.Tensor) -> torch.Tensor:
-        density = logits.softmax(-1) / self.bucket_widths
+        bucket_widths = self.bucket_widths.to(device=logits.device, dtype=logits.dtype)
+        density = logits.softmax(-1) / bucket_widths
         mode_inds = density.argmax(-1)
-        bucket_means = self.borders[:-1] + self.bucket_widths / 2
+        borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        bucket_means = borders[:-1] + bucket_widths / 2
         return bucket_means[mode_inds]
 
     def ei(
@@ -338,20 +429,29 @@ class BarDistribution(nn.Module):
         *,
         maximize: bool = True,
     ) -> torch.Tensor:  # logits: evaluation_points x batch x feature_dim
-        bucket_diffs = self.borders[1:] - self.borders[:-1]
-        assert maximize
+        borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        bucket_diffs = borders[1:] - borders[:-1]
+        if not maximize:
+            raise NotImplementedError("Minimization EI is not implemented.")
         if not torch.is_tensor(best_f) or not len(best_f.shape):  # type: ignore
-            best_f = torch.full(logits[..., 0].shape, best_f, device=logits.device)  # type: ignore
+            best_f = torch.full(  # type: ignore
+                logits[..., 0].shape,
+                best_f,
+                device=logits.device,
+                dtype=logits.dtype,
+            )
+        else:
+            best_f = best_f.to(device=logits.device, dtype=logits.dtype)
 
         best_f = best_f[..., None].repeat(*[1] * len(best_f.shape), logits.shape[-1])  # type: ignore
-        clamped_best_f = best_f.clamp(self.borders[:-1], self.borders[1:])
+        clamped_best_f = best_f.clamp(borders[:-1], borders[1:])
 
         # > bucket_contributions =
         # >     (best_f[...,None] < self.borders[:-1]).float() * bucket_means
         # true bucket contributions
         bucket_contributions = (
-            (self.borders[1:] ** 2 - clamped_best_f**2) / 2
-            - best_f * (self.borders[1:] - clamped_best_f)
+            (borders[1:] ** 2 - clamped_best_f**2) / 2
+            - best_f * (borders[1:] - clamped_best_f)
         ) / bucket_diffs
 
         p = torch.softmax(logits, -1)
@@ -374,12 +474,21 @@ class BarDistribution(nn.Module):
         Returns:
             probability of improvement
         """
-        assert maximize is True
+        if not maximize:
+            raise NotImplementedError("Minimization PI is not implemented.")
         if not torch.is_tensor(best_f) or not len(best_f.shape):  # type: ignore
-            best_f = torch.full(logits[..., 0].shape, best_f, device=logits.device)  # type: ignore
+            best_f = torch.full(  # type: ignore
+                logits[..., 0].shape,
+                best_f,
+                device=logits.device,
+                dtype=logits.dtype,
+            )
+        else:
+            best_f = best_f.to(device=logits.device, dtype=logits.dtype)
         p = torch.softmax(logits, -1)
-        border_widths = self.borders[1:] - self.borders[:-1]
-        factor = 1.0 - ((best_f[..., None] - self.borders[:-1]) / border_widths).clamp(  # type: ignore
+        borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        border_widths = borders[1:] - borders[:-1]
+        factor = 1.0 - ((best_f[..., None] - borders[:-1]) / border_widths).clamp(  # type: ignore
             0.0,
             1.0,
         )
@@ -394,8 +503,8 @@ class BarDistribution(nn.Module):
         Returns:
             mean of square
         """
-        left_borders = self.borders[:-1]
-        right_borders = self.borders[1:]
+        left_borders = self.borders[:-1].to(device=logits.device, dtype=logits.dtype)
+        right_borders = self.borders[1:].to(device=logits.device, dtype=logits.dtype)
         bucket_mean_of_square = (
             left_borders.square()
             + right_borders.square()
@@ -446,14 +555,18 @@ class BarDistribution(nn.Module):
 
 
 class FullSupportBarDistribution(BarDistribution):
+    r"""Bar distribution with half-normal tails on both support edges.
+
+    This is the regression criterion used by the retained TabPFN runtime.  It
+    behaves like :class:`BarDistribution` for interior buckets and extends the
+    first and last buckets with half-normal tail densities.
+    """
+
     def __init__(
         self,
         borders: torch.Tensor,
         **kwargs: Any,
-    ):
-        # here borders should start with min and end with max, where all values
-        # lie in (min,max) and are sorted
-        """:param borders:"""
+    ) -> None:
         super().__init__(borders, **kwargs)
         self.assert_support(allow_zero_bucket_left=False)
 
@@ -462,24 +575,34 @@ class FullSupportBarDistribution(BarDistribution):
 
     def assert_support(self, *, allow_zero_bucket_left: bool = False) -> None:
         if allow_zero_bucket_left:
-            assert (
-                self.bucket_widths[-1] > 0
-            ), f"Half Normal weight must be > 0 (got -1:{self.bucket_widths[-1]})."
+            if self.bucket_widths[-1] <= 0:
+                raise ValueError(
+                    "Half Normal weight must be > 0 "
+                    f"(got -1:{self.bucket_widths[-1]})."
+                )
             # This fixes the distribution if the half normal at zero is width zero
             if self.bucket_widths[0] == 0:
                 self.borders[0] = self.borders[0] - 1
-                self.bucket_widths[0] = 1.0
         else:
-            assert self.bucket_widths[0] > 0
-            assert self.bucket_widths[-1] > 0
+            if self.bucket_widths[0] <= 0 or self.bucket_widths[-1] <= 0:
+                raise ValueError(
+                    "FullSupportBarDistribution requires positive edge buckets."
+                )
 
     @staticmethod
     def halfnormal_with_p_weight_before(
-        range_max: float,
+        range_max: float | torch.Tensor,
         p: float = 0.5,
     ) -> torch.distributions.HalfNormal:
-        s = range_max / torch.distributions.HalfNormal(torch.tensor(1.0)).icdf(
-            torch.tensor(p),
+        range_tensor = torch.as_tensor(range_max)
+        unit_scale = torch.ones(
+            (),
+            dtype=range_tensor.dtype,
+            device=range_tensor.device,
+        )
+        prob = torch.as_tensor(p, dtype=range_tensor.dtype, device=range_tensor.device)
+        s = range_tensor / torch.distributions.HalfNormal(unit_scale).icdf(
+            prob,
         )
         return torch.distributions.HalfNormal(s)
 
@@ -488,7 +611,9 @@ class FullSupportBarDistribution(BarDistribution):
         self,
         logits: torch.Tensor,
         y: torch.Tensor,
-        mean_prediction_logits: torch.Tensor | None = None,
+        mean_prediction_logits: torch.Tensor | Any | None = None,
+        *,
+        cat_ix: Any | None = None,
     ) -> torch.Tensor:
         """Returns the negative log density (the _loss_).
 
@@ -497,51 +622,69 @@ class FullSupportBarDistribution(BarDistribution):
         :param logits: Tensor of shape T x B x self.num_bars
         :param y: Tensor of shape T x B
         :param mean_prediction_logits:
+        :param cat_ix: Optional categorical index placeholder for caller
+            compatibility with generic loss invocation paths.
         :return:
         """
-        assert self.num_bars > 1
-        y = y.clone().view(*logits.shape[:-1])  # no trailing one dimension
+        if mean_prediction_logits is not None and not torch.is_tensor(
+            mean_prediction_logits
+        ):
+            if cat_ix is not None:
+                raise ValueError(
+                    "Received both positional and keyword cat_ix. "
+                    "Please pass cat_ix only once."
+                )
+            cat_ix = mean_prediction_logits
+            mean_prediction_logits = None
+        del cat_ix
+        if self.num_bars <= 1:
+            raise ValueError("FullSupportBarDistribution requires at least two bars.")
+        self._check_logits(logits)
+        y = y.to(device=logits.device, dtype=logits.dtype).clone().view(
+            *logits.shape[:-1],
+        )  # no trailing one dimension
         ignore_loss_mask = self.ignore_init(y)  # alters y
         target_sample = self.map_to_bucket_idx(y)  # shape: T x B (same as y)
         target_sample.clamp_(0, self.num_bars - 1)
 
-        assert (
-            logits.shape[-1] == self.num_bars
-        ), f"{logits.shape[-1]} vs {self.num_bars}"
-        assert (target_sample >= 0).all()
-        assert (
-            target_sample < self.num_bars
-        ).all(), f"y {y} not in support set for borders (min_y, max_y) {self.borders}"
-        last_dim = logits.shape[-1]
-        assert last_dim == self.num_bars, f"{last_dim} vs {self.num_bars}"
+        if not (target_sample >= 0).all() or not (target_sample < self.num_bars).all():
+            raise ValueError(
+                f"y {y} not in support set for borders (min_y, max_y) {self.borders}"
+            )
         # ignore all position with nan values
 
         scaled_bucket_log_probs = self.compute_scaled_log_probs(logits)
 
-        assert len(scaled_bucket_log_probs) == len(target_sample), (
-            len(scaled_bucket_log_probs),
-            len(target_sample),
-        )
+        if len(scaled_bucket_log_probs) != len(target_sample):
+            raise ValueError(
+                f"scaled log probs shape {scaled_bucket_log_probs.shape} is not "
+                f"compatible with target shape {target_sample.shape}"
+            )
         log_probs = scaled_bucket_log_probs.gather(
             -1,
             target_sample.unsqueeze(-1),
         ).squeeze(-1)
 
+        borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        bucket_widths = self.bucket_widths.to(device=logits.device, dtype=logits.dtype)
         side_normals = (
-            self.halfnormal_with_p_weight_before(self.bucket_widths[0]),
-            self.halfnormal_with_p_weight_before(self.bucket_widths[-1]),
+            self.halfnormal_with_p_weight_before(bucket_widths[0]),
+            self.halfnormal_with_p_weight_before(bucket_widths[-1]),
         )
 
         log_probs[target_sample == 0] += side_normals[0].log_prob(
-            (self.borders[1] - y[target_sample == 0]).clamp(min=0.00000001),
-        ) + torch.log(self.bucket_widths[0])
+            (borders[1] - y[target_sample == 0]).clamp(min=0.00000001),
+        ) + torch.log(bucket_widths[0])
         log_probs[target_sample == self.num_bars - 1] += side_normals[1].log_prob(
-            (y[target_sample == self.num_bars - 1] - self.borders[-2]).clamp(
+            (y[target_sample == self.num_bars - 1] - borders[-2]).clamp(
                 min=0.00000001,
             ),
-        ) + torch.log(self.bucket_widths[-1])
+        ) + torch.log(bucket_widths[-1])
 
         nll_loss = -log_probs
+        if ignore_loss_mask.any():
+            nll_loss[ignore_loss_mask] = 0.0
+        nll_loss_for_stats = nll_loss
 
         if mean_prediction_logits is not None:  # TO BE REMOVED AFTER BO PAPER IS DONE
             assert (
@@ -554,47 +697,56 @@ class FullSupportBarDistribution(BarDistribution):
                 0,
             )
 
-        if ignore_loss_mask.any():
-            nll_loss[ignore_loss_mask] = 0.0
-
         # TODO: Check with samuel whether to keep
-        self.losses_per_bucket += (
-            torch.scatter(
-                self.losses_per_bucket,
-                0,
-                target_sample[~ignore_loss_mask].flatten(),
-                nll_loss[~ignore_loss_mask].flatten().detach(),
+        valid_target_sample = target_sample[~ignore_loss_mask].flatten()
+        valid_nll_loss = nll_loss_for_stats[~ignore_loss_mask].flatten().detach()
+        if valid_target_sample.numel() > 0:
+            bucket_updates = torch.zeros(
+                self.num_bars,
+                device=valid_nll_loss.device,
+                dtype=self.losses_per_bucket.dtype,
             )
-            / target_sample[~ignore_loss_mask].numel()
-        )
+            bucket_updates.scatter_add_(
+                0,
+                valid_target_sample.to(bucket_updates.device),
+                valid_nll_loss.to(bucket_updates.dtype),
+            )
+            self.losses_per_bucket += (
+                bucket_updates.to(self.losses_per_bucket.device)
+                / valid_target_sample.numel()
+            )
 
-        return nll_loss
+        return _reduce_loss(nll_loss, self.reduction)
 
     def pdf(self, logits: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """Probability density function at y."""
-        return torch.exp(self.forward(logits, y))
+        return torch.exp(-self.forward(logits, y))
 
     def sample(self, logits: torch.Tensor, t: float = 1.0) -> torch.Tensor:
         """Samples values from the distribution.
 
         Temperature t.
         """
-        p_cdf = torch.rand(*logits.shape[:-1])
-        return torch.tensor(
-            [self.icdf(logits[i, :] / t, p) for i, p in enumerate(p_cdf.tolist())],
+        p_cdf = torch.rand(
+            logits.shape[:-1],
+            device=logits.device,
+            dtype=logits.dtype,
         )
+        return self.icdf(logits / t, p_cdf)
 
     @override
     def mean(self, logits: torch.Tensor) -> torch.Tensor:
-        bucket_means = self.borders[:-1] + self.bucket_widths / 2
+        borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        bucket_widths = self.bucket_widths.to(device=logits.device, dtype=logits.dtype)
+        bucket_means = borders[:-1] + bucket_widths / 2
         p = torch.softmax(logits, -1)
         side_normals = (
-            self.halfnormal_with_p_weight_before(self.bucket_widths[0]),
-            self.halfnormal_with_p_weight_before(self.bucket_widths[-1]),
+            self.halfnormal_with_p_weight_before(bucket_widths[0]),
+            self.halfnormal_with_p_weight_before(bucket_widths[-1]),
         )
-        bucket_means[0] = -side_normals[0].mean + self.borders[1]
-        bucket_means[-1] = side_normals[1].mean + self.borders[-2]
-        return p @ bucket_means.to(logits.device).type(logits.dtype)
+        bucket_means[0] = -side_normals[0].mean + borders[1]
+        bucket_means[-1] = side_normals[1].mean + borders[-2]
+        return p @ bucket_means
 
     @override
     def mean_of_square(self, logits: torch.Tensor) -> torch.Tensor:
@@ -603,24 +755,26 @@ class FullSupportBarDistribution(BarDistribution):
         Args:
             logits: Output of the model.
         """
-        left_borders = self.borders[:-1]
-        right_borders = self.borders[1:]
+        borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        bucket_widths = self.bucket_widths.to(device=logits.device, dtype=logits.dtype)
+        left_borders = borders[:-1]
+        right_borders = borders[1:]
         bucket_mean_of_square = (
             left_borders.square()
             + right_borders.square()
             + left_borders * right_borders
         ) / 3.0
         side_normals = (
-            self.halfnormal_with_p_weight_before(self.bucket_widths[0]),
-            self.halfnormal_with_p_weight_before(self.bucket_widths[-1]),
+            self.halfnormal_with_p_weight_before(bucket_widths[0]),
+            self.halfnormal_with_p_weight_before(bucket_widths[-1]),
         )
         bucket_mean_of_square[0] = (
             side_normals[0].variance
-            + (-side_normals[0].mean + self.borders[1]).square()
+            + (-side_normals[0].mean + borders[1]).square()
         )
         bucket_mean_of_square[-1] = (
             side_normals[1].variance
-            + (side_normals[1].variance + self.borders[-2]).square()
+            + (side_normals[1].mean + borders[-2]).square()
         )
         p = torch.softmax(logits, -1)
         return p @ bucket_mean_of_square
@@ -641,28 +795,38 @@ class FullSupportBarDistribution(BarDistribution):
             maximize: whether to maximize
         """
         # logits: evaluation_points x batch x feature_dim
-        assert maximize is True
+        if not maximize:
+            raise NotImplementedError("Minimization PI is not implemented.")
         if not torch.is_tensor(best_f) or not len(best_f.shape):  # type: ignore
             # evaluation_points x batch
-            best_f = torch.full(logits[..., 0].shape, best_f, device=logits.device)  # type: ignore
+            best_f = torch.full(  # type: ignore
+                logits[..., 0].shape,
+                best_f,
+                device=logits.device,
+                dtype=logits.dtype,
+            )
+        else:
+            best_f = best_f.to(device=logits.device, dtype=logits.dtype)
 
-        assert best_f.shape == logits[..., 0].shape, (  # type: ignore
-            f"best_f.shape: {best_f.shape}, logits.shape: {logits.shape}"  # type: ignore
-        )
+        if best_f.shape != logits[..., 0].shape:  # type: ignore
+            raise ValueError(
+                f"best_f.shape: {best_f.shape}, logits.shape: {logits.shape}"  # type: ignore
+            )
         p = torch.softmax(logits, -1)  # evaluation_points x batch
-        border_widths = self.borders[1:] - self.borders[:-1]
-        factor = 1.0 - ((best_f[..., None] - self.borders[:-1]) / border_widths).clamp(  # type: ignore
+        borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        bucket_widths = self.bucket_widths.to(device=logits.device, dtype=logits.dtype)
+        factor = 1.0 - ((best_f[..., None] - borders[:-1]) / bucket_widths).clamp(  # type: ignore
             0.0,
             1.0,
         )  # evaluation_points x batch x num_bars
 
         side_normals = (
-            self.halfnormal_with_p_weight_before(self.bucket_widths[0]),
-            self.halfnormal_with_p_weight_before(self.bucket_widths[-1]),
+            self.halfnormal_with_p_weight_before(bucket_widths[0]),
+            self.halfnormal_with_p_weight_before(bucket_widths[-1]),
         )
         position_in_side_normals = (
-            -(best_f - self.borders[1]).clamp(max=0.0),
-            (best_f - self.borders[-2]).clamp(min=0.0),
+            -(best_f - borders[1]).clamp(max=0.0),
+            (best_f - borders[-2]).clamp(min=0.0),
         )  # evaluation_points x batch
         factor[..., 0] = 0.0
         factor[..., 0][position_in_side_normals[0] > 0.0] = side_normals[0].cdf(
@@ -676,28 +840,32 @@ class FullSupportBarDistribution(BarDistribution):
 
     def ei_for_halfnormal(
         self,
-        scale: float,
+        scale: float | torch.Tensor,
         best_f: torch.Tensor | float,
         *,
         maximize: bool = True,
     ) -> torch.Tensor:
         """EI for a standard normal distribution with mean 0 and variance `scale` times 2.
 
-        Which is the same as the half normal EI. Tested this with MC approximation:
-
-        ```python
-        ei_for_halfnormal = lambda scale, best_f: (torch.distributions.HalfNormal(torch.tensor(scale)).sample((10_000_000,))- best_f ).clamp(min=0.).mean()
-        print([(ei_for_halfnormal(scale,best_f), FullSupportBarDistribution().ei_for_halfnormal(scale,best_f)) for scale in [0.1,1.,10.] for best_f in [.1,10.,4.]])
-        ```
-        """  # noqa: E501
-        assert maximize
-        mean = torch.tensor(0.0)
+        This is the same as the half-normal EI and was checked against a
+        Monte Carlo approximation in the upstream TabPFN implementation.
+        """
+        if not maximize:
+            raise NotImplementedError("Minimization EI is not implemented.")
+        if torch.is_tensor(best_f):
+            scale = torch.as_tensor(
+                scale,
+                device=best_f.device,
+                dtype=best_f.dtype,
+            )
+            best_f = best_f.to(device=scale.device, dtype=scale.dtype)
+        else:
+            scale = torch.as_tensor(scale)
+            best_f = torch.as_tensor(best_f, device=scale.device, dtype=scale.dtype)
+        mean = torch.zeros((), device=best_f.device, dtype=best_f.dtype)
         u = (mean - best_f) / scale
         normal = torch.distributions.Normal(torch.zeros_like(u), torch.ones_like(u))
-        try:
-            ucdf = normal.cdf(u)
-        except ValueError:
-            raise
+        ucdf = normal.cdf(u)
         updf = torch.exp(normal.log_prob(u))
         normal_ei = scale * (updf + u * ucdf)
         return 2 * normal_ei
@@ -713,35 +881,45 @@ class FullSupportBarDistribution(BarDistribution):
         # logits: evaluation_points x batch x feature_dim
         if torch.isnan(logits).any():
             raise ValueError(f"logits contains NaNs: {logits}")
-        bucket_diffs = self.borders[1:] - self.borders[:-1]
-        assert maximize
+        if not maximize:
+            raise NotImplementedError("Minimization EI is not implemented.")
+        borders = self.borders.to(device=logits.device, dtype=logits.dtype)
+        bucket_diffs = self.bucket_widths.to(device=logits.device, dtype=logits.dtype)
         if not torch.is_tensor(best_f) or not len(best_f.shape):  # type: ignore
-            best_f = torch.full(logits[..., 0].shape, best_f, device=logits.device)  # type: ignore
+            best_f = torch.full(  # type: ignore
+                logits[..., 0].shape,
+                best_f,
+                device=logits.device,
+                dtype=logits.dtype,
+            )
+        else:
+            best_f = best_f.to(device=logits.device, dtype=logits.dtype)
 
-        assert best_f.shape == logits[..., 0].shape, (  # type: ignore
-            f"best_f.shape: {best_f.shape}, logits.shape: {logits.shape}"  # type: ignore
-        )
+        if best_f.shape != logits[..., 0].shape:  # type: ignore
+            raise ValueError(
+                f"best_f.shape: {best_f.shape}, logits.shape: {logits.shape}"  # type: ignore
+            )
 
         best_f_per_logit = best_f[..., None].repeat(  # type: ignore
             *[1] * len(best_f.shape),  # type: ignore
             logits.shape[-1],
         )
-        clamped_best_f = best_f_per_logit.clamp(self.borders[:-1], self.borders[1:])
+        clamped_best_f = best_f_per_logit.clamp(borders[:-1], borders[1:])
 
         # true bucket contributions
         bucket_contributions = (
-            (self.borders[1:] ** 2 - clamped_best_f**2) / 2
-            - best_f_per_logit * (self.borders[1:] - clamped_best_f)
+            (borders[1:] ** 2 - clamped_best_f**2) / 2
+            - best_f_per_logit * (borders[1:] - clamped_best_f)
         ) / bucket_diffs
 
         # extra stuff for continuous
         side_normals = (
-            self.halfnormal_with_p_weight_before(self.bucket_widths[0]),
-            self.halfnormal_with_p_weight_before(self.bucket_widths[-1]),
+            self.halfnormal_with_p_weight_before(bucket_diffs[0]),
+            self.halfnormal_with_p_weight_before(bucket_diffs[-1]),
         )
         position_in_side_normals = (
-            -(best_f - self.borders[1]).clamp(max=0.0),
-            (best_f - self.borders[-2]).clamp(min=0.0),
+            -(best_f - borders[1]).clamp(max=0.0),
+            (best_f - borders[-2]).clamp(min=0.0),
         )  # evaluation_points x batch
 
         bucket_contributions[..., -1] = self.ei_for_halfnormal(
@@ -766,7 +944,7 @@ def get_bucket_limits(
     verbose: bool = False,  # noqa: ARG001
     widen_bucket_limits_factor: float | None = None,
 ) -> torch.Tensor:
-    """Decide for a set of bucket limits based on a distritbution of ys.
+    """Create bucket limits from either a fixed range or empirical targets.
 
     Args:
         num_outputs:
@@ -783,27 +961,28 @@ def get_bucket_limits(
             If set, the bucket limits are widened by this factor.
             This allows to have a slightly larger range than the actual data.
     """
-    assert (ys is None) != (
-        full_range is None
-    ), "Either full_range or ys must be passed."
+    if (ys is None) == (full_range is None):
+        raise ValueError("Either full_range or ys must be passed.")
 
     if ys is not None:
         ys = ys.flatten()
         ys = ys[~torch.isnan(ys)]
-        assert (
-            len(ys) > num_outputs
-        ), f"Number of ys :{len(ys)} must be larger than num_outputs: {num_outputs}"
+        if len(ys) <= num_outputs:
+            raise ValueError(
+                f"Number of ys: {len(ys)} must be larger than "
+                f"num_outputs: {num_outputs}"
+            )
         if len(ys) % num_outputs:
             ys = ys[: -(len(ys) % num_outputs)]
         ys_per_bucket = len(ys) // num_outputs
         if full_range is None:
             full_range = (ys.min(), ys.max())
         else:
-            assert full_range[0] <= ys.min()
-            assert full_range[1] >= ys.max()
+            if full_range[0] > ys.min() or full_range[1] < ys.max():
+                raise ValueError("full_range must cover all target values.")
             full_range = torch.tensor(full_range)  # type: ignore
 
-        ys_sorted, ys_order = ys.sort(0)  # type: ignore
+        ys_sorted, _ = ys.sort(0)  # type: ignore
         bucket_limits = (
             ys_sorted[ys_per_bucket - 1 :: ys_per_bucket][:-1]
             + ys_sorted[ys_per_bucket::ys_per_bucket]
@@ -825,18 +1004,17 @@ def get_bucket_limits(
             0,
         )
 
-    assert len(bucket_limits) - 1 == num_outputs, (
-        f"len(bucket_limits) - 1 == {len(bucket_limits) - 1}"
-        f" != {num_outputs} == num_outputs"
-    )
+    if len(bucket_limits) - 1 != num_outputs:
+        raise RuntimeError(
+            f"len(bucket_limits) - 1 == {len(bucket_limits) - 1}"
+            f" != {num_outputs} == num_outputs"
+        )
 
     if not widen_bucket_limits_factor or widen_bucket_limits_factor == 1.0:
-        assert (
-            full_range[0] == bucket_limits[0]  # type: ignore
-        ), f"{full_range[0]} != {bucket_limits[0]}"  # type: ignore
-        assert (
-            full_range[-1] == bucket_limits[-1]  # type: ignore
-        ), f"{full_range[-1]} != {bucket_limits[-1]}"  # type: ignore
+        if full_range[0] != bucket_limits[0]:  # type: ignore
+            raise RuntimeError(f"{full_range[0]} != {bucket_limits[0]}")  # type: ignore
+        if full_range[-1] != bucket_limits[-1]:  # type: ignore
+            raise RuntimeError(f"{full_range[-1]} != {bucket_limits[-1]}")  # type: ignore
 
     return bucket_limits
 
@@ -851,5 +1029,6 @@ def get_custom_bar_dist(borders: torch.Tensor, criterion: nn.Module) -> nn.Modul
     )
     return criterion.__class__(
         borders=borders_,
-        handle_nans=criterion.handle_nans,
+        ignore_nan_targets=getattr(criterion, "ignore_nan_targets", True),
+        reduction=getattr(criterion, "reduction", "none"),
     )

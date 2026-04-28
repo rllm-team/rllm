@@ -1,18 +1,13 @@
 #!/usr/bin/env python
-"""Minimal classification example using TabPFN weights.
+# The TabPFN method from the
+# "Accurate predictions on small data with a tabular foundation model" paper.
+# https://www.nature.com/articles/s41586-024-08328-6
 
-This script loads the retained official checkpoint from
-``Prior-Labs/tabpfn_2_6`` when missing and runs the local TabPFN wrapper.
-
-Usage::
-
-    python examples/tabpfn_clf.py
-
-Or set checkpoint directory::
-
-    set TABPFN_MODEL_DIR=E:\\path\\to\\tabpfn\\checkpoint
-    python examples/tabpfn_clf.py
-"""
+# Datasets      Titanic
+# Metrics       Acc
+# Rept.         -
+# Ours          0.8427
+# Time(s)       9.09
 
 from __future__ import annotations
 
@@ -32,9 +27,7 @@ from rllm.nn.models import TabPFN
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.types import ColType
 
-# ---------------------------------------------------------------------------
-# Data
-# ---------------------------------------------------------------------------
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
 data = Titanic(cached_dir=path)[0]
 data.shuffle()
@@ -43,7 +36,7 @@ transform = DefaultTableTransform()
 data = transform(data)
 
 train_dataset, _, test_dataset = data.get_dataset(
-    train_split=0.5, val_split=0.0, test_split=0.5
+    train_split=0.8, val_split=0.0, test_split=0.2
 )
 
 cat_indx = list(range(len(data.metadata[ColType.CATEGORICAL])))
@@ -64,13 +57,9 @@ x_test = torch.cat(
 y_train = train_dataset.y
 y_test = test_dataset.y
 
-# ---------------------------------------------------------------------------
-# Model
-# ---------------------------------------------------------------------------
+# Set up model
 model_path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "checkpoint", "tabpfn")
 model_path = os.environ.get("TABPFN_MODEL_DIR", model_path)
-print(f"model_dir={model_path}")
-
 model = TabPFN(
     model_dir=model_path,
     model_type="clf",
@@ -78,8 +67,6 @@ model = TabPFN(
     n_estimators=8,
     metadata=data.metadata,
 )
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
 print(f"Preparing {model.n_estimators} ensemble configurations...")
