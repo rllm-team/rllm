@@ -49,7 +49,8 @@ class ColEncoder(torch.nn.Module, ABC):
         self,
         out_dim: Optional[int] = None,
         stats_list: Optional[List[Dict[StatType]]] = None,
-        post_module: Union[torch.nn.Module, torch.nn.Sequential] = None,
+        post_module: Optional[Union[torch.nn.Module, torch.nn.Sequential]] = None,
+        preserve_invalid_values: bool = False,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""
@@ -89,10 +90,14 @@ class ColEncoder(torch.nn.Module, ABC):
                     f"{len(col_names)}, respectively.)"
                 )
 
-        # Main encoding into column embeddings
-        x = self.encode_forward(feat)
-        # Handle NaN in case na_mode is None
-        x = torch.nan_to_num(x, nan=0)
+        # Main encoding into column embeddings. Some encoders accept extra context
+        # kwargs like single_eval_pos; older encoders only accept feat.
+        try:
+            x = self.encode_forward(feat, **kwargs)
+        except TypeError:
+            x = self.encode_forward(feat)
+        if not self.preserve_invalid_values:
+            x = torch.nan_to_num(x, nan=0)
         # Apply post module if specified
         if self.post_module is not None:
             x = self.post_module(x)
