@@ -29,7 +29,6 @@ class TabPFNEnsembleAugmentor(EnsembleAugmentor):
         max_index: int | None = None,
         n_classes: int | None = None,
     ):
-        self.task = task
         if pipeline_configs is None:
             pipeline_configs = [
                 EnsembleConfig(
@@ -50,54 +49,67 @@ class TabPFNEnsembleAugmentor(EnsembleAugmentor):
                 ),
             ]
 
-        self.task = task
-        self.n_estimators = n_estimators
-        self.subsample_size = subsample_size
-        self.add_fingerprint_feature = add_fingerprint_feature
-        self.feature_shift_decoder = feature_shift_decoder
-        self.polynomial_features = polynomial_features
-        self.class_shift_method = class_shift_method
-        self.pipeline_configs = pipeline_configs
-        self.target_transforms = target_transforms
-        self.max_index = max_index
-        self.n_classes = n_classes
-        configs = self._generate_configs(random_state=random_state)
+        configs = self._generate_configs(
+            n_estimators=n_estimators,
+            task=task,
+            subsample_size=subsample_size,
+            add_fingerprint_feature=add_fingerprint_feature,
+            feature_shift_decoder=feature_shift_decoder,
+            polynomial_features=polynomial_features,
+            class_shift_method=class_shift_method,
+            pipeline_configs=pipeline_configs,
+            target_transforms=target_transforms,
+            max_index=max_index,
+            n_classes=n_classes,
+            random_state=random_state,
+        )
         super().__init__(configs, random_state=random_state)
 
+    @staticmethod
     def _generate_configs(
-        self,
         *,
+        n_estimators: int,
+        task: Literal["classification", "regression"],
+        subsample_size: int | float | None,
+        add_fingerprint_feature: bool,
+        feature_shift_decoder: Literal["shuffle", "rotate"] | None,
+        polynomial_features: Literal["no", "all"] | int,
+        class_shift_method: Literal["shuffle", "rotate"] | None,
+        pipeline_configs: list[EnsembleConfig],
+        target_transforms: list | None,
+        max_index: int | None,
+        n_classes: int | None,
         random_state: int | np.random.Generator | None = None,
     ) -> list[EnsembleConfig]:
         """Generate TabPFN ensemble configs."""
-        if self.max_index is None:
+        if max_index is None:
             return []
-        if self.task == "classification":
-            if self.n_classes is None:
+        if task == "classification":
+            if n_classes is None:
                 raise ValueError("n_classes is required for classification configs.")
             return EnsembleConfig.generate_for_classification(
-                n=self.n_estimators,
-                subsample_size=self.subsample_size,
-                add_fingerprint_feature=self.add_fingerprint_feature,
-                feature_shift_decoder=self.feature_shift_decoder,
-                polynomial_features=self.polynomial_features,
-                max_index=self.max_index,
-                pipeline_configs=self.pipeline_configs,
-                class_shift_method=self.class_shift_method,
-                n_classes=self.n_classes,
+                n=n_estimators,
+                subsample_size=subsample_size,
+                add_fingerprint_feature=add_fingerprint_feature,
+                feature_shift_decoder=feature_shift_decoder,
+                polynomial_features=polynomial_features,
+                max_index=max_index,
+                pipeline_configs=pipeline_configs,
+                class_shift_method=class_shift_method,
+                n_classes=n_classes,
                 random_state=random_state,
             )
-        elif self.task == "regression":
+        elif task == "regression":
             return EnsembleConfig.generate_for_regression(
-                n=self.n_estimators,
-                subsample_size=self.subsample_size,
-                add_fingerprint_feature=self.add_fingerprint_feature,
-                feature_shift_decoder=self.feature_shift_decoder,
-                polynomial_features=self.polynomial_features,
-                max_index=self.max_index,
-                pipeline_configs=self.pipeline_configs,
-                target_transforms=self.target_transforms or [None],
+                n=n_estimators,
+                subsample_size=subsample_size,
+                add_fingerprint_feature=add_fingerprint_feature,
+                feature_shift_decoder=feature_shift_decoder,
+                polynomial_features=polynomial_features,
+                max_index=max_index,
+                pipeline_configs=pipeline_configs,
+                target_transforms=target_transforms or [None],
                 random_state=random_state,
             )
         else:
-            raise ValueError(f"Invalid task: {self.task}")
+            raise ValueError(f"Invalid task: {task}")

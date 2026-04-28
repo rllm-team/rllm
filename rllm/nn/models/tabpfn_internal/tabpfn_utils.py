@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import functools
 from pathlib import Path
 
 import torch
@@ -11,22 +10,6 @@ from rllm.nn.encoder.col_encoder._input_normalization_encoder import (
 )
 
 PREGENERATED_COLUMN_EMBEDDINGS_FILENAME = "pre_generated_column_embeddings_v2_6.pt"
-
-
-@functools.cache
-def gqa_is_supported() -> bool:
-    """Return whether the current PyTorch/CUDA runtime supports efficient GQA."""
-
-    if not torch.cuda.is_available():
-        return False
-
-    has_enable_gqa = torch.__version__ >= "2.5"
-    if not has_enable_gqa:
-        return False
-
-    device = torch.cuda.current_device()
-    nvidia_compute_capability = torch.cuda.get_device_capability(device)
-    return nvidia_compute_capability[0] >= 8
 
 
 def load_column_embeddings(path: str | Path) -> torch.Tensor:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import warnings
 from pathlib import Path
 from typing import Any, Literal
@@ -12,13 +13,18 @@ from torch import nn
 
 from rllm.nn.loss import FullSupportBarDistribution
 from rllm.types import ColType
+from rllm.utils import download_model_from_huggingface
 
-from .config import TabPFNVersionConfig, build_version_config
-from .tabpfn_backbone import TabPFNConfig
-from .tabpfn_model import TabPFNModel
+from .tabpfn_backbone import TabPFNModel
 from .tabpfn_utils import PREGENERATED_COLUMN_EMBEDDINGS_FILENAME
 
 logger = logging.getLogger(__name__)
+ModelVersion = Literal["v2_6"]
+
+V2_6_NLAYERS = 24
+V2_6_FEATURE_GROUP_SIZE = 3
+V2_6_NUM_THINKING_ROWS = 64
+V2_6_REGRESSION_MLP_HIDDEN_DIM = 1024
 
 
 def _infer_model_version_from_path(path: Path) -> Literal["v2_6"]:
@@ -43,13 +49,130 @@ def get_loss_criterion(
     return FullSupportBarDistribution(borders, ignore_nan_targets=True)
 
 
+def get_filename_from_model_name(
+    model_type: str,
+    model_id: int | None = None,
+    *,
+    version: ModelVersion = "v2_6",
+) -> str:
+    if version != "v2_6":
+        raise ValueError(
+            f"Unsupported TabPFN version: {version}. Only 'v2_6' is available."
+        )
+    model_filenames = {
+        "clf": [
+            "tabpfn-v2.6-classifier-v2.6_default.ckpt",
+        ],
+        "reg": [
+            "tabpfn-v2.6-regressor-v2.6_default.ckpt",
+        ],
+    }
+
+    filenames = model_filenames.get(model_type)
+    if filenames is None:
+        raise ValueError(f"Invalid model_type: {model_type}")
+    if model_id is None or model_id not in range(len(filenames)):
+        return filenames[0]
+    return filenames[model_id]
+
+
+def get_hf_repo_from_model_name(
+    model_type: str,
+    *,
+    version: ModelVersion = "v2_6",
+) -> str:
+    del model_type
+    if version != "v2_6":
+        raise ValueError(
+            f"Unsupported TabPFN version: {version}. Only 'v2_6' is available."
+        )
+    return "Prior-Labs/tabpfn_2_6"
+
+
+def load_model_criterion_config(
+    model_dir: str,
+    model_type: str,
+    model_id: int | None = None,
+    *,
+    check_bar_distribution_criterion: bool,
+    cache_trainset_representation: bool,
+    model_seed: int,
+    metadata: dict[ColType, list[dict[Any, Any]]] | None = None,
+    version: ModelVersion = "v2_6",
+    strict_version_match: bool = True,
+) -> tuple[torch.nn.Module, dict[str, Any], Any]:
+    """Load the model, criterion, and config from the given path."""
+    del check_bar_distribution_criterion
+
+    model_name = get_filename_from_model_name(
+        model_type,
+        model_id,
+        version=version,
+    )
+    model_path = os.path.join(model_dir, model_name)
+
+    print(f"Loading model from {model_dir}...")
+    if not os.path.exists(model_path):
+        download_model_from_huggingface(
+            repo=get_hf_repo_from_model_name(model_type, version=version),
+            model_name=model_name,
+            download_path=model_dir,
+        )
+    loaded_model, config, criterion = load_model(
+        path=Path(model_path),
+        model_seed=model_seed,
+        model_type=model_type,
+        metadata=metadata,
+        version=version,
+        strict_version_match=strict_version_match,
+    )
+    loaded_model.cache_trainset_representation = cache_trainset_representation
+    return loaded_model, config, criterion
+
+
+def initialize_tabpfn_model(
+    model_dir: str,
+    model_type: str,
+    model_id: int,
+    static_seed: int,
+    metadata: dict[ColType, list[dict[Any, Any]]] | None = None,
+    version: ModelVersion = "v2_6",
+    strict_version_match: bool = True,
+) -> tuple[torch.nn.Module, dict[str, Any], object]:
+    """Load the TabPFN model, config, and optional regression criterion."""
+    if model_type == "clf":
+        return load_model_criterion_config(
+            model_dir=model_dir,
+            model_type=model_type,
+            model_id=model_id,
+            check_bar_distribution_criterion=False,
+            cache_trainset_representation=False,
+            model_seed=static_seed,
+            metadata=metadata,
+            version=version,
+            strict_version_match=strict_version_match,
+        )
+
+    return load_model_criterion_config(
+        model_dir=model_dir,
+        model_type=model_type,
+        model_id=model_id,
+        check_bar_distribution_criterion=True,
+        cache_trainset_representation=False,
+        model_seed=static_seed,
+        metadata=metadata,
+        version=version,
+        strict_version_match=strict_version_match,
+    )
+
+
 def load_model(
     *,
     path: Path,
     model_seed: int,
     model_type: Literal["clf", "reg"],
     metadata: dict[ColType, list[dict[Any, Any]]] | None = None,
-    version_config: TabPFNVersionConfig | None = None,
+    version: ModelVersion = "v2_6",
     strict_version_match: bool = True,
 ) -> tuple[
     nn.Module,
@@ -66,15 +189,10 @@ def load_model(
     config = checkpoint.get("config")
 
     inferred_model_version = _infer_model_version_from_path(path)
-    if version_config is None:
-        version_config = build_version_config(
-            model_type,
-            model_version=inferred_model_version,
-        )
-    elif version_config.model_version != inferred_model_version:
+    if version != inferred_model_version:
         message = (
             "Checkpoint/runtime version mismatch: "
-            f"requested={version_config.model_version}, "
+            f"requested={version}, "
             f"inferred={inferred_model_version}, "
             f"path={path}. "
             "Use the checkpoint that matches the requested version."
@@ -85,10 +203,7 @@ def load_model(
             f"{message} Falling back to checkpoint-inferred runtime settings.",
             stacklevel=2,
         )
-        version_config = build_version_config(
-            model_type,
-            model_version=inferred_model_version,
-        )
+        version = inferred_model_version
 
     if model_type == "reg":
         config["max_num_classes"] = 0
@@ -119,18 +234,12 @@ def load_model(
     )
     model_config_kwargs = dict(
         emsize=int(config["emsize"]),
-        nlayers=version_config.resolve_nlayers(model_type, int(config["nlayers"])),
+        nlayers=V2_6_NLAYERS,
         nhead=int(config["nhead"]),
-        features_per_group=version_config.resolve_feature_group_size(
-            int(config["features_per_group"])
-        ),
-        num_thinking_rows=version_config.n_thinking_rows,
-        encoder_type=(
-            "mlp"
-            if task_type == "regression" and version_config.use_regression_mlp_encoder
-            else "linear"
-        ),
-        encoder_mlp_hidden_dim=version_config.regression_mlp_hidden_dim,
+        features_per_group=V2_6_FEATURE_GROUP_SIZE,
+        num_thinking_rows=V2_6_NUM_THINKING_ROWS,
+        encoder_type="mlp" if task_type == "regression" else "linear",
+        encoder_mlp_hidden_dim=V2_6_REGRESSION_MLP_HIDDEN_DIM,
     )
     pregenerated_path = path.parent / PREGENERATED_COLUMN_EMBEDDINGS_FILENAME
     if not pregenerated_path.exists():
@@ -140,7 +249,7 @@ def load_model(
         )
 
     model = TabPFNModel(
-        config=TabPFNConfig(**model_config_kwargs),
+        **model_config_kwargs,
         n_out=n_out,
         task_type=task_type,
         column_embeddings_path=pregenerated_path,
@@ -151,7 +260,7 @@ def load_model(
         state_dict=state_dict,
         source_checkpoint_version=inferred_model_version,
         source_model_version=inferred_model_version,
-        target_model_version=version_config.model_version,
+        target_model_version=version,
     )
 
     model.eval()
@@ -233,6 +342,8 @@ def _remap_checkpoint_keys(
             new_key = f"x_pre_encoder.{key}"
         elif key.startswith("pre_generated_column_embeddings"):
             new_key = f"x_pre_encoder.{key}"
+        elif key == "add_thinking_rows.row_token_values_TE":
+            new_key = "add_thinking_rows.row_token_values"
         remapped[new_key] = value
 
     return remapped

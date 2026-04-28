@@ -127,18 +127,18 @@ class TabPFNXPreEncoder(nn.Module):
         single_eval_pos: int,
     ) -> torch.Tensor:
         return self._preprocess_and_embed_features(
-            x_RiBC=x,
+            features=x,
             num_train_labels=single_eval_pos,
             batch_size=x.shape[1],
         )
 
-    def _add_column_embeddings(self, x_BRGX: torch.Tensor) -> torch.Tensor:
-        generator = torch.Generator(device=x_BRGX.device).manual_seed(42)
-        num_cols, encoding_size = x_BRGX.shape[2], x_BRGX.shape[3]
+    def _add_column_embeddings(self, grouped_features: torch.Tensor) -> torch.Tensor:
+        generator = torch.Generator(device=grouped_features.device).manual_seed(42)
+        num_cols, encoding_size = grouped_features.shape[2], grouped_features.shape[3]
         embs = torch.randn(
             (num_cols, encoding_size // 4),
-            device=x_BRGX.device,
-            dtype=x_BRGX.dtype,
+            device=grouped_features.device,
+            dtype=grouped_features.dtype,
             generator=generator,
         )
         if (
@@ -154,38 +154,38 @@ class TabPFNXPreEncoder(nn.Module):
                 dtype=embs.dtype,
             )
         embs = self.feature_positional_embedding_embeddings(embs)
-        x_BRGX += embs[None, None]
-        return x_BRGX
+        grouped_features += embs[None, None]
+        return grouped_features
 
     def _preprocess_and_embed_features(
         self,
-        x_RiBC: torch.Tensor,
+        features: torch.Tensor,
         num_train_labels: int,
         batch_size: int,
     ) -> torch.Tensor:
-        x_RiBC = self.remove_constant_features_encoder(x_RiBC)
-        x_RiBgF = self.feature_group_reshape_encoder(x_RiBC)
+        features = self.remove_constant_features_encoder(features)
+        feature_groups = self.feature_group_reshape_encoder(features)
         num_feature_groups = self.feature_group_reshape_encoder.num_feature_groups
-        nan_and_inf_indicator_RiBgF = self.nan_inf_indicator_encoder(x_RiBgF)
-        x_RiBgF = self.nan_handling_encoder(
-            x_RiBgF,
+        nan_and_inf_indicator = self.nan_inf_indicator_encoder(feature_groups)
+        feature_groups = self.nan_handling_encoder(
+            feature_groups,
             single_eval_pos=num_train_labels,
         )
-        x_RiBgF = self.input_normalization_encoder(
-            x_RiBgF,
+        feature_groups = self.input_normalization_encoder(
+            feature_groups,
             single_eval_pos=num_train_labels,
         )
-        x_RiBgF = self.variable_num_features_encoder(
-            x_RiBgF,
+        feature_groups = self.variable_num_features_encoder(
+            feature_groups,
             single_eval_pos=num_train_labels,
         )
-        x_RiBgF_concat = torch.cat([x_RiBgF, nan_and_inf_indicator_RiBgF], dim=-1)
-        embedded_x_RiBgX = self.feature_group_embedder(x_RiBgF_concat)
-        embedded_x_RiBGX = embedded_x_RiBgX.unflatten(
+        feature_groups = torch.cat([feature_groups, nan_and_inf_indicator], dim=-1)
+        embedded_features = self.feature_group_embedder(feature_groups)
+        embedded_features = embedded_features.unflatten(
             1, [batch_size, num_feature_groups]
         )
-        embedded_x_BRiGX = embedded_x_RiBGX.transpose(0, 1)
-        return self._add_column_embeddings(embedded_x_BRiGX)
+        embedded_features = embedded_features.transpose(0, 1)
+        return self._add_column_embeddings(embedded_features)
 
 
 class TabPFNYPreEncoder(nn.Module):
@@ -236,20 +236,20 @@ class TabPFNYPreEncoder(nn.Module):
         num_train_labels: int,
         batch_size: int,
     ) -> torch.Tensor:
-        y_RiB1 = _prepare_targets(
+        prepared_targets = _prepare_targets(
             y=y,
             num_train_rows=num_train_rows,
             batch_size=batch_size,
         )
-        y_nan_and_inf_indicator_RiB1 = self.nan_inf_indicator_encoder(y_RiB1)
-        y_RiB1 = _impute_target_nan_and_inf(
-            y_RiB1=y_RiB1,
+        nan_and_inf_indicator = self.nan_inf_indicator_encoder(prepared_targets)
+        prepared_targets = _impute_target_nan_and_inf(
+            targets=prepared_targets,
             task_type=self.task_type,
             num_train_rows=num_train_labels,
         )
-        y_RiB1_concat = torch.cat([y_RiB1, y_nan_and_inf_indicator_RiB1], dim=-1)
-        embedded_y_RiBX = self.target_embedder(y_RiB1_concat)
-        return embedded_y_RiBX.transpose(0, 1)
+        prepared_targets = torch.cat([prepared_targets, nan_and_inf_indicator], dim=-1)
+        embedded_targets = self.target_embedder(prepared_targets)
+        return embedded_targets.transpose(0, 1)
 
 
 class TabPFNPreEncoder(nn.Module):
@@ -349,20 +349,20 @@ class TabPFNPreEncoder(nn.Module):
             "embedded_input": embedded_input,
         }
 
-    def _add_column_embeddings(self, x_BRGX: torch.Tensor) -> torch.Tensor:
-        return self.x_pre_encoder._add_column_embeddings(x_BRGX)
+    def _add_column_embeddings(self, grouped_features: torch.Tensor) -> torch.Tensor:
+        return self.x_pre_encoder._add_column_embeddings(grouped_features)
 
     def _preprocess_and_embed_features(
         self,
-        x_RiBC: torch.Tensor,
+        features: torch.Tensor,
         num_train_labels: int,
         batch_size: int,
     ) -> torch.Tensor:
         del batch_size
         return self.x_pre_encoder._preprocess_and_embed_features(
-            x_RiBC=x_RiBC,
+            features=features,
             num_train_labels=num_train_labels,
-            batch_size=x_RiBC.shape[1],
+            batch_size=features.shape[1],
         )
 
     def _preprocess_and_embed_targets(
@@ -386,19 +386,19 @@ def _torch_nanmean_include_inf(x: torch.Tensor, dim: int = 0) -> torch.Tensor:
     return torch.nanmean(x_clean, dim=dim)
 
 
-def _remove_constant_features(x_RiBC: torch.Tensor) -> torch.Tensor:
-    return RemoveConstantFeaturesEncoder()(x_RiBC)
+def _remove_constant_features(features: torch.Tensor) -> torch.Tensor:
+    return RemoveConstantFeaturesEncoder()(features)
 
 
 def _pad_and_reshape_feature_groups(
-    x_RiBC: torch.Tensor,
+    features: torch.Tensor,
     num_features_per_group: int,
 ) -> tuple[torch.Tensor, int]:
     encoder = FeatureGroupReshapeEncoder(
         num_features_per_group=num_features_per_group,
     )
-    x_RiBgF = encoder(x_RiBC)
-    return x_RiBgF, encoder.num_feature_groups
+    grouped_features = encoder(features)
+    return grouped_features, encoder.num_feature_groups
 
 
 def _impute_nan_and_inf_with_mean(
@@ -412,17 +412,17 @@ def _impute_nan_and_inf_with_mean(
 
 
 def _impute_target_nan_and_inf(
-    y_RiB1: torch.Tensor,
+    targets: torch.Tensor,
     task_type: Literal["multiclass", "regression"],
     num_train_rows: int,
 ) -> torch.Tensor:
     if task_type == "regression":
-        return _impute_nan_and_inf_with_mean(y_RiB1, num_train_rows)[0]
-    y_RiB1, nan_inf_mask = _impute_nan_and_inf_with_mean(
-        y_RiB1,
+        return _impute_nan_and_inf_with_mean(targets, num_train_rows)[0]
+    targets, nan_inf_mask = _impute_nan_and_inf_with_mean(
+        targets,
         num_train_rows,
     )
-    return torch.where(nan_inf_mask, y_RiB1.ceil(), y_RiB1)
+    return torch.where(nan_inf_mask, targets.ceil(), targets)
 
 
 def _generate_nan_and_inf_indicator(x: torch.Tensor) -> torch.Tensor:
@@ -441,9 +441,9 @@ def _prepare_targets(
     num_train_labels = y.shape[0]
     if num_train_labels > num_train_rows:
         raise ValueError("No test rows provided.")
-    target_RBY = y.view(num_train_labels, 1 if y.ndim == 1 else batch_size, -1)
+    targets = y.view(num_train_labels, 1 if y.ndim == 1 else batch_size, -1)
     return torch.nn.functional.pad(
-        target_RBY,
+        targets,
         (0, 0, 0, 0, 0, num_train_rows - num_train_labels),
         value=float("nan"),
     )
