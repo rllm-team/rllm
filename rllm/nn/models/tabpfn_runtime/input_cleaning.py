@@ -9,8 +9,6 @@ from sklearn.base import BaseEstimator, OneToOneFeatureMixin, check_is_fitted
 from sklearn.compose import ColumnTransformer, make_column_selector
 from sklearn.preprocessing import FunctionTransformer, OrdinalEncoder
 
-_NA_PLACEHOLDER = "__rllm_tabpfn_na__"
-
 
 class OrderPreservingColumnTransformer(ColumnTransformer):
     """ColumnTransformer variant that restores original column order."""
@@ -39,7 +37,9 @@ class OrderPreservingColumnTransformer(ColumnTransformer):
         assert len([t for name, _, t in transformers if name != "remainder"]) <= 1
 
     def transform(self, X: pd.DataFrame | np.ndarray, **kwargs: Any) -> np.ndarray:
-        original_columns = X.columns if isinstance(X, pd.DataFrame) else range(X.shape[-1])
+        original_columns = (
+            X.columns if isinstance(X, pd.DataFrame) else range(X.shape[-1])
+        )
         X_t = super().transform(X, **kwargs)
         return self._preserve_order(X=X_t, original_columns=original_columns)
 
@@ -49,7 +49,9 @@ class OrderPreservingColumnTransformer(ColumnTransformer):
         y: np.ndarray | None = None,
         **kwargs: Any,
     ) -> np.ndarray:
-        original_columns = X.columns if isinstance(X, pd.DataFrame) else range(X.shape[-1])
+        original_columns = (
+            X.columns if isinstance(X, pd.DataFrame) else range(X.shape[-1])
+        )
         X_t = super().fit_transform(X, y, **kwargs)
         return self._preserve_order(X=X_t, original_columns=original_columns)
 
@@ -61,7 +63,11 @@ class OrderPreservingColumnTransformer(ColumnTransformer):
         check_is_fitted(self)
         assert X.ndim == 2, f"Expected 2D input, got {X.ndim}D (shape={X.shape})"
         for name, _, col_subset in reversed(self.transformers_):
-            if len(col_subset) > 0 and len(col_subset) < X.shape[-1] and name != "remainder":
+            if (
+                len(col_subset) > 0
+                and len(col_subset) < X.shape[-1]
+                and name != "remainder"
+            ):
                 col_subset_list = list(col_subset)
                 transformed_columns = col_subset_list + [
                     c for c in original_columns if c not in col_subset_list
@@ -82,7 +88,9 @@ def get_ordinal_encoder() -> OrderPreservingColumnTransformer:
         encoded_missing_value=np.nan,
     )
     return OrderPreservingColumnTransformer(
-        transformers=[("encoder", oe, make_column_selector(dtype_include=["category", "string"]))],
+        transformers=[
+            ("encoder", oe, make_column_selector(dtype_include=["category", "string"]))
+        ],
         remainder=FunctionTransformer(),
         sparse_threshold=0.0,
         verbose_feature_names_out=False,
@@ -135,7 +143,7 @@ def fix_dtypes(
 
 def process_text_na_dataframe(
     X: pd.DataFrame,
-    placeholder: str = _NA_PLACEHOLDER,
+    placeholder: str = "__rllm_tabpfn_na__",
     ord_encoder: ColumnTransformer | None = None,
     *,
     fit_encoder: bool = False,

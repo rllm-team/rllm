@@ -463,6 +463,3 @@ class TabPFNBackbone(nn.Module):
             "train_embeddings": train_embeddings,
             "test_embeddings": test_embeddings,
         }
-
-
-TabPFNModel = TabPFNBackbone

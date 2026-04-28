@@ -1,5 +1,5 @@
-from .backbone import TabPFNModel
+from .backbone import TabPFNBackbone
 
 __all__ = [
-    "TabPFNModel",
+    "TabPFNBackbone",
 ]
