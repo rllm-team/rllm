@@ -127,10 +127,8 @@ def standardize_tokenizer_output(
 
     - Mapping (for example, ``transformers.BatchEncoding``) with ``input_ids``
       and optional ``attention_mask``.
-    - Tuple/List: ``(input_ids, attention_mask)`` or ``List[Encoding]`` or
-      ``List[List[int]]``.
-    - Single ``Encoding``/``EncodingFast`` object with ``input_ids`` and
-      optional ``attention_mask``.
+    - Tuple/List: ``(input_ids, attention_mask)`` or ``List[List[int]]``.
+    - Single object exposing ``input_ids`` and optional ``attention_mask``.
     - Raw ids only: ``List[int]`` / ``List[List[int]]`` / ``np.ndarray`` /
       ``torch.Tensor``.
 
@@ -188,14 +186,14 @@ def standardize_tokenizer_output(
     if isinstance(tok_output, Mapping) and ("input_ids" in tok_output):
         input_ids = tok_output["input_ids"]
         attention_mask = tok_output.get("attention_mask", None)
-    # 2) Tuple/List: (ids, mask) or List[Encoding] or List[List[int]]
+    # 2) Tuple/List: (ids, mask) or List[List[int]]
     elif isinstance(tok_output, (tuple, list)) and len(tok_output) > 0:
         first_item = tok_output[0]
         # 2a) explicit (ids, mask)
         if len(tok_output) == 2 and not hasattr(first_item, "input_ids"):
             input_ids, attention_mask = tok_output[0], tok_output[1]
         else:
-            # 2b) list[Encoding]
+            # 2b) list of objects exposing .input_ids/.attention_mask
             if hasattr(first_item, "input_ids"):
                 input_ids = [enc.input_ids for enc in tok_output]
                 attention_mask = [
@@ -205,7 +203,7 @@ def standardize_tokenizer_output(
             else:
                 # 2c) treat as list[list[int]]
                 input_ids, attention_mask = tok_output, None
-    # 3) Single Encoding / EncodingFast
+    # 3) Single object exposing .input_ids/.attention_mask
     elif hasattr(tok_output, "input_ids"):
         input_ids = tok_output.input_ids
         attention_mask = getattr(tok_output, "attention_mask", None)
