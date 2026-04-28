@@ -34,14 +34,16 @@ class TromptPreEncoder(TablePreEncoder):
         in_dim: int = 1,
     ) -> None:
         col_encoder_dict = {
-            ColType.CATEGORICAL: EmbeddingEncoder(
-                post_module=torch.nn.LayerNorm(out_dim)
-            ),
-            ColType.NUMERICAL: LinearEncoder(
-                in_dim=in_dim,
-                post_module=torch.nn.Sequential(
-                    torch.nn.ReLU(), torch.nn.LayerNorm(out_dim)
-                ),
-            ),
+            ColType.CATEGORICAL: [
+                EmbeddingEncoder(post_module=torch.nn.LayerNorm(out_dim))
+            ],
+            ColType.NUMERICAL: [
+                LinearEncoder(
+                    in_dim=in_dim,
+                    post_module=torch.nn.Sequential(
+                        torch.nn.ReLU(), torch.nn.LayerNorm(out_dim)
+                    ),
+                )
+            ],
         }
         super().__init__(out_dim, metadata, col_encoder_dict)
