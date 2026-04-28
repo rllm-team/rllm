@@ -6,11 +6,11 @@ import torch
 from torch import Tensor
 
 class TimestampPreprocessor:
-    r"""Convert a timestamp column to a tensor.
-
-    Datetime values are split into integer time components (year, month,
-    day, etc.). By default all seven components are used and the output
-    has shape ``[N, 7]``. Missing / unparseable values become ``-1``.
+    r"""Convert a timestamp column into structured time-component tensors.
+    Parsed datetime values are decomposed into integer fields such as year,
+    month, day, weekday, hour, minute, and second. By default all seven fields
+    are returned with shape ``[N, 7]``, and missing or unparseable values are
+    encoded as ``-1``.
     """
 
     # Supported time field names, in default extraction order.
