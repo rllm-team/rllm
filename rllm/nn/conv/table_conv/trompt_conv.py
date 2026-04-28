@@ -50,16 +50,18 @@ class TromptConv(torch.nn.Module):
 
         # Initialize pre-encoder with column-specific encoders
         col_encoder_dict = {
-            ColType.CATEGORICAL: EmbeddingEncoder(
-                post_module=torch.nn.LayerNorm(out_dim)
-            ),
-            ColType.NUMERICAL: LinearEncoder(
-                in_dim=in_dim,
-                post_module=torch.nn.Sequential(
-                    torch.nn.ReLU(),
-                    torch.nn.LayerNorm(out_dim),
-                ),
-            ),
+            ColType.CATEGORICAL: [
+                EmbeddingEncoder(post_module=torch.nn.LayerNorm(out_dim))
+            ],
+            ColType.NUMERICAL: [
+                LinearEncoder(
+                    in_dim=in_dim,
+                    post_module=torch.nn.Sequential(
+                        torch.nn.ReLU(),
+                        torch.nn.LayerNorm(out_dim),
+                    ),
+                )
+            ],
         }
         self.init_residual_encoder = TablePreEncoder(
             out_dim=out_dim,
@@ -124,12 +126,16 @@ class TromptConv(torch.nn.Module):
         se_prompt_cat = torch.cat([se_prompt, x_prompt], dim=-1)
         se_prompt_cat_hat = self.lin_se_prompt(se_prompt_cat) + se_prompt + x_prompt
         se_column = emb_column.unsqueeze(0).repeat(x_prompt.size(0), 1, 1)
-        m_importance = torch.einsum("ijl,ikl->ijk", se_prompt_cat_hat, se_column)  # [B, P, C]
+        m_importance = torch.einsum(
+            "ijl,ikl->ijk", se_prompt_cat_hat, se_column
+        )  # [B, P, C]
         m_importance = F.softmax(m_importance, dim=-1)
         m_importance = m_importance.unsqueeze(dim=-1)
-        
+
         # Part 3: Expand feature embeddings to accommodate multiple prompts
-        x_expand_weight = torch.einsum("ijl,k->ikjl", x, self.expand_weight)  # [B, P, C, D]
+        x_expand_weight = torch.einsum(
+            "ijl,k->ikjl", x, self.expand_weight
+        )  # [B, P, C, D]
         x_expand_weight = F.relu(x_expand_weight)
         x_expand_residual = x.unsqueeze(1).repeat(1, self.num_prompts, 1, 1)
         x = self.group_norm(x_expand_weight) + x_expand_residual  # Residual connection
