@@ -28,14 +28,27 @@ class RDL(torch.nn.Module):
         hidden_dim (int): The hidden dimension.
         out_dim (int): The output dimension.
         tnn_hidden_dim (int): The hidden dimension for TNN.
+            (default: :obj:`128`)
         tnn_num_layers (int): The number of layers for TNN.
+            (default: :obj:`4`)
         hgnn_aggr (str): The aggregation method for HGNN.
+            (default: :obj:`'mean'`)
         hgnn_num_layers (int): The number of layers for HGNN.
-        use_temporal_encoder (bool): Whether to use temporal encoder.
+            (default: :obj:`2`)
+        use_temporal_encoder (bool): Whether to use the temporal encoder.
+            (default: :obj:`False`)
+        reg_task (bool): If :obj:`True`, uses a regression output head with
+            :class:`~torch.nn.GELU` activation instead of classification.
+            (default: :obj:`False`)
 
     Example:
-        >>> # RDL is typically instantiated with a prepared HeteroGraphData object.
         >>> from rllm.nn.models import RDL
+        >>> model = RDL(
+        ...     data=hdata,
+        ...     col_stats_dict=col_stats_dict,
+        ...     hidden_dim=128,
+        ...     out_dim=1,
+        ... )
     """
 
     def __init__(
@@ -113,6 +126,7 @@ class RDL(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        r"""Reset all learnable parameters of the module."""
         for tnn in self.TNN_DICT.values():
             tnn.reset_parameters()
         if self.use_temporal_encoder:
@@ -127,14 +141,17 @@ class RDL(torch.nn.Module):
         batch: HeteroGraphData,
         target_table: str,
     ) -> Tensor:
-        """Run table encoding, optional temporal encoding, HGNN propagation, and output head.
+        r"""Run table encoding, optional temporal encoding, HGNN propagation,
+        and the output head.
 
         Args:
-            batch (HeteroGraphData): Batched heterogeneous relational graph data.
-            target_table (str): Node type to predict.
+            batch (HeteroGraphData): Batched heterogeneous relational graph
+                data.
+            target_table (str): The node type to predict.
 
         Returns:
-            Tensor: Output predictions for rows in the target table.
+            Tensor: Output predictions for seed nodes in the target table,
+            of shape :obj:`[batch_size, out_dim]`.
         """
         seed_time = batch[target_table].seed_time
         # 1. apply TNN to each node type (table)

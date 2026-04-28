@@ -20,43 +20,35 @@ def _get_activation_fn(activation):
 
 
 class TransTabConv(torch.nn.Module):
-    r"""The TransTabConv module introduced in
-    `"TransTab: Learning Transferable Tabular Transformers Across Tables"
-    <https://arxiv.org/abs/2205.09328>`_ paper.
+    r"""Single Transformer encoder layer for TransTab
+    (`"TransTab" <https://arxiv.org/abs/2205.09328>`_).
 
-    This layer implements a single Transformer encoder block customized for
-    tabular transfer learning. It combines multi-head self-attention, a gated
-    feedforward network, optional pre-/post-layer normalization, residual
-    connections, and dropout to capture complex feature interactions in table
-    data.
+    Combines multi-head self-attention with a gated feedforward network,
+    residual connections, dropout, and optional LayerNorm.
 
     Args:
-        d_model (int): Dimensionality of input and output feature vectors. (default: required)
-        nhead (int): Number of attention heads. (default: required)
-        dim_feedforward (int): Hidden dimensionality of the feedforward network.
-            If None, defaults to `d_model`. (default: 2048)
-        dropout (float): Dropout probability applied in attention and
-            feedforward sublayers. (default: 0.1)
-        activation (Union[str, Callable]): Activation function for the
-            feedforward network, specified as a callable or a string name
-            (e.g., "relu"). (default: torch.nn.functional.relu)
-        layer_norm_eps (float): Epsilon value for all LayerNorm layers to
-            ensure numerical stability. (default: 1e-5)
-        batch_first (bool): If True, input and output tensors are expected
-            in shape `(batch_size, seq_len, d_model)`; otherwise
-            `(seq_len, batch_size, d_model)`. (default: True)
-        norm_first (bool): If True, apply LayerNorm before self-attention
-            and feedforward; otherwise apply after the residual connection.
-            (default: False)
-        use_layer_norm (bool): Whether to include LayerNorm layers in each
-            sub-block. (default: True)
+        conv_dim (int): Input/output embedding dimensionality.
+        nhead (int): Number of self-attention heads.
+        dim_feedforward (int): Feedforward inner dimension. Default: ``2048``.
+        dropout (float): Dropout probability. Default: ``0.1``.
+        activation (str or Callable): Feedforward activation; accepts
+            ``"relu"``, ``"gelu"``, ``"selu"``, ``"leakyrelu"``, or a callable.
+            Default: ``torch.nn.functional.relu``.
+        layer_norm_eps (float): LayerNorm :math:`\varepsilon`. Default: ``1e-5``.
+        batch_first (bool): Expect input as :math:`(N, S, H)` when ``True``,
+            else :math:`(S, N, H)`. Default: ``True``.
+        norm_first (bool): Apply LayerNorm before (pre-norm) rather than after
+            (post-norm) each sub-layer. Default: ``False``.
+        use_layer_norm (bool): Include LayerNorm in each sub-block. Default: ``True``.
 
-    Example:
-        >>> import torch
-        >>> conv = TransTabConv(conv_dim=32, nhead=4, dim_feedforward=64, dropout=0.1)
-        >>> x = torch.randn(8, 10, 32)
-        >>> mask = torch.ones(8, 10, dtype=torch.bool)
-        >>> out = conv(x, src_key_padding_mask=mask)
+    Shape:
+        - Input: :math:`(N, S, H)` when ``batch_first=True``.
+        - Output: :math:`(N, S, H)`.
+
+    Examples::
+
+        >>> conv = TransTabConv(conv_dim=32, nhead=4, dim_feedforward=64)
+        >>> out = conv(torch.randn(8, 10, 32), src_key_padding_mask=torch.ones(8, 10))
         >>> out.shape
         torch.Size([8, 10, 32])
     """
@@ -107,7 +99,11 @@ class TransTabConv(torch.nn.Module):
     def _sa_block(
         self, x: Tensor, attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]
     ) -> Tensor:
-        key_padding_mask = ~key_padding_mask.bool()
+        if key_padding_mask is not None:
+            # Input mask convention here is "keep mask" (True means attend/keep).
+            # torch.nn.MultiheadAttention expects key_padding_mask with
+            # True meaning "ignore", so invert before passing through.
+            key_padding_mask = ~key_padding_mask.bool()
         x = self.self_attn(
             x,
             x,
@@ -133,22 +129,19 @@ class TransTabConv(torch.nn.Module):
     def forward(
         self, x, src_mask=None, src_key_padding_mask=None, is_causal=None, **kwargs
     ) -> Tensor:
-        r"""Pass the input through this encoder layer.
-
+        r"""
         Args:
-            src (Tensor): Input tensor of shape
-                `(batch_size, seq_len, conv_dim)` if `batch_first=True`,
-                else `(seq_len, batch_size, conv_dim)`.
-            src_mask (Optional[Tensor]): Attention mask of shape
-                `(seq_len, seq_len)` or broadcastable. (default: None)
-            src_key_padding_mask (Optional[Tensor]): Padding mask of shape
-                `(batch_size, seq_len)` where True values are ignored. (default: None)
-            is_causal (Optional[bool]): Unused; present for API compatibility.
+            x (Tensor): Input of shape :math:`(N, S, H)`.
+            src_mask (Tensor, optional): Additive attention mask :math:`(S, S)`. Default: ``None``.
+            src_key_padding_mask (Tensor, optional): Attention keep mask of shape
+                :math:`(N, S)` where ``True`` means the token is valid/attended to,
+                and ``False`` means masked out. Internally this is converted to
+                PyTorch ``key_padding_mask`` semantics (``True`` means ignore).
+                Default: ``None``.
+            is_causal: Unused; present for API compatibility.
 
         Returns:
-            Tensor: Output tensor of the same shape as `src`, after applying
-            self-attention, gated feedforward, residual connections, and
-            optional layer normalization.
+            Tensor: Same shape as input.
         """
 
         if self.use_layer_norm:

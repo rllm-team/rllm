@@ -1,3 +1,4 @@
+from rllm.preprocessing.fillna import FillNAConfig, fillna_by_coltype
 from rllm.preprocessing.text_tokenize import (
     TokenizerConfig,
     process_tokenized_column,
@@ -10,7 +11,7 @@ from rllm.preprocessing.word_embedding import (
     TextEmbedderConfig,
     embed_text_column,
 )
-from rllm.preprocessing.data_clean import preprocess_numerical_string
+from rllm.preprocessing.data_clean import to_numeric_by_column
 from rllm.preprocessing.timestamp import TimestampPreprocessor
 from rllm.preprocessing.df_to_tensor import df_to_tensor
 
@@ -30,5 +31,8 @@ __all__ = [
     # timestamp
     "TimestampPreprocessor",
     # data clean
-    "preprocess_numerical_string",
+    "to_numeric_by_column",
+    # fillna
+    "FillNAConfig",
+    "fillna_by_coltype",
 ]

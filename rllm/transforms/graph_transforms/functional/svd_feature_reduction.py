@@ -7,8 +7,8 @@ def svd_feature_reduction(X: Tensor, out_dim: int):
     Decomposition (SVD).
 
     Args:
-        x (Tensor): Node feature matrix.
-        out_dim (int): The dimensionlity of node features after
+        X (Tensor): Node feature matrix.
+        out_dim (int): The dimensionality of node features after
             reduction.
     """
     if X.size(-1) > out_dim:

@@ -20,10 +20,6 @@ class CyclicEncoder(Module):
     Args:
         out_size (int): The output dimension size.
 
-    Returns:
-        The ``forward`` method returns encoded tensor with shape
-        ``input_tensor.shape + (out_size,)``.
-
     Example:
         >>> import torch
         >>> enc = CyclicEncoder(out_size=8)
@@ -48,7 +44,8 @@ class CyclicEncoder(Module):
         pass
 
     def forward(self, input_tensor: Tensor) -> Tensor:
-        assert torch.all((input_tensor >= 0) & (input_tensor <= 1))
+        if not torch.all((input_tensor >= 0) & (input_tensor <= 1)):
+            raise ValueError("`input_tensor` must be within [0, 1] for cyclic encoding.")
         mult_tensor = input_tensor.unsqueeze(-1) * self.mult_term.reshape(
             (1,) * input_tensor.ndim + (-1,)
         )

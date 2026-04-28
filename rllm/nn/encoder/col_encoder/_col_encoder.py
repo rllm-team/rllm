@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from abc import ABC, abstractmethod
 
 import torch
@@ -34,7 +34,7 @@ class ColEncoder(torch.nn.Module, ABC):
     Columns with same ColType will be encoded into tensors.
 
     Args:
-        out_dim (int): The output dim dimensionality
+        out_dim (int): Output embedding dimensionality.
         stats_list (List[Dict[StatType]]): The list
             of stats for each column within the same column type.
         post_module (torch.nn.Module, optional): The post-hoc module applied to the
@@ -49,8 +49,7 @@ class ColEncoder(torch.nn.Module, ABC):
         self,
         out_dim: Optional[int] = None,
         stats_list: Optional[List[Dict[StatType]]] = None,
-        post_module: Optional[torch.nn.Module] = None,
-        preserve_invalid_values: bool = False,
+        post_module: Union[torch.nn.Module, torch.nn.Sequential] = None,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""
@@ -91,18 +90,12 @@ class ColEncoder(torch.nn.Module, ABC):
                 )
 
         # Main encoding into column embeddings
-        # Some encoders (e.g. TabPFN-style) accept extra context kwargs like
-        # single_eval_pos / normalize_on_train_only. Keep backward compatibility
-        # with encoders that only accept (feat).
-        try:
-            x = self.encode_forward(feat, **kwargs)
-        except TypeError:
-            x = self.encode_forward(feat)
-        # Most encoders historically replaced NaNs with zero here. Some
-        # preprocessing steps, such as the TabPFN reshape/select stages, need
-        # to preserve NaN/Inf values until a later explicit handling step.
-        if not self.preserve_invalid_values:
-            x = torch.nan_to_num(x, nan=0)
+        x = self.encode_forward(feat)
+        # Handle NaN in case na_mode is None
+        x = torch.nan_to_num(x, nan=0)
+        # Apply post module if specified
+        if self.post_module is not None:
+            x = self.post_module(x)
         return x
 
     @abstractmethod

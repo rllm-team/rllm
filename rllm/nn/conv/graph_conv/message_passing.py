@@ -42,7 +42,7 @@ class MessagePassing(torch.nn.Module, ABC):
         self.__explain__ = self.__is_overrided__(self.explain)
         self.__msg_aggr__ = self.__is_overrided__(self.message_and_aggregate)
 
-        self.aggr_module = self.aggr_revoler(aggr, **(aggr_kwargs or {}))
+        self.aggr_module = self.aggr_resolver(aggr, **(aggr_kwargs or {}))
 
     def propagate(
         self,
@@ -57,8 +57,8 @@ class MessagePassing(torch.nn.Module, ABC):
 
         Args:
             x (Union[Tensor, Tuple[Tensor, Tensor]]):
-                - `Tensor`: The input node feature matrix. :math:`(|V|, F_{in})`
-                - `Tuple[Tensor, Tensor]`: The input node feature matrix for source and destination nodes.
+                - :obj:`Tensor`: The input node feature matrix. :math:`(|V|, F_{in})`
+                - :obj:`Tuple[Tensor, Tensor]`: The input node feature matrix for source and destination nodes.
             edge_index (Union[Tensor, SparseTensor]): The edge indices. Tensor, :math:`(2, |E|)`
             **kwargs: Additional arguments for the message, aggregate and update functions.
 
@@ -137,23 +137,27 @@ class MessagePassing(torch.nn.Module, ABC):
         dim: int = 0,
         dim_size: Optional[int] = None,
     ):
-        r"""
-        Aggrate messages from src nodes to dst nodes.
+        r"""Aggregate messages from src nodes to dst nodes.
 
         Args:
             msgs (Tensor): The messages to aggregate.
             edge_index (Union[Tensor, SparseTensor]): The edge indices.
-            dim (int): The dimension to aggregate.
+            dim (int): The dimension along which to aggregate.
                 (default: :obj:`0`)
-            dim_size (Optional[int]): The size of output, tensor at dim. If None, infer from edge_index.
+            dim_size (Optional[int]): The size of the output tensor at
+                :obj:`dim`. If :obj:`None`, inferred from :obj:`edge_index`.
                 (default: :obj:`None`)
+
+        Returns:
+            Tensor: Aggregated node representations of shape
+            :math:`(\text{dim\_size}, F)`.
         """
         edge_index, _ = self.__unify_edgeindex__(edge_index)
         return self.aggr_module(msgs, edge_index[1, :], dim=dim, dim_size=dim_size)
 
     def message_and_aggregate(self, edge_index: Union[Tensor, SparseTensor]) -> Tensor:
         r"""The message and aggregation interface to be overridden by subclasses."""
-        return NotImplemented
+        raise NotImplementedError
 
     def update(self, output: Tensor) -> Tensor:
         r"""Update the dst node embeddings."""
@@ -194,7 +198,6 @@ class MessagePassing(torch.nn.Module, ABC):
     def __func_params__(self, func: Callable) -> OrderedDict:
         return inspect.signature(func).parameters
 
-    @lru_cache
     def __unify_edgeindex__(
         self, edge_index: Tensor
     ) -> Tuple[Tensor, Optional[Tensor]]:
@@ -211,7 +214,6 @@ class MessagePassing(torch.nn.Module, ABC):
         else:
             return edge_index, None
 
-    @lru_cache
     def __adj_to_edges__(self, adj: SparseTensor) -> Tuple[Tensor, Tensor]:
         r"""Converts a sparse adjacency matrix to edge indices."""
         if adj.is_sparse:
@@ -229,7 +231,7 @@ class MessagePassing(torch.nn.Module, ABC):
             MessagePassing, func.__name__
         )
 
-    def aggr_revoler(self, target_aggr: Union[str, Aggregator], **kwargs) -> Aggregator:
+    def aggr_resolver(self, target_aggr: Union[str, Aggregator], **kwargs) -> Aggregator:
         r"""Resolve the aggregator."""
         if isinstance(target_aggr, Aggregator):
             return target_aggr

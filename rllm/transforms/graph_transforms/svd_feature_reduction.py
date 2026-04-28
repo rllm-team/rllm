@@ -11,7 +11,7 @@ class SVDFeatureReduction(NodeTransform):
     Decomposition (SVD).
 
     Args:
-        out_dim (int): The dimensionlity of node features after
+        out_dim (int): The dimensionality of node features after
             reduction.
     """
 

@@ -9,6 +9,15 @@ from tqdm import tqdm
 
 @dataclass
 class TextEmbedderConfig:
+    """Configuration for text embedding.
+
+    Args:
+        text_embedder (Callable[[list[str]], Tensor]): Callable that maps a
+            batch of strings to embeddings.
+        batch_size (Optional[int]): Mini-batch size for embedding. If ``None``,
+            all samples are embedded in one call.
+    """
+
     text_embedder: Callable[[list[str]], Tensor]
     batch_size: Optional[int] = None
 
@@ -17,9 +26,15 @@ def embed_text_column(
     col_series: Series,
     config: TextEmbedderConfig,
 ) -> Tensor:
-    """
-    Embed a pandas Series of texts using the provided embedder.
-    Returns a float Tensor of shape [N, D].
+    r"""Embed a text column into dense vectors.
+
+    Args:
+        col_series (Series): Input text column.
+        config (TextEmbedderConfig): Embedding configuration.
+
+    Returns:
+        Tensor: Embedded features with shape :math:`(N, D)` and dtype
+        ``torch.float32``.
     """
     embedder = config.text_embedder
     batch_size = config.batch_size

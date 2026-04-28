@@ -5,7 +5,7 @@ from torch import Tensor
 import numpy as np
 import scipy.sparse as sp
 
-from rllm.utils._sort import lexsort
+from ._sort import lexsort
 from rllm.utils.sparse import is_torch_sparse_tensor, sparse_mx_to_torch_sparse_tensor
 import rllm.utils._pyglib
 
@@ -20,9 +20,18 @@ warnings.filterwarnings(
 )
 
 
-def adj_to_edge_index(adj: Tensor) -> Union[Tensor, Optional[Tensor]]:
-    r"""Transfer sparse adj to edge_index."""
-    if adj.is_sparse:
+def adj_to_edge_index(adj: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
+    r"""Convert a sparse adjacency matrix to an edge index tensor.
+
+    Args:
+        adj (Tensor): A sparse adjacency tensor in COO, CSR, or CSC format.
+
+    Returns:
+        Tuple[Tensor, Optional[Tensor]]: A tuple :obj:`(edge_index, edge_attr)`
+        where :obj:`edge_index` has shape :obj:`[2, num_edges]` and
+        :obj:`edge_attr` is :obj:`None` if all edge weights are 1.
+    """
+    if is_torch_sparse_tensor(adj):
         coo_adj = adj.to_sparse_coo().coalesce()
         s, d, vs = coo_adj.indices()[0], coo_adj.indices()[1], coo_adj.values()
         vs = None if torch.all(vs == 1) else vs
@@ -35,7 +44,10 @@ def remove_self_loops(adj: Tensor):
     r"""Remove self-loops from the adjacency matrix.
 
     Args:
-        adj (Tensor): the adjacency matrix.
+        adj (Tensor): The adjacency matrix in sparse or dense format.
+
+    Returns:
+        Tensor: The adjacency matrix with self-loops removed.
     """
     shape = adj.shape
     device = adj.device
@@ -56,81 +68,22 @@ def remove_self_loops(adj: Tensor):
     return adj
 
 
-def add_remaining_self_loops(adj: Tensor, fill_value=1.0):
-    r"""Add self-loops into the adjacency matrix.
-
-    .. math::
-        $\mathbf{\hat{A}} = \mathbf{A} + \mathbf{I}$
-
-    Args:
-        adj (Tensor): the adjacency matrix.
-        fill_value (Any): values to be filled in the self-loops,
-            the default values is 1.
-    """
-    shape = adj.shape
-    device = adj.device
-
-    if is_torch_sparse_tensor(adj):
-        adj = adj.coalesce()
-        indices = adj.indices()
-        values = adj.values()
-
-        mask = indices[0] != indices[1]
-
-        loop_index = torch.arange(0, shape[0], dtype=torch.long, device=device)
-        loop_index = loop_index.unsqueeze(0).repeat(2, 1)
-
-        indices = torch.cat([indices[:, mask], loop_index], dim=1)
-        fill_values = (
-            torch.ones_like(loop_index, dtype=values.dtype, device=device) * fill_value
-        )
-        values = torch.cat([values[mask], fill_values], dim=0)
-        return torch.sparse_coo_tensor(indices, values, shape).to(device)
-
-    loop_index = torch.arange(0, shape[0], dtype=torch.long, device=device)
-    adj = adj.clone()
-    adj[loop_index, loop_index] = fill_value
-    return adj
-
-
-def construct_graph(
-    edge_index: Tensor, N: int, edge_attr: Tensor = None, remove_self: bool = True
-):
-    r"""Convert a edge index matrix to a sparse adjacency matrix.
-
-    Args:
-        edge_index (Tensor): the edge index.
-        N (int): numbers of the nodes.
-        edge_attr (Tensor): values of the non-zero elements.
-        removed_self (bool): If set to `False`, not remove self-loops
-            in the adjecency matrix.
-    """
-    device = edge_index.device
-    edge_index = edge_index.cpu()
-
-    if remove_self:
-        edge_index = remove_self_loops(edge_index=edge_index)
-
-    if edge_attr is None:
-        edge_attr = np.ones([edge_index.shape[1]], dtype=np.float32)
-
-    adj_sp = sp.csr_matrix((edge_attr, (edge_index[0], edge_index[1])), shape=[N, N])
-    return sparse_mx_to_torch_sparse_tensor(adj_sp).to(device)
-
-
 def gcn_norm(adj: Tensor):
-    r"""Normalize the sparse adjacency matrix from the `"Semi-supervised
-    Classification with Graph Convolutional Networks"
-    <https://arxiv.org/abs/1609.02907>`__ .
+    r"""Normalize the sparse adjacency matrix from the
+    `"Semi-supervised Classification with Graph Convolutional Networks"
+    <https://arxiv.org/abs/1609.02907>`_ paper.
 
     .. math::
         \mathbf{\hat{A}} = \mathbf{\hat{D}}^{-1/2} (\mathbf{A} + \mathbf{I})
         \mathbf{\hat{D}}^{-1/2}
 
     Args:
-        adj (Tensor): the sparse adjacency matrix,
-            whose layout could be `torch.sparse_coo`, `torch.sparse_csr`
-            and `torch.sparse_csc`.
+        adj (Tensor): The sparse adjacency matrix. Supported layouts:
+            :obj:`torch.sparse_coo`, :obj:`torch.sparse_csr`,
+            :obj:`torch.sparse_csc`.
+
+    Returns:
+        Tensor: The symmetrically normalized sparse adjacency matrix.
     """
     shape = adj.shape
     device = adj.device
@@ -175,17 +128,16 @@ def sort_edge_index(
     r"""Sort the edge index.
 
     Args:
-        edge_index (Tensor): The edge index tensor.
-        edge_attr (Tensor, optional): Edge weights, should be a tensor with
-            `size(0) == edge_index.size(1)`. If not None, return
-            `(edge_index, edge_attr)`, else return `edge_index` only.
-            (default: `None`)
-        num_nodes (int, optional): The number of nodes.
-            If None, infer from edge_index.
-            (default: `None`)
-        sort_by_row (bool): If set to `False`, will sort `edge_index`
-            column-wise/by destination node.
-            (default: `True`)
+        edge_index (Tensor): The edge index tensor of shape
+            :obj:`[2, num_edges]`.
+        edge_attr (Tensor, optional): Edge weights with
+            :obj:`size(0) == edge_index.size(1)`. If not :obj:`None`,
+            returns :obj:`(edge_index, edge_attr)`.
+            (default: :obj:`None`)
+        num_nodes (int, optional): The number of nodes. If :obj:`None`,
+            inferred from :obj:`edge_index`. (default: :obj:`None`)
+        sort_by_row (bool): If set to :obj:`False`, sorts by destination
+            node instead of source node. (default: :obj:`True`)
 
     Example:
         >>> edge_index = torch.tensor([[2, 1, 1, 0],
@@ -220,16 +172,16 @@ def sort_edge_index(
 
 
 def index_to_ptr(index: Tensor, num_nodes: Optional[int] = None) -> Tensor:
-    r"""Convert the sorted index tensor to the pointer tensor.
+    r"""Convert a sorted index tensor to a CSR/CSC pointer tensor.
 
     Args:
-        index (Tensor): The index tensor.
-        num_nodes (int, optional): The number of nodes.
-            (default: `None`)
+        index (Tensor): The sorted index tensor.
+        num_nodes (int, optional): The number of nodes. If :obj:`None`,
+            inferred from :obj:`index`. (default: :obj:`None`)
 
     Example:
         >>> index = torch.tensor([0, 1, 1, 2, 2, 3])
-        >>> index2ptr(index, 4)
+        >>> index_2_ptr(index, 4)
         tensor([0, 1, 3, 5, 6])
     """
     if num_nodes is None:
@@ -248,29 +200,27 @@ def _to_csc(
     src_node_time: Optional[Tensor] = None,
     edge_time: Optional[Tensor] = None,
 ) -> Tuple[Tensor, Tensor, Optional[Tensor]]:
-    r"""Convert the input edge_index or adj to a CSC format.
+    r"""Convert an edge index or sparse adjacency matrix to CSC format.
 
     Args:
-        input (Tensor): The input edge_index or adj.
-        device (torch.device, optional): The desired device of the
-            returned tensors. If None, use the current device.
-            (default: `None`)
-        num_nodes (int, optional): The number of nodes.
-            If None, infer from edge_index.
-            (default: `None`)
-        share_memory (bool, optional): If set to `True`, will share memory
-            among returned tensors. This can accelerate process when using
-            multiple processes.
-            (default: `False`)
-        is_sorted (bool, optional): If set to `True`, will not sort the
-            edge index.
-            (default: `False`)
-        src_node_time (Tensor, optional): The source node time.
-            If not None, will sort the edge index by `src_node_time`.
-            (default: `None`)
-        edge_time (Union[str, Tensor], optional): The edge time attribute.
-            If not None, will sort the edge index by `edge_time_attr`.
-            (default: `None`)
+        input (Tensor): The input edge index of shape :obj:`[2, num_edges]`
+            or a sparse adjacency tensor.
+        device (torch.device, optional): The desired device of the returned
+            tensors. If :obj:`None`, uses the input device.
+            (default: :obj:`None`)
+        num_nodes (int, optional): The number of nodes. If :obj:`None`,
+            inferred from the edge index. (default: :obj:`None`)
+        share_memory (bool): If set to :obj:`True`, moves output tensors to
+            shared memory for multi-process data loading.
+            (default: :obj:`False`)
+        is_sorted (bool): If set to :obj:`True`, skips sorting the edge
+            index. (default: :obj:`False`)
+        src_node_time (Tensor, optional): Source node timestamps. If not
+            :obj:`None`, the edge index is sorted by source node time for
+            temporal sampling. (default: :obj:`None`)
+        edge_time (Tensor, optional): Edge timestamps. If not :obj:`None`,
+            the edge index is sorted by edge time for temporal sampling.
+            (default: :obj:`None`)
 
     Returns:
         Tuple[Tensor, Tensor, Optional[Tensor]]: The column indices,
@@ -343,7 +293,18 @@ def to_bidirectional(
     rev_row: Tensor,
     rev_col: Tensor,
 ) -> Tuple[Tensor, Tensor]:
-    r"""Transfer the directed edge index to bidirectional edge index.
+    r"""Merge a directed edge set and its reverse into a deduplicated
+    bidirectional edge set.
+
+    Args:
+        row (Tensor): Source node indices of the forward edges.
+        col (Tensor): Destination node indices of the forward edges.
+        rev_row (Tensor): Source node indices of the reverse edges.
+        rev_col (Tensor): Destination node indices of the reverse edges.
+
+    Returns:
+        Tuple[Tensor, Tensor]: Deduplicated :obj:`(row, col)` tensors
+        representing the bidirectional edge set.
     """
     assert row.numel() == col.numel()
     assert rev_row.numel() == rev_col.numel()

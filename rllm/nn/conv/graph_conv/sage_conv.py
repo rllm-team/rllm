@@ -23,20 +23,19 @@ class SAGEConv(MessagePassing):
         in_dim (int): Size of each input sample.
         out_dim (int): Size of each output sample.
         aggr (str or Aggregator): The aggregation method to use,
-            *e.g.*, `sum`, `mean`, `max_pool`, `mean_pool`, `gcn`, `lstm`.
-        activation: (Callable): The activationivation function is applied to aggreagtion,
-            the default function is ReLU.
-        concat (bool): If set to `False`, the multi-head attentions are
-            averaged instead of concatenated.
-        dropout (float): Dropout probability of the normalized
-            attention coefficients which exposes each node to a stochastically
-            sampled neighborhood during training. The default value is 0.0.
-        bias (bool): If set to `False`, no bias terms are added into
-            the final output.
-        dst_in_dim (Optional[int]): The input dimension of the destination nodes.
-            If None, the input dimension of the source nodes is used.
-            This is only used when considering heterogeneous graphs
-            and the source and destination nodes have different input dimensions.
+            *e.g.*, :obj:`"sum"`, :obj:`"mean"`, :obj:`"max_pool"`,
+            :obj:`"mean_pool"`, :obj:`"gcn"`, :obj:`"lstm"`.
+            (default: :obj:`"sum"`)
+        activation (Callable): The activation function applied after
+            aggregation. (default: :obj:`F.relu`)
+        dropout (float): Dropout probability applied to node features before
+            aggregation. (default: :obj:`0.0`)
+        bias (bool): If set to :obj:`False`, no bias terms are added into
+            the final output. (default: :obj:`False`)
+        dst_in_dim (Optional[int]): The input dimension of the destination
+            nodes. If :obj:`None`, :obj:`in_dim` is used. Useful for
+            heterogeneous graphs where source and destination nodes have
+            different dimensions. (default: :obj:`None`)
     """
 
     def __init__(
@@ -50,17 +49,18 @@ class SAGEConv(MessagePassing):
         dst_in_dim: Optional[int] = None,
         **kwargs,
     ):
+        aggr_name = aggr.lower() if isinstance(aggr, str) else None
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.aggr = aggr
         self.activation = activation
         self.dropout = dropout
 
-        if aggr == "lstm":
+        if aggr_name == "lstm":
             kwargs.setdefault("aggr_kwargs", {})
             kwargs["aggr_kwargs"].setdefault("in_dim", in_dim)
             kwargs["aggr_kwargs"].setdefault("out_dim", in_dim)
-        elif aggr[-4:] == "pool":
+        elif aggr_name is not None and aggr_name.endswith("pool"):
             kwargs.setdefault("aggr_kwargs", {})
             kwargs["aggr_kwargs"].setdefault("in_dim", in_dim)
             kwargs["aggr_kwargs"].setdefault("out_dim", in_dim)
@@ -87,6 +87,7 @@ class SAGEConv(MessagePassing):
         self.reset_parameters()
 
     def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
         torch.nn.init.xavier_normal_(self.lin_neigh.weight)
         torch.nn.init.xavier_normal_(self.lin.weight)
         if self.self_lin is not None:
@@ -132,17 +133,18 @@ class SAGEConv(MessagePassing):
         x[0] = F.dropout(x[0], p=self.dropout, training=self.training)
         x[1] = F.dropout(x[1], p=self.dropout, training=self.training)
 
-        if self.aggr[-4:] != "pool":
+        aggr_name = self.aggr.lower() if isinstance(self.aggr, str) else ""
+        if not aggr_name.endswith("pool"):
             x[0] = self.lin_neigh(x[0])  # (N, in_dim)
 
-        if self.aggr == "gcn" and self.self_lin is None:
+        if aggr_name == "gcn" and self.self_lin is None:
             """GCN aggregator.
             Assuming the edge_index has been GCN normalized while preprocessing.
             """
             out = self.propagate(
                 x[0], edge_index, edge_weight=edge_weight, dim_size=x[1].size(0)
             )
-        elif self.aggr[-4:] == "pool":
+        elif aggr_name.endswith("pool"):
             out = self.propagate(x[0], edge_index, dim_size=x[1].size(0))
             out = self.lin_neigh(out)
         else:

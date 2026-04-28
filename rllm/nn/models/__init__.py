@@ -1,7 +1,6 @@
 from .rect import RECT_L
 from .bridge import BRIDGE, TableEncoder, GraphEncoder
 from .transtab import TransTab, TransTabClassifier, TransTabForCL
-from .base_model import LinearClassifier
 from .resnet import TableResNet
 from .heterosage import HeteroSAGE
 from .rdl import RDL

@@ -2,7 +2,7 @@ import re
 from pandas import Series
 
 
-def _clean_numerical_value(val):
+def _to_numeric(val):
     """
     Clean a single numerical value that may contain special formatting.
 
@@ -54,5 +54,5 @@ def _clean_numerical_value(val):
         return None
 
 
-def preprocess_numerical_string(col_series: Series) -> Series:
-    return col_series.map(_clean_numerical_value)
+def to_numeric_by_column(col_series: Series) -> Series:
+    return col_series.map(_to_numeric)

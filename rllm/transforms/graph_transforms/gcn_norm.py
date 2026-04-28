@@ -10,9 +10,10 @@ from rllm.transforms.graph_transforms.functional import (
 
 
 class GCNNorm(EdgeTransform):
-    r"""Normalize the sparse adjacency matrix from the `"Semi-supervised
-    Classification with GraphConvolutional
-    Networks" <https://arxiv.org/abs/1609.02907>`__ .
+    r"""Applies the standard GCN adjacency normalization.
+
+    Proposed in `"Semi-supervised Classification with Graph Convolutional
+    Networks" <https://arxiv.org/abs/1609.02907>`__.
 
     .. math::
         \mathbf{\hat{A}} = \mathbf{\hat{D}}^{-1/2} (\mathbf{A} + \mathbf{I})
@@ -20,7 +21,7 @@ class GCNNorm(EdgeTransform):
     """
 
     def __init__(self):
-        pass
+        super().__init__()
 
     @lru_cache()
     def forward(self, adj: Tensor) -> Tensor:

@@ -24,8 +24,9 @@ class GTransformerConv(MessagePassing):
         out_dim (int): Size of each output sample.
         num_heads (int, optional): Number of multi-head-attentions.
             (default: :obj:`1`).
-        concat (bool, optional): If set to `False`, the multi-head attentions
-            are averaged instead of concatenated. (default: :obj:`True`)
+        concat (bool, optional): If set to :obj:`False`, the multi-head
+            attentions are averaged instead of concatenated.
+            (default: :obj:`True`)
         beta (bool, optional): If set to :obj:`True`, the layer will add
             a learnable skip-connection with learnable weight.
             (default: :obj:`False`)
@@ -33,9 +34,9 @@ class GTransformerConv(MessagePassing):
             attention coefficients which exposes each node to a stochastically
             sampled neighborhood during training. (default: :obj:`0`).
         edge_dim (int, optional): Size of each edge feature.
-            (default: :obj:`None`, which means no edge features are used).
-        bias (bool, optional): If set to `False`, no bias terms are added into
-            the final output. (default: :obj:`True`).
+            (default: :obj:`None`)
+        bias (bool, optional): If set to :obj:`False`, no bias terms are
+            added into the final output. (default: :obj:`True`).
         root_weight (bool, optional): If set to :obj:`False`, the layer will
             not use the root node feature for message update.
             (default: :obj:`True`)
@@ -95,6 +96,7 @@ class GTransformerConv(MessagePassing):
                 self.lin_beta = self.register_parameter("lin_beta", None)
 
     def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
         self.lin_key.reset_parameters()
         self.lin_query.reset_parameters()
         self.lin_value.reset_parameters()
@@ -115,13 +117,15 @@ class GTransformerConv(MessagePassing):
 
         Args:
             x (Union[Tensor, Tuple[Tensor, Tensor]]):
-                - Tensor input features for homogeneous graphs.
-                - Tuple of source and destination node features.
-            edge_index (Tensor): Edge list connectivity with shape ``[2, num_edges]``.
+                - :obj:`Tensor`: Input features for homogeneous graphs.
+                - :obj:`Tuple[Tensor, Tensor]`: Source and destination node
+                  features for bipartite graphs.
+            edge_index (Tensor): Edge list connectivity with shape
+                :obj:`[2, num_edges]`.
             edge_weight (Optional[Tensor]): Optional edge feature tensor used
-                when ``edge_dim`` is set.
-            return_attention_weights (bool): If True, also return edge attention
-                scores.
+                when :obj:`edge_dim` is set. (default: :obj:`None`)
+            return_attention_weights (bool): If :obj:`True`, also return edge
+                attention scores. (default: :obj:`False`)
 
         Returns:
             Union[Tensor, Tuple[Tensor, Tuple[Tensor, Tensor]]]: Output node
@@ -134,8 +138,6 @@ class GTransformerConv(MessagePassing):
             >>> x = torch.randn(4, 8)
             >>> edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
             >>> out = conv(x, edge_index)
-            >>> out.shape
-            torch.Size([4, 8])
         """
         H, C = self.heads, self.out_dim
 
@@ -188,7 +190,23 @@ class GTransformerConv(MessagePassing):
         dim_size: int,
         edge_weight: Optional[Tensor],
     ) -> Tensor:
+        r"""Fuse message computation and aggregation using multi-head attention.
 
+        Args:
+            edge_index (Tensor): Edge indices of shape :obj:`[2, num_edges]`.
+            query (Tensor): Query vectors for destination nodes of shape
+                :obj:`[num_dst, num_heads, out_dim]`.
+            key (Tensor): Key vectors for source nodes of shape
+                :obj:`[num_src, num_heads, out_dim]`.
+            value (Tensor): Value vectors for source nodes of shape
+                :obj:`[num_src, num_heads, out_dim]`.
+            dim_size (int): Number of destination nodes.
+            edge_weight (Optional[Tensor]): Optional edge feature tensor.
+
+        Returns:
+            Tensor: Aggregated node representations of shape
+            :obj:`[num_dst, num_heads, out_dim]`.
+        """
         query_i = query.index_select(0, edge_index[1])
         key_j = key.index_select(0, edge_index[0])
         value_j = value.index_select(0, edge_index[0])

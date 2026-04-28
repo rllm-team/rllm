@@ -10,7 +10,7 @@ import torch
 from torch import Tensor
 from transformers import BertTokenizerFast
 
-from .pre_encoder import PreEncoder
+from .table_pre_encoder import TablePreEncoder
 from .col_encoder._transtab_num_embedding_encoder import TransTabNumEmbeddingEncoder
 from .col_encoder._transtab_word_embedding_encoder import TransTabWordEmbeddingEncoder
 
@@ -18,54 +18,33 @@ from rllm.types import ColType
 from rllm.data.table_data import TableData
 
 
-class TransTabPreEncoder(PreEncoder):
-    r"""Pre-encoder for the TransTab model as proposed in
-    `"TransTab: Learning Transferable Tabular Transformers Across Tables"
-    <https://arxiv.org/abs/2205.09328>`_ paper.
+class TransTabPreEncoder(TablePreEncoder):
+    r"""Pre-encoder for TransTab
+    (`"TransTab" <https://arxiv.org/abs/2205.09328>`_).
 
-    This module integrates tokenizer management, column-type bookkeeping,
-    and feature extraction into a single pre-encoder that converts a
-    :class:`~rllm.data.table_data.TableData` ``feat_dict`` into embeddings
-    consumable by downstream Transformer layers.
-
-    Specifically it:
-
-    1. Manages a :class:`BertTokenizerFast` instance used to tokenize
-       categorical (as text) and binary column names at inference time.
-    2. Maintains ordered lists of *categorical*, *numerical*, and *binary*
-       column names, with duplicate detection and optional auto-resolution.
-    3. Adapts a ``feat_dict`` produced by :class:`TableData` into the
-       TransTab-specific tensor layout (categorical token IDs, numerical
-       column-name token IDs + raw values, binary per-row token IDs).
-    4. Encodes the adapted tensors via word-embedding and numeric-embedding
-       sub-encoders, then optionally aligns and concatenates them.
+    Converts a :class:`~rllm.data.table_data.TableData` ``feat_dict`` into
+    token embeddings consumable by downstream Transformer layers, handling
+    tokenizer management, column deduplication, and word/numeric sub-encoders.
 
     Args:
         out_dim (int): Output embedding dimensionality (d_model).
-        metadata (Dict[ColType, List[Dict[str, Any]]]): Metadata mapping from
-            column type to list of per-column statistics dicts.
-        categorical_columns (Optional[List[str]]): Names of categorical columns.
-        numerical_columns (Optional[List[str]]): Names of numerical columns.
-        binary_columns (Optional[List[str]]): Names of binary (0/1) columns.
-        tokenizer (Optional[BertTokenizerFast]): A pre-initialized tokenizer.
-            Takes precedence over *tokenizer_dir* when provided.
-        tokenizer_dir (str): Path to a pretrained tokenizer directory.  If
-            *tokenizer* is ``None`` and the directory does not exist,
-            ``"bert-base-uncased"`` is downloaded and saved here.
-        hidden_dropout_prob (float): Dropout probability for the word-embedding
-            sub-encoder.
-        layer_norm_eps (float): Epsilon for LayerNorm in the word-embedding
-            sub-encoder.
-        use_align_layer (bool): If ``True``, apply a linear alignment projection
-            before concatenation.
-        disable_tokenizer_parallel (bool): If ``True``, set the environment
-            variable ``TOKENIZERS_PARALLELISM=false``.
-        ignore_duplicate_cols (bool): If ``True``, automatically rename
-            duplicate column names; otherwise raise :class:`ValueError`.
-
-    Returns:
-        The ``forward`` method returns either aligned embeddings with attention
-        masks, a dictionary of encoded tensors, or a concatenated tensor.
+        metadata (Dict[ColType, List[Dict[str, Any]]]): Per-column statistics metadata.
+        categorical_columns (List[str], optional): Categorical column names. Default: ``None``.
+        numerical_columns (List[str], optional): Numerical column names. Default: ``None``.
+        binary_columns (List[str], optional): Binary column names. Default: ``None``.
+        tokenizer (BertTokenizerFast, optional): Pre-initialised tokenizer; takes
+            precedence over ``tokenizer_dir``. Default: ``None``.
+        tokenizer_dir (str): Tokenizer directory; ``"bert-base-uncased"`` is
+            downloaded here when absent. Default: ``"./tokenizer"``.
+        hidden_dropout_prob (float): Dropout for the word-embedding sub-encoder.
+            Default: ``0.0``.
+        layer_norm_eps (float): LayerNorm :math:`\varepsilon`. Default: ``1e-5``.
+        use_align_layer (bool): Apply a linear projection before concatenation.
+            Default: ``True``.
+        disable_tokenizer_parallel (bool): Set ``TOKENIZERS_PARALLELISM=false``.
+            Default: ``True``.
+        ignore_duplicate_cols (bool): Auto-rename duplicates instead of raising.
+            Default: ``False``.
     """
 
     def __init__(
@@ -191,16 +170,15 @@ class TransTabPreEncoder(PreEncoder):
         num: Optional[List[str]] = None,
         bin: Optional[List[str]] = None,
     ) -> None:
-        r"""Dynamically extend column lists and recheck for duplicates.
+        r"""Extend column lists with new names and recheck for duplicates.
 
         Args:
-            cat: New categorical columns to add.
-            num: New numerical columns to add.
-            bin: New binary columns to add.
+            cat (List[str], optional): New categorical columns.
+            num (List[str], optional): New numerical columns.
+            bin (List[str], optional): New binary columns.
 
         Raises:
-            ValueError: If duplicate columns are detected after the update and
-                *ignore_duplicate_cols* is ``False``.
+            ValueError: On duplicate columns when ``ignore_duplicate_cols`` is ``False``.
         """
         if cat:
             self.categorical_columns.extend(cat)
@@ -266,23 +244,16 @@ class TransTabPreEncoder(PreEncoder):
         colname_token_ids: Optional[Dict[str, Tuple[Tensor, Tensor]]] = None,
         shuffle: bool = False,
     ) -> Dict[str, Tensor | None]:
-        r"""Adapt a pre-computed ``feat_dict`` from :class:`TableData` into the
-        tensor layout expected by TransTab sub-encoders.
+        r"""Adapt a ``feat_dict`` from :class:`TableData` into the TransTab tensor layout.
 
         Args:
-            feat_dict: Feature dictionary from :class:`TableData`:
-                ``ColType.TEXT`` → ``(input_ids [B, L], attention_mask [B, L])``,
-                ``ColType.NUMERICAL`` → ``[B, n_num]``,
-                ``ColType.BINARY`` → ``[B, n_bin]``.
-            colname_token_ids: Mapping from column name to
-                ``(token_ids, attention_mask)`` tensors.
-            shuffle: If ``True``, randomly shuffle column order within each
-                type.
+            feat_dict: ``{ColType.TEXT: (ids [B,L], mask [B,L]), ColType.NUMERICAL: [B,C], ...}``
+            colname_token_ids: Mapping from column name to ``(token_ids, attention_mask)``.
+            shuffle (bool): Randomly shuffle column order within each type. Default: ``False``.
 
         Returns:
             Dict with keys ``x_num``, ``num_col_input_ids``, ``num_att_mask``,
-            ``x_cat_input_ids``, ``cat_att_mask``, ``x_bin_input_ids``,
-            ``bin_att_mask``; values are tensors or ``None``.
+            ``x_cat_input_ids``, ``cat_att_mask``, ``x_bin_input_ids``, ``bin_att_mask``.
         """
         out: Dict[str, Tensor | None] = {
             "x_num": None,
@@ -454,6 +425,21 @@ class TransTabPreEncoder(PreEncoder):
         return_dict: bool = False,
         requires_grad: bool = False,
     ) -> Union[Dict[str, Tensor], Dict[ColType, Tensor], Tensor]:
+        r"""Encode a table batch into embeddings.
+
+        Args:
+            x (TableData): Materialised input table batch.
+            shuffle (bool): Shuffle column order within each type. Default: ``False``.
+            align_and_concat (bool): Apply alignment projection and concatenate
+                all type embeddings. Default: ``True``.
+            return_dict (bool): Return ``Dict[ColType, Tensor]`` instead of a
+                concatenated tensor when ``align_and_concat=False``. Default: ``False``.
+            requires_grad (bool): Enable gradients during encoding. Default: ``False``.
+
+        Returns:
+            ``{"embedding": [B, S, H], "attention_mask": [B, S]}`` when
+            ``align_and_concat=True``; otherwise a dict or concatenated tensor.
+        """
         grad_ctx = (
             (lambda: torch.enable_grad())
             if requires_grad
@@ -518,17 +504,7 @@ class TransTabPreEncoder(PreEncoder):
                 )
 
     def save(self, path: str) -> None:
-        r"""Save tokenizer, column configuration, and encoder weights.
-
-        On-disk layout::
-
-            {path}/extractor/tokenizer/   # tokenizer files
-            {path}/extractor/extractor.json  # column lists
-            {path}/input_encoder.bin       # encoder state_dict
-
-        Args:
-            path: Base directory.
-        """
+        r"""Save tokenizer, column config, and encoder weights to ``path``."""
         # Tokenizer & column config (backward-compatible directory layout)
         save_path = os.path.join(path, "extractor")
         os.makedirs(save_path, exist_ok=True)
@@ -550,11 +526,7 @@ class TransTabPreEncoder(PreEncoder):
         print(f"Saved TransTabPreEncoder weights to {encoder_path}")
 
     def load(self, ckpt_dir: str) -> None:
-        r"""Load tokenizer, column configuration, and encoder weights.
-
-        Args:
-            ckpt_dir: Directory previously written by :meth:`save`.
-        """
+        r"""Restore tokenizer, column config, and encoder weights from ``ckpt_dir``."""
         tokenizer_path = os.path.join(ckpt_dir, "extractor", "tokenizer")
         coltype_path = os.path.join(ckpt_dir, "extractor", "extractor.json")
 

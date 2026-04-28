@@ -1,5 +1,6 @@
-from abc import ABC, abstractmethod
 import copy
+from abc import ABC, abstractmethod
+from typing import Union
 
 from torch import Tensor
 
@@ -7,13 +8,31 @@ from rllm.data.graph_data import GraphData, HeteroGraphData
 
 
 class NodeTransform(ABC):
-    r"""An abstract base class for transforming nodes in graph data.
-    It provides a common interface for all node transformation
-    operations. It ensures that the data is shallow-copied to prevent
-    in-place modifications.
+    r"""Base class for node-wise transformations on graph data.
+
+    The transform is applied to ``x`` for homogeneous graphs, each valid
+    ``store.x`` for heterogeneous graphs, or directly to a square
+    :class:`torch.Tensor`.
+
+    Shape:
+        - ``GraphData``: ``data.x`` can be any node feature shape accepted by
+          subclasses.
+        - ``HeteroGraphData``: ``store.x`` can be any node feature shape
+          accepted by subclasses.
+        - :class:`torch.Tensor`: input must be a square matrix with shape
+          ``[N, N]``.
+
+    Examples::
+
+        class NormalizeNodeX(NodeTransform):
+            def forward(self, x):
+                return x / (x.norm(dim=-1, keepdim=True) + 1e-12)
+
+        transform = NormalizeNodeX()
+        out = transform(data)
     """
 
-    def __call__(self, data):
+    def __call__(self, data: Union[GraphData, HeteroGraphData, Tensor]):
         # Shallow-copy the data so that we prevent in-place data modification.
         data = copy.copy(data)
         if isinstance(data, GraphData):
@@ -31,21 +50,38 @@ class NodeTransform(ABC):
         return data
 
     @abstractmethod
-    def forward(self, x):
-        pass
+    def forward(self, x: Tensor) -> Tensor:
+        raise NotImplementedError
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
 
 
 class EdgeTransform(ABC):
-    r"""An abstract base class for transforming edges in graph data.
-    It provides a common interface for all edge transformation
-    operations. It ensures that the data is shallow-copied to prevent
-    in-place modifications.
+    r"""Base class for edge-wise transformations on graph data.
+
+    The transform is applied to ``adj`` for homogeneous graphs, each valid
+    ``store.adj`` for heterogeneous graphs, or directly to a tensor input.
+
+    Shape:
+        - ``GraphData``: ``data.adj`` can be dense or sparse and should follow
+          the adjacency format expected by subclasses.
+        - ``HeteroGraphData``: ``store.adj`` can be dense or sparse and should
+          follow the adjacency format expected by subclasses.
+        - :class:`torch.Tensor`: if dense, input must be a square matrix with
+          shape ``[N, N]``; sparse tensors are forwarded as-is.
+
+    Examples::
+
+        class KeepSelfLoops(EdgeTransform):
+            def forward(self, adj):
+                return adj
+
+        transform = KeepSelfLoops()
+        out = transform(data)
     """
 
-    def __call__(self, data):
+    def __call__(self, data: Union[GraphData, HeteroGraphData, Tensor]):
         # Shallow-copy the data so that we prevent in-place data modification.
         data = copy.copy(data)
 
@@ -65,8 +101,8 @@ class EdgeTransform(ABC):
         return data
 
     @abstractmethod
-    def forward(self, adj):
-        pass
+    def forward(self, adj: Tensor) -> Tensor:
+        raise NotImplementedError
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"

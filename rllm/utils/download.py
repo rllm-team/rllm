@@ -46,18 +46,17 @@ def download_url(
     folder: str,
     filename: Optional[str] = None,
 ):
-    r"""Downloads the content of an URL to a specific folder.
+    r"""Download the content of a URL to a specific folder.
 
     Args:
-        url (str): The URL.
-        folder (str): The folder.
-        log (bool, optional): If :obj:`False`, will not print anything to the
-            console. (default: :obj:`True`)
+        url (str): The URL to download from.
+        folder (str): The destination folder.
         filename (str, optional): The filename of the downloaded file. If set
-            to :obj:`None`, will correspond to the filename given by the URL.
+            to :obj:`None`, the filename is inferred from the URL.
             (default: :obj:`None`)
+
     Returns:
-        path (str): Path of the contents downloaded.
+        str: The local path to the downloaded file.
     """
     if filename is None:
         filename = url.rpartition("/")[2]
@@ -92,14 +91,15 @@ def download_google_url(
     folder: str,
     filename: str,
 ):
-    r"""Downloads the content of a Google Drive ID to a specific folder.
+    r"""Download the content of a Google Drive file to a specific folder.
 
     Args:
-
-        id (str): Google Drive ID.
-        folder (str): The folder.
+        id (str): The Google Drive file ID.
+        folder (str): The destination folder.
         filename (str): The filename of the downloaded file.
 
+    Returns:
+        str: The local path to the downloaded file.
     """
     url = f"https://drive.usercontent.google.com/download?id={id}&confirm=t"
     return download_url(url, folder, filename)

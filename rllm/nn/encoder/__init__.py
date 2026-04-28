@@ -1,4 +1,4 @@
-from .pre_encoder import PreEncoder
+from .table_pre_encoder import TablePreEncoder
 from .ft_transformer_pre_encoder import FTTransformerPreEncoder
 from .tab_transformer_pre_encoder import TabTransformerPreEncoder
 from .transtab_pre_encoder import TransTabPreEncoder
@@ -14,7 +14,7 @@ from .tabpfn_pre_encoder import (
 
 __all__ = [
     # Base class
-    "PreEncoder",
+    "TablePreEncoder",
     # TNN Model PreEncoder
     "TabTransformerPreEncoder",
     "FTTransformerPreEncoder",

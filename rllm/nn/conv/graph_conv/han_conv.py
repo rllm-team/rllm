@@ -200,7 +200,4 @@ class HANConv(MessagePassing):
         )
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}({self.out_dim}, ",
-            f"num_heads={self.num_heads})",
-        )
+        return f"{self.__class__.__name__}({self.out_dim}, num_heads={self.num_heads})"

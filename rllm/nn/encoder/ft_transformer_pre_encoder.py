@@ -1,13 +1,13 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 
-from .pre_encoder import PreEncoder
+from .table_pre_encoder import TablePreEncoder
 from .col_encoder._embedding_encoder import EmbeddingEncoder
 from .col_encoder._linear_encoder import LinearEncoder
 from rllm.types import ColType
 
 
-class FTTransformerPreEncoder(PreEncoder):
+class FTTransformerPreEncoder(TablePreEncoder):
     r"""
     The FTTransformerPreEncoder class is a specialized pre-encoder for the
     FTTransformer model. It initializes a column-specific encoder dict for
@@ -22,9 +22,6 @@ class FTTransformerPreEncoder(PreEncoder):
             properties of the columns.
         in_dim (int, optional): The input dimensionality for numerical features
             (default: :obj:`1`).
-
-    Returns:
-        Encoded outputs are produced by inherited ``forward``.
 
     Example:
         >>> from rllm.nn.encoder import FTTransformerPreEncoder
