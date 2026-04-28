@@ -9,7 +9,8 @@ from tqdm import tqdm
 
 @dataclass
 class TextEmbedderConfig:
-    """Configuration for text embedding.
+    """Configuration for text embedding in preprocessing pipelines.
+    It defines the embedding callable and optional mini-batch size used during inference.
 
     Args:
         text_embedder (Callable[[list[str]], Tensor]): Callable that maps a
@@ -26,7 +27,8 @@ def embed_text_column(
     col_series: Series,
     config: TextEmbedderConfig,
 ) -> Tensor:
-    r"""Embed a text column into dense vectors.
+    r"""Embed a text column into dense vector representations.
+    The function supports both one-shot and mini-batch embedding, depending on configuration.
 
     Args:
         col_series (Series): Input text column.

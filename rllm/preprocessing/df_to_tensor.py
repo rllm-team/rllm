@@ -217,7 +217,10 @@ def df_to_tensor(
     concat: bool = True,
     cat_hardcode: bool = True,
 ) -> Tuple[FeatureDict, Optional[Tensor]]:
-    r"""Convert DataFrame to tensor dictionary.
+    r"""Convert a typed DataFrame into model-ready tensor features by dispatching
+    each column with :class:`ColType`. The function applies cleaning and
+    missing-value handling, then builds tensors into a unified feature dict.
+    It can also optionally extract ``target_col`` as ``y`` for supervised training.
 
     Args:
         df: Input DataFrame
