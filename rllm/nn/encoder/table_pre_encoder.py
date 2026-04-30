@@ -37,36 +37,43 @@ class TablePreEncoder(torch.nn.Module, ABC):
         self,
         out_dim: int,
         metadata: Dict[ColType, List[Dict[str, Any]]],
-        col_encoder_dict: Dict[ColType, ColEncoder],
+        col_encoder_dict: Dict[ColType, List[ColEncoder]],
     ) -> None:
         super().__init__()
 
         self.metadata = metadata
         self.col_encoder_dict = torch.nn.ModuleDict()
 
-        for col_type, col_encoder in col_encoder_dict.items():
-            if col_type not in col_encoder.supported_types:
-                raise ValueError(
-                    f"{col_encoder} does not " f"support encoding {col_type}."
-                )
-            # Set attributes
-            if col_encoder.out_dim is None:
-                col_encoder.out_dim = out_dim
-            if col_type in metadata.keys():
-                col_encoder.stats_list = metadata[col_type]
-                self.col_encoder_dict[col_type.value] = col_encoder
-                col_encoder.post_init()
+        for col_type, col_encoders in col_encoder_dict.items():
+            encoder_list = torch.nn.ModuleList()
+            for col_encoder in col_encoders:
+                if col_type not in col_encoder.supported_types:
+                    raise ValueError(
+                        f"{col_encoder} does not " f"support encoding {col_type}."
+                    )
+                # Set attributes
+                if col_encoder.out_dim is None:
+                    col_encoder.out_dim = out_dim
+                if col_type in metadata.keys():
+                    col_encoder.stats_list = metadata[col_type]
+                    col_encoder.post_init()
+                    encoder_list.append(col_encoder)
+
+            if len(encoder_list) > 0:
+                self.col_encoder_dict[col_type.value] = encoder_list
         self.reset_parameters()
 
     def reset_parameters(self):
         r"""Resets all learnable parameters of the module."""
-        for col_encoder in self.col_encoder_dict.values():
-            col_encoder.reset_parameters()
+        for col_encoder_list in self.col_encoder_dict.values():
+            for col_encoder in col_encoder_list:
+                col_encoder.reset_parameters()
 
     def forward(
         self,
         feat_dict: Dict[ColType, Tensor],
         return_dict: bool = False,
+        **kwargs: object,
     ) -> Union[Tensor, Dict[ColType, Tensor]]:
         r"""Encode each column type and concatenate the results.
 
@@ -87,7 +94,9 @@ class TablePreEncoder(torch.nn.Module, ABC):
         for col_type in feat_dict.keys():
             feat = feat_dict[col_type]
             if col_type.value in self.col_encoder_dict.keys():
-                x = self.col_encoder_dict[col_type.value](feat)
+                x = feat
+                for col_encoder in self.col_encoder_dict[col_type.value]:
+                    x = col_encoder(x, **kwargs)
                 feat_encoded[col_type] = x
             else:
                 feat_encoded[col_type] = feat

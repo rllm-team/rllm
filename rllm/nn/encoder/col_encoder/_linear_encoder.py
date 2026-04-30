@@ -54,10 +54,12 @@ class LinearEncoder(ColEncoder):
         stats_list: Optional[List[Dict[StatType, Any]]] = None,
         post_module: Optional[torch.nn.Module] = None,
         activation: Optional[torch.nn.Module] = None,
+        use_bias: bool = True,
     ):
         super().__init__(out_dim, stats_list, post_module)
         self.in_dim = in_dim
         self.activation = activation
+        self.use_bias = use_bias
 
     def post_init(self):
         r"""This is the actual initialization function."""
@@ -73,7 +75,13 @@ class LinearEncoder(ColEncoder):
     def reset_parameters(self) -> None:
         super().reset_parameters()
         torch.nn.init.normal_(self.weight, std=0.01)
-        torch.nn.init.zeros_(self.bias)
+        if self.use_bias:
+            torch.nn.init.zeros_(self.bias)
+            self.bias.requires_grad_(True)
+        else:
+            with torch.no_grad():
+                self.bias.zero_()
+            self.bias.requires_grad_(False)
 
     def encode_forward(
         self,

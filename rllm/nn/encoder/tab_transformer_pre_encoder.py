@@ -28,7 +28,7 @@ class TabTransformerPreEncoder(TablePreEncoder):
         metadata: Dict[ColType, List[Dict[str, Any]]],
     ) -> None:
         col_encoder_dict = {
-            ColType.CATEGORICAL: EmbeddingEncoder(),
-            ColType.NUMERICAL: ReshapeEncoder(),
+            ColType.CATEGORICAL: [EmbeddingEncoder()],
+            ColType.NUMERICAL: [ReshapeEncoder()],
         }
         super().__init__(out_dim, metadata, col_encoder_dict)
