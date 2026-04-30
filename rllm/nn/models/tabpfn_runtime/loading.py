@@ -75,6 +75,8 @@ def load_model(
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     state_dict = checkpoint["state_dict"]
     config = checkpoint.get("config")
+    if config is None:
+        raise ValueError("Config not found in checkpoint")
     if model_type == "reg":
         config["max_num_classes"] = 0
         config["task_type"] = "regression"
@@ -123,7 +125,6 @@ def load_model(
 def initialize_tabpfn_model(
     model_dir: str,
     model_type: str,
-    model_id: int,
 ) -> tuple[torch.nn.Module, dict[str, Any], object]:
     """Load the TabPFN model, config, and regression criterion when applicable."""
     # Determine filename (hardcoded to v2.6 retained checkpoints)
@@ -136,11 +137,13 @@ def initialize_tabpfn_model(
 
     print(f"Loading model from {model_dir}...")
     if not os.path.exists(model_path):
-        download_model_from_huggingface(
+        success = download_model_from_huggingface(
             repo="Prior-Labs/tabpfn_2_6",
             model_name=model_name,
             download_path=model_dir,
         )
+        if not success:
+            raise Exception(f"Failed to download model from Hugging Face: {model_name}")
 
     column_embedding_path = os.path.join(
         model_dir,

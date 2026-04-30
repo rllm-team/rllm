@@ -61,6 +61,20 @@ class ColEncoder(torch.nn.Module, ABC):
         self.stats_list = stats_list
         self.post_module = post_module
         self.preserve_invalid_values = preserve_invalid_values
+        encode_forward_params = inspect.signature(self.encode_forward).parameters
+        self._accepts_var_kwargs = any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in encode_forward_params.values()
+        )
+        self._accepted_keys = {
+            name
+            for name, parameter in encode_forward_params.items()
+            if parameter.kind
+            in {
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            }
+        }
 
     @abstractmethod
     def post_init(self):
@@ -93,23 +107,16 @@ class ColEncoder(torch.nn.Module, ABC):
 
         # Main encoding into column embeddings. Some encoders accept extra context
         # kwargs like single_eval_pos; older encoders only accept feat.
-        encode_forward_signature = inspect.signature(self.encode_forward)
-        encode_forward_params = encode_forward_signature.parameters
-        accepts_var_kwargs = any(
-            parameter.kind == inspect.Parameter.VAR_KEYWORD
-            for parameter in encode_forward_params.values()
-        )
-        if accepts_var_kwargs:
+        if self._accepts_var_kwargs:
             x = self.encode_forward(feat, **kwargs)
         else:
             accepted_kwargs = {
                 key: value
                 for key, value in kwargs.items()
-                if key in encode_forward_params
-                and encode_forward_params[key].kind
-                in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}
+                if key in self._accepted_keys
             }
             x = self.encode_forward(feat, **accepted_kwargs)
+
         if not self.preserve_invalid_values:
             x = torch.nan_to_num(x, nan=0)
         # Apply post module if specified

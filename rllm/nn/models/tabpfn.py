@@ -147,7 +147,6 @@ class TabPFN(torch.nn.Module):
         self.model, self.config, self.bardist = initialize_tabpfn_model(
             model_dir=model_dir,
             model_type=model_type,
-            model_id=model_id,
         )
         if self.bardist is not None:
             self.znorm_space_bardist_ = deepcopy(self.bardist).float()
