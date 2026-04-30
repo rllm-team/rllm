@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import warnings
 from pathlib import Path
 from typing import Any, Literal
 
@@ -15,9 +14,6 @@ from rllm.utils import download_model_from_huggingface, download_url
 
 from .backbone import TabPFNBackbone
 from .utils import PREGENERATED_COLUMN_EMBEDDINGS_FILENAME
-
-ModelVersion = Literal["v2_6"]
-
 
 def _load_criterion_state(
     *,
@@ -69,8 +65,6 @@ def load_model(
     *,
     path: Path,
     model_type: Literal["clf", "reg"],
-    version: ModelVersion = "v2_6",
-    strict_version_match: bool = True,
 ) -> tuple[
     nn.Module,
     dict[str, Any],
@@ -78,9 +72,7 @@ def load_model(
 ]:
     """Load a retained TabPFN v2.6 checkpoint into the local runtime."""
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=FutureWarning)
-        checkpoint = torch.load(path, map_location="cpu", weights_only=None)
+    checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     state_dict = checkpoint["state_dict"]
     config = checkpoint.get("config")
     if model_type == "reg":
@@ -132,8 +124,6 @@ def initialize_tabpfn_model(
     model_dir: str,
     model_type: str,
     model_id: int,
-    version: ModelVersion = "v2_6",
-    strict_version_match: bool = True,
 ) -> tuple[torch.nn.Module, dict[str, Any], object]:
     """Load the TabPFN model, config, and regression criterion when applicable."""
     # Determine filename (hardcoded to v2.6 retained checkpoints)
@@ -157,31 +147,21 @@ def initialize_tabpfn_model(
         PREGENERATED_COLUMN_EMBEDDINGS_FILENAME,
     )
     if not os.path.exists(column_embedding_path):
-        try:
-            url = (
-                "https://raw.githubusercontent.com/PriorLabs/TabPFN/main/"
-                "src/tabpfn/architectures/shared/tabpfn_col_embedding.pt"
-            )
-            download_url(
-                url=url,
-                folder=model_dir,
-                filename=PREGENERATED_COLUMN_EMBEDDINGS_FILENAME,
-            )
-            print(f"Downloaded successfully from {url}")
-        except Exception as e:  # noqa: BLE001
-            print(
-                "Optional companion file was not downloaded: "
-                f"{PREGENERATED_COLUMN_EMBEDDINGS_FILENAME}. "
-                "The checkpoint download itself succeeded. "
-                f"Error: {e}"
-            )
+        url = (
+            "https://raw.githubusercontent.com/PriorLabs/TabPFN/main/"
+            "src/tabpfn/architectures/shared/tabpfn_col_embedding.pt"
+        )
+        download_url(
+            url=url,
+            folder=model_dir,
+            filename=PREGENERATED_COLUMN_EMBEDDINGS_FILENAME,
+        )
+        print(f"Downloaded successfully from {url}")
 
     # Load the model from checkpoint
     loaded_model, config, criterion = load_model(
         path=Path(model_path),
         model_type=model_type,
-        version=version,
-        strict_version_match=strict_version_match,
     )
     loaded_model.cache_trainset_representation = False
     return loaded_model, config, criterion

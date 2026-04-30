@@ -13,7 +13,12 @@ def gqa_is_supported() -> bool:
     if not torch.cuda.is_available():
         return False
 
-    has_enable_gqa = torch.__version__ >= "2.5"
+    version_parts = torch.__version__.split("+", maxsplit=1)[0].split(".")
+    major = int(version_parts[0]) if version_parts and version_parts[0].isdigit() else 0
+    minor_token = version_parts[1] if len(version_parts) > 1 else "0"
+    minor_digits = "".join(ch for ch in minor_token if ch.isdigit())
+    minor = int(minor_digits) if minor_digits else 0
+    has_enable_gqa = (major, minor) >= (2, 5)
     if not has_enable_gqa:
         return False
 

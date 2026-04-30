@@ -117,7 +117,7 @@ def make_standard_scaler_safe(
     """
     return Pipeline(
         steps=[
-            *[(n + "_pre ", deepcopy(t)) for n, t in _make_finite_transformer],
+            *[(n + "_pre", deepcopy(t)) for n, t in _make_finite_transformer],
             ("placeholder", _name_scaler_tuple) if no_name else _name_scaler_tuple,
             *[(n + "_post", deepcopy(t)) for n, t in _make_finite_transformer],
         ],

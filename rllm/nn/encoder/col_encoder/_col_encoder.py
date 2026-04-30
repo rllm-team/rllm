@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from typing import Dict, List, Optional, Union
 from abc import ABC, abstractmethod
 
@@ -92,10 +93,23 @@ class ColEncoder(torch.nn.Module, ABC):
 
         # Main encoding into column embeddings. Some encoders accept extra context
         # kwargs like single_eval_pos; older encoders only accept feat.
-        try:
+        encode_forward_signature = inspect.signature(self.encode_forward)
+        encode_forward_params = encode_forward_signature.parameters
+        accepts_var_kwargs = any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in encode_forward_params.values()
+        )
+        if accepts_var_kwargs:
             x = self.encode_forward(feat, **kwargs)
-        except TypeError:
-            x = self.encode_forward(feat)
+        else:
+            accepted_kwargs = {
+                key: value
+                for key, value in kwargs.items()
+                if key in encode_forward_params
+                and encode_forward_params[key].kind
+                in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}
+            }
+            x = self.encode_forward(feat, **accepted_kwargs)
         if not self.preserve_invalid_values:
             x = torch.nan_to_num(x, nan=0)
         # Apply post module if specified
