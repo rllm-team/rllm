@@ -28,11 +28,10 @@ def filter_edge_store_(
         if key == 'edge_index':
             edge_index = torch.stack([row, col], dim=0).to(value.device)
             out_store.edge_index = edge_index
+        elif isinstance(value, Tensor) and value.size(0) == store.num_edges:
+            out_store[key] = value[perm] if perm is not None else value
         else:
-            raise NotImplementedError(
-                f"Edge attribute key: {key} type: {type(value)} not supported."
-                "For now, edge attributes other than edge_index are not supported."
-            )
+            pass
 
 
 def index_select(

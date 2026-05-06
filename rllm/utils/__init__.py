@@ -17,8 +17,7 @@ from .graph_utils import (
     adj_to_edge_index,
     sort_edge_index,
     index_to_ptr,
-    _to_csc,
-    convert_hdata_to_csc,
+    _to_csc
 )
 
 from ._sort import lexsort
@@ -47,5 +46,4 @@ __all__ = [
     "remap_keys",
     "CastMixin",
     "get_atomic_routes",
-    "convert_hdata_to_csc",
 ]

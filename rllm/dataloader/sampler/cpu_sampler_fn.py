@@ -112,8 +112,6 @@ def _sample_one_hop(
     csc: bool,
 ) -> None:
     r"""Perform one hop of neighbor sampling across all edge types."""
-    dst_new_nodes: Dict[NodeType, List[Tuple[int, int]]] = {nt: [] for nt in node_types}
-
     for et in edge_types:
         if csc:
             src_type = et[2]
@@ -197,7 +195,6 @@ def _sample_one_hop(
                     dst_local_idx = len(sampled_nodes[dst_type])
                     sampled_nodes[dst_type].append(key)
                     node_index[dst_type][key] = dst_local_idx
-                    dst_new_nodes[dst_type].append(key)
 
                 row_out[et].append(src_local_idx)
                 col_out[et].append(dst_local_idx)
