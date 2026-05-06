@@ -11,8 +11,9 @@ from rllm.dataloader.sampler.data_type import (
     HeteroSamplerOutput,
     NumNeighbors,
 )
-from rllm.utils import remap_keys, convert_hdata_to_csc
+from rllm.utils import remap_keys
 import rllm.utils._pyglib
+from .utils import convert_hdata_to_csc
 
 
 class HeteroSampler:
