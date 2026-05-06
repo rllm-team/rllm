@@ -5,16 +5,13 @@ import torch
 from torch import Tensor
 
 from rllm.data import HeteroGraphData
-from rllm.dataloader.sampler.utils import (
-    convert_hdata_to_csc,
-    hetero_neighbor_sample_cpu,
-)
+from rllm.dataloader.sampler.cpu_sampler_fn import hetero_neighbor_sample_cpu
 from rllm.dataloader.sampler.data_type import (
     NodeSamplerInput,
     HeteroSamplerOutput,
     NumNeighbors,
 )
-from rllm.utils import remap_keys
+from rllm.utils import remap_keys, convert_hdata_to_csc
 import rllm.utils._pyglib
 
 
