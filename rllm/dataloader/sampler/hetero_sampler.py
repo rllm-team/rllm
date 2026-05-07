@@ -257,7 +257,7 @@ class HeteroSampler:
                 col_dict,
                 node_id_dict,
                 batch_dict,
-                edge_id_dict,
+                _,
                 num_sampled_nodes_per_hop,
                 num_edges_per_hop,
             ) = hetero_neighbor_sample_cpu(
@@ -281,6 +281,5 @@ class HeteroSampler:
                 num_sampled_edges=num_edges_per_hop,
                 original_row=None,
                 original_col=None,
-                edge_permutation=edge_id_dict,
                 metadata=None,
             )
