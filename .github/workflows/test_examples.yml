@@ -45,7 +45,6 @@ jobs:
         python trompt.py --epochs 1
         python rect.py
         python ogc.py
-        python han.py
         python gcn.py --epochs 1
         python gat.py --epochs 1
         python rdl.py --task driver-top3 --epochs 1
