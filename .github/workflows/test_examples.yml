@@ -54,3 +54,4 @@ jobs:
         python bridge/bridge.py --dataset tml1m --epochs 1
         python transtab/transtab.py --epochs 1
         python transtab/transtab_transfer.py --pre_epochs 1 --finetune_epochs 1
+# remove han.py for the dataset url is not avaiable now.
