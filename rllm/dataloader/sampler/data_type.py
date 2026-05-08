@@ -147,7 +147,7 @@ class HeteroSamplerOutput(CastMixin):
 
                 if len(src_dst_dict[(dst, src)]) == 1:
                     rev_edge_type = src_dst_dict[(dst, src)][0]
-                    row, col, _ = to_bidirectional(
+                    row, col = to_bidirectional(
                         row=self.row[edge_type],
                         col=self.col[edge_type],
                         rev_row=self.row[rev_edge_type],

@@ -17,7 +17,7 @@ from .graph_utils import (
     adj_to_edge_index,
     sort_edge_index,
     index_to_ptr,
-    _to_csc,
+    _to_csc
 )
 
 from ._sort import lexsort

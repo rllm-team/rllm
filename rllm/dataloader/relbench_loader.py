@@ -4,10 +4,11 @@ from typing import Optional, List, Tuple, Callable, Union, Dict
 import torch
 from torch import Tensor
 
-from rllm.data import HeteroGraphData, NodeStorage, TableData
+from rllm.data import HeteroGraphData
 from rllm.datasets import RelBenchDataset, RelBenchTask, RelBenchTaskType
 from rllm.dataloader.sampler import NodeSamplerInput, HeteroSamplerOutput, HeteroSampler
 from rllm.utils.col_process import timecol_to_unix_time
+from rllm.utils.filter_storage import filter_node_store_, filter_edge_store_
 
 
 class AttachTargetTransform:
@@ -261,7 +262,7 @@ class RelbenchLoader(torch.utils.data.DataLoader):
             if node_type not in node_dict:
                 node_dict[node_type] = torch.empty(0, dtype=torch.long)
 
-            self.filter_node_store_(
+            filter_node_store_(
                 data[node_type],
                 out[node_type],
                 node_dict[node_type]
@@ -274,7 +275,7 @@ class RelbenchLoader(torch.utils.data.DataLoader):
             if edge_type not in col_dict:
                 col_dict[edge_type] = torch.empty(0, dtype=torch.long)
 
-            self.filter_edge_store_(
+            filter_edge_store_(
                 data[edge_type],
                 out[edge_type],
                 row_dict[edge_type],
@@ -283,90 +284,3 @@ class RelbenchLoader(torch.utils.data.DataLoader):
             )
 
         return out
-
-    @staticmethod
-    def filter_edge_store_(
-        store: NodeStorage,
-        out_store: NodeStorage,
-        row: Tensor,
-        col: Tensor,
-        perm: Optional[Tensor] = None
-    ):
-        r"""Filter an edge storage to only hold the sampled edges
-        represented by :obj:`(row, col)`.
-
-        Args:
-            store (NodeStorage): The source edge storage.
-            out_store (NodeStorage): The output edge storage to write into.
-            row (Tensor): Source node indices of sampled edges.
-            col (Tensor): Destination node indices of sampled edges.
-            perm (Tensor, optional): Edge permutation indices.
-                (default: :obj:`None`)
-        """
-        for key, value in store.items():
-            if key == 'edge_index':
-                edge_index = torch.stack([row, col], dim=0).to(value.device)
-                out_store.edge_index = edge_index
-            else:
-                raise NotImplementedError(
-                    f"Edge attribute key: {key} type: {type(value)} not supported."
-                    "For now, edge attributes other than edge_index are not supported."
-                )
-
-    @staticmethod
-    def filter_node_store_(
-        store: NodeStorage,
-        out_store: NodeStorage,
-        index: Tensor
-    ):
-        r"""Filter a node storage to only hold the nodes given by :obj:`index`.
-
-        Args:
-            store (NodeStorage): The source node storage.
-            out_store (NodeStorage): The output node storage to write into.
-            index (Tensor): The 1-D tensor of node indices to keep.
-        """
-        for key, value in store.items():
-            if key == 'num_nodes':
-                out_store.num_nodes = index.numel()
-
-            elif store.is_node_attr(key):
-                if isinstance(value, TableData):
-                    out_store[key] = RelbenchLoader.index_select(value, index)
-                elif isinstance(value, Tensor):
-                    # For now, hardcode for `time` tensor in Pkey-fkey graph.
-                    assert value.dim() == 1, f"Tensor should be 1-D, but {value.dim()} found."
-                    out_store[key] = value[index]
-                else:
-                    raise NotImplementedError(
-                        f"Node attribute type {type(value)} not supported."
-                    )
-
-    @staticmethod
-    def index_select(
-        value: TableData,
-        index: Tensor,
-        dim: int = 0,
-    ) -> Tensor:
-        r"""Index the :obj:`value` table along dimension :obj:`dim` using
-        the entries in :obj:`index`.
-
-        Args:
-            value (TableData): The input table.
-            index (Tensor): The 1-D tensor containing the indices to select.
-            dim (int, optional): The dimension along which to index.
-                (default: :obj:`0`)
-
-        Returns:
-            TableData: The indexed sub-table.
-        """
-        index = index.to(torch.int64)
-
-        if isinstance(value, TableData):
-            assert dim == 0
-            # only slice feature_dict, other attributes
-            # like df will be shallow copied.
-            return value[index]
-
-        raise ValueError(f"Encountered invalid feature tensor type "
-                        f"(got '{type(value)}')")
