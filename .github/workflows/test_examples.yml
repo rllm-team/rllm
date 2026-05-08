@@ -45,6 +45,7 @@ jobs:
         python trompt.py --epochs 1
         python rect.py
         python ogc.py
+        python han.py
         python gcn.py --epochs 1
         python gat.py --epochs 1
         python rdl.py --task driver-top3 --epochs 1
@@ -54,4 +55,3 @@ jobs:
         python bridge/bridge.py --dataset tml1m --epochs 1
         python transtab/transtab.py --epochs 1
         python transtab/transtab_transfer.py --pre_epochs 1 --finetune_epochs 1
-# remove han.py for the dataset url is not avaiable now.
