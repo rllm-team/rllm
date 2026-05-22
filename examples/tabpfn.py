@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # The TabPFN method from the
 # "Accurate predictions on small data with a tabular foundation model" paper.
 # https://www.nature.com/articles/s41586-024-08328-6
@@ -17,7 +16,6 @@ import sys
 
 import numpy as np
 import torch
-from sklearn.metrics import accuracy_score
 
 sys.path.append("./")
 sys.path.append("../")
@@ -81,14 +79,9 @@ model_path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "checkpoint", "
 model = TabPFN(
     model_dir=model_path,
     model_type="clf",
-    model_id=0,
     static_seed=args.seed,
     n_estimators=args.n_estimators,
     metadata=data.metadata,
-    enable_flash_attention=False,
-    inference_batch_size=4096,
-    inference_precision=torch.float32,
-    strict_version_match=True,
 )
 model = model.to(device)
 
@@ -98,4 +91,6 @@ model.fit(x_train, y_train, cat_ix=cat_indx, random_state=args.seed)
 print("Predicting...")
 proba = model.predict_proba(x_test)
 pred = np.argmax(proba, axis=1)
-print("Accuracy:", accuracy_score(y_test, pred))
+y_true = y_test.detach().cpu().numpy().reshape(-1)
+acc = float(np.mean(pred == y_true))
+print("Accuracy:", acc)

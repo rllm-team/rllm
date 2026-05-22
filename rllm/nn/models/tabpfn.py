@@ -54,7 +54,6 @@ class TabPFN(torch.nn.Module):
         model_dir (str): Directory containing the TabPFN checkpoint files.
         model_type (str): Task type, either ``"clf"`` for classification or
             ``"reg"`` for regression. Default: ``"clf"``.
-        model_id (int): Model ID to load. Default: ``0``.
         static_seed (int): Stored for API compatibility with earlier wrappers.
             Default: ``0``.
         n_estimators (int): Number of ensemble estimators. Default: ``4``.
@@ -85,15 +84,12 @@ class TabPFN(torch.nn.Module):
             or ``torch.float64`` to force input/model arithmetic precision, ``"auto"``
             to enable PyTorch autocast on supported non-CPU devices, or
             ``"autocast"`` to require autocast support. Default: ``torch.float32``.
-        strict_version_match (bool): Whether checkpoint/runtime version
-            mismatches should raise an error. Default: ``True``.
     """
 
     def __init__(
         self,
         model_dir: str,
         model_type: Literal["clf", "reg"] = "clf",
-        model_id: int = 0,
         static_seed: int = 0,
         n_estimators: int = 4,
         subsample_size: int | None = None,
@@ -108,14 +104,12 @@ class TabPFN(torch.nn.Module):
         enable_flash_attention: bool = False,
         inference_batch_size: int = 4096,
         inference_precision: InferencePrecision = torch.float32,
-        strict_version_match: bool = True,
     ):
         super().__init__()
 
         # Store hyperparameters
         self.model_dir = model_dir
         self.model_type = model_type
-        self.model_id = model_id
         self.static_seed = static_seed
         self.n_estimators = n_estimators
         self.add_fingerprint_feature = add_fingerprint_feature
@@ -128,7 +122,6 @@ class TabPFN(torch.nn.Module):
         self.inference_precision = inference_precision
         self.use_autocast_ = False
         self.forced_inference_dtype_: torch.dtype | None = torch.float32
-        self.strict_version_match = bool(strict_version_match)
         self.model_version = version
         self.enable_flash_attention = bool(enable_flash_attention)
         if polynomial_features == "no" and model_type == "reg" and version == "v2_6":
