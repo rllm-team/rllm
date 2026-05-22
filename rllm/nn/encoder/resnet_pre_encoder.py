@@ -40,10 +40,10 @@ class ResNetPreEncoder(TablePreEncoder):
     ) -> None:
         # Select one col-encoder per column type.
         col_encoder_dict = {
-            ColType.CATEGORICAL: EmbeddingEncoder(),
-            ColType.NUMERICAL: LinearEncoder(),
-            ColType.TIMESTAMP: TimestampEncoder(),
-            ColType.TEXT: TextEmbeddingEncoder(),
+            ColType.CATEGORICAL: [EmbeddingEncoder()],
+            ColType.NUMERICAL: [LinearEncoder()],
+            ColType.TIMESTAMP: [TimestampEncoder()],
+            ColType.TEXT: [TextEmbeddingEncoder()],
         }
 
         super().__init__(out_dim, metadata, col_encoder_dict)

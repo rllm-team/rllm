@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from typing import Dict, List, Optional, Union
 from abc import ABC, abstractmethod
 
@@ -49,7 +50,8 @@ class ColEncoder(torch.nn.Module, ABC):
         self,
         out_dim: Optional[int] = None,
         stats_list: Optional[List[Dict[StatType]]] = None,
-        post_module: Union[torch.nn.Module, torch.nn.Sequential] = None,
+        post_module: Optional[Union[torch.nn.Module, torch.nn.Sequential]] = None,
+        preserve_invalid_values: bool = False,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""
@@ -58,6 +60,21 @@ class ColEncoder(torch.nn.Module, ABC):
         self.out_dim = out_dim
         self.stats_list = stats_list
         self.post_module = post_module
+        self.preserve_invalid_values = preserve_invalid_values
+        encode_forward_params = inspect.signature(self.encode_forward).parameters
+        self._accepts_var_kwargs = any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in encode_forward_params.values()
+        )
+        self._accepted_keys = {
+            name
+            for name, parameter in encode_forward_params.items()
+            if parameter.kind
+            in {
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            }
+        }
 
     @abstractmethod
     def post_init(self):
@@ -77,6 +94,7 @@ class ColEncoder(torch.nn.Module, ABC):
         self,
         feat: Tensor,
         col_names: Optional[List[str]] = None,
+        **kwargs: object,
     ) -> Tensor:
         if col_names is not None:
             num_cols = feat.shape[1]
@@ -87,10 +105,20 @@ class ColEncoder(torch.nn.Module, ABC):
                     f"{len(col_names)}, respectively.)"
                 )
 
-        # Main encoding into column embeddings
-        x = self.encode_forward(feat)
-        # Handle NaN in case na_mode is None
-        x = torch.nan_to_num(x, nan=0)
+        # Main encoding into column embeddings. Some encoders accept extra context
+        # kwargs like single_eval_pos; older encoders only accept feat.
+        if self._accepts_var_kwargs:
+            x = self.encode_forward(feat, **kwargs)
+        else:
+            accepted_kwargs = {
+                key: value
+                for key, value in kwargs.items()
+                if key in self._accepted_keys
+            }
+            x = self.encode_forward(feat, **accepted_kwargs)
+
+        if not self.preserve_invalid_values:
+            x = torch.nan_to_num(x, nan=0)
         # Apply post module if specified
         if self.post_module is not None:
             x = self.post_module(x)
@@ -100,6 +128,7 @@ class ColEncoder(torch.nn.Module, ABC):
     def encode_forward(
         self,
         feat: Tensor,
+        **kwargs: object,
     ) -> Tensor:
         r"""The main forward function. Maps input :obj:`feat` from feat_dict
         (shape [batch_size, num_cols]) into output :obj:`x` of shape

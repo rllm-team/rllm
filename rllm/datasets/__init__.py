@@ -1,6 +1,7 @@
 from .adult import Adult
 from .bank_marketing import BankMarketing
 from .churn_modelling import ChurnModelling
+from .california_housing import CaliforniaHousing
 from .dblp import DBLP
 from .imdb import IMDB
 from .jannis import Jannis
@@ -29,6 +30,7 @@ __all__ = [
     "Adult",
     "BankMarketing",
     "ChurnModelling",
+    "CaliforniaHousing",
     "DBLP",
     "IMDB",
     "Jannis",

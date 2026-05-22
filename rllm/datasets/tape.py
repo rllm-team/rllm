@@ -215,7 +215,7 @@ class TAPEDataset(Dataset):
         path_llm = download_url(
             self.urls["LLM responses"][self.name], self.raw_dir, f"{self.name}.zip"
         )
-        path_preds = download_url(  # noqa
+        download_url(
             self.urls["GPT predictions"][self.name], self.raw_dir, f"{self.name}.csv"
         )
 

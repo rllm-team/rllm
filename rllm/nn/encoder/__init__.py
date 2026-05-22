@@ -5,6 +5,11 @@ from .transtab_pre_encoder import TransTabPreEncoder
 from .resnet_pre_encoder import ResNetPreEncoder
 from .trompt_pre_encoder import TromptPreEncoder
 from .heterotemporal_encoder import HeteroTemporalEncoder
+from .tabpfn_pre_encoder import (
+    TabPFNPreEncoder,
+    TabPFNXPreEncoder,
+    TabPFNYPreEncoder,
+)
 
 
 __all__ = [
@@ -16,6 +21,9 @@ __all__ = [
     "TransTabPreEncoder",
     "ResNetPreEncoder",
     "TromptPreEncoder",
+    "TabPFNPreEncoder",
+    "TabPFNXPreEncoder",
+    "TabPFNYPreEncoder",
     # Additional Encoder
     "HeteroTemporalEncoder",
 ]
