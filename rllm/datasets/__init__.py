@@ -1,5 +1,6 @@
-from importlib import import_module
 from typing import TYPE_CHECKING
+
+from rllm.utils.lazy_imports import define_lazy_imports
 
 
 if TYPE_CHECKING:
@@ -99,27 +100,8 @@ _LAZY_MODULES = {
     ),
 }
 
-__all__ = [
-    name
-    for names in _LAZY_MODULES.values()
-    for name in names
-]
-
-_LAZY_ATTRS = {
-    name: module_name
-    for module_name, names in _LAZY_MODULES.items()
-    for name in names
-}
-
-
-def __getattr__(name):
-    if name in _LAZY_ATTRS:
-        module = import_module(_LAZY_ATTRS[name])
-        value = getattr(module, name)
-        globals()[name] = value
-        return value
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
-def __dir__():
-    return sorted(set(globals()) | set(__all__))
+__all__, __getattr__, __dir__ = define_lazy_imports(
+    __name__,
+    globals(),
+    _LAZY_MODULES,
+)
