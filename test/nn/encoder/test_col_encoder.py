@@ -15,7 +15,7 @@ import pandas as pd
 
 import torch
 
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 from rllm.data.table_data import TableData
 from rllm.nn.encoder.col_encoder._embedding_encoder import EmbeddingEncoder
 from rllm.nn.encoder.col_encoder._reshape_encoder import ReshapeEncoder
@@ -42,7 +42,13 @@ def test_reshape_encoder():
     }
     dataset = TableData(df, col_types, target_col="cat_3")
 
-    encoder = ReshapeEncoder()
+    encoder = ReshapeEncoder(
+        stats_list=[
+            {StatType.MEAN: 0.0, StatType.STD: 1.0},
+            {StatType.MEAN: 0.0, StatType.STD: 1.0},
+        ],
+        need_layer_norm=False,
+    )
     encoder.post_init()
 
     x_num = dataset.get_feat_dict()[ColType.NUMERICAL].clone()

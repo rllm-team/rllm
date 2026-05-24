@@ -147,6 +147,26 @@ def standardize_tokenizer_output(
             t = t.unsqueeze(0)
         return t
 
+    def _is_sequence_of_scalars(x) -> bool:
+        return (
+            isinstance(x, (list, tuple, np.ndarray))
+            and not torch.is_tensor(x)
+            and all(not isinstance(v, (list, tuple, np.ndarray)) for v in x)
+        )
+
+    def _is_explicit_ids_mask_pair(x) -> bool:
+        if not isinstance(x, (tuple, list)) or len(x) != 2:
+            return False
+        if isinstance(x, tuple):
+            return True
+        first, second = x
+        if hasattr(first, "input_ids"):
+            return False
+        return not (
+            _is_sequence_of_scalars(first)
+            and _is_sequence_of_scalars(second)
+        )
+
     input_ids, attention_mask = None, None
     # 1) Mapping (e.g., BatchEncoding)
     if isinstance(tok_output, Mapping) and ("input_ids" in tok_output):
@@ -156,16 +176,18 @@ def standardize_tokenizer_output(
     elif isinstance(tok_output, (tuple, list)) and len(tok_output) > 0:
         first_item = tok_output[0]
         # 2a) explicit (ids, mask)
-        if len(tok_output) == 2 and not hasattr(first_item, "input_ids"):
+        if _is_explicit_ids_mask_pair(tok_output):
             input_ids, attention_mask = tok_output[0], tok_output[1]
         else:
             # 2b) list[Encoding]
             if hasattr(first_item, "input_ids"):
                 input_ids = [enc.input_ids for enc in tok_output]
-                attention_mask = [
-                    getattr(enc, "attention_mask", [1] * len(enc.input_ids))
-                    for enc in tok_output
-                ]
+                attention_mask = []
+                for enc in tok_output:
+                    mask = getattr(enc, "attention_mask", None)
+                    if mask is None:
+                        mask = [1] * len(enc.input_ids)
+                    attention_mask.append(mask)
             else:
                 # 2c) treat as list[list[int]]
                 input_ids, attention_mask = tok_output, None
