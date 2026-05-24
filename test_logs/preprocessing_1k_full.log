@@ -1,0 +1,58 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.21, pytest-8.4.2, pluggy-1.6.0 -- /home/pfy/.conda/envs/lake/bin/python
+cachedir: .pytest_cache
+rootdir: /home/pfy/rllm-main/rllm-main
+plugins: anyio-4.12.1
+collecting ... collected 17 items
+
+test/preprocessing/test_preprocessing_1k.py::test_fillna_numerical_strategies_and_errors PASSED [  5%]
+test/preprocessing/test_preprocessing_1k.py::test_fillna_timestamp_strategies_and_errors FAILED [ 11%]
+test/preprocessing/test_preprocessing_1k.py::test_fillna_by_coltype_dispatches_expected_defaults PASSED [ 17%]
+test/preprocessing/test_preprocessing_1k.py::test_fillna_individual_column_types PASSED [ 23%]
+test/preprocessing/test_preprocessing_1k.py::test_to_numeric_by_column_cleans_common_formats PASSED [ 29%]
+test/preprocessing/test_preprocessing_1k.py::test_encode_categorical_preserves_missing_as_minus_one PASSED [ 35%]
+test/preprocessing/test_preprocessing_1k.py::test_convert_binary_is_case_insensitive_and_defaults_unknown_to_zero PASSED [ 41%]
+test/preprocessing/test_preprocessing_1k.py::test_dict_to_df_reconstructs_requested_columns_in_type_order PASSED [ 47%]
+test/preprocessing/test_preprocessing_1k.py::test_timestamp_preprocessor_default_custom_and_invalid_fields PASSED [ 52%]
+test/preprocessing/test_preprocessing_1k.py::test_standardize_tokenizer_output_handles_supported_shapes FAILED [ 58%]
+test/preprocessing/test_preprocessing_1k.py::test_tokenize_strings_batches_and_processes_column_names FAILED [ 64%]
+test/preprocessing/test_preprocessing_1k.py::test_tokenize_merged_cols_and_save_column_name_tokens PASSED [ 70%]
+test/preprocessing/test_preprocessing_1k.py::test_df_to_tensor_converts_core_column_types_and_target PASSED [ 76%]
+test/preprocessing/test_preprocessing_1k.py::test_df_to_tensor_tokenizes_text_columns_without_randomness PASSED [ 82%]
+test/preprocessing/test_preprocessing_1k.py::test_df_to_tensor_can_merge_multiple_text_columns PASSED [ 88%]
+test/preprocessing/test_preprocessing_1k.py::test_df_to_tensor_embeds_text_columns PASSED [ 94%]
+test/preprocessing/test_preprocessing_1k.py::test_embed_text_column_batches_and_df_to_tensor_concat_false PASSED [100%]
+
+=================================== FAILURES ===================================
+_________________ test_fillna_timestamp_strategies_and_errors __________________
+test/preprocessing/test_preprocessing_1k.py:69: in test_fillna_timestamp_strategies_and_errors
+    median_filled = fillna_timestamp(dates, strategy="median")
+rllm/preprocessing/_fillna.py:152: in fillna_timestamp
+    col_series.dtype.type(int(median_val))
+E   ValueError: Converting an integer to a NumPy datetime requires a specified unit
+__________ test_standardize_tokenizer_output_handles_supported_shapes __________
+test/preprocessing/test_preprocessing_1k.py:156: in test_standardize_tokenizer_output_handles_supported_shapes
+    ids, mask = standardize_tokenizer_output([EncodingLike([5, 6]), EncodingLike([7], [1])], pad_token_id=0)
+rllm/preprocessing/text_tokenize.py:185: in standardize_tokenizer_output
+    attention_mask = _ensure_batch_tensor(attention_mask).to(torch.long)
+rllm/preprocessing/text_tokenize.py:145: in _ensure_batch_tensor
+    t = x if torch.is_tensor(x) else torch.as_tensor(x)
+E   RuntimeError: Could not infer dtype of NoneType
+___________ test_tokenize_strings_batches_and_processes_column_names ___________
+test/preprocessing/test_preprocessing_1k.py:174: in test_tokenize_strings_batches_and_processes_column_names
+    assert ids.tolist() == [[1], [2], [3]]
+E   AssertionError: assert [[1], [3]] == [[1], [2], [3]]
+E     
+E     At index 1 diff: [3] != [2]
+E     Right contains one more item: [3]
+E     
+E     Full diff:
+E       [
+E           [...
+E     
+E     ...Full output truncated (9 lines hidden), use '-vv' to show
+=========================== short test summary info ============================
+FAILED test/preprocessing/test_preprocessing_1k.py::test_fillna_timestamp_strategies_and_errors
+FAILED test/preprocessing/test_preprocessing_1k.py::test_standardize_tokenizer_output_handles_supported_shapes
+FAILED test/preprocessing/test_preprocessing_1k.py::test_tokenize_strings_batches_and_processes_column_names
+========================= 3 failed, 14 passed in 2.63s =========================

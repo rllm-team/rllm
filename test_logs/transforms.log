@@ -1,0 +1,168 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.21, pytest-8.4.2, pluggy-1.6.0 -- /home/pfy/.conda/envs/lake/bin/python
+cachedir: .pytest_cache
+rootdir: /home/pfy/rllm-main/rllm-main
+plugins: anyio-4.12.1
+collecting ... collected 15 items
+
+test/transforms/test_transforms.py::test_add_and_remove_self_loops_dense_and_sparse PASSED [  6%]
+test/transforms/test_transforms.py::test_edge_transform_wrappers_apply_to_tensor_and_graphdata PASSED [ 13%]
+test/transforms/test_transforms.py::test_normalize_features_modes_and_wrapper FAILED [ 20%]
+test/transforms/test_transforms.py::test_svd_feature_reduction_function_and_wrapper PASSED [ 26%]
+test/transforms/test_transforms.py::test_symmetric_norm_gcn_norm_and_pipeline_transforms PASSED [ 33%]
+test/transforms/test_transforms.py::test_knn_graph_function_and_wrapper PASSED [ 40%]
+test/transforms/test_transforms.py::test_knn_graph_call_accepts_feature_matrix FAILED [ 46%]
+test/transforms/test_transforms.py::test_graph_transform_composes_single_and_list_inputs PASSED [ 53%]
+test/transforms/test_transforms.py::test_gdc_components_and_error_paths FAILED [ 60%]
+test/transforms/test_transforms.py::test_gdc_forward_supports_heat_diffusion_configuration FAILED [ 66%]
+test/transforms/test_transforms.py::test_na_mask_and_table_transform_missing_value_handling PASSED [ 73%]
+test/transforms/test_transforms.py::test_col_transforms_normalize_one_hot_and_stack PASSED [ 80%]
+test/transforms/test_transforms.py::test_tab_transformer_transform_current_reset_behavior_is_detected PASSED [ 86%]
+test/transforms/test_transforms.py::test_base_and_col_transform_are_shallow_copy_wrappers PASSED [ 93%]
+test/transforms/test_transforms.py::test_remove_training_classes_function_and_wrapper FAILED [100%]
+
+=================================== FAILURES ===================================
+__________________ test_normalize_features_modes_and_wrapper ___________________
+test/transforms/test_transforms.py:130: in test_normalize_features_modes_and_wrapper
+    assert l2_norm.tolist() == [5.0, pytest.approx(2 ** 0.5), 0.0]
+E   AssertionError: assert [5.0, 1.4142135381698608, 1.0] == [5.0, 1.41421... 1.4e-06, 0.0]
+E     
+E     At index 2 diff: 1.0 != 0.0
+E     
+E     Full diff:
+E       [
+E           5.0,
+E     -     1.4142135623730951 ± 1.4e-06,...
+E     
+E     ...Full output truncated (6 lines hidden), use '-vv' to show
+__________________ test_knn_graph_call_accepts_feature_matrix __________________
+test/transforms/test_transforms.py:182: in test_knn_graph_call_accepts_feature_matrix
+    adj = KNNGraph(num_neighbors=1, include_self=False)(x)
+rllm/transforms/graph_transforms/node_edge_transform.py:98: in __call__
+    assert data.size(0) == data.size(1)
+E   AssertionError
+_____________________ test_gdc_components_and_error_paths ______________________
+test/transforms/test_transforms.py:206: in test_gdc_components_and_error_paths
+    topk = gdc.sparsify_matrix(torch.tensor([[0.1, 0.9], [0.8, 0.2]]), method="topk", k=1, dim=1)
+rllm/transforms/graph_transforms/gdc.py:244: in sparsify_matrix
+    torch.stack([top_idx, col_idx.flatten()]), edge_weight, mx.size()
+E   RuntimeError: stack expects each tensor to be equal size, but got [2, 1] at entry 0 and [2] at entry 1
+____________ test_gdc_forward_supports_heat_diffusion_configuration ____________
+test/transforms/test_transforms.py:230: in test_gdc_forward_supports_heat_diffusion_configuration
+    out = gdc(adj)
+rllm/transforms/graph_transforms/node_edge_transform.py:99: in __call__
+    data = self.forward(data)
+../../.conda/envs/lake/lib/python3.9/site-packages/torch/utils/_contextlib.py:116: in decorate_context
+    return func(*args, **kwargs)
+rllm/transforms/graph_transforms/gdc.py:74: in forward
+    diff_matrix = self.diffusion_matrix(trans_matrix, **self.diffusion)
+rllm/transforms/graph_transforms/gdc.py:182: in diffusion_matrix
+    diff_matrix = diff_matrix.exp()
+E   NotImplementedError: Could not run 'aten::exp' with arguments from the 'SparseCPU' backend. This could be because the operator doesn't exist for this backend, or was omitted during the selective/custom build process (if using custom build). If you are a Facebook employee using PyTorch on mobile, please visit https://fburl.com/ptmfixes for possible resolutions. 'aten::exp' is only available for these backends: [CPU, CUDA, HIP, MPS, IPU, XPU, HPU, VE, MTIA, PrivateUse1, PrivateUse2, PrivateUse3, Meta, FPGA, MAIA, Vulkan, Metal, QuantizedCPU, QuantizedCUDA, QuantizedHIP, QuantizedMPS, QuantizedIPU, QuantizedXPU, QuantizedHPU, QuantizedVE, QuantizedMTIA, QuantizedPrivateUse1, QuantizedPrivateUse2, QuantizedPrivateUse3, QuantizedMeta, CustomRNGKeyId, MkldnnCPU, SparseCsrCPU, SparseCsrCUDA, SparseCsrHIP, SparseCsrMPS, SparseCsrIPU, SparseCsrXPU, SparseCsrHPU, SparseCsrVE, SparseCsrMTIA, SparseCsrPrivateUse1, SparseCsrPrivateUse2, SparseCsrPrivateUse3, SparseCsrMeta, BackendSelect, Python, FuncTorchDynamicLayerBackMode, Functionalize, Named, Conjugate, Negative, ZeroTensor, ADInplaceOrView, AutogradOther, AutogradCPU, AutogradCUDA, AutogradHIP, AutogradXLA, AutogradMPS, AutogradIPU, AutogradXPU, AutogradHPU, AutogradVE, AutogradLazy, AutogradMTIA, AutogradPrivateUse1, AutogradPrivateUse2, AutogradPrivateUse3, AutogradMeta, AutogradNestedTensor, Tracer, AutocastCPU, AutocastXPU, AutocastCUDA, FuncTorchBatched, BatchedNestedTensor, FuncTorchVmapMode, Batched, VmapMode, FuncTorchGradWrapper, PythonTLSSnapshot, FuncTorchDynamicLayerFrontMode, PreDispatch, PythonDispatcher].
+E   
+E   Undefined: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   CPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCPU.cpp:30455 [kernel]
+E   CUDA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCUDA.cpp:44681 [kernel]
+E   HIP: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   MPS: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   IPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   XPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   HPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   VE: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   MTIA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   PrivateUse1: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   PrivateUse2: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   PrivateUse3: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   Meta: registered at /dev/null:228 [kernel]
+E   FPGA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   MAIA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   Vulkan: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   Metal: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedCPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedCUDA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedHIP: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedMPS: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedIPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedXPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedHPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedVE: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedMTIA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedPrivateUse1: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedPrivateUse2: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedPrivateUse3: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   QuantizedMeta: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   CustomRNGKeyId: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   MkldnnCPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrCPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrCUDA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrHIP: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrMPS: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrIPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrXPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrHPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrVE: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrMTIA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrPrivateUse1: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrPrivateUse2: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrPrivateUse3: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   SparseCsrMeta: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/build/aten/src/ATen/RegisterCompositeExplicitAutogradNonFunctional.cpp:21612 [default backend kernel]
+E   BackendSelect: fallthrough registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/core/BackendSelectFallbackKernel.cpp:3 [backend fallback]
+E   Python: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/core/PythonFallbackKernel.cpp:153 [backend fallback]
+E   FuncTorchDynamicLayerBackMode: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/functorch/DynamicLayer.cpp:497 [backend fallback]
+E   Functionalize: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/FunctionalizeFallbackKernel.cpp:349 [backend fallback]
+E   Named: fallthrough registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/core/NamedRegistrations.cpp:11 [kernel]
+E   Conjugate: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/ConjugateFallback.cpp:17 [backend fallback]
+E   Negative: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/native/NegateFallback.cpp:18 [backend fallback]
+E   ZeroTensor: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/ZeroTensorFallback.cpp:86 [backend fallback]
+E   ADInplaceOrView: fallthrough registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/core/VariableFallbackKernel.cpp:86 [backend fallback]
+E   AutogradOther: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradCPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradCUDA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradHIP: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradXLA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradMPS: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradIPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradXPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradHPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradVE: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradLazy: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradMTIA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradPrivateUse1: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradPrivateUse2: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradPrivateUse3: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradMeta: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   AutogradNestedTensor: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/VariableType_2.cpp:19857 [autograd kernel]
+E   Tracer: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/torch/csrc/autograd/generated/TraceType_2.cpp:17623 [kernel]
+E   AutocastCPU: fallthrough registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/autocast_mode.cpp:209 [backend fallback]
+E   AutocastXPU: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/autocast_mode.cpp:355 [kernel]
+E   AutocastCUDA: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/autocast_mode.cpp:169 [kernel]
+E   FuncTorchBatched: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/functorch/BatchRulesUnaryOps.cpp:64 [kernel]
+E   BatchedNestedTensor: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/functorch/LegacyBatchingRegistrations.cpp:758 [backend fallback]
+E   FuncTorchVmapMode: fallthrough registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/functorch/VmapModeRegistrations.cpp:27 [backend fallback]
+E   Batched: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/LegacyBatchingRegistrations.cpp:1079 [kernel]
+E   VmapMode: fallthrough registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/VmapModeRegistrations.cpp:33 [backend fallback]
+E   FuncTorchGradWrapper: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/functorch/TensorWrapper.cpp:207 [backend fallback]
+E   PythonTLSSnapshot: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/core/PythonFallbackKernel.cpp:161 [backend fallback]
+E   FuncTorchDynamicLayerFrontMode: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/functorch/DynamicLayer.cpp:493 [backend fallback]
+E   PreDispatch: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/core/PythonFallbackKernel.cpp:165 [backend fallback]
+E   PythonDispatcher: registered at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/core/PythonFallbackKernel.cpp:157 [backend fallback]
+______________ test_remove_training_classes_function_and_wrapper _______________
+test/transforms/test_transforms.py:297: in test_remove_training_classes_function_and_wrapper
+    assert data.train_mask.tolist() == [True, True, True, False]
+E   AssertionError: assert [True, False, True, False] == [True, True, True, False]
+E     
+E     At index 1 diff: False != True
+E     
+E     Full diff:
+E       [
+E           True,
+E     -     True,...
+E     
+E     ...Full output truncated (4 lines hidden), use '-vv' to show
+=========================== short test summary info ============================
+FAILED test/transforms/test_transforms.py::test_normalize_features_modes_and_wrapper
+FAILED test/transforms/test_transforms.py::test_knn_graph_call_accepts_feature_matrix
+FAILED test/transforms/test_transforms.py::test_gdc_components_and_error_paths
+FAILED test/transforms/test_transforms.py::test_gdc_forward_supports_heat_diffusion_configuration
+FAILED test/transforms/test_transforms.py::test_remove_training_classes_function_and_wrapper
+========================= 5 failed, 10 passed in 3.16s =========================

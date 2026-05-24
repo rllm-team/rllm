@@ -1,0 +1,99 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.21, pytest-8.4.2, pluggy-1.6.0 -- /home/pfy/.conda/envs/lake/bin/python
+cachedir: .pytest_cache
+rootdir: /home/pfy/rllm-main/rllm-main
+plugins: anyio-4.12.1
+collecting ... collected 22 items
+
+test/data/test_graph_data.py::test_graph_data_mapping_properties_save_load_and_apply FAILED [  4%]
+test/data/test_graph_data.py::test_graph_data_num_nodes_fallbacks_and_errors PASSED [  9%]
+test/data/test_graph_data.py::test_graph_data_to_hetero_splits_nodes_edges_and_attrs PASSED [ 13%]
+test/data/test_graph_data.py::test_graph_data_to_hetero_rejects_edge_type_spanning_node_types PASSED [ 18%]
+test/data/test_graph_data.py::test_heterographdata_construction_access_collect_validate_and_copy PASSED [ 22%]
+test/data/test_graph_data.py::test_heterographdata_key_regulation_save_load_csc_and_set_value FAILED [ 27%]
+test/data/test_graph_data.py::test_heterographdata_validate_detects_invalid_edges PASSED [ 31%]
+test/data/test_graph_data.py::test_heterographdata_repr_and_adj_dict PASSED [ 36%]
+test/data/test_storage_view.py::test_mapping_views_filter_iteration_len_and_repr PASSED [ 40%]
+test/data/test_storage_view.py::test_base_storage_attribute_mapping_apply_copy_and_device_helpers PASSED [ 45%]
+test/data/test_storage_view.py::test_node_storage_num_nodes_and_node_attr_detection PASSED [ 50%]
+test/data/test_storage_view.py::test_edge_storage_num_edges_csc_and_edge_attr_detection FAILED [ 54%]
+test/data/test_storage_view.py::test_edge_storage_sparse_adj_and_missing_edge_error PASSED [ 59%]
+test/data/test_storage_view.py::test_edge_storage_list_edge_attr_is_detected PASSED [ 63%]
+test/data/test_storage_view.py::test_recursive_apply_nested_sequences_mappings_and_namedtuples PASSED [ 68%]
+test/data/test_table_data.py::test_table_data_materialize_slice_properties_and_copy PASSED [ 72%]
+test/data/test_table_data.py::test_table_data_get_feat_dict_dataset_dataloader_and_masks FAILED [ 77%]
+test/data/test_table_data.py::test_table_dataset_returns_feature_row_and_label PASSED [ 81%]
+test/data/test_table_data.py::test_table_data_shuffle_save_load_fkeys_and_removed_dataframe FAILED [ 86%]
+test/data/test_table_data.py::test_table_data_pkey_validation_and_table_type_inference PASSED [ 90%]
+test/data/test_table_data.py::test_text_embedding_and_tokenized_text_metadata_paths PASSED [ 95%]
+test/data/test_table_data.py::test_convert_text_coltypes_and_numeric_regression_task PASSED [100%]
+
+=================================== FAILURES ===================================
+____________ test_graph_data_mapping_properties_save_load_and_apply ____________
+test/data/test_graph_data.py:40: in test_graph_data_mapping_properties_save_load_and_apply
+    assert graph.x[0, 0].item() == 1.0
+E   assert 99.0 == 1.0
+E    +  where 99.0 = <built-in method item of Tensor object at 0x736c54db5040>()
+E    +    where <built-in method item of Tensor object at 0x736c54db5040> = tensor(99.).item
+_______ test_heterographdata_key_regulation_save_load_csc_and_set_value ________
+test/data/test_graph_data.py:135: in test_heterographdata_key_regulation_save_load_csc_and_set_value
+    colptr_d, row_d, perm_d = hetero.to_csc_dict(edge_time_d={("user", "rates", "item"): hetero["user", "rates", "item"].edge_time})
+rllm/data/graph_data.py:684: in to_csc_dict
+    out = store.to_csc(
+rllm/data/storage.py:323: in to_csc
+    return _to_csc(
+rllm/utils/graph_utils.py:270: in _to_csc
+    col_ptr = index_to_ptr(col, num_nodes)
+rllm/utils/graph_utils.py:190: in index_to_ptr
+    ptr[1:] = torch.bincount(index, minlength=num_nodes)
+E   RuntimeError: The expanded size of the tensor (2) must match the existing size (3) at non-singleton dimension 0.  Target sizes: [2].  Tensor sizes: [3]
+___________ test_edge_storage_num_edges_csc_and_edge_attr_detection ____________
+test/data/test_storage_view.py:69: in test_edge_storage_num_edges_csc_and_edge_attr_detection
+    assert storage.is_edge_attr("weight")
+rllm/data/storage.py:257: in is_edge_attr
+    isinstance(v, (list, tuple, "TableData"))  # avoid circular import
+E   TypeError: isinstance() arg 2 must be a type or tuple of types
+__________ test_table_data_get_feat_dict_dataset_dataloader_and_masks __________
+test/data/test_table_data.py:83: in test_table_data_get_feat_dict_dataset_dataloader_and_masks
+    assert middle_half[ColType.CATEGORICAL].shape == (2, 1)
+E   assert torch.Size([1, 1]) == (2, 1)
+E     
+E     At index 0 diff: 1 != 2
+E     
+E     Full diff:
+E     + torch.Size([1, 1])
+E     - (
+E     -     2,
+E     -     1,
+E     - )
+________ test_table_data_shuffle_save_load_fkeys_and_removed_dataframe _________
+test/data/test_table_data.py:132: in test_table_data_shuffle_save_load_fkeys_and_removed_dataframe
+    loaded = TableData.load(save_path)
+rllm/data/table_data.py:342: in load
+    return cls(**data)
+rllm/data/table_data.py:191: in __init__
+    self._unify_valid_pkey()
+rllm/data/table_data.py:253: in _unify_valid_pkey
+    assert self.pkey in self.df.columns, f"Pkey {self.pkey} is not in `df`."
+E   AssertionError: Pkey id is not in `df`.
+=============================== warnings summary ===============================
+test/data/test_graph_data.py::test_heterographdata_validate_detects_invalid_edges
+  /home/pfy/rllm-main/rllm-main/rllm/data/graph_data.py:597: UserWarning: `edge_index` of edge type ('src', 'bad', 'dst') needs to be positive, but found -1.
+    warn(
+
+test/data/test_graph_data.py::test_heterographdata_validate_detects_invalid_edges
+  /home/pfy/rllm-main/rllm-main/rllm/data/graph_data.py:604: UserWarning: src `edge_index` of edge type ('src', 'bad', 'dst') needs to be in range of number of src nodes 2, but found 2.
+    warn(
+
+test/data/test_storage_view.py::test_edge_storage_sparse_adj_and_missing_edge_error
+  /home/pfy/rllm-main/rllm-main/rllm/utils/graph_utils.py:238: UserWarning: Sparse CSR tensor support is in beta state. If you miss a functionality in the sparse tensor support, please submit a feature request to https://github.com/pytorch/pytorch/issues. (Triggered internally at /opt/conda/conda-bld/pytorch_1724789143830/work/aten/src/ATen/SparseCsrTensorImpl.cpp:53.)
+    csc_t: torch.sparse.Tensor = adj.to_sparse_csc()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED test/data/test_graph_data.py::test_graph_data_mapping_properties_save_load_and_apply
+FAILED test/data/test_graph_data.py::test_heterographdata_key_regulation_save_load_csc_and_set_value
+FAILED test/data/test_storage_view.py::test_edge_storage_num_edges_csc_and_edge_attr_detection
+FAILED test/data/test_table_data.py::test_table_data_get_feat_dict_dataset_dataloader_and_masks
+FAILED test/data/test_table_data.py::test_table_data_shuffle_save_load_fkeys_and_removed_dataframe
+=================== 5 failed, 17 passed, 3 warnings in 2.59s ===================

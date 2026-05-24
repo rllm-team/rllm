@@ -1,0 +1,32 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.21, pytest-8.4.2, pluggy-1.6.0 -- /home/pfy/.conda/envs/lake/bin/python
+cachedir: .pytest_cache
+rootdir: /home/pfy/rllm-main/rllm-main
+plugins: anyio-4.12.1
+collecting ... collected 14 items
+
+test/nn/encoder/test_col_encoder.py::test_reshape_encoder PASSED         [  7%]
+test/nn/encoder/test_col_encoder.py::test_embedding_encoder PASSED       [ 14%]
+test/nn/encoder/test_col_encoder.py::test_linear_encoder PASSED          [ 21%]
+test/nn/encoder/test_col_encoder_extra.py::test_positional_and_cyclic_encoders_shape_and_validation PASSED [ 28%]
+test/nn/encoder/test_col_encoder_extra.py::test_reshape_encoder_allows_default_optional_stats_list FAILED [ 35%]
+test/nn/encoder/test_col_encoder_extra.py::test_text_embedding_encoder_handles_each_column_independently PASSED [ 42%]
+test/nn/encoder/test_col_encoder_extra.py::test_timestamp_encoder_fills_nan_and_outputs_requested_dimension PASSED [ 50%]
+test/nn/encoder/test_col_encoder_extra.py::test_transtab_word_and_num_embedding_encoders PASSED [ 57%]
+test/nn/encoder/test_table_encoder.py::test_tab_transformer_table_encoder PASSED [ 64%]
+test/nn/encoder/test_table_encoder.py::test_ft_transformer_table_encoder PASSED [ 71%]
+test/nn/encoder/test_table_pre_encoder_extra.py::test_table_pre_encoder_validation_and_return_dict PASSED [ 78%]
+test/nn/encoder/test_table_pre_encoder_extra.py::test_trompt_pre_encoder_applies_post_modules PASSED [ 85%]
+test/nn/encoder/test_table_pre_encoder_extra.py::test_hetero_temporal_encoder_uses_relative_seed_times PASSED [ 92%]
+test/nn/encoder/test_table_pre_encoder_extra.py::test_transtab_pre_encoder_duplicate_columns_and_forward PASSED [100%]
+
+=================================== FAILURES ===================================
+___________ test_reshape_encoder_allows_default_optional_stats_list ____________
+test/nn/encoder/test_col_encoder_extra.py:36: in test_reshape_encoder_allows_default_optional_stats_list
+    encoder.post_init()
+rllm/nn/encoder/col_encoder/_reshape_encoder.py:54: in post_init
+    self.layernorm = torch.nn.LayerNorm(len(self.stats_list))
+E   TypeError: object of type 'NoneType' has no len()
+=========================== short test summary info ============================
+FAILED test/nn/encoder/test_col_encoder_extra.py::test_reshape_encoder_allows_default_optional_stats_list
+========================= 1 failed, 13 passed in 3.86s =========================
