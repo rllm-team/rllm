@@ -1,8 +1,10 @@
+import copy
 from functools import lru_cache
 from typing import Optional
 
 from torch import Tensor
 
+from rllm.data.graph_data import GraphData
 from rllm.transforms.graph_transforms import EdgeTransform
 from rllm.transforms.graph_transforms.functional import knn_graph
 
@@ -48,6 +50,17 @@ class KNNGraph(EdgeTransform):  # TODO: add force_undirected option.
         self.metric_params = metric_params
         self.include_self = include_self
         self.n_jobs = n_jobs
+
+    def __call__(self, data):
+        if isinstance(data, Tensor):
+            return self.forward(data)
+        if isinstance(data, GraphData):
+            data = copy.copy(data)
+            if getattr(data, "x", None) is None:
+                raise ValueError("`KNNGraph` requires `data.x` to exist.")
+            data.adj = self.forward(data.x)
+            return data
+        return super().__call__(data)
 
     @lru_cache()
     def forward(self, x: Tensor) -> Tensor:
