@@ -42,9 +42,6 @@ class BaseGraph:
 
     @property
     def device(self) -> torch.device:
-        if "_device" in self.__dict__:
-            return self.__dict__["_device"]
-
         for store in self.stores:
             for _, value in store.items():
                 if isinstance(value, Tensor):
@@ -57,19 +54,12 @@ class BaseGraph:
 
         return torch.device("cpu")
 
-    @device.setter
-    def device(self, value: Union[int, str, torch.device]):
-        if isinstance(value, int):
-            value = f"cuda:{value}"
-        self.__dict__["_device"] = torch.device(value)
-
     def clone(self, *args: str):
         r"""Performs cloning of tensors for the ones given in `*args`"""
         return copy.copy(self).apply(lambda x: x.clone(), *args)
 
     def to(self, device: Union[int, str], *args: str, non_blocking: bool = False):
         r"""Performs device conversion of the whole dataset."""
-        self.device = f"cuda:{device}" if isinstance(device, int) else device
         return self.apply(
             lambda x: x.to(device=device, non_blocking=non_blocking), *args
         )
