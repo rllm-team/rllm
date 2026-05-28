@@ -187,12 +187,13 @@ class ChatPromptTemplate(BasePromptTemplate):
         if metadata is None:
             metadata = {}
 
+        self.message_templates = message_templates
+
         template_vars = []
         for message_template in message_templates:
             template_vars.extend(get_template_vars(message_template.content or ""))
 
         super().__init__(
-            message_templates=message_templates,
             kwargs=kwargs,
             metadata=metadata,
             output_parser=output_parser,

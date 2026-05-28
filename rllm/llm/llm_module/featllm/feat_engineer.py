@@ -521,7 +521,7 @@ class FeatLLMEngineer:
             List[Dict[str, List[str]]]: List of parsed rules for each class.
         """
         total_rules = []
-        splitter = "onditions for class"
+        splitter = "conditions for class"
         for text in result_texts:
             splitted = text.split(splitter)
             if splitter not in text:
