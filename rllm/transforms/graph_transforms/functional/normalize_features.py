@@ -19,14 +19,14 @@ def normalize_features(X: Tensor, norm: str = "l2", return_norm: bool = False):
     elif norm == "l2":
         norms = LA.norm(X, dim=1, keepdim=True)
     elif norm == "sum":
-        X -= X.min()
+        X = X - X.min()
         norms = X.sum(dim=-1, keepdim=True)
     else:
         raise ValueError(
             f"Unsupported norm '{norm}'. Expected one of: 'l1', 'l2', 'sum'."
         )
 
-    X = X.div_(norms.clamp_(min=1.0))
+    X = X.div_(norms.clamp(min=1.0))
 
     if return_norm:
         norms = norms.squeeze(1)

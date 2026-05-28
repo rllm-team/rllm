@@ -27,6 +27,7 @@ from torch.utils.data import Dataset, DataLoader
 from rllm.types import ColType, TaskType, StatType, TableType
 from rllm.data.storage import BaseStorage
 from rllm.preprocessing import (
+    FillNAConfig,
     TokenizerConfig,
     TextEmbedderConfig,
     df_to_tensor,
@@ -165,6 +166,9 @@ class TableData(BaseTable):
         text_embedder_config: Optional[TextEmbedderConfig] = None,
         tokenizer_config: Optional[TokenizerConfig] = None,
         convert_text_coltypes: Optional[Set[ColType]] = None,
+        fillna_config: Optional[FillNAConfig] = None,
+        timestamp_format: Optional[str] = None,
+        timestamp_fields: Optional[Sequence[str]] = None,
         **kwargs,
     ):
         self._mapping = BaseStorage()
@@ -214,6 +218,9 @@ class TableData(BaseTable):
                 self._generate_feat_dict(
                     text_embedder_config=text_embedder_config,
                     tokenizer_config=tokenizer_config,
+                    fillna_config=fillna_config,
+                    timestamp_format=timestamp_format,
+                    timestamp_fields=timestamp_fields,
                 )
                 self._inherit_feat_dict = False
 
@@ -280,14 +287,34 @@ class TableData(BaseTable):
         self,
         keep_df: bool = True,
         text_embedder_config: Optional[TextEmbedderConfig] = None,
+        tokenizer_config: Optional[TokenizerConfig] = None,
+        fillna_config: Optional[FillNAConfig] = None,
+        timestamp_format: Optional[str] = None,
+        timestamp_fields: Optional[Sequence[str]] = None,
     ):
         r"""Materialize the `feat_dict` and `metadata`.
 
         Args:
             keep_df (bool, optional): Whether to keep the raw dataframe.
                 (default: :obj:`True`)
+            text_embedder_config (TextEmbedderConfig, optional): Config for
+                text embedding. (default: :obj:`None`)
+            tokenizer_config (TokenizerConfig, optional): Config for
+                tokenization. (default: :obj:`None`)
+            fillna_config (FillNAConfig, optional): Strategy for filling
+                missing values. (default: :obj:`None`)
+            timestamp_format (str, optional): Format string for parsing
+                TIMESTAMP columns. (default: :obj:`None`)
+            timestamp_fields (Sequence[str], optional): Time components to
+                extract from TIMESTAMP columns. (default: :obj:`None`)
         """
-        self._generate_feat_dict(text_embedder_config)
+        self._generate_feat_dict(
+            text_embedder_config=text_embedder_config,
+            tokenizer_config=tokenizer_config,
+            fillna_config=fillna_config,
+            timestamp_format=timestamp_format,
+            timestamp_fields=timestamp_fields,
+        )
         self._generate_metadata()
         self._len = next(iter(self.feat_dict.values())).size(0)
         if not keep_df:
@@ -637,15 +664,20 @@ class TableData(BaseTable):
         self,
         text_embedder_config: Optional[TextEmbedderConfig] = None,
         tokenizer_config: Optional[TokenizerConfig] = None,
+        fillna_config: Optional[FillNAConfig] = None,
+        timestamp_format: Optional[str] = None,
+        timestamp_fields: Optional[Sequence[str]] = None,
     ):
         r"""Get feat dict from single tabular dataset."""
-        # Convert df to tensor for each column, including target_col
         self.feat_dict, self.y = df_to_tensor(
             df=self.df,
             col_types=self.col_types,
             target_col=self.target_col,
             text_embedder_config=text_embedder_config,
             tokenizer_config=tokenizer_config,
+            fillna_config=fillna_config,
+            timestamp_format=timestamp_format,
+            timestamp_fields=timestamp_fields,
             concat=True,
         )
 

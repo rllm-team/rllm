@@ -44,7 +44,6 @@ class NodeTransform(ABC):
                     continue
                 store.x = self.forward(store.x)
         elif isinstance(data, Tensor):
-            assert data.size(0) == data.size(1)
             data = self.forward(data)
 
         return data

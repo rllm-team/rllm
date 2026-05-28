@@ -8,27 +8,16 @@ from rllm.nn.loss.contrastive_loss import ContrastiveLoss
 
 class SelfSupervisedVPCL(ContrastiveLoss):
     r"""
-    Self-Supervised Vertical-Partition Contrastive Loss (Self-VPCL).
+    The self-supervised vertical-partition contrastive loss (Self-VPCL)
+    implementation, based on the
+    `"TransTab: Learning Transferable Tabular Transformers Across Tables"
+    <https://arxiv.org/abs/2205.09328>`__ paper.
 
-    This loss was proposed in
-    *"TransTab: Learning Transferable Tabular Transformers Across Tables"*
-    (<https://arxiv.org/abs/2205.09328>),
-    as a self-supervised contrastive learning objective designed for tabular data.
-    It extends InfoNCE-style contrastive learning to vertically partitioned tables,
-    where each row is divided into multiple column subsets (partitions) treated as
-    distinct "views" of the same sample.
-
-    Positive pairs are formed between different partition embeddings derived from
-    the **same row**, while negative pairs are formed across different rows.
-    This formulation encourages consistency among embeddings of the same record
-    under different column subsets, without relying on labels.
-
-    Mathematical Formulation:
-
-    The self-supervised VPCL loss is defined as:
+    In this setting, each table row is split into multiple column partitions that
+    act as different views of the same sample. Positive pairs are formed across
+    partitions from the same row, while negatives are formed across rows.
 
     .. math::
-
         \ell(X) =
         - \sum_{i=1}^{B} \sum_{k=1}^{K} \sum_{k' \neq k}^{K}
         \log
@@ -39,29 +28,20 @@ class SelfSupervisedVPCL(ContrastiveLoss):
             \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_j^{k^{\dagger}})\big)
         } .
 
-    where:
+    where :math:`B` is batch size, :math:`K` is partition count per sample,
+    :math:`\mathbf{v}_i^k` is the partition embedding, and :math:`\psi` is
+    the configured similarity function.
 
-    - :math:`B`: batch size
-    - :math:`K`: number of column partitions per sample
-    - :math:`\mathbf{v}_i^{k}`: embedding of the :math:`k`-th partition of the :math:`i`-th row
-    - :math:`\psi(\cdot, \cdot)`: similarity function (e.g., cosine or dot-product similarity)
+    Args:
+        temperature (float): Temperature :math:`\tau` scaling logits.
+        base_temperature (float): Reference temperature :math:`\tau_0` used
+            in the final scaling factor :math:`\tau / \tau_0`.
+        similarity (str): Similarity metric, either ``"dot"`` or ``"cosine"``.
+        eps (float): Numerical stability constant.
 
-    This objective maximizes the agreement between partition embeddings of the same
-    record, while distinguishing them from embeddings belonging to other rows.
-
-    Input Shapes
-
-    - features: torch.Tensor of shape [B, K, D]
-        - :math:`B`: batch size
-        - :math:`K`: number of partitions per row
-        - :math:`D`: projection dimension
-
-    Args
-
-    - temperature (float): Temperature :math:`\tau` scaling the logits.
-    - base_temperature (float): Reference temperature :math:`\tau_0` used for final scaling :math:`\tau / \tau_0`.
-    - similarity (str): Similarity metric; "dot" for raw dot product, "cosine" for L2-normalized cosine similarity.
-    - eps (float): Numerical stability constant.
+    Shapes:
+        - **input:** partition embeddings :math:`(B, K, D)`
+        - **output:** scalar loss :math:`()`
 
     Example:
         >>> import torch
@@ -86,16 +66,22 @@ class SelfSupervisedVPCL(ContrastiveLoss):
         )
 
     def forward(self, features: torch.Tensor) -> torch.Tensor:
-        """
-        Compute self-supervised vertical-partition contrastive loss.
+        r"""Compute self-supervised vertical-partition contrastive loss.
 
         Args:
-            features (torch.Tensor): Tensor of shape [B, K, D], where
-                B is batch size, K is number of vertical partitions per row,
-                and D is the projection dimension.
+            features (torch.Tensor): Partition embeddings with shape
+                :math:`(B, K, D)`.
 
         Returns:
-            torch.Tensor: Scalar loss.
+            torch.Tensor: Scalar loss tensor with shape :math:`()`.
+
+        Example:
+            >>> import torch
+            >>> loss_fn = SelfSupervisedVPCL()
+            >>> feats = torch.randn(4, 2, 8)
+            >>> out = loss_fn(feats)
+            >>> out.shape
+            torch.Size([])
         """
         device = features.device
         batch_size, num_partitions, _ = features.shape
@@ -120,28 +106,16 @@ class SelfSupervisedVPCL(ContrastiveLoss):
 
 class SupervisedVPCL(ContrastiveLoss):
     r"""
-    Supervised Vertical-Partition Contrastive Loss (Supervised VPCL).
+    The supervised vertical-partition contrastive loss (Supervised-VPCL)
+    implementation, based on the
+    `"TransTab: Learning Transferable Tabular Transformers Across Tables"
+    <https://arxiv.org/abs/2205.09328>`__ paper.
 
-    This loss was proposed in
-    *"TransTab: Learning Transferable Tabular Transformers Across Tables"*
-    (<https://arxiv.org/abs/2205.09328>),
-    as a supervised contrastive learning objective tailored for tabular data.
-    It extends the InfoNCE formulation to vertically partitioned tables, where each
-    row is divided into multiple column subsets (partitions) that serve as distinct views.
-
-    Each partition embedding is trained to align with embeddings from samples of the
-    **same class label** while repelling embeddings from **different classes**.
-    Positive pairs are drawn across partitions from different samples that share
-    identical labels, and negatives are drawn from different labels.
-    This generalizes supervised contrastive learning (SupCon) to the
-    (row, partition) level.
-
-    Mathematical Formulation:
-
-    The supervised VPCL loss is defined as:
+    It extends supervised contrastive learning to vertically partitioned tabular
+    data. Positive pairs are built from partitions whose source rows share the
+    same class label, while rows from different labels serve as negatives.
 
     .. math::
-
         \ell(X, y) =
         - \sum_{i=1}^{B} \sum_{j=1}^{B} \sum_{k=1}^{K} \sum_{k'=1}^{K}
         \mathbf{1}\{y_j = y_i\}
@@ -154,43 +128,30 @@ class SupervisedVPCL(ContrastiveLoss):
             \exp\big(\psi(\mathbf{v}_i^{k}, \mathbf{v}_{j^{\dagger}}^{k^{\dagger}})\big)
         } .
 
-    where:
-
-    - :math:`B`: batch size
-    - :math:`K`: number of column partitions per sample
-    - :math:`\mathbf{v}_i^{k}`: embedding of the :math:`k`-th partition of the :math:`i`-th row
-    - :math:`\psi(\cdot, \cdot)`: similarity function (dot product or cosine similarity)
-    - :math:`\mathbf{1}\{\cdot\}`: indicator function
-    - :math:`y_i`: class label for the :math:`i`-th sample
-
-    The objective encourages alignment among embeddings belonging to the same class
-    while ensuring separability between embeddings of different classes.
-
-    Input Shapes:
-
-    - features: torch.Tensor of shape [B, K, D]
-        - :math:`B`: batch size
-        - :math:`K`: number of partitions per row
-        - :math:`D`: projection dimension
-    - labels: torch.Tensor of shape [B]
-        - Integer class label for each sample
+    where :math:`B` is batch size, :math:`K` is partition count per sample,
+    :math:`\mathbf{v}_i^k` is the partition embedding, and :math:`y_i` is
+    the class label for sample :math:`i`.
 
     Args:
+        temperature (float): Temperature :math:`\tau` scaling logits.
+        base_temperature (float): Reference temperature :math:`\tau_0` used
+            in the final scaling factor :math:`\tau / \tau_0`.
+        similarity (str): Similarity metric, either ``"dot"`` or ``"cosine"``.
+        eps (float): Numerical stability constant.
 
-    - temperature (float): Temperature :math:`\tau` scaling the logits.
-    - base_temperature (float): Reference temperature :math:`\tau_0`
-      used for final scaling :math:`\tau / \tau_0`.
-    - similarity (str): Similarity metric; "dot" for raw dot product,
-      "cosine" for L2-normalized cosine similarity.
-    - eps (float): Numerical stability constant.
+    Shapes:
+        - **input:**
+            partition embeddings :math:`(B, K, D)`
+            labels :math:`(B,)`
+        - **output:** scalar loss :math:`()`
 
-        Example:
-                >>> import torch
-                >>> loss_fn = SupervisedVPCL()
-                >>> feats = torch.randn(4, 2, 8)
-                >>> labels = torch.tensor([0, 1, 0, 1])
-                >>> loss_fn(feats, labels).ndim
-                0
+    Example:
+        >>> import torch
+        >>> loss_fn = SupervisedVPCL()
+        >>> feats = torch.randn(4, 2, 8)
+        >>> labels = torch.tensor([0, 1, 0, 1])
+        >>> loss_fn(feats, labels).shape
+        torch.Size([])
     """
 
     def __init__(
@@ -212,18 +173,24 @@ class SupervisedVPCL(ContrastiveLoss):
         features: torch.Tensor,
         labels: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        Compute supervised vertical-partition contrastive loss.
+        r"""Compute supervised vertical-partition contrastive loss.
 
         Args:
-            features (torch.Tensor): Tensor of shape [B, K, D], where
-                B is batch size, K is number of vertical partitions per row,
-                and D is the projection dimension.
-            labels (torch.Tensor): Tensor of shape [B], containing the
-                integer class label for each row in the batch.
+            features (torch.Tensor): Partition embeddings with shape
+                :math:`(B, K, D)`.
+            labels (torch.Tensor): Class labels with shape :math:`(B,)`.
 
         Returns:
-            torch.Tensor: Scalar loss.
+            torch.Tensor: Scalar loss tensor with shape :math:`()`.
+
+        Example:
+            >>> import torch
+            >>> loss_fn = SupervisedVPCL()
+            >>> feats = torch.randn(4, 2, 8)
+            >>> labels = torch.tensor([0, 1, 0, 1])
+            >>> out = loss_fn(feats, labels)
+            >>> out.shape
+            torch.Size([])
         """
         device = features.device
         batch_size, num_partitions, _ = features.shape

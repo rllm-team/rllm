@@ -1,9 +1,38 @@
+from dataclasses import dataclass
 from typing import Literal, Union
 
 import pandas as pd
 from pandas import Series
 
 from rllm.types import ColType
+
+
+@dataclass
+class FillNAConfig:
+    """Configuration for missing-value imputation by column type.
+    It centralizes fill strategies and fallback values for numerical,
+    categorical, text, and timestamp columns. These options are consumed by
+    :func:`fillna_by_coltype` and related helpers during preprocessing.
+
+    Args:
+        numerical_strategy (Literal["mean", "median", "mode", "constant"]):
+            Strategy for numerical columns.
+        numerical_fill_value (float): Constant fallback for numerical columns.
+        categorical_fill_value (Union[int, str]): Fill value for categorical
+            columns.
+        text_fill_value (str): Fill value for text columns.
+        timestamp_strategy (Literal["ffill", "bfill", "median", "constant"]):
+            Strategy for timestamp columns.
+        timestamp_fill_value: Constant fallback for timestamp columns when
+            ``timestamp_strategy="constant"``.
+    """
+
+    numerical_strategy: Literal["mean", "median", "mode", "constant"] = "mean"
+    numerical_fill_value: float = 0.0
+    categorical_fill_value: Union[int, str] = -1
+    text_fill_value: str = ""
+    timestamp_strategy: Literal["ffill", "bfill", "median", "constant"] = "ffill"
+    timestamp_fill_value: object = None
 
 
 def fillna_numerical(
@@ -170,7 +199,6 @@ def fillna_by_coltype(
 ) -> Series:
     """
     Fill missing values based on column type.
-
     Dispatches to the appropriate fill function according to ``col_type`` and
     forwards any extra keyword arguments to it.
 

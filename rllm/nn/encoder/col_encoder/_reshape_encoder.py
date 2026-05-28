@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import torch
 from torch import Tensor
@@ -42,7 +42,7 @@ class ReshapeEncoder(ColEncoder):
     def __init__(
         self,
         out_dim: int = 1,
-        stats_list: List[Dict[StatType, Any]] = None,
+        stats_list: Optional[List[Dict[StatType, Any]]] = None,
         post_module: torch.nn.Module = None,
         need_layer_norm: bool = True,
     ) -> None:
@@ -50,7 +50,9 @@ class ReshapeEncoder(ColEncoder):
         super().__init__(out_dim, stats_list, post_module)
 
     def post_init(self) -> None:
-        if self.need_layer_norm:
+        if not self.need_layer_norm:
+            return
+        if self.stats_list is not None:
             self.layernorm = torch.nn.LayerNorm(len(self.stats_list))
 
     def reset_parameters(self) -> None:
@@ -64,6 +66,13 @@ class ReshapeEncoder(ColEncoder):
     ) -> Tensor:
         # feat: [batch_size, num_cols]
         if self.need_layer_norm:
+            if not hasattr(self, "layernorm"):
+                dtype = feat.dtype if feat.is_floating_point() else torch.get_default_dtype()
+                self.layernorm = torch.nn.LayerNorm(feat.size(1)).to(
+                    device=feat.device,
+                    dtype=dtype,
+                )
+            feat = feat.to(dtype=self.layernorm.weight.dtype)
             feat = self.layernorm(feat)
         if feat.dim() != 3:
             feat = feat.unsqueeze(2)

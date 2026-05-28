@@ -181,7 +181,7 @@ def index_to_ptr(index: Tensor, num_nodes: Optional[int] = None) -> Tensor:
 
     Example:
         >>> index = torch.tensor([0, 1, 1, 2, 2, 3])
-        >>> index2ptr(index, 4)
+        >>> index_2_ptr(index, 4)
         tensor([0, 1, 3, 5, 6])
     """
     if num_nodes is None:

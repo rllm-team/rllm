@@ -43,7 +43,7 @@ Table Conv
 Pre-Encoder
 ----------------
 
-.. currentmodule:: rllm.nn.pre_encoder
+.. currentmodule:: rllm.nn.encoder
 
 .. autosummary::
    :nosignatures:

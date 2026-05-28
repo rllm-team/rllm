@@ -203,6 +203,20 @@ class GraphData(BaseGraph):
     def __len__(self):
         return len(self.x)
 
+    def __copy__(self):
+        r"""Performs a shallow copy of the graph.
+
+        Storage copy is done by `copy.copy` which keeps the reference of
+        tensors and other objects, but allows attribute assignment without
+        mutating the original graph's storage.
+        """
+        out = self.__class__.__new__(self.__class__)
+        for k, v in self.__dict__.items():
+            out.__dict__[k] = v
+        out.__dict__["_mapping"] = copy.copy(self._mapping)
+        out._mapping._parent = out
+        return out
+
     def to_hetero(
         self,
         node_type: Optional[Tensor] = None,

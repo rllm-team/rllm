@@ -44,3 +44,4 @@ tokenizer/
 
 !rllm/data/
 !test/data/
+docs/source/generated/

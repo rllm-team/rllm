@@ -177,7 +177,7 @@ class GDC(EdgeTransform):
 
         elif method == "heat":
             # exp(t (A - I_n))
-            diff_matrix = add_remaining_self_loops(adj, fill_value=-1)
+            diff_matrix = add_remaining_self_loops(adj, fill_value=-1).to_dense()
             diff_matrix = kwargs["t"] * diff_matrix
             diff_matrix = diff_matrix.exp()
 
@@ -241,7 +241,9 @@ class GDC(EdgeTransform):
                 edge_weight = torch.gather(mx, dim=dim, index=top_idx).flatten()
                 col_idx = torch.arange(mx.size(0), device=mx.device).repeat(k)
                 mx = torch.sparse_coo_tensor(
-                    torch.stack([top_idx, col_idx.flatten()]), edge_weight, mx.size()
+                    torch.stack([top_idx.flatten(), col_idx.flatten()]),
+                    edge_weight,
+                    mx.size(),
                 )
         else:
             raise ValueError(f"GDC sparsification '{method}' unknown")
