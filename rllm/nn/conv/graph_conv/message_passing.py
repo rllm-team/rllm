@@ -76,6 +76,7 @@ class MessagePassing(torch.nn.Module, ABC):
             >>> out.shape
             torch.Size([5, 8])
         """
+        self.__validate_edgeindex__(edge_index)
 
         # Infer aggregator dim_size
         if "dim_size" not in kwargs or kwargs["dim_size"] is None:
@@ -204,15 +205,22 @@ class MessagePassing(torch.nn.Module, ABC):
         r"""Unify the edge index to a 2D tensor."""
         if edge_index.is_sparse:
             return self.__adj_to_edges__(edge_index)
-        elif edge_index.size(0) != 2:
-            try:
-                return self.__adj_to_edges__(edge_index)
-            except ValueError:
-                raise ValueError(
-                    f"Expect edge_index to be a 2D tensor, got {edge_index.size()}."
-                )
-        else:
-            return edge_index, None
+        self.__validate_edgeindex__(edge_index)
+        return edge_index, None
+
+    def __validate_edgeindex__(self, edge_index: Union[Tensor, SparseTensor]) -> None:
+        r"""Validate edge index inputs before message passing."""
+        if edge_index.is_sparse:
+            return
+        if edge_index.dim() != 2:
+            raise ValueError(
+                "Expect edge_index to be a 2D tensor with shape "
+                f"[2, num_edges], got {edge_index.size()}."
+            )
+        if edge_index.size(0) != 2:
+            raise ValueError(
+                f"Expect edge_index to have shape [2, num_edges], got {edge_index.size()}."
+            )
 
     def __adj_to_edges__(self, adj: SparseTensor) -> Tuple[Tensor, Tensor]:
         r"""Converts a sparse adjacency matrix to edge indices."""

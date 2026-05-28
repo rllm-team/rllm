@@ -40,6 +40,29 @@ class BaseGraph:
     def stores(self):
         raise NotImplementedError
 
+    @property
+    def device(self) -> torch.device:
+        if "_device" in self.__dict__:
+            return self.__dict__["_device"]
+
+        for store in self.stores:
+            for _, value in store.items():
+                if isinstance(value, Tensor):
+                    return value.device
+                if hasattr(value, "device"):
+                    try:
+                        return torch.device(value.device)
+                    except (TypeError, ValueError):
+                        pass
+
+        return torch.device("cpu")
+
+    @device.setter
+    def device(self, value: Union[int, str, torch.device]):
+        if isinstance(value, int):
+            value = f"cuda:{value}"
+        self.__dict__["_device"] = torch.device(value)
+
     def clone(self, *args: str):
         r"""Performs cloning of tensors for the ones given in `*args`"""
         return copy.copy(self).apply(lambda x: x.clone(), *args)
@@ -667,7 +690,11 @@ class HeteroGraphData(BaseGraph):
         is_sorted: bool = False,
         node_time_d: Optional[Dict[NodeType, Tensor]] = None,
         edge_time_d: Optional[Dict[EdgeType, Tensor]] = None,
-    ) -> Tuple[Dict[str, Tensor], Dict[str, Tensor], Dict[str, Optional[Tensor]]]:
+    ) -> Tuple[
+        Dict[EdgeType, Tensor],
+        Dict[EdgeType, Tensor],
+        Dict[EdgeType, Optional[Tensor]],
+    ]:
         r"""Convert the heterogeneous graph edge into a CSC format for sampling.
         Returns dictionaries holding `colptr` and `row` indices as well as edge
         permutations for each edge type, respectively.
@@ -697,7 +724,7 @@ class HeteroGraphData(BaseGraph):
             edge_time = (edge_time_d or {}).get(edge_type, None)
             out = store.to_csc(
                 device=device,
-                num_nodes=self[edge_type[0]].num_nodes,
+                num_nodes=self[edge_type[2]].num_nodes,
                 share_memory=share_memory,
                 is_sorted=is_sorted,
                 src_node_time=src_node_time,

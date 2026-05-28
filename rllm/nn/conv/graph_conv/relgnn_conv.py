@@ -1,3 +1,6 @@
+from typing import Optional, Tuple, Union
+
+from torch import Tensor
 from torch.nn import Linear
 
 from .transformer_conv import GTransformerConv
@@ -23,6 +26,7 @@ class RelGNNConv(GTransformerConv):
             edges. (default: :obj:`False`)
         bias (bool): Whether to add a bias term. (default: :obj:`True`)
     """
+    aggr_conv: Optional[SAGEConv]
 
     def __init__(
         self,
@@ -35,8 +39,9 @@ class RelGNNConv(GTransformerConv):
         bias=True,
         **kwargs,
     ):
+        attn_in_dim = (out_dim, in_dim) if attn_type == "dim-fact-dim" else (in_dim, in_dim)
         super().__init__(
-            in_dim=(in_dim, in_dim),
+            in_dim=attn_in_dim,
             out_dim=out_dim,
             num_heads=num_heads,
             bias=bias,
@@ -55,15 +60,16 @@ class RelGNNConv(GTransformerConv):
         r"""Resets all learnable parameters of the module."""
         self.final_proj.reset_parameters()
         if self.attn_type == "dim-fact-dim":
+            assert self.aggr_conv is not None
             self.aggr_conv.reset_parameters()
         return super().reset_parameters()
 
     def forward(
         self,
-        x,
-        edge_index,
-        edge_weight=None,
-        return_attention_weights=False,
+        x: Union[Tensor, Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, Tensor]],
+        edge_index: Union[Tensor, Tuple[Tensor, Tensor]],
+        edge_weight: Optional[Tensor] = None,
+        return_attention_weights: bool = False,
     ):
         r"""Run RelGNN attention with optional factorized message passing.
 
@@ -94,6 +100,8 @@ class RelGNNConv(GTransformerConv):
         """
         # dim-dim
         if self.attn_type == "dim-dim":
+            assert isinstance(edge_index, Tensor)
+            assert isinstance(x, Tensor) or (isinstance(x, tuple) and len(x) == 2)
             if self.simplified_MP and edge_index.shape[1] == 0:
                 return None
             out = super().forward(x, edge_index, edge_weight, return_attention_weights)
@@ -103,6 +111,10 @@ class RelGNNConv(GTransformerConv):
             return self.final_proj(out)
 
         # dim-fact-dim
+        assert isinstance(edge_index, tuple) and len(edge_index) == 2
+        assert isinstance(x, tuple) and len(x) == 3
+        assert self.aggr_conv is not None
+
         edge_attn, edge_aggr = edge_index
 
         src_aggr, dst_aggr, dst_attn = x
@@ -110,13 +122,9 @@ class RelGNNConv(GTransformerConv):
         if self.simplified_MP:
             if edge_attn.shape[1] == 0:
                 return None
-
-            if edge_aggr.shape[1] == 0:
-                src_attn = dst_aggr
-            else:
-                src_attn = self.aggr_conv((src_aggr, dst_aggr), edge_aggr)
-        else:
-            src_attn = self.aggr_conv((src_aggr, dst_aggr), edge_aggr)
+        # Always project the aggregated source features to `out_dim` before
+        # the transformer attention path, even when `edge_aggr` is empty.
+        src_attn = self.aggr_conv((src_aggr, dst_aggr), edge_aggr)
 
         out = super().forward(
             (src_attn, dst_attn), edge_attn, edge_weight, return_attention_weights

@@ -253,10 +253,17 @@ class EdgeStorage(BaseStorage):
             return True
 
         v = self[key]
-        if (
-            isinstance(v, (list, tuple, "TableData"))  # avoid circular import
-            and len(v) == self.num_edges
-        ):
+
+        # Lazy import keeps `storage.py` decoupled from `table_data.py`.
+        try:
+            from rllm.data.table_data import TableData
+
+            edge_attr_type = (list, tuple, TableData)
+        except Exception:
+            warn("TableData not found. Using list and tuple as edge attribute type.")
+            edge_attr_type = (list, tuple)
+
+        if isinstance(v, edge_attr_type) and len(v) == self.num_edges:
             self._edge_attr_cache.add(key)
             return True
 

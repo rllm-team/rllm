@@ -552,7 +552,7 @@ class TableData(BaseTable):
             ), "when start and end are ratios, \
                 they must be between 0 and 1!"
             start_row = int(round(self.num_rows * start))
-            end_row = int(start + round(self.num_rows * (end - start)))
+            end_row = int(start_row + round(self.num_rows * (end - start)))
         feat_dict = {}
         # Get tensors corresponding to each in ColType
         for col_type in self.feat_dict.keys():

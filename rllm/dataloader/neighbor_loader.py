@@ -81,6 +81,8 @@ class NeighborLoader(torch.utils.data.DataLoader):
             edge_index = data.edge_index
         elif hasattr(data, "adj"):
             edge_index = data.adj.coalesce().indices()
+        else:
+            raise ValueError("Graph data must have edge_index or adj attribute.")
         order = torch.argsort(edge_index[1])
         self.dst_sorted = edge_index[1][order]
         self.src_sorted = edge_index[0][order]
