@@ -22,7 +22,7 @@ from rllm.preprocessing.word_embedding import (
 from rllm.preprocessing.timestamp import TimestampPreprocessor
 from rllm.types import ColType
 
-# df_to_tensor应该是一个可配置的类/函数
+
 def df_to_tensor(
     df,
     col_types,
@@ -177,8 +177,6 @@ def _generate_column_tensor(
             -1, 1
         )
 
-    # TODO: (Feiyu Pan) If table contains two text columns, which require different
-    # processing (one embedding, one tokenization), current design cannot handle it.
     elif col_type == ColType.TEXT:
         # Determine processing mode based on config
         if tokenizer_config is not None:

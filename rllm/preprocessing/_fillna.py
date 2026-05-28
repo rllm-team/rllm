@@ -1,5 +1,6 @@
 from typing import Literal, Union
 
+import pandas as pd
 from pandas import Series
 
 from rllm.types import ColType
@@ -148,11 +149,7 @@ def fillna_timestamp(
     elif strategy == "median":
         if not col_series.isnull().all():
             median_val = col_series.dropna().astype("int64").median()
-            result = col_series.fillna(
-                col_series.dtype.type(int(median_val))
-                if hasattr(col_series.dtype, "type")
-                else median_val
-            )
+            result = col_series.fillna(pd.Timestamp(int(median_val)))
         else:
             result = col_series.fillna(fill_value) if fill_value is not None else col_series.copy()
     elif strategy == "constant":
