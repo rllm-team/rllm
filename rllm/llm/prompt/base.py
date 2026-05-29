@@ -257,7 +257,7 @@ class ChatPromptTemplate(BasePromptTemplate):
             # if there's mappings specified, make sure those are used
             content = content_template.format(**relevant_kwargs)
 
-            message: ChatMessage = message_template.copy()
+            message: ChatMessage = deepcopy(message_template)
             message.content = content
             messages.append(message)
 

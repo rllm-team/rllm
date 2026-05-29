@@ -535,9 +535,12 @@ class FeatLLMEngineer:
                 class_name = rule_raw.split(":")[0].strip(" .'").strip(' []"')
                 rule_parsed = []
                 for txt in rule_raw.strip().split("\n")[1:]:
+                    txt = txt.strip()
                     if len(txt) < 2:
                         break
-                    rule_parsed.append(" ".join(txt.strip().split(" ")[1:]))
+                    if not txt.startswith("-"):
+                        continue
+                    rule_parsed.append(txt.lstrip("-").strip())
                     rule_dict[class_name] = rule_parsed
             total_rules.append(rule_dict)
         return total_rules
