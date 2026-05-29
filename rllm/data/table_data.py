@@ -582,7 +582,7 @@ class TableData(BaseTable):
     @df_requisite
     def shuffle(self, return_perm: bool = False):
         perm = torch.randperm(len(self))
-        self.df = self.df.iloc[perm].reset_index(drop=True)
+        self.df = self.df.iloc[perm]
         for col_type in self.feat_dict.keys():
             feat_value = self.feat_dict[col_type]
             if isinstance(feat_value, tuple):
