@@ -78,7 +78,7 @@ _LAZY_MODULES = {
         "get_atomic_routes",
     ),
     "rllm.utils.xavier_init": (
-        "_xavier_uniform_"
+        "_xavier_uniform_",
     ),
 }
 
