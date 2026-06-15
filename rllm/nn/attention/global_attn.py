@@ -151,6 +151,8 @@ class GlobalAttn(nn.Module):
         self.register_buffer("c_idx", c)
         self.attn_fn = F.softmax
 
+        if out_dim % heads != 0:
+            raise ValueError(f"out_dim ({out_dim}) must be divisible by heads ({heads})")
         attn_channels = out_dim // heads
         self.lin_proj_g = torch.nn.Linear(in_dim, global_dim)
         self.lin_key_g = torch.nn.Linear(global_dim, heads * attn_channels)
