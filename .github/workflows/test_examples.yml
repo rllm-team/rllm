@@ -133,12 +133,12 @@ jobs:
         python ogc.py
         python gcn.py --epochs 1
         python gat.py --epochs 1
-        python rdl.py --task driver-top3 --epochs 1
-        python relgnn.py --task driver-top3 --epochs 1
+        python rdl.py --task driver-top3 --epochs 1 --max_steps_per_epoch 1 --num_neighbors 8 --batch_size 32
+        python relgnn.py --task driver-top3 --epochs 1 --max_steps_per_epoch 1 --num_neighbors 8 --batch_size 32
         python bridge/bridge.py --dataset tacm12k --epochs 1
         python bridge/bridge.py --dataset tlf2k --epochs 1
         python bridge/bridge.py --dataset tml1m --epochs 1
         python transtab/transtab.py --epochs 1
         python transtab/transtab_transfer.py --pre_epochs 1 --finetune_epochs 1
-        python metartl.py --stage1_epochs 1 --stage2_epochs 1
+        python metartl.py --stage1_epochs 1 --stage2_epochs 1 --max_steps_per_epoch 1 --num_neighbors 8 --batch_size 32
 # remove han.py for the dataset url is not avaiable now.
