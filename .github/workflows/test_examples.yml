@@ -29,6 +29,92 @@ jobs:
         pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
         pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.3.0+cpu.html
         pip install sentence-transformers==3.3.1
+    - name: Patch GloveTextEmbedding with offline random embedding (CI only)
+      run: |
+        # Inject a sitecustomize.py that monkey-patches
+        # rllm.datasets.relbench.utils.GloveTextEmbedding so it returns a
+        # deterministic random vector instead of downloading the
+        # sentence-transformers model from huggingface.co. This is CI-only
+        # and does NOT modify the repository source.
+        SITE_DIR="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
+        echo "Writing sitecustomize.py to $SITE_DIR"
+        # Strip the leading 8-space YAML indentation from the heredoc body so
+        # the resulting Python file has correct indentation.
+        sed 's/^        //' > "$SITE_DIR/sitecustomize.py" <<'PYEOF'
+        import sys
+        import hashlib
+        import warnings
+
+
+        _DIM = 300
+
+
+        class _RandomTextEmbedding:
+            def __init__(self, device=None):
+                self.device = device
+
+            def __call__(self, sentences):
+                import torch
+                rows = []
+                for s in sentences:
+                    digest = hashlib.sha256(str(s).encode("utf-8")).digest()
+                    buf = (digest * ((_DIM * 4 // len(digest)) + 1))[: _DIM * 4]
+                    vec = torch.frombuffer(bytearray(buf), dtype=torch.int32).to(torch.float32)
+                    vec = vec / 2_147_483_647.0
+                    rows.append(vec)
+                out = torch.stack(rows, dim=0)
+                if self.device is not None:
+                    out = out.to(self.device)
+                return out
+
+
+        def _install_patch():
+            try:
+                import rllm.datasets.relbench.utils as _u
+            except Exception:
+                return False
+            _u.GloveTextEmbedding = _RandomTextEmbedding
+            warnings.warn("CI: replaced GloveTextEmbedding with offline random embedding")
+            return True
+
+
+        if not _install_patch():
+            # rllm not importable yet (e.g. running before cwd is on sys.path);
+            # install an import hook that patches as soon as the module loads.
+            import importlib.abc
+            import importlib.util
+
+
+            class _PatchFinder(importlib.abc.MetaPathFinder):
+                _target = "rllm.datasets.relbench.utils"
+                _done = False
+
+                def find_spec(self, fullname, path=None, target=None):
+                    if self._done or fullname != self._target:
+                        return None
+                    self._done = True
+                    sys.meta_path.remove(self)
+                    spec = importlib.util.find_spec(fullname)
+                    if spec is None:
+                        return None
+                    loader = spec.loader
+                    orig_exec = loader.exec_module
+
+                    def exec_module(module):
+                        orig_exec(module)
+                        module.GloveTextEmbedding = _RandomTextEmbedding
+                        warnings.warn(
+                            "CI: replaced GloveTextEmbedding with offline random embedding"
+                        )
+
+                    loader.exec_module = exec_module
+                    return spec
+
+
+            sys.meta_path.insert(0, _PatchFinder())
+        PYEOF
+        echo "--- sitecustomize.py ---"
+        cat "$SITE_DIR/sitecustomize.py"
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names

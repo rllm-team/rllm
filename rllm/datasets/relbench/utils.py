@@ -10,18 +10,18 @@ from rllm.datasets.relbench.base import RelBenchTableMeta
 
 
 class GloveTextEmbedding:
-    def __init__(self, device: Optional[torch.device] = None):
+    def __init__(self, device: Optional[str] = None):
         try:
             from sentence_transformers import SentenceTransformer
-            self.model = SentenceTransformer(
-                "sentence-transformers/average_word_embeddings_glove.6B.300d",
-                device=device,
-            )
-        except Exception as e:
+        except ImportError as e:
             raise ImportError(
                 "The 'sentence-transformers' package is required for GloveTextEmbedding. "
                 "Install it with 'pip install sentence-transformers'."
             ) from e
+        self.model = SentenceTransformer(
+            "sentence-transformers/average_word_embeddings_glove.6B.300d",
+            device=device,
+        )
 
     def __call__(self, sentences: List[str]) -> torch.Tensor:
         return self.model.encode(sentences, convert_to_tensor=True)
