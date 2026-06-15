@@ -219,11 +219,10 @@ class GlobalAttn(nn.Module):
 
         c, c_count = self.c_idx.unique(return_counts=True)
         centroid_count = torch.zeros(
-            self.num_centroids, dtype=torch.long, device=x.device
+            self.num_centroids, dtype=dots.dtype, device=x.device
         )
-        centroid_count[c.to(torch.long)] = c_count
-        dots = dots + torch.log(centroid_count.view(1, 1, -1))
-
+        centroid_count[c.to(torch.long)] = c_count.to(dots.dtype)
+        dots = dots + torch.log(centroid_count.view(1, 1, -1) + 1e-12)
         attn = self.attn_fn(dots, dim=-1)
         attn = F.dropout(attn, p=self.attn_dropout, training=self.training)
 
