@@ -200,7 +200,7 @@ class GlobalAttn(nn.Module):
         return out
 
     def _global_forward(self, x: Tensor, batch_idx: Tensor) -> Tensor:
-        d, h = self.out_dim, self.heads
+        d, h = self.out_dim // self.heads, self.heads
         scale = 1.0 / math.sqrt(d)
 
         q_x = self.lin_proj_g(x)
