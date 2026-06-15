@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from rllm.nn.encoder.resnet_pre_encoder import ResNetPreEncoder
     from rllm.nn.encoder.trompt_pre_encoder import TromptPreEncoder
     from rllm.nn.encoder.heterotemporal_encoder import HeteroTemporalEncoder
+    from rllm.nn.encoder.metartl_encoder import MetaRTLEncoder
 
 _LAZY_MODULES = {
     "rllm.nn.encoder.table_pre_encoder": (
@@ -33,6 +34,9 @@ _LAZY_MODULES = {
     ),
     "rllm.nn.encoder.heterotemporal_encoder": (
         "HeteroTemporalEncoder",
+    ),
+    "rllm.nn.encoder.metartl_encoder": (
+        "MetaRTLEncoder",
     ),
 }
 

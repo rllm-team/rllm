@@ -22,6 +22,7 @@ graphgym/results/
 coverage.xml
 .vscode
 .idea
+.trae/
 .venv
 *.out
 *.zip
