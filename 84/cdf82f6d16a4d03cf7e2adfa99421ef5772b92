@@ -1,0 +1,21 @@
+.github/workflows/test_examples.yml
+  s_a584944d4d0dad::t_3f72a1a890688b 57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "84cdf82f6d16a4d03cf7e2adfa99421ef5772b92",
+  "prompts": {},
+  "sessions": {
+    "s_a584944d4d0dad": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-1186bb0b-f484-447c-8591-82fc75809f00",
+        "model": "default"
+      },
+      "human_author": "Ken Zhong <zhongken@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
