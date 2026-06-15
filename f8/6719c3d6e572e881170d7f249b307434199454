@@ -1,0 +1,48 @@
+rllm/nn/models/metartl.py
+  s_e31452527e75c8::t_43bf5d16e3b441 1-308
+rllm/nn/encoder/metartl_encoder.py
+  s_e31452527e75c8::t_9a804f3ce10742 1-221
+rllm/utils/__init__.py
+  s_e31452527e75c8::t_1c8a9b4e339e53 80-82
+  s_e31452527e75c8::t_e32ac32c705839 37
+rllm/transforms/utils/metapath_prop_transform.py
+  s_e31452527e75c8::t_d9ff7f19f6015b 1-103
+rllm/nn/encoder/__init__.py
+  s_e31452527e75c8::t_9f513b465bfd9b 14
+  s_e31452527e75c8::t_1fc3baed823591 38-40
+rllm/transforms/utils/functional/__init__.py
+  s_e31452527e75c8::t_0b482f362e9a32 8-12,18-21
+.gitignore
+  h_59d777fd29d900 25
+rllm/transforms/utils/__init__.py
+  s_e31452527e75c8::t_5965d9655ff732 9,18-19
+rllm/transforms/utils/functional/metapath_prop.py
+  s_e31452527e75c8::t_435e49af0190db 1-151
+rllm/nn/models/__init__.py
+  s_e31452527e75c8::t_6313c2fbb84372 25
+  s_e31452527e75c8::t_cd92cfdfd01a17 54
+  s_e31452527e75c8::t_c5567c324ea00a 55-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f86719c3d6e572e881170d7f249b307434199454",
+  "prompts": {},
+  "humans": {
+    "h_59d777fd29d900": {
+      "author": "Ken Zhong <zhongken@bytedance.com>"
+    }
+  },
+  "sessions": {
+    "s_e31452527e75c8": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a2f66148d09dd443d85d92f",
+        "model": "openrouter-2o__max"
+      },
+      "human_author": "Ken Zhong <zhongken@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
