@@ -1,0 +1,132 @@
+rllm/datasets/relbench/utils.py
+  s_6098f5722838f6::t_ec533188b0918c 16 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a2fe0bf8d09dd443d85e01e","tool_type":"agent","tool_id":"Edit","line_ranges":[{"Single":16}]}]}
+  h_59d777fd29d900 13,24 gitai:{"mixed_line_ranges":[{"Single":24}],"operations":[]}
+  s_6098f5722838f6::t_9023b35f67e5ee 21-23 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a2fe5178d09dd443d85e09b","tool_type":"builtin","tool_id":"icube:applyChatSnapshotPatch","line_ranges":[{"Range":[21,23]}]}]}
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b8f5f0b564e95e38ebaab48996b49ef9101727e4",
+  "prompts": {},
+  "humans": {
+    "h_59d777fd29d900": {
+      "author": "Ken Zhong <zhongken@bytedance.com>"
+    }
+  },
+  "sessions": {
+    "s_6098f5722838f6": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a2fdeec8d09dd443d85e002",
+        "model": "openrouter-2o"
+      },
+      "human_author": "Ken Zhong <zhongken@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {
+    "rllm/datasets/relbench/utils.py": [
+      {
+        "hash": "s_6098f5722838f6::t_ec533188b0918c",
+        "line_ranges": [
+          {
+            "Single": 16
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a2fe0bf8d09dd443d85e01e",
+            "tool_type": "agent",
+            "tool_id": "Edit",
+            "line_ranges": [
+              {
+                "Single": 16
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "hash": "h_59d777fd29d900",
+        "line_ranges": [
+          {
+            "Single": 13
+          },
+          {
+            "Single": 24
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 24
+          }
+        ],
+        "operations": []
+      },
+      {
+        "hash": "s_6098f5722838f6::t_9023b35f67e5ee",
+        "line_ranges": [
+          {
+            "Range": [
+              21,
+              23
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a2fe5178d09dd443d85e09b",
+            "tool_type": "builtin",
+            "tool_id": "icube:applyChatSnapshotPatch",
+            "line_ranges": [
+              {
+                "Range": [
+                  21,
+                  23
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "remote_transcripts": {
+    "s_6098f5722838f6": {
+      "tool": "trae",
+      "conversation_id": "6a2fdeec8d09dd443d85e002",
+      "session_id": "6a2fdeec8d09dd443d85e002",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    },
+    "s_6098f5722838f6::t_234373a6229d1f": {
+      "tool": "trae",
+      "conversation_id": "6a2fdeec8d09dd443d85e002",
+      "session_id": "6a2fdeec8d09dd443d85e002",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    },
+    "s_6098f5722838f6::t_9023b35f67e5ee": {
+      "tool": "trae",
+      "conversation_id": "6a2fdeec8d09dd443d85e002",
+      "session_id": "6a2fdeec8d09dd443d85e002",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    },
+    "s_6098f5722838f6::t_bbfa18b9b442a7": {
+      "tool": "trae",
+      "conversation_id": "6a2fdeec8d09dd443d85e002",
+      "session_id": "6a2fdeec8d09dd443d85e002",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    },
+    "s_6098f5722838f6::t_ec533188b0918c": {
+      "tool": "trae",
+      "conversation_id": "6a2fdeec8d09dd443d85e002",
+      "session_id": "6a2fdeec8d09dd443d85e002",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    }
+  }
+}
