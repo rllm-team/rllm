@@ -17,7 +17,6 @@ import argparse
 import os.path as osp
 import sys
 
-import numpy as np
 import torch
 from sklearn.metrics import roc_auc_score
 
@@ -29,17 +28,6 @@ from rllm.dataloader import RelbenchLoader
 from rllm.nn.encoder import MetaRTLEncoder
 from rllm.nn.models import MetaPathFusion
 from rllm.transforms.utils import MetaPathProp
-
-
-def seed_everything(seed: int):
-    r"""Seed Python, NumPy and PyTorch RNGs for reproducible runs."""
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
 
 
 def train_stage1(model, optimizer, loss_fn, loader, target_table, max_steps, device):
@@ -129,8 +117,6 @@ def test_fusion(fusion_model, x_split, split, device):
 
 
 def main(args):
-    seed_everything(args.seed)
-
     # Data prepare
     dataset = RelF1Dataset(cached_dir=args.cache_dir)
     task = dataset.task_dict["driver-dnf"]
@@ -189,6 +175,7 @@ def main(args):
         target_node_type=target_table,
         min_hops=0,
         max_hops=args.max_hops,
+        edge_schema=dataset.hdata.edge_types,
     )
     x_split = build_metapath_features(model, loaders, target_table, prop, device)
     print("====> Meta-path features prepared")
@@ -249,7 +236,6 @@ if __name__ == "__main__":
     parser.add_argument("--num_heads", type=int, default=4)
     parser.add_argument("--skip_stage1", action="store_true")
     parser.add_argument("--cache_dir", type=str, default="./data/")
-    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

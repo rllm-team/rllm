@@ -1,10 +1,18 @@
-from typing import Dict, Tuple
+from typing import Dict, Iterable, Optional, Tuple
 from collections import defaultdict
 
 import torch
 from torch import Tensor
 
 from rllm.utils.seg_reduce import seg_sum
+
+
+EdgeType = Tuple[str, str, str]
+
+
+def _rel_token(edge_type: EdgeType) -> str:
+    src, rel, dst = edge_type
+    return f"{src}-{rel}->{dst}"
 
 
 def row_norm_edge_weight(
@@ -73,29 +81,43 @@ def metapath_propagate(
     target_node_type: str,
     min_hops: int = 0,
     max_hops: int = 3,
+    edge_schema: Optional[Iterable[EdgeType]] = None,
 ) -> Dict[str, Tensor]:
     r"""Generate multi-hop meta-path features for a target node type.
 
     Starting from base node features, this iteratively propagates features
     along each edge type using a row-normalized weighted mean. At each hop the
-    new features are keyed by their meta-path (e.g. ``"2_drivers.results"``),
-    and only target-type features (plus the latest-hop intermediates) are
-    retained to bound memory.
+    new features are keyed by their meta-path (which carries the full
+    ``(src, rel, dst)`` token of every traversed edge so parallel relations
+    between the same pair of node types are not collapsed), and only
+    target-type features (plus the latest-hop intermediates) are retained to
+    bound memory.
 
     Args:
         edge_index_dict (Dict[Tuple[str, str, str], Tensor]): Edge indices by
-            edge type.
+            edge type. Edge types missing from this mapping (or empty) are
+            still traversed against ``edge_schema`` with a zero feature so the
+            output schema is stable across mini-batches.
         x_dict (Dict[str, Tensor]): Base node features by node type.
         num_nodes_dict (Dict[str, int]): Number of nodes by node type.
         target_node_type (str): The node type to collect meta-path features for.
         min_hops (int): Minimum hop count to keep. (default: :obj:`0`)
         max_hops (int): Maximum number of propagation hops. (default: :obj:`3`)
+        edge_schema (Optional[Iterable[Tuple[str, str, str]]]): Full set of
+            edge types to traverse. When provided, batches with missing edges
+            still yield the same meta-paths (zero-filled), so the downstream
+            fusion model sees a constant number of meta-paths :obj:`M`.
 
     Returns:
         Dict[str, Tensor]: Mapping from meta-path name to a feature tensor of
         shape :obj:`[num_target_nodes, 1, F]`. The values are ordered by key
         when concatenated by the caller.
     """
+    if edge_schema is None:
+        schema = list(edge_index_dict.keys())
+    else:
+        schema = list(edge_schema)
+
     feat_table: Dict[str, Dict[str, Tensor]] = {}
     for nt, feat in x_dict.items():
         if isinstance(feat, Tensor):
@@ -104,28 +126,42 @@ def metapath_propagate(
             feat_table[nt] = {}
 
     edge_weight_dict: Dict[Tuple[str, str, str], Tensor] = {}
-    for edge_type, edge_index in edge_index_dict.items():
+    for edge_type in schema:
+        edge_index = edge_index_dict.get(edge_type)
+        if edge_index is None or edge_index.numel() == 0:
+            edge_weight_dict[edge_type] = None  # type: ignore[assignment]
+            continue
         src_type = edge_type[0]
         edge_weight_dict[edge_type] = row_norm_edge_weight(
             edge_index, num_nodes_dict[src_type]
         )
 
     for hop in range(1, max_hops + 1):
-        for edge_type, edge_index in edge_index_dict.items():
+        for edge_type in schema:
             src_type, _, dst_type = edge_type
-            edge_weight = edge_weight_dict[edge_type]
+            rel_tok = _rel_token(edge_type)
             n_dst = num_nodes_dict[dst_type]
 
             for key, src_x in list(feat_table[src_type].items()):
                 if not key.startswith(f"{hop - 1}_"):
                     continue
-                new_dst_x = weighted_mean_aggregate(
-                    x_src=src_x,
-                    edge_index=edge_index,
-                    edge_weight=edge_weight,
-                    num_dst=n_dst,
-                )
-                new_key = key.replace(f"{hop - 1}_", f"{hop}_{dst_type}.")
+                new_key = key.replace(f"{hop - 1}_", f"{hop}_{rel_tok}.")
+                edge_index = edge_index_dict.get(edge_type)
+                edge_weight = edge_weight_dict.get(edge_type)
+                if (
+                    edge_index is None
+                    or edge_index.numel() == 0
+                    or edge_weight is None
+                ):
+                    # Schema-stable zero fill so M is constant across batches.
+                    new_dst_x = src_x.new_zeros((n_dst, src_x.size(-1)))
+                else:
+                    new_dst_x = weighted_mean_aggregate(
+                        x_src=src_x,
+                        edge_index=edge_index,
+                        edge_weight=edge_weight,
+                        num_dst=n_dst,
+                    )
                 feat_table[dst_type][new_key] = new_dst_x
 
         # Only keep newly generated features and target-type features.
@@ -136,16 +172,17 @@ def metapath_propagate(
             for k in rm_feats:
                 del feat_d[k]
 
-    meta_path_feats: Dict[str, Tensor] = defaultdict(list)
+    grouped: Dict[str, list] = defaultdict(list)
     for key, feat in feat_table[target_node_type].items():
-        if int(key[0]) < min_hops:
+        if int(key.split("_", 1)[0]) < min_hops:
             continue
-        meta_path_feats[key].append(feat)
-    if len(meta_path_feats) == 0:
+        grouped[key].append(feat)
+    if len(grouped) == 0:
         raise RuntimeError(
             f"No features with hop >= {min_hops} were generated "
             f"for '{target_node_type}'."
         )
-    for key, feats in meta_path_feats.items():
-        meta_path_feats[key] = torch.stack(feats, dim=1)
+    meta_path_feats: Dict[str, Tensor] = {
+        key: torch.stack(feats, dim=1) for key, feats in grouped.items()
+    }
     return meta_path_feats

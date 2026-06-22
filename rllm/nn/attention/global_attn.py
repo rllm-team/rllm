@@ -82,16 +82,16 @@ class VectorQuantizerEMA(nn.Module):
                 1 - self._decay
             ) * torch.sum(encodings, 0)
 
-            n = torch.sum(self._ema_cluster_size.data)
-            self._ema_cluster_size.data = (
-                (self._ema_cluster_size + 1e-5)
-                / (n + self._num_embeddings * 1e-5)
-                * n
-            )
-
             dw = torch.matmul(encodings.t(), inputs_normalized)
             self._ema_w.data = self._ema_w * self._decay + (1 - self._decay) * dw
-            self._embedding.data = self._ema_w / self._ema_cluster_size.unsqueeze(1)
+
+            # Only refresh centroids that have actually received assignments.
+            cluster_size = self._ema_cluster_size.clamp(min=1e-5)
+            new_embedding = self._ema_w / cluster_size.unsqueeze(1)
+            assigned = (self._ema_cluster_size > 1e-3).unsqueeze(1)
+            self._embedding.data = torch.where(
+                assigned, new_embedding, self._embedding
+            )
 
             running_std = torch.sqrt(self.bn.running_var + 1e-5).unsqueeze(dim=0)
             running_mean = self.bn.running_mean.unsqueeze(dim=0)
