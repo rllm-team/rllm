@@ -31,8 +31,9 @@ class TromptConv(torch.nn.Module):
 
     Example:
         >>> import torch
+        >>> from rllm.types import ColType
         >>> conv = TromptConv(in_dim=10, out_dim=16, num_prompts=4)
-        >>> x = torch.randn(8, 10, 16)
+        >>> x = {ColType.NUMERICAL: torch.randn(8, 10)}
         >>> x_prompt = torch.randn(8, 4, 16)
         >>> out = conv(x, x_prompt)
     """
@@ -63,7 +64,7 @@ class TromptConv(torch.nn.Module):
         }
         self.init_residual_encoder = TablePreEncoder(
             out_dim=out_dim,
-            metadata=metadata,
+            metadata=metadata or {},
             col_encoder_dict=col_encoder_dict,
         )
 
@@ -98,14 +99,15 @@ class TromptConv(torch.nn.Module):
 
     def forward(
         self,
-        x: Tensor | Dict[ColType, Tensor],
+        x: Dict[ColType, Tensor],
         x_prompt: Tensor,
     ) -> Tensor:
         """Expand and aggregate feature embeddings conditioned on prompts.
 
         Args:
-            x (Tensor | Dict[ColType, Tensor]): Input feature embeddings of shape
-                ``[batch_size, in_dim, out_dim]`` or raw table feature dict.
+            x (Dict[ColType, Tensor]): Raw table feature dict keyed by column
+                type. Will be passed through the internal pre-encoder to obtain
+                feature embeddings of shape ``[batch_size, in_dim, out_dim]``.
             x_prompt (Tensor): Prompt embeddings of shape
                 ``[batch_size, num_prompts, out_dim]``.
 
@@ -114,26 +116,25 @@ class TromptConv(torch.nn.Module):
             ``[batch_size, num_prompts, out_dim]``.
         """
         # Notation: B=batch_size, P=num_prompts, C=in_dim (feature columns), D=out_dim.
-        # Part 1: Construct feature embeddings
-        x = self.init_residual_encoder(x)
+        # Part 1: Construct feature embeddings -> [B, C, D]
+        feat: Tensor = self.init_residual_encoder(x)
 
         # Part 2: Derive feature importances
         emb_column = self.ln_column(self.emb_column)
         emb_prompt = self.ln_prompt(self.emb_prompt)
-        se_prompt = emb_prompt.unsqueeze(0).repeat(x.size(0), 1, 1)
+        se_prompt = emb_prompt.unsqueeze(0).repeat(feat.size(0), 1, 1)
         se_prompt_cat = torch.cat([se_prompt, x_prompt], dim=-1)
         se_prompt_cat_hat = self.lin_se_prompt(se_prompt_cat) + se_prompt + x_prompt
         se_column = emb_column.unsqueeze(0).repeat(x_prompt.size(0), 1, 1)
         m_importance = torch.einsum("ijl,ikl->ijk", se_prompt_cat_hat, se_column)  # [B, P, C]
         m_importance = F.softmax(m_importance, dim=-1)
         m_importance = m_importance.unsqueeze(dim=-1)
-        
+
         # Part 3: Expand feature embeddings to accommodate multiple prompts
-        x_expand_weight = torch.einsum("ijl,k->ikjl", x, self.expand_weight)  # [B, P, C, D]
+        x_expand_weight = torch.einsum("ijl,k->ikjl", feat, self.expand_weight)  # [B, P, C, D]
         x_expand_weight = F.relu(x_expand_weight)
-        x_expand_residual = x.unsqueeze(1).repeat(1, self.num_prompts, 1, 1)
-        x = self.group_norm(x_expand_weight) + x_expand_residual  # Residual connection
+        x_expand_residual = feat.unsqueeze(1).repeat(1, self.num_prompts, 1, 1)
+        feat_expanded = self.group_norm(x_expand_weight) + x_expand_residual  # Residual connection
 
         # Part 4: Aggregate feature embeddings across prompts
-        x = (x * m_importance).sum(dim=2)
-        return x
+        return (feat_expanded * m_importance).sum(dim=2)
