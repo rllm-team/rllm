@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from abc import ABC, abstractmethod
 
 import torch
@@ -43,13 +43,13 @@ class ColEncoder(torch.nn.Module, ABC):
             applied to the output. (default: :obj:`None`)
     """
 
-    supported_types: set[ColType] = {}
+    supported_types: set[ColType] = set()
 
     def __init__(
         self,
         out_dim: Optional[int] = None,
-        stats_list: Optional[List[Dict[StatType]]] = None,
-        post_module: Union[torch.nn.Module, torch.nn.Sequential] = None,
+        stats_list: Optional[List[Dict[StatType, Any]]] = None,
+        post_module: Optional[torch.nn.Module] = None,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""

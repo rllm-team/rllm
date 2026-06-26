@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import TabTransformerTransform
 from rllm.nn.encoder import TabTransformerPreEncoder
@@ -75,7 +75,7 @@ class TabTransformer(torch.nn.Module):
         out_dim: int,
         num_layers: int,
         num_heads: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
     ):
         super().__init__()
         self.pre_encoder = TabTransformerPreEncoder(

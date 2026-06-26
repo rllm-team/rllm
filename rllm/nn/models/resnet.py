@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 from torch.nn import Sequential
 
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 from rllm.data import TableData
 from rllm.nn.encoder import ResNetPreEncoder
 from rllm.nn.conv.table_conv import ResNetConv
@@ -21,7 +21,7 @@ class TableResNet(torch.nn.Module):
         hidden_dim (int): The hidden dimension.
         out_dim (int): The output dimension.
         num_layers (int): The number of layers.
-        metadata (Dict[ColType, List[Dict[str, Any]]]): The metadata of the table.
+        metadata (Dict[ColType, List[Dict[StatType, Any]]]): The metadata of the table.
         normalization (str | None): The normalization method.
             (default: :obj:`"layer_norm"`)
         dropout (float): The dropout rate. (default: :obj:`0.2`)
@@ -39,7 +39,7 @@ class TableResNet(torch.nn.Module):
         hidden_dim: int,
         out_dim: int,
         num_layers: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
         normalization: str | None = "layer_norm",
         dropout: float = 0.2,
     ):

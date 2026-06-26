@@ -12,7 +12,7 @@ from rllm.data.storage import BaseStorage, NodeStorage, EdgeStorage
 class BaseGraph:
     """An abstract base class for graph data storage."""
 
-    def __getattr__(self, key: str):
+    def __getattr__(self, key: str) -> Any:
         raise NotImplementedError
 
     def __setattr__(self, key: str, value: Any):
@@ -143,7 +143,7 @@ class GraphData(BaseGraph):
     def to_dict(self):
         return self._mapping.to_dict()
 
-    def __getattr__(self, key: str):
+    def __getattr__(self, key: str) -> Any:
         # avoid infinite loop.
         if key == "_mapping":
             self.__dict__["_mapping"] = BaseStorage()
@@ -425,7 +425,7 @@ class HeteroGraphData(BaseGraph):
             out_dict[key] = store.to_dict()
         return out_dict
 
-    def __getattr__(self, key: str):
+    def __getattr__(self, key: str) -> Any:
         # avoid infinite loop.
         if key == "_mapping":
             self.__dict__["_mapping"] = BaseStorage()

@@ -6,7 +6,6 @@ from rllm.utils.lazy_imports import define_lazy_imports
 if TYPE_CHECKING:
     from rllm.transforms.utils.base_transform import BaseTransform
     from rllm.transforms.utils.remove_training_classes import RemoveTrainingClasses
-    from rllm.transforms.utils.metapath_prop_transform import MetaPathProp
 
 _LAZY_MODULES = {
     "rllm.transforms.utils.base_transform": (
@@ -14,9 +13,6 @@ _LAZY_MODULES = {
     ),
     "rllm.transforms.utils.remove_training_classes": (
         "RemoveTrainingClasses",
-    ),
-    "rllm.transforms.utils.metapath_prop_transform": (
-        "MetaPathProp",
     ),
 }
 

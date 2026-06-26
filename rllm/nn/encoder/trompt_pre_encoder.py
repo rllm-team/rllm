@@ -6,7 +6,7 @@ import torch
 from .table_pre_encoder import TablePreEncoder
 from .col_encoder._embedding_encoder import EmbeddingEncoder
 from .col_encoder._linear_encoder import LinearEncoder
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 
 
 class TromptPreEncoder(TablePreEncoder):
@@ -30,7 +30,7 @@ class TromptPreEncoder(TablePreEncoder):
     def __init__(
         self,
         out_dim: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
         in_dim: int = 1,
     ) -> None:
         col_encoder_dict = {

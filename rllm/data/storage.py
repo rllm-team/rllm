@@ -73,7 +73,7 @@ class BaseStorage(MutableMapping):
         else:
             self[key] = value
 
-    def __getattr__(self, key: str):
+    def __getattr__(self, key: str) -> Any:
         # avoid infinite loop.
         if key == "_mapping":
             self._mapping = {}

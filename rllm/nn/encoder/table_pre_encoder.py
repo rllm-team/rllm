@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 
 from .col_encoder._col_encoder import ColEncoder
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 
 
 class TablePreEncoder(torch.nn.Module, ABC):
@@ -18,7 +18,7 @@ class TablePreEncoder(torch.nn.Module, ABC):
 
     Args:
         out_dim (int): Output dimensionality.
-        metadata (Dict[ColType, List[Dict[str, Any]]]): Metadata for each column
+        metadata (Dict[ColType, List[Dict[StatType, Any]]]): Metadata for each column
             type, specifying the statistics and properties of the columns.
         col_encoder_dict
             (Dict[:class:`rllm.types.ColType`,
@@ -36,7 +36,7 @@ class TablePreEncoder(torch.nn.Module, ABC):
     def __init__(
         self,
         out_dim: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
         col_encoder_dict: Dict[ColType, ColEncoder],
     ) -> None:
         super().__init__()

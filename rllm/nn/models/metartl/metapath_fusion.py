@@ -1,126 +1,11 @@
-from typing import Optional
-
 import torch
 from torch import Tensor
 from torch import nn
+from typing import Callable
 
 from rllm.nn.attention import GlobalAttn
-from rllm.utils.xavier_init import _xavier_uniform_
-
-
-class LinearPerMetapath(nn.Module):
-    r"""Per-meta-path linear projection used in the semantic feature
-    transformation of MetaRTL.
-
-    Applies an independent linear layer to each of the :obj:`num_metapaths`
-    meta-path slices of the input, i.e. the einsum :obj:`'bcm,cmn->bcn'` with a
-    per-meta-path weight and bias.
-
-    Args:
-        in_dim (int): Input feature dimensionality.
-        out_dim (int): Output feature dimensionality.
-        num_metapaths (int): Number of meta-paths (the second input dimension).
-
-    Example:
-        >>> import torch
-        >>> layer = LinearPerMetapath(16, 32, num_metapaths=5)
-        >>> layer(torch.randn(8, 5, 16)).shape
-        torch.Size([8, 5, 32])
-    """
-
-    def __init__(self, in_dim: int, out_dim: int, num_metapaths: int):
-        super().__init__()
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-        self.num_metapaths = num_metapaths
-
-        self.weight = nn.Parameter(torch.randn(num_metapaths, in_dim, out_dim))
-        self.bias = nn.Parameter(torch.zeros(num_metapaths, out_dim))
-
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        r"""Resets all learnable parameters of the module."""
-        gain = torch.nn.init.calculate_gain("relu")
-        _xavier_uniform_(self.weight, gain=gain)
-        torch.nn.init.zeros_(self.bias)
-
-    def forward(self, x: Tensor) -> Tensor:
-        return torch.einsum("bcm,cmn->bcn", x, self.weight) + self.bias.unsqueeze(0)
-
-    def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}({self.in_dim}, {self.out_dim}, "
-            f"num_metapaths={self.num_metapaths})"
-        )
-
-
-class SemanticTransformer(nn.Module):
-    r"""Transformer-based semantic fusion over meta-paths.
-
-    Treats the :obj:`M` meta-path embeddings of each node as a sequence and
-    mixes information across them with a standard
-    :class:`torch.nn.MultiheadAttention` self-attention block, scaled by a
-    learnable residual gate :obj:`gamma` (initialized to zero so the module
-    starts as identity).
-
-    Args:
-        n_channels (int): Input/output feature dimensionality.
-        num_heads (int): Number of attention heads. (default: :obj:`1`)
-        att_drop (float): Dropout on the attention weights. (default: :obj:`0.0`)
-
-    Example:
-        >>> import torch
-        >>> attn = SemanticTransformer(32, num_heads=4)
-        >>> attn(torch.randn(8, 5, 32)).shape
-        torch.Size([8, 5, 32])
-    """
-
-    def __init__(
-        self,
-        n_channels: int,
-        num_heads: int = 1,
-        att_drop: float = 0.0,
-    ):
-        super().__init__()
-        self.n_channels = n_channels
-        self.num_heads = num_heads
-
-        self.attn = nn.MultiheadAttention(
-            embed_dim=n_channels,
-            num_heads=num_heads,
-            dropout=att_drop,
-            batch_first=True,
-        )
-        self.gamma = nn.Parameter(torch.tensor([0.0]))
-
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        r"""Resets all learnable parameters of the module."""
-        self.attn._reset_parameters()
-        torch.nn.init.zeros_(self.gamma)
-
-    def forward(self, x: Tensor, mask: Optional[Tensor] = None) -> Tensor:
-        r"""Apply semantic self-attention across meta-paths.
-
-        Args:
-            x (Tensor): Input of shape :obj:`[B, M, C]` where :obj:`M` is the
-                number of meta-paths.
-            mask (Optional[Tensor]): Optional key padding mask of shape
-                :obj:`[B, M]` (:obj:`True` marks positions to ignore).
-
-        Returns:
-            Tensor: Output of shape :obj:`[B, M, C]` (with residual connection).
-        """
-        attn_out, _ = self.attn(x, x, x, key_padding_mask=mask, need_weights=False)
-        return self.gamma * attn_out + x
-
-    def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}({self.n_channels}, "
-            f"num_heads={self.num_heads})"
-        )
+from rllm.nn.models.metartl.linear_per_metapath import LinearPerMetapath
+from rllm.nn.models.metartl.semantic_transformer import SemanticTransformer
 
 
 class MetaPathFusion(nn.Module):
@@ -129,7 +14,7 @@ class MetaPathFusion(nn.Module):
 
     Consumes the per-node meta-path feature tensor of shape :obj:`[B, M, D]`
     produced by
-    :class:`~rllm.transforms.utils.MetaPathProp`, and fuses the
+    :class:`~rllm.nn.models.metartl.MetaPathProp`, and fuses the
     meta-paths through two complementary branches:
 
     - a **local** branch using a :class:`SemanticTransformer` to mix
@@ -234,7 +119,7 @@ class MetaPathFusion(nn.Module):
         )
 
         self.reset_parameters()
-    
+
     def _build_mlp_head(
         self,
         in_dim: int,
@@ -247,7 +132,9 @@ class MetaPathFusion(nn.Module):
             return nn.Sequential(nn.Linear(in_dim, out_dim))
 
         hidden_dim = in_dim // 2
-        norm_layer = nn.BatchNorm1d if norm == "batch_norm" else nn.LayerNorm
+        norm_layer: Callable[[int], nn.Module] = (
+            nn.BatchNorm1d if norm == "batch_norm" else nn.LayerNorm
+        )
 
         layers = [
             nn.Linear(in_dim, hidden_dim),
@@ -268,15 +155,17 @@ class MetaPathFusion(nn.Module):
     def reset_parameters(self):
         r"""Resets all learnable parameters of the module."""
         for layer in self.feature_projection:
-            if hasattr(layer, "reset_parameters"):
-                layer.reset_parameters()
+            reset_fn = getattr(layer, "reset_parameters", None)
+            if callable(reset_fn):
+                reset_fn()
         self.local_attn.reset_parameters()
         self.local_fc.reset_parameters()
         self.global_attn.reset_parameters()
         self.ff.reset_parameters()
         for layer in self.head:
-            if hasattr(layer, "reset_parameters"):
-                layer.reset_parameters()
+            reset_fn = getattr(layer, "reset_parameters", None)
+            if callable(reset_fn):
+                reset_fn()
 
     def forward(self, x: Tensor, batch_idx: Tensor) -> Tensor:
         r"""Fuse meta-path features and predict.

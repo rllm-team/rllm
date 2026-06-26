@@ -53,7 +53,7 @@ Next, we construct a simple :obj:`TabTransformer` model. Note that we first use 
             out_dim: int,
             num_layers: int,
             num_heads: int,
-            metadata: Dict[ColType, List[Dict[str, Any]]],
+            metadata: Dict[ColType, List[Dict[StatType, Any]]],
         ):
             super().__init__()
 

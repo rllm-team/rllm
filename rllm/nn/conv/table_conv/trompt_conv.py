@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 from rllm.nn.encoder.col_encoder import EmbeddingEncoder, LinearEncoder
 from rllm.nn.encoder import TablePreEncoder
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 
 
 class TromptConv(torch.nn.Module):
@@ -42,7 +42,7 @@ class TromptConv(torch.nn.Module):
         in_dim: int,
         out_dim: int,
         num_prompts: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]] | None = None,
+        metadata: Dict[ColType, List[Dict[StatType, Any]]] | None = None,
         num_groups: int = 2,
     ):
         super().__init__()

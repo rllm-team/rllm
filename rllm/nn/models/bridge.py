@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 import torch.nn.functional as F
 
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 from rllm.data import TableData
 from rllm.nn.encoder import TabTransformerPreEncoder
 from rllm.nn.conv.table_conv import TabTransformerConv
@@ -24,7 +24,7 @@ class TableEncoder(torch.nn.Module):
         out_dim (int): Output dimensionality for the encoded table data.
         num_layers (int, optional):
             Number of convolution layers (default: :obj:`1`).
-        metadata (Dict[ColType, List[Dict[str, Any]]], optional):
+        metadata (Dict[ColType, List[Dict[StatType, Any]]], optional):
             Metadata for each column type, specifying the statistics and
             properties of the columns. (default: :obj:`None`).
         table_conv (Type[torch.nn.Module], optional):
@@ -37,7 +37,7 @@ class TableEncoder(torch.nn.Module):
         in_dim: int,
         out_dim: int,
         num_layers: int = 1,
-        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
+        metadata: Dict[ColType, List[Dict[StatType, Any]]] = None,
         table_conv: Type[torch.nn.Module] = TabTransformerConv,
     ) -> None:
 

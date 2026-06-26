@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 from .col_encoder._embedding_encoder import EmbeddingEncoder
 from .col_encoder._reshape_encoder import ReshapeEncoder
 from .table_pre_encoder import TablePreEncoder
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 
 
 class TabTransformerPreEncoder(TablePreEncoder):
@@ -16,7 +16,7 @@ class TabTransformerPreEncoder(TablePreEncoder):
 
     Args:
         out_dim (int): The output dimensionality.
-        metadata (Dict[ColType, List[Dict[str, Any]]]):
+        metadata (Dict[ColType, List[Dict[StatType, Any]]]):
             Metadata for each column type, specifying the statistics and
             properties of the columns.
 
@@ -25,7 +25,7 @@ class TabTransformerPreEncoder(TablePreEncoder):
     def __init__(
         self,
         out_dim: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
     ) -> None:
         col_encoder_dict = {
             ColType.CATEGORICAL: EmbeddingEncoder(),

@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 from .table_pre_encoder import TablePreEncoder
 from .col_encoder._embedding_encoder import EmbeddingEncoder
 from .col_encoder._linear_encoder import LinearEncoder
@@ -16,7 +16,7 @@ class ResNetPreEncoder(TablePreEncoder):
 
     Args:
         out_dim (int): The output dimensionality.
-        metadata (Dict[ColType, List[Dict[str, Any]]]):
+        metadata (Dict[ColType, List[Dict[StatType, Any]]]):
             Metadata for each column type, specifying the statistics and
             properties of the columns.
 
@@ -36,7 +36,7 @@ class ResNetPreEncoder(TablePreEncoder):
     def __init__(
         self,
         out_dim: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
     ) -> None:
         # Select one col-encoder per column type.
         col_encoder_dict = {

@@ -23,7 +23,7 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 from rllm.datasets import Jannis, Titanic
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.encoder import FTTransformerPreEncoder
@@ -73,7 +73,7 @@ class ExcelFormer(torch.nn.Module):
         hidden_dim: int,
         out_dim: int,
         num_layers: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
     ):
         super().__init__()
         self.pre_encoder = FTTransformerPreEncoder(

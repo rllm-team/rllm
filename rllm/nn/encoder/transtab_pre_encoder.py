@@ -14,7 +14,7 @@ from .table_pre_encoder import TablePreEncoder
 from .col_encoder._transtab_num_embedding_encoder import TransTabNumEmbeddingEncoder
 from .col_encoder._transtab_word_embedding_encoder import TransTabWordEmbeddingEncoder
 
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 from rllm.data.table_data import TableData
 
 
@@ -28,7 +28,7 @@ class TransTabPreEncoder(TablePreEncoder):
 
     Args:
         out_dim (int): Output embedding dimensionality (d_model).
-        metadata (Dict[ColType, List[Dict[str, Any]]]): Per-column statistics metadata.
+        metadata (Dict[ColType, List[Dict[StatType, Any]]]): Per-column statistics metadata.
         categorical_columns (List[str], optional): Categorical column names. Default: ``None``.
         numerical_columns (List[str], optional): Numerical column names. Default: ``None``.
         binary_columns (List[str], optional): Binary column names. Default: ``None``.
@@ -50,7 +50,7 @@ class TransTabPreEncoder(TablePreEncoder):
     def __init__(
         self,
         out_dim: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
         categorical_columns: Optional[List[str]] = None,
         numerical_columns: Optional[List[str]] = None,
         binary_columns: Optional[List[str]] = None,

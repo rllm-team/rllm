@@ -22,7 +22,7 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import TromptConv
@@ -72,7 +72,7 @@ class Trompt(torch.nn.Module):
         out_dim: int,
         num_layers: int,
         num_prompts: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
     ):
         super().__init__()
         self.out_dim = out_dim

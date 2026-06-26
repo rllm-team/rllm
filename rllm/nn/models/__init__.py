@@ -22,7 +22,10 @@ if TYPE_CHECKING:
         RelGNN,
         RelGNNModel,
     )
-    from rllm.nn.models.metartl import MetaPathFusion
+    from rllm.nn.models.metartl import (
+        MetaPathFusion,
+        MetaPathProp,
+    )
 
 _LAZY_MODULES = {
     "rllm.nn.models.rect": (
@@ -53,6 +56,7 @@ _LAZY_MODULES = {
     ),
     "rllm.nn.models.metartl": (
         "MetaPathFusion",
+        "MetaPathProp",
     ),
 }
 

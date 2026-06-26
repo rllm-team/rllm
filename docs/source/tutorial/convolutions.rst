@@ -178,7 +178,7 @@ The :obj:`metadata` contains information about the table structure and is used t
         num_heads: int = 8,
         dropout: float = 0.3,
         activation: str = "relu",
-        metadata: Dict[ColType, List[Dict[str, Any]]] = None,
+        metadata: Dict[ColType, List[Dict[StatType, Any]]] = None,
     ):
         super().__init__()
         encoder_layer = TransformerEncoderLayer(

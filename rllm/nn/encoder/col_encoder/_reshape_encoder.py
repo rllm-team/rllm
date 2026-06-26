@@ -43,7 +43,7 @@ class ReshapeEncoder(ColEncoder):
         self,
         out_dim: int = 1,
         stats_list: Optional[List[Dict[StatType, Any]]] = None,
-        post_module: torch.nn.Module = None,
+        post_module: Optional[torch.nn.Module] = None,
         need_layer_norm: bool = True,
     ) -> None:
         self.need_layer_norm = need_layer_norm

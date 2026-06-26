@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from rllm.utils._remap import remap_keys
     from rllm.utils._mixin import CastMixin
     from rllm.utils.atomic_routes import get_atomic_routes
-    from rllm.utils.xavier_init import _xavier_uniform_
 
 _LAZY_MODULES = {
     "rllm.utils.download": (
@@ -76,9 +75,6 @@ _LAZY_MODULES = {
     ),
     "rllm.utils.atomic_routes": (
         "get_atomic_routes",
-    ),
-    "rllm.utils.xavier_init": (
-        "_xavier_uniform_",
     ),
 }
 

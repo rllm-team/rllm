@@ -25,7 +25,7 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 from rllm.datasets import Titanic, BankMarketing
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.encoder import FTTransformerPreEncoder
@@ -74,7 +74,7 @@ class SAINT(torch.nn.Module):
         out_dim: int,
         num_cols: int,
         num_layers: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
     ):
         super().__init__()
         self.pre_encoder = FTTransformerPreEncoder(
@@ -91,8 +91,8 @@ class SAINT(torch.nn.Module):
             torch.nn.Linear(hidden_dim, out_dim),
         )
 
-    def forward(self, x: Dict[ColType, Tensor]) -> Tensor:
-        x = self.pre_encoder(x)
+    def forward(self, feature_dict: Dict[ColType, Tensor]) -> Tensor:
+        x = self.pre_encoder(feature_dict)
         for conv in self.convs:
             x = conv(x)
         out = self.mlp(x.mean(dim=1))

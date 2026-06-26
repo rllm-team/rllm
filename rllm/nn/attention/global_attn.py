@@ -93,8 +93,11 @@ class VectorQuantizerEMA(nn.Module):
                 assigned, new_embedding, self._embedding
             )
 
-            running_std = torch.sqrt(self.bn.running_var + 1e-5).unsqueeze(dim=0)
-            running_mean = self.bn.running_mean.unsqueeze(dim=0)
+            running_var = self.bn.running_var
+            running_mean = self.bn.running_mean
+            assert running_var is not None and running_mean is not None
+            running_std = torch.sqrt(running_var + 1e-5).unsqueeze(dim=0)
+            running_mean = running_mean.unsqueeze(dim=0)
             self._embedding_output.data = self._embedding * running_std + running_mean
 
         return encoding_indices

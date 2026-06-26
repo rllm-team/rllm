@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
-from rllm.types import ColType
+from rllm.types import ColType, StatType
 from rllm.transforms.table_transforms import TableTransform
 
 
@@ -10,7 +10,7 @@ class DefaultTableTransform(TableTransform):
 
     Args:
         out_dim (int): The output dimensionality.
-        metadata (Dict[ColType, List[Dict[str, Any]]], optional): Metadata
+        metadata (Dict[ColType, List[Dict[StatType, Any]]], optional): Metadata
             containing information about the columns, such as statistics.
             (default: :obj:`None`)
     """
@@ -18,7 +18,7 @@ class DefaultTableTransform(TableTransform):
     def __init__(
         self,
         out_dim: Optional[int] = None,
-        metadata: Optional[Dict[ColType, List[Dict[str, Any]]]] = None,
+        metadata: Optional[Dict[ColType, List[Dict[StatType, Any]]]] = None,
     ) -> None:
         super().__init__(
             out_dim=out_dim,

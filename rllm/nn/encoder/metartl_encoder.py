@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from torch import Tensor
@@ -100,6 +100,7 @@ class MetaRTLEncoder(torch.nn.Module):
         )
 
         self.use_temporal_encoder = use_temporal_encoder
+        self.TEMPORAL_ENCODER: Optional[HeteroTemporalEncoder]
         if use_temporal_encoder:
             self.TEMPORAL_ENCODER = HeteroTemporalEncoder(
                 node_types=[
@@ -110,9 +111,10 @@ class MetaRTLEncoder(torch.nn.Module):
                 channels=hidden_dim,
             )
         else:
-            self.TEMPORAL_ENCODER = self.register_parameter("TEMPORAL_ENCODER", None)
+            self.TEMPORAL_ENCODER = None
 
         # swappable HGNN backbone
+        self.HGNN: Union[HeteroSAGE, RelGNN]
         if gnn == "SAGE":
             self.HGNN = HeteroSAGE(
                 node_types=data.node_types,
@@ -153,12 +155,13 @@ class MetaRTLEncoder(torch.nn.Module):
         r"""Resets all learnable parameters of the module."""
         for tnn in self.TNN_DICT.values():
             tnn.reset_parameters()
-        if self.use_temporal_encoder:
+        if self.TEMPORAL_ENCODER is not None:
             self.TEMPORAL_ENCODER.reset_parameters()
         self.HGNN.reset_parameters()
         for layer in self.OUTPUT_HEAD:
-            if hasattr(layer, "reset_parameters"):
-                layer.reset_parameters()
+            reset_fn = getattr(layer, "reset_parameters", None)
+            if callable(reset_fn):
+                reset_fn()
 
     def encode(self, batch: HeteroGraphData) -> Dict[str, Tensor]:
         r"""Encode a mini-batch into per-node-type embeddings.
@@ -177,7 +180,7 @@ class MetaRTLEncoder(torch.nn.Module):
         for node_type, node_storage in batch.node_items():
             x_dict[node_type] = self.TNN_DICT[node_type](node_storage.table)
 
-        if self.use_temporal_encoder:
+        if self.TEMPORAL_ENCODER is not None:
             seed_time = batch[self._target_table(batch)].seed_time
             rel_time_dict = self.TEMPORAL_ENCODER(
                 seed_time, batch.time_dict, batch.batch_dict

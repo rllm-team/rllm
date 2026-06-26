@@ -26,8 +26,7 @@ sys.path.append("../../")
 from rllm.datasets import RelF1Dataset
 from rllm.dataloader import RelbenchLoader
 from rllm.nn.encoder import MetaRTLEncoder
-from rllm.nn.models import MetaPathFusion
-from rllm.transforms.utils import MetaPathProp
+from rllm.nn.models import MetaPathFusion, MetaPathProp
 
 
 def train_stage1(model, optimizer, loss_fn, loader, target_table, max_steps, device):
