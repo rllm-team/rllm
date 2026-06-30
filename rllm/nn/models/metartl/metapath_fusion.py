@@ -3,7 +3,7 @@ from torch import Tensor
 from torch import nn
 from typing import Callable
 
-from rllm.nn.attention import GlobalAttn
+from rllm.nn.models.metartl.global_attn import GlobalAttn
 from rllm.nn.models.metartl.linear_per_metapath import LinearPerMetapath
 from rllm.nn.models.metartl.semantic_transformer import SemanticTransformer
 
