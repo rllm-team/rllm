@@ -47,13 +47,13 @@ class TimestampPreprocessor:
 
     # Map each field name to a callable (Series → numpy array).
     _FIELD_EXTRACTORS = {
-        "YEAR":      lambda s: s.dt.year.values,
-        "MONTH":     lambda s: s.dt.month.values - 1,
-        "DAY":       lambda s: s.dt.day.values - 1,
-        "DAYOFWEEK": lambda s: s.dt.dayofweek.values,
-        "HOUR":      lambda s: s.dt.hour.values,
-        "MINUTE":    lambda s: s.dt.minute.values,
-        "SECOND":    lambda s: s.dt.second.values,
+        "YEAR":      lambda s: s.dt.year.to_numpy(),
+        "MONTH":     lambda s: s.dt.month.to_numpy() - 1,
+        "DAY":       lambda s: s.dt.day.to_numpy() - 1,
+        "DAYOFWEEK": lambda s: s.dt.dayofweek.to_numpy(),
+        "HOUR":      lambda s: s.dt.hour.to_numpy(),
+        "MINUTE":    lambda s: s.dt.minute.to_numpy(),
+        "SECOND":    lambda s: s.dt.second.to_numpy(),
     }
 
     def __init__(

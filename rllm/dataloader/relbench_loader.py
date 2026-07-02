@@ -108,18 +108,18 @@ class RelbenchLoader(torch.utils.data.DataLoader):
         """
         task = self.task
         task_df, _ = task.task_data_dict[self.split]
-        nodes = torch.from_numpy(task_df[task.entity_col].astype(int).values)
+        nodes = torch.from_numpy(task_df[task.entity_col].astype(int).to_numpy())
         time = torch.from_numpy(
             timecol_to_unix_time(task_df[task.time_col])
         )
         target = None
         if task.task_type == RelBenchTaskType.BINARY_CLASSIFICATION:
             target = torch.from_numpy(
-                task_df[task.target_col].values.astype(float)
+                task_df[task.target_col].to_numpy().astype(float)
             )
         elif task.task_type == RelBenchTaskType.REGRESSION:
             target = torch.from_numpy(
-                task_df[task.target_col].values.astype(float)
+                task_df[task.target_col].to_numpy().astype(float)
             )
         else:
             raise ValueError(

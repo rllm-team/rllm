@@ -60,7 +60,7 @@ def build_homo_graph(
     """
 
     # Get adj
-    src_nodes, tgt_nodes = torch.from_numpy(relation_df.iloc[:, :2].values).t()
+    src_nodes, tgt_nodes = torch.from_numpy(relation_df.iloc[:, :2].to_numpy()).t()
     indices = torch.cat(
         [
             torch.stack([src_nodes, tgt_nodes], dim=0),  # src -> tgt

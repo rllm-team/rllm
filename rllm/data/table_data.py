@@ -458,7 +458,7 @@ class TableData(BaseTable):
     @df_requisite
     def fkey_index(self, fkey_col: str) -> np.ndarray:
         r"""fkey_index for sampler."""
-        return self.df[fkey_col].values
+        return self.df[fkey_col].to_numpy()
 
     @property
     @df_requisite

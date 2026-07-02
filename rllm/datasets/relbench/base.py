@@ -309,9 +309,9 @@ class RelBenchDataset(Dataset):
                 fkey_index = torch.arange(len(pkey_index))
 
                 pkey_index = torch.from_numpy(
-                    pkey_index[mask].astype(int).values
+                    pkey_index[mask].astype(int).to_numpy()
                 )
-                fkey_index = fkey_index[torch.from_numpy(mask.values)]
+                fkey_index = fkey_index[torch.from_numpy(mask.to_numpy())]
                 # Ensure no dangling fkeys
                 assert (pkey_index < len(table_dict[pkey_table_name].df)).all()
 
