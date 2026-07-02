@@ -16,5 +16,5 @@ def timecol_to_unix_time(ser: pd.Series) -> np.ndarray:
     assert ser.dtype in [np.dtype("datetime64[s]"), np.dtype("datetime64[ns]")]
     unix_time = ser.astype("int64").values
     if ser.dtype == np.dtype("datetime64[ns]"):
-        unix_time //= 10**9
+        unix_time = unix_time // 10**9
     return unix_time
