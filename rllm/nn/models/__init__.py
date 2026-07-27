@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     )
     from rllm.nn.models.inrtl import (
         InRTLLinearAttentionLayer,
-        InRTLIntraTableEncoder,
-        InRTLBackbone,
+        IntraTableInteraction,
+        InterTableInteraction,
         InRTL,
     )
     from rllm.nn.models.transtab import (
@@ -44,8 +44,8 @@ _LAZY_MODULES = {
     ),
     "rllm.nn.models.inrtl": (
         "InRTLLinearAttentionLayer",
-        "InRTLIntraTableEncoder",
-        "InRTLBackbone",
+        "IntraTableInteraction",
+        "InterTableInteraction",
         "InRTL",
     ),
     "rllm.nn.models.transtab": (

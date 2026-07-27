@@ -5,8 +5,11 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch import nn
 
+from typing import List, Union
+
 from rllm.data import TableData
-from rllm.nn.models.bridge import GraphEncoder, TableEncoder
+from rllm.nn.encoder import ColumnAwareTableEncoder
+from rllm.nn.conv.graph_conv import GCNConv
 
 
 class InRTLLinearAttentionLayer(nn.Module):
@@ -62,8 +65,8 @@ class InRTLLinearAttentionLayer(nn.Module):
         return (agg / denom).mean(dim=1)
 
 
-class InRTLIntraTableEncoder(nn.Module):
-    r"""InRTL intra-table encoder.
+class IntraTableInteraction(nn.Module):
+    r"""InRTL intra-table interaction module.
 
     This stack applies linear attention over table-side representations and
     serves as the intra-table modeling branch.
@@ -122,12 +125,61 @@ class InRTLIntraTableEncoder(nn.Module):
         return x
 
 
-class InRTLBackbone(nn.Module):
-    r"""Core InRTL backbone.
+class InterTableInteraction(nn.Module):
+    r"""InRTL inter-table interaction module.
 
-    It combines the intra-table linear-attention branch with the inter-table
-    graph neural network branch, then fuses their outputs by addition or
-    concatenation.
+    This module corresponds to the HGNN simplification in Section 3.3.2 of
+    the InRTL paper. Its current compatibility implementation preserves the
+    existing GCN message-passing path and accepts the same homogeneous sparse
+    adjacency representation used by the example script.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        dropout: float = 0.5,
+        num_layers: int = 2,
+        graph_conv: type[nn.Module] = GCNConv,
+        norm: bool = False,
+    ) -> None:
+        super().__init__()
+        self.dropout = dropout
+        self.convs = nn.ModuleList()
+        for _ in range(num_layers - 1):
+            self.convs.append(
+                graph_conv(in_dim=in_channels, out_dim=in_channels, normalize=norm)
+            )
+        self.convs.append(
+            graph_conv(in_dim=in_channels, out_dim=out_channels, normalize=norm)
+        )
+
+    def reset_parameters(self) -> None:
+        for conv in self.convs:
+            conv.reset_parameters()
+
+    def forward(self, x: Tensor, adj: Union[Tensor, List[Tensor]]) -> Tensor:
+        if isinstance(adj, Tensor):
+            for conv in self.convs[:-1]:
+                x = F.dropout(x, p=self.dropout, training=self.training)
+                x = F.relu(conv(x, adj))
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            return self.convs[-1](x, adj)
+
+        for i, conv in enumerate(self.convs[:-1]):
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x = F.relu(conv(x, adj[-i - 1]))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        return self.convs[-1](x, adj[0])
+
+
+class InRTL(nn.Module):
+    r"""InRTL model with direct intra-table and inter-table components.
+
+    The model owns three paper-aligned stages: the reusable column-aware table
+    encoder from Section 3.1, the linear-attention intra-table encoder from
+    Section 3.3.1, and the HGNN inter-table encoder from Section 3.3.2.
+    Current defaults preserve the existing example's homogeneous graph path.
     """
 
     def __init__(
@@ -135,6 +187,8 @@ class InRTLBackbone(nn.Module):
         in_channels: int,
         hidden_channels: int,
         out_channels: int,
+        table_metadata=None,
+        table_num_layers: int = 1,
         attn_num_layers: int = 1,
         attn_num_heads: int = 4,
         attn_dropout: float = 0.5,
@@ -146,7 +200,17 @@ class InRTLBackbone(nn.Module):
         use_orig_x: bool = False,
     ) -> None:
         super().__init__()
-        self.attn = InRTLIntraTableEncoder(
+        self.table_encoder = (
+            ColumnAwareTableEncoder(
+                in_dim=in_channels,
+                out_dim=in_channels,
+                num_layers=table_num_layers,
+                metadata=table_metadata,
+            )
+            if table_metadata is not None
+            else None
+        )
+        self.intra_interaction = IntraTableInteraction(
             in_channels=in_channels,
             hidden_channels=hidden_channels,
             num_layers=attn_num_layers,
@@ -154,9 +218,9 @@ class InRTLBackbone(nn.Module):
             beta=beta,
             dropout=attn_dropout,
         )
-        self.gnn = GraphEncoder(
-            in_dim=in_channels,
-            out_dim=hidden_channels,
+        self.inter_interaction = InterTableInteraction(
+            in_channels=in_channels,
+            out_channels=hidden_channels,
             dropout=gnn_dropout,
             num_layers=gnn_num_layers,
         )
@@ -165,59 +229,52 @@ class InRTLBackbone(nn.Module):
         self.use_orig_x = use_orig_x
 
         if aggregate == "add":
-            self.fc = nn.Linear(hidden_channels, out_channels)
+            self.output_head = nn.Linear(hidden_channels, out_channels)
         elif aggregate == "concat":
             factor = 3 if use_orig_x else 2
-            self.fc = nn.Linear(factor * hidden_channels, out_channels)
+            self.output_head = nn.Linear(factor * hidden_channels, out_channels)
         else:
             raise ValueError(f"Unsupported aggregation mode: {aggregate}")
 
-    def reset_parameters(self) -> None:
-        self.attn.reset_parameters()
-        for conv in self.gnn.convs:
-            conv.reset_parameters()
-        self.fc.reset_parameters()
+    @property
+    def uses_table_encoder(self) -> bool:
+        return self.table_encoder is not None
 
-    def forward(self, x: Tensor, adj: Tensor | list[Tensor] | None = None) -> Tensor:
+    def forward_features(self, x: Tensor, adj: Union[Tensor, List[Tensor]]) -> Tensor:
+        """Fuse the current intra-table and inter-table representations."""
         x_orig = x if self.use_orig_x else None
-        attn_out = self.attn(x)
-        gnn_out = self.gnn(x, adj)
+        intra_out = self.intra_interaction(x)
+        inter_out = self.inter_interaction(x, adj)
 
         if self.aggregate == "add":
-            out = self.alpha * gnn_out + (1 - self.alpha) * attn_out
+            out = self.alpha * inter_out + (1 - self.alpha) * intra_out
             if x_orig is not None:
                 out = out + x_orig
         else:
-            pieces = [attn_out, gnn_out]
+            pieces = [intra_out, inter_out]
             if x_orig is not None:
                 pieces.append(x_orig)
             out = torch.cat(pieces, dim=1)
 
-        return self.fc(out)
-
-
-class InRTL(nn.Module):
-    r"""Full InRTL model with a table encoder and InRTL backbone."""
-
-    def __init__(
-        self,
-        table_encoder: TableEncoder,
-        graph_encoder: InRTLBackbone,
-    ) -> None:
-        super().__init__()
-        self.table_encoder = table_encoder
-        self.graph_encoder = graph_encoder
+        return self.output_head(out)
 
     def forward(
         self,
-        table: TableData,
+        table_or_x: Union[TableData, Tensor],
         non_table: Tensor | None,
-        adj: Tensor | list[Tensor],
+        adj: Union[Tensor, List[Tensor]] | None = None,
     ) -> Tensor:
-        table_embeddings = self.table_encoder(table)
-        if non_table is not None:
-            node_feats = torch.cat([table_embeddings, non_table], dim=0)
-        else:
-            node_feats = table_embeddings
-        node_feats = self.graph_encoder(node_feats, adj)
-        return node_feats[: len(table), :]
+        if not self.uses_table_encoder:
+            if not isinstance(table_or_x, Tensor):
+                raise TypeError("A tensor input is required without a table encoder.")
+            return self.forward_features(table_or_x, non_table)
+
+        if not isinstance(table_or_x, TableData):
+            raise TypeError("TableData input is required when a table encoder is enabled.")
+        table_embeddings = self.table_encoder(table_or_x)
+        node_feats = (
+            torch.cat([table_embeddings, non_table], dim=0)
+            if non_table is not None
+            else table_embeddings
+        )
+        return self.forward_features(node_feats, adj)[: len(table_or_x), :]

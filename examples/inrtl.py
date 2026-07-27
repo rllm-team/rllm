@@ -22,18 +22,14 @@ if ROOT_DIR not in sys.path:
 
 from rllm.datasets import TACM12KDataset, TLF2KDataset, TML1MDataset
 from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.models import (
-    InRTLBackbone,
-    InRTL,
-    TableEncoder,
-)
+from rllm.nn.models import InRTL
 
 from examples.bridge.utils import data_prepare
 
 
 def build_model(target_table, emb_size, args):
     if args.dataset == "tacm12k":
-        return InRTLBackbone(
+        return InRTL(
             in_channels=emb_size,
             hidden_channels=args.hidden_dim,
             out_channels=target_table.num_classes,
@@ -48,16 +44,11 @@ def build_model(target_table, emb_size, args):
             use_orig_x=args.use_orig_x,
         )
 
-    table_encoder = TableEncoder(
-        in_dim=emb_size,
-        out_dim=emb_size,
-        table_conv=TabTransformerConv,
-        metadata=target_table.metadata,
-    )
-    graph_encoder = InRTLBackbone(
+    return InRTL(
         in_channels=emb_size,
         hidden_channels=args.hidden_dim,
         out_channels=target_table.num_classes,
+        table_metadata=target_table.metadata,
         attn_num_layers=args.attn_num_layers,
         attn_num_heads=args.attn_num_heads,
         attn_dropout=args.attn_dropout,
@@ -68,16 +59,12 @@ def build_model(target_table, emb_size, args):
         aggregate=args.aggregate,
         use_orig_x=args.use_orig_x,
     )
-    return InRTL(
-        table_encoder=table_encoder,
-        graph_encoder=graph_encoder,
-    )
 
 
 def train_epoch(model, optimizer, target_table, non_table_embeddings, adj):
     model.train()
     optimizer.zero_grad()
-    if isinstance(model, InRTLBackbone):
+    if not model.uses_table_encoder:
         logits = model(non_table_embeddings, adj)
     else:
         logits = model(target_table, non_table_embeddings, adj)
@@ -93,7 +80,7 @@ def train_epoch(model, optimizer, target_table, non_table_embeddings, adj):
 @torch.no_grad()
 def evaluate(model, target_table, non_table_embeddings, adj):
     model.eval()
-    if isinstance(model, InRTLBackbone):
+    if not model.uses_table_encoder:
         logits = model(non_table_embeddings, adj)
     else:
         logits = model(target_table, non_table_embeddings, adj)
