@@ -1,56 +1,113 @@
-from typing import Any, Dict, List, Type
+from __future__ import annotations
+
+import math
+from typing import Any, Dict, List
 
 import torch
 from torch import Tensor
+from torch.nn import LayerNorm, Linear, ModuleList, ReLU, Sequential
 
 from rllm.data import TableData
-from rllm.nn.conv.table_conv import TabTransformerConv
-from rllm.nn.encoder.tab_transformer_pre_encoder import TabTransformerPreEncoder
+from rllm.nn.conv.table_conv import ResNetConv
+from rllm.nn.encoder.col_encoder._embedding_encoder import EmbeddingEncoder
+from rllm.nn.encoder.col_encoder._linear_encoder import LinearEncoder
+from rllm.nn.encoder.table_pre_encoder import TablePreEncoder
 from rllm.types import ColType, StatType
 
 
-class ColumnAwareTableEncoder(torch.nn.Module):
-    r"""Reusable column-aware encoder for a single table.
+class ColATEPreEncoder(TablePreEncoder):
+    r"""Type-aware column-token encoder used internally by ColATE."""
 
-    This module is the reusable implementation point for the column-aware
-    table encoder in Section 3.1 of the InRTL paper. It receives one
-    :class:`~rllm.data.TableData` instance and returns one embedding per row.
+    def __init__(
+        self,
+        out_dim: int,
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
+    ) -> None:
+        col_encoder_dict = {
+            ColType.CATEGORICAL: EmbeddingEncoder(),
+            ColType.NUMERICAL: LinearEncoder(),
+        }
+        super().__init__(out_dim, metadata, col_encoder_dict)
 
-    The current default path deliberately preserves the existing InRTL example
-    behavior: type-aware pre-encoding, table convolution over column tokens,
-    concatenation, and mean pooling. The paper's learned column weighting and
-    ResNet fusion in Eq. 3-4 are not enabled here yet, because introducing
-    them would change existing model outputs.
+
+class ColATE(torch.nn.Module):
+    r"""Column-aware table encoder from the InRTL paper.
+
+    ColATE embeds categorical and numerical columns into a shared token space.
+    It then follows Eq. 3-4: column tokens are reweighted with a softmax over
+    batch-level mean activations, flattened, and fused by residual MLP blocks.
+    It returns one embedding per table row.
 
     Args:
-        in_dim (int): Retained for API compatibility with existing table
-            encoders. The input feature dimensions are inferred from metadata.
-        out_dim (int): Shared embedding dimension for every column token.
-        num_layers (int): Number of table-convolution layers. (default: ``1``)
-        metadata (Dict[ColType, List[Dict[StatType, Any]]], optional): Column
-            metadata used by the type-aware pre-encoder.
-        table_conv (Type[torch.nn.Module]): Table-convolution layer applied to
-            the encoded column tokens. (default: :class:`TabTransformerConv`)
+        channels (int): Shared dimension of column tokens and residual blocks.
+        out_channels (int): Output embedding dimension for each table row.
+        num_layers (int): Number of residual MLP blocks. (default: ``1``)
+        metadata (Dict[ColType, List[Dict[StatType, Any]]]): Column metadata
+            used by the type-aware pre-encoder.
+        normalization (str | None): Normalization used by residual MLP blocks.
+            (default: ``"layer_norm"``)
+        dropout (float): Dropout probability in residual MLP blocks.
+            (default: ``0.2``)
     """
 
     def __init__(
         self,
-        in_dim: int,
-        out_dim: int,
+        channels: int,
+        out_channels: int,
         num_layers: int = 1,
-        metadata: Dict[ColType, List[Dict[StatType, Any]]] = None,
-        table_conv: Type[torch.nn.Module] = TabTransformerConv,
+        metadata: Dict[ColType, List[Dict[StatType, Any]]] | None = None,
+        normalization: str | None = "layer_norm",
+        dropout: float = 0.2,
     ) -> None:
         super().__init__()
-        self.in_dim = in_dim
-        self.pre_encoder = TabTransformerPreEncoder(out_dim=out_dim, metadata=metadata)
-        self.convs = torch.nn.ModuleList(
-            [table_conv(conv_dim=out_dim) for _ in range(num_layers)]
+        if metadata is None:
+            raise ValueError("ColATE requires table metadata.")
+        if num_layers < 0:
+            raise ValueError("num_layers must be non-negative.")
+
+        num_cols = sum(len(col_metadata) for col_metadata in metadata.values())
+        if num_cols == 0:
+            raise ValueError("ColATE requires at least one input column.")
+
+        self.pre_encoder = ColATEPreEncoder(out_dim=channels, metadata=metadata)
+        in_channels = channels * num_cols
+        self.backbone = ModuleList(
+            [
+                ResNetConv(
+                    in_dim=in_channels if i == 0 else channels,
+                    out_dim=channels,
+                    normalization=normalization,
+                    dropout=dropout,
+                )
+                for i in range(num_layers)
+            ]
         )
+        decoder_in_channels = channels if num_layers > 0 else in_channels
+        self.decoder = Sequential(
+            LayerNorm(decoder_in_channels),
+            ReLU(),
+            Linear(decoder_in_channels, out_channels),
+        )
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        self.pre_encoder.reset_parameters()
+        for block in self.backbone:
+            block.reset_parameters()
+        for layer in self.decoder:
+            if hasattr(layer, "reset_parameters"):
+                layer.reset_parameters()
 
     def forward(self, table: TableData) -> Tensor:
-        r"""Encode each row of ``table`` into a shared embedding space."""
-        x = self.pre_encoder(table.feat_dict, return_dict=True)
-        for conv in self.convs:
-            x = conv(x)
-        return torch.cat(list(x.values()), dim=1).mean(dim=1)
+        r"""Encode each row of ``table`` into a column-aware embedding."""
+        x = self.pre_encoder(table.feat_dict)
+
+        # Eq. 3: derive one set of global column weights for this batch.
+        column_scores = x.mean(dim=0, keepdim=True).mean(dim=2, keepdim=True)
+        x = torch.softmax(column_scores, dim=1) * x
+
+        # Eq. 4: flatten once, then apply the residual MLP stack.
+        x = x.view(x.size(0), math.prod(x.shape[1:]))
+        for block in self.backbone:
+            x = block(x)
+        return self.decoder(x)

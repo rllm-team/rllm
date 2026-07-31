@@ -21,7 +21,6 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from rllm.datasets import TACM12KDataset, TLF2KDataset, TML1MDataset
-from rllm.nn.conv.table_conv import TabTransformerConv
 from rllm.nn.models import InRTL
 
 from examples.bridge.utils import data_prepare

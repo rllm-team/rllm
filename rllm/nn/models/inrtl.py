@@ -8,7 +8,7 @@ from torch import nn
 from typing import List, Union
 
 from rllm.data import TableData
-from rllm.nn.encoder import ColumnAwareTableEncoder
+from rllm.nn.encoder import ColATE
 from rllm.nn.conv.graph_conv import GCNConv
 
 
@@ -176,8 +176,8 @@ class InterTableInteraction(nn.Module):
 class InRTL(nn.Module):
     r"""InRTL model with direct intra-table and inter-table components.
 
-    The model owns three paper-aligned stages: the reusable column-aware table
-    encoder from Section 3.1, the linear-attention intra-table encoder from
+    The model owns three paper-aligned stages: ColATE from Section 3.1, the
+    linear-attention intra-table encoder from
     Section 3.3.1, and the HGNN inter-table encoder from Section 3.3.2.
     Current defaults preserve the existing example's homogeneous graph path.
     """
@@ -201,9 +201,9 @@ class InRTL(nn.Module):
     ) -> None:
         super().__init__()
         self.table_encoder = (
-            ColumnAwareTableEncoder(
-                in_dim=in_channels,
-                out_dim=in_channels,
+            ColATE(
+                channels=in_channels,
+                out_channels=in_channels,
                 num_layers=table_num_layers,
                 metadata=table_metadata,
             )
