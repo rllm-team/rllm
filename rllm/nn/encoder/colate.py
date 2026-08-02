@@ -16,7 +16,13 @@ from rllm.types import ColType, StatType
 
 
 class ColATEPreEncoder(TablePreEncoder):
-    r"""Type-aware column-token encoder used internally by ColATE."""
+    r"""Encode categorical and numerical columns into shared token features.
+
+    Args:
+        out_dim (int): Output dimension of each column token.
+        metadata (Dict[ColType, List[Dict[StatType, Any]]]): Column metadata
+            used to initialize the encoders.
+    """
 
     def __init__(
         self,
@@ -31,12 +37,12 @@ class ColATEPreEncoder(TablePreEncoder):
 
 
 class ColATE(torch.nn.Module):
-    r"""Column-aware table encoder from the InRTL paper.
+    r"""Column-aware table encoder.
 
     ColATE embeds categorical and numerical columns into a shared token space.
-    It then follows Eq. 3-4: column tokens are reweighted with a softmax over
-    batch-level mean activations, flattened, and fused by residual MLP blocks.
-    It returns one embedding per table row.
+    It computes global column weights from batch-level activations, then
+    flattens and fuses the weighted tokens with residual MLP blocks. It returns
+    one embedding per table row.
 
     Args:
         channels (int): Shared dimension of column tokens and residual blocks.
@@ -99,14 +105,21 @@ class ColATE(torch.nn.Module):
                 layer.reset_parameters()
 
     def forward(self, table: TableData) -> Tensor:
-        r"""Encode each row of ``table`` into a column-aware embedding."""
+        r"""Encode each table row into a column-aware embedding.
+
+        Args:
+            table (TableData): Input table data.
+
+        Returns:
+            Tensor: Row embeddings of shape :obj:`[num_rows, out_channels]`.
+        """
         x = self.pre_encoder(table.feat_dict)
 
-        # Eq. 3: derive one set of global column weights for this batch.
+        # Derive one set of global column weights for the current batch.
         column_scores = x.mean(dim=0, keepdim=True).mean(dim=2, keepdim=True)
         x = torch.softmax(column_scores, dim=1) * x
 
-        # Eq. 4: flatten once, then apply the residual MLP stack.
+        # Flatten weighted tokens before residual feature mixing.
         x = x.view(x.size(0), math.prod(x.shape[1:]))
         for block in self.backbone:
             x = block(x)
