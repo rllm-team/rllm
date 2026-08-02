@@ -10,6 +10,12 @@ if TYPE_CHECKING:
         TableEncoder,
         GraphEncoder,
     )
+    from rllm.nn.models.inrtl import (
+        InRTLLinearAttentionLayer,
+        IntraTableInteraction,
+        InterTableInteraction,
+        InRTL,
+    )
     from rllm.nn.models.transtab import (
         TransTab,
         TransTabClassifier,
@@ -35,6 +41,12 @@ _LAZY_MODULES = {
         "BRIDGE",
         "TableEncoder",
         "GraphEncoder",
+    ),
+    "rllm.nn.models.inrtl": (
+        "InRTLLinearAttentionLayer",
+        "IntraTableInteraction",
+        "InterTableInteraction",
+        "InRTL",
     ),
     "rllm.nn.models.transtab": (
         "TransTab",

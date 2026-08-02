@@ -35,7 +35,6 @@ def reorder_ids(
 
     return ordered_rating
 
-
 def build_homo_graph(
     relation_df: pd.DataFrame,
     n_all: int,
@@ -135,7 +134,7 @@ def build_batch_homo_graph(blocks, target_table):
     return graph
 
 
-def data_prepare(dataset, dataset_name, device):
+def data_prepare(dataset, dataset_name, device, use_paper_embeddings: bool = False):
     if dataset_name == "tlf2k":
         # Get the required data
         artist_table, ua_table, _ = dataset.data_list
@@ -191,12 +190,14 @@ def data_prepare(dataset, dataset_name, device):
             _,
             citations_table,
             _,
-            _,
+            paper_embeddings,
             _,
         ) = dataset.data_list
         emb_size = 384
         target_table = papers_table.to(device)
         non_table_embeddings = None
+        if use_paper_embeddings:
+            non_table_embeddings = paper_embeddings.to(device)
 
         # Build graph
         graph = build_homo_graph(
