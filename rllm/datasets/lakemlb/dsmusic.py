@@ -47,7 +47,7 @@ class DSMusicDataset(Dataset):
 
     """
 
-    url = "https://raw.githubusercontent.com/zhengwang100/LakeMLB/main/benckmark/join_based/dsmusic.zip"
+    url = "https://media.githubusercontent.com/media/zhengwang100/LakeMLB/main/benckmark/join_based/dsmusic.zip"
 
     def __init__(self, cached_dir: str, force_reload: Optional[bool] = False, transform=None, device=None
     ) -> None:
