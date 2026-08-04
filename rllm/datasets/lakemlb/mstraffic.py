@@ -49,7 +49,7 @@ class MSTrafficDataset(Dataset):
 
     """
 
-    url = "https://raw.githubusercontent.com/zhengwang100/LakeMLB/main/benckmark/union_based/mstraffic.zip"
+    url = "https://media.githubusercontent.com/media/zhengwang100/LakeMLB/main/benckmark/union_based/mstraffic.zip"
 
     def __init__(self, cached_dir: str, force_reload: Optional[bool] = False, transform=None, device=None
     ) -> None:
