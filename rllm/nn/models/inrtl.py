@@ -81,7 +81,12 @@ class LinearAttentionLayer(nn.Module):
 
 
 class IntraTableInteraction(nn.Module):
-    r"""Apply stacked linear attention to node representations.
+    r"""Share information among rows in the same table.
+
+    Each row attends to the other row representations in its table, allowing
+    the representation of a row to reflect the table-wide feature context.
+    Linear attention provides this global interaction without constructing an
+    explicit edge for every pair of rows.
 
     Args:
         in_channels (int): Input feature dimension.
@@ -156,7 +161,11 @@ class IntraTableInteraction(nn.Module):
 
 
 class InterTableInteraction(nn.Module):
-    r"""Apply graph convolutions to node representations.
+    r"""Propagate information between related tables.
+
+    Rows are treated as nodes in a relational graph. Graph convolutions pass
+    information along foreign-key or other inter-table links, so a row can use
+    context from records stored in connected tables.
 
     The module accepts either one sparse adjacency shared by all layers or a
     list of sparse adjacencies, one for each layer.
