@@ -11,7 +11,8 @@
 ----
 
 *Latest News* 🔥
-- [2026.01] We released **TLSQL**, a SQL-like API for table learning. See our paper and code: [arXiv](https://arxiv.org/abs/2601.14109) · [GitHub](https://github.com/rllm-project/tlsql).
+- [2026.07] Our paper **InRTL** was accepted by **KDD 2026**, leveraging the rLLM algorithm library and **SJTUTables benchmark** ([GitHub](https://github.com/rllm-project/rllm_datasets)). See the [paper](https://dl.acm.org/doi/abs/10.1145/3770855.3817787) and [code](https://github.com/rllm-team/rllm/blob/main/examples/inrtl.py).
+- [2026.01] Released **TLSQL**, a SQL-like API for table learning. See the [paper](https://arxiv.org/abs/2601.14109), [code](https://github.com/tlsql-project/tlsql), and [demo](https://www.youtube.com/watch?v=jutkPNwduV8&t).
 - [2025.10] Our students won **1st Prize** in the **China Open Source Security Incentive Program**.
 - [2025.08] At the **CCF–Huawei Populus Grove Fund** midterm report, we showed how to use rLLM in a **"SQL-like"** way with MySQL. Watch the video on Huawei’s official account: [📺 Bilibili](https://www.bilibili.com/video/BV1TQeFz7Eaj/?t=1114).
 - [2025.04] Released the course videos "Special Topic on Table Learning (Spring 2025, SJTU)". Check out the [course page](https://zhengwang100.github.io/course/table-learning-2025/) or visit our [YouTube channel](https://www.youtube.com/watch?v=aebkqnSghTw&list=PLtbYCaVzygjLZrYCuoz6nTJdUzMzIUohh).
@@ -56,10 +57,12 @@ python bridge.py
 
 rLLM includes over 15 state-of-the-art GNN and TNN models, ideal for both standalone use and building RTL-type methods. Highlighted models include:  
 
+- **InRTL**: *Effective Intra-Inter Interaction Learning for Relational Tables* [[KDD 2026](https://dl.acm.org/doi/abs/10.1145/3770855.3817787)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/inrtl.py)] 
+
 - **OGC**: *From Cluster Assumption to Graph Convolution: Graph-based Semi-Supervised Learning Revisited* [[TNNLS 2024](https://arxiv.org/abs/2309.13599)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/ogc.py)]  
 - **ExcelFormer**: *ExcelFormer: A Neural Network Surpassing GBDTs on Tabular Data* [[KDD 2024](https://arxiv.org/abs/2301.02819)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/excelformer.py)]  
 - **TAPE**: *Harnessing Explanations: LLM-to-LM Interpreter for Enhanced Text-Attributed Graph Representation Learning* [[ICLR 2024](https://arxiv.org/abs/2305.19523)] [[Example](https://github.com/rllm-team/rllm/tree/main/examples/tape)]  
-- **Label-Free-GNN**: *Label-free Node Classification on Graphs with Large Language Models* [[ICLR 2024](https://arxiv.org/abs/2310.04668)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/ogc.py)]  
+ 
 - **Trompt**: *Towards a Better Deep Neural Network for Tabular Data*  [[ICML 2023](https://arxiv.org/abs/2305.18446)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/trompt.py)]  
 - ...  
 
@@ -71,7 +74,8 @@ Contribution is always welcomed. All contributions must be made through pull req
 
 - [x] Code structure optimization
 - [x] Support for more TNNs
-- [ ] Large-scale RTL training
+- [x] Large-scale RTL training
+- [ ] GPU/TPU optimization
 - [ ] LLM prompt optimization
 
 ## Sponsor
@@ -113,5 +117,12 @@ Contribution is always welcomed. All contributions must be made through pull req
       archivePrefix={arXiv},
       primaryClass={cs.AI},
       url={https://arxiv.org/abs/2407.20157}, 
+}
+@inproceedings{li2026effective,
+  title={Effective Intra-Inter Interaction Learning for Relational Tables},
+  author={Li, Weichen and Zhong, Ken and Wang, Zheng and Pan, Li and Li, Jianhua},
+  booktitle={Proceedings of the 32nd ACM SIGKDD Conference on Knowledge Discovery and Data Mining V. 2},
+  pages={2742--2753},
+  year={2026}
 }
 ```
