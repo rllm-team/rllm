@@ -13,7 +13,13 @@ from rllm.nn.conv.graph_conv import GCNConv
 
 
 class LinearAttentionLayer(nn.Module):
-    r"""Apply multi-head linear attention to node representations.
+    r"""Linearized self/cross-attention used as the efficient Transformer component.
+
+    In InRTL, attention is used to model relational dependencies between row
+    representations. Instead of explicitly constructing all pairwise row
+    interactions, this module applies a first-order linear attention
+    approximation. This preserves the ability to aggregate global context while
+    reducing the complexity of standard self-attention.
 
     Args:
         in_channels (int): Input feature dimension.
@@ -81,12 +87,14 @@ class LinearAttentionLayer(nn.Module):
 
 
 class IntraTableInteraction(nn.Module):
-    r"""Share information among rows in the same table.
+    r"""Model intra-table interactions among rows from the same table.
 
-    Each row attends to the other row representations in its table, allowing
-    the representation of a row to reflect the table-wide feature context.
-    Linear attention provides this global interaction without constructing an
-    explicit edge for every pair of rows.
+    Rows in a relational table often share implicit dependencies that are not
+    represented by explicit PK-FK links. This module captures these
+    dependencies through Transformer-style self-attention, where each row
+    gathers information from all other rows in the same table. Linear attention
+    is used to avoid quadratic row-pair computation and enables scalable global
+    table context aggregation.
 
     Args:
         in_channels (int): Input feature dimension.
@@ -161,11 +169,14 @@ class IntraTableInteraction(nn.Module):
 
 
 class InterTableInteraction(nn.Module):
-    r"""Propagate information between related tables.
+    r"""Model inter-table interactions through relational connections.
 
-    Rows are treated as nodes in a relational graph. Graph convolutions pass
-    information along foreign-key or other inter-table links, so a row can use
-    context from records stored in connected tables.
+    Relational databases contain multiple tables connected by primary-foreign
+    key relationships. This module represents rows as nodes in a relational
+    graph and performs message passing along valid PK-FK edges. By restricting
+    communication to existing relations, it efficiently captures dependencies
+    between rows across different tables without unnecessary pairwise
+    interactions.
 
     The module accepts either one sparse adjacency shared by all layers or a
     list of sparse adjacencies, one for each layer.
@@ -233,11 +244,19 @@ class InterTableInteraction(nn.Module):
 
 
 class InRTL(nn.Module):
-    r"""Combine table encoding, linear attention, and graph convolution.
+    r"""Intra--Inter Relational Table Learning (InRTL).
 
-    When ``table_metadata`` is provided, the model encodes ``TableData`` and
-    concatenates the resulting row embeddings with ``non_table`` features.
-    Without table metadata, it operates directly on node features.
+    InRTL is a unified relational table learning framework that explicitly
+    models two complementary dependency types:
+
+    1. Intra-table interactions: dependencies among rows within the same table,
+       captured by scalable linear self-attention.
+    2. Inter-table interactions: dependencies between rows connected through
+       PK-FK relationships, captured by graph-based message passing.
+
+    The model first produces row representations using a column-aware table
+    encoder when table metadata is available. It then independently learns
+    intra-table and inter-table representations and fuses them for prediction.
 
     Args:
         in_channels (int): Input node feature dimension.
@@ -325,7 +344,12 @@ class InRTL(nn.Module):
         return self.table_encoder is not None
 
     def forward_features(self, x: Tensor, adj: Union[Tensor, List[Tensor]]) -> Tensor:
-        r"""Fuse intra-table and inter-table representations.
+        r"""Generate relational row representations by combining two views.
+
+        The intra-table branch captures dependencies inside each individual
+        table, while the inter-table branch propagates information across
+        PK-FK-linked tables. Their outputs are aggregated to obtain the final
+        relational representation.
 
         Args:
             x (Tensor): Node features of shape :obj:`[num_nodes, in_channels]`.
@@ -357,7 +381,13 @@ class InRTL(nn.Module):
         non_table: Tensor | None,
         adj: Union[Tensor, List[Tensor]] | None = None,
     ) -> Tensor:
-        r"""Compute node predictions.
+        r"""Compute predictions for relational table rows.
+
+        If table metadata is available, raw table features are first converted
+        into row embeddings by the column-aware table encoder. Otherwise, the
+        model directly consumes precomputed node features. The resulting row
+        representations are refined using intra-table and inter-table
+        interaction modules.
 
         Args:
             table_or_x (TableData or Tensor): Input table when table encoding
