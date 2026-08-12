@@ -11,7 +11,7 @@ if TYPE_CHECKING:
         GraphEncoder,
     )
     from rllm.nn.models.inrtl import (
-        InRTLLinearAttentionLayer,
+        LinearAttentionLayer,
         IntraTableInteraction,
         InterTableInteraction,
         InRTL,
@@ -43,7 +43,7 @@ _LAZY_MODULES = {
         "GraphEncoder",
     ),
     "rllm.nn.models.inrtl": (
-        "InRTLLinearAttentionLayer",
+        "LinearAttentionLayer",
         "IntraTableInteraction",
         "InterTableInteraction",
         "InRTL",

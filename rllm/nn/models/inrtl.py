@@ -12,13 +12,21 @@ from rllm.nn.encoder import ColATE
 from rllm.nn.conv.graph_conv import GCNConv
 
 
-class InRTLLinearAttentionLayer(nn.Module):
-    r"""Feature-only linear self-attention used by the legacy SJTU table
-    experiments.
+class LinearAttentionLayer(nn.Module):
+    r"""Linearized self/cross-attention used as the efficient Transformer component.
 
-    The layer performs a dense all-to-all aggregation over node features with
-    an :math:`O(ND^2)` linear-attention style approximation and averages the
-    outputs across heads.
+    In InRTL, attention is used to model relational dependencies between row
+    representations. Instead of explicitly constructing all pairwise row
+    interactions, this module applies a first-order linear attention
+    approximation. This preserves the ability to aggregate global context while
+    reducing the complexity of standard self-attention.
+
+    Args:
+        in_channels (int): Input feature dimension.
+        out_channels (int): Output feature dimension per attention head.
+        num_heads (int): Number of attention heads.
+        eps (float): Minimum value used when normalizing query and key vectors.
+            (default: ``1e-12``)
     """
 
     def __init__(
@@ -43,6 +51,19 @@ class InRTLLinearAttentionLayer(nn.Module):
         self.v_proj.reset_parameters()
 
     def forward(self, query: Tensor, key: Tensor, value: Tensor) -> Tensor:
+        r"""Compute attention output.
+
+        Args:
+            query (Tensor): Query features of shape
+                :obj:`[num_nodes, in_channels]`.
+            key (Tensor): Key features of shape
+                :obj:`[num_nodes, in_channels]`.
+            value (Tensor): Value features of shape
+                :obj:`[num_nodes, in_channels]`.
+
+        Returns:
+            Tensor: Output features of shape :obj:`[num_nodes, out_channels]`.
+        """
         num_nodes = query.size(0)
         num_heads = self.num_heads
         head_dim = self.out_channels
@@ -66,10 +87,22 @@ class InRTLLinearAttentionLayer(nn.Module):
 
 
 class IntraTableInteraction(nn.Module):
-    r"""InRTL intra-table interaction module.
+    r"""Model intra-table interactions among rows from the same table.
 
-    This stack applies linear attention over table-side representations and
-    serves as the intra-table modeling branch.
+    Rows in a relational table often share implicit dependencies that are not
+    represented by explicit PK-FK links. This module captures these
+    dependencies through Transformer-style self-attention, where each row
+    gathers information from all other rows in the same table. Linear attention
+    is used to avoid quadratic row-pair computation and enables scalable global
+    table context aggregation.
+
+    Args:
+        in_channels (int): Input feature dimension.
+        hidden_channels (int): Hidden feature dimension.
+        num_layers (int): Number of attention layers. (default: ``1``)
+        num_heads (int): Number of attention heads per layer. (default: ``4``)
+        beta (float): Residual interpolation weight. (default: ``0.5``)
+        dropout (float): Dropout probability. (default: ``0.5``)
     """
 
     def __init__(
@@ -88,7 +121,7 @@ class IntraTableInteraction(nn.Module):
 
         for _ in range(num_layers):
             self.attns.append(
-                InRTLLinearAttentionLayer(
+                LinearAttentionLayer(
                     hidden_channels,
                     hidden_channels,
                     num_heads=num_heads,
@@ -108,6 +141,16 @@ class IntraTableInteraction(nn.Module):
             bn.reset_parameters()
 
     def forward(self, x: Tensor) -> Tensor:
+        r"""Apply intra-table interaction.
+
+        Args:
+            x (Tensor): Input features of shape
+                :obj:`[num_nodes, in_channels]`.
+
+        Returns:
+            Tensor: Output features of shape
+            :obj:`[num_nodes, hidden_channels]`.
+        """
         x = self.fc(x)
         x = self.bns[0](x)
         x = self.activation(x)
@@ -126,12 +169,27 @@ class IntraTableInteraction(nn.Module):
 
 
 class InterTableInteraction(nn.Module):
-    r"""InRTL inter-table interaction module.
+    r"""Model inter-table interactions through relational connections.
 
-    This module corresponds to the HGNN simplification in Section 3.3.2 of
-    the InRTL paper. Its current compatibility implementation preserves the
-    existing GCN message-passing path and accepts the same homogeneous sparse
-    adjacency representation used by the example script.
+    Relational databases contain multiple tables connected by primary-foreign
+    key relationships. This module represents rows as nodes in a relational
+    graph and performs message passing along valid PK-FK edges. By restricting
+    communication to existing relations, it efficiently captures dependencies
+    between rows across different tables without unnecessary pairwise
+    interactions.
+
+    The module accepts either one sparse adjacency shared by all layers or a
+    list of sparse adjacencies, one for each layer.
+
+    Args:
+        in_channels (int): Input feature dimension.
+        out_channels (int): Output feature dimension.
+        dropout (float): Dropout probability. (default: ``0.5``)
+        num_layers (int): Number of graph-convolution layers. (default: ``2``)
+        graph_conv (type[nn.Module]): Graph-convolution module to instantiate.
+            (default: :class:`~rllm.nn.conv.graph_conv.GCNConv`)
+        norm (bool): Whether to enable graph-convolution normalization.
+            (default: ``False``)
     """
 
     def __init__(
@@ -159,6 +217,18 @@ class InterTableInteraction(nn.Module):
             conv.reset_parameters()
 
     def forward(self, x: Tensor, adj: Union[Tensor, List[Tensor]]) -> Tensor:
+        r"""Apply graph convolution.
+
+        Args:
+            x (Tensor): Input features of shape
+                :obj:`[num_nodes, in_channels]`.
+            adj (Tensor or List[Tensor]): Sparse adjacency shared by all layers,
+                or one sparse adjacency for each layer.
+
+        Returns:
+            Tensor: Output features of shape
+            :obj:`[num_nodes, out_channels]`.
+        """
         if isinstance(adj, Tensor):
             for conv in self.convs[:-1]:
                 x = F.dropout(x, p=self.dropout, training=self.training)
@@ -174,12 +244,45 @@ class InterTableInteraction(nn.Module):
 
 
 class InRTL(nn.Module):
-    r"""InRTL model with direct intra-table and inter-table components.
+    r"""Intra--Inter Relational Table Learning (InRTL).
 
-    The model owns three paper-aligned stages: ColATE from Section 3.1, the
-    linear-attention intra-table encoder from
-    Section 3.3.1, and the HGNN inter-table encoder from Section 3.3.2.
-    Current defaults preserve the existing example's homogeneous graph path.
+    InRTL is a unified relational table learning framework that explicitly
+    models two complementary dependency types:
+
+    1. Intra-table interactions: dependencies among rows within the same table,
+       captured by scalable linear self-attention.
+    2. Inter-table interactions: dependencies between rows connected through
+       PK-FK relationships, captured by graph-based message passing.
+
+    The model first produces row representations using a column-aware table
+    encoder when table metadata is available. It then independently learns
+    intra-table and inter-table representations and fuses them for prediction.
+
+    Args:
+        in_channels (int): Input node feature dimension.
+        hidden_channels (int): Hidden feature dimension.
+        out_channels (int): Number of output channels.
+        table_metadata (dict, optional): Metadata used to construct ColATE.
+            When :obj:`None`, table encoding is disabled. (default: :obj:`None`)
+        table_num_layers (int): Number of residual layers in ColATE.
+            (default: ``1``)
+        attn_num_layers (int): Number of linear-attention layers.
+            (default: ``1``)
+        attn_num_heads (int): Number of attention heads. (default: ``4``)
+        attn_dropout (float): Dropout probability in linear attention.
+            (default: ``0.5``)
+        gnn_num_layers (int): Number of graph-convolution layers.
+            (default: ``2``)
+        gnn_dropout (float): Dropout probability in graph convolution.
+            (default: ``0.5``)
+        alpha (float): Inter-table feature weight for additive aggregation.
+            (default: ``0.8``)
+        beta (float): Residual interpolation weight in linear attention.
+            (default: ``0.5``)
+        aggregate (str): Feature aggregation mode, either :obj:`"add"` or
+            :obj:`"concat"`. (default: :obj:`"add"`)
+        use_orig_x (bool): Whether to include input features in aggregation.
+            (default: ``False``)
     """
 
     def __init__(
@@ -241,7 +344,21 @@ class InRTL(nn.Module):
         return self.table_encoder is not None
 
     def forward_features(self, x: Tensor, adj: Union[Tensor, List[Tensor]]) -> Tensor:
-        """Fuse the current intra-table and inter-table representations."""
+        r"""Generate relational row representations by combining two views.
+
+        The intra-table branch captures dependencies inside each individual
+        table, while the inter-table branch propagates information across
+        PK-FK-linked tables. Their outputs are aggregated to obtain the final
+        relational representation.
+
+        Args:
+            x (Tensor): Node features of shape :obj:`[num_nodes, in_channels]`.
+            adj (Tensor or List[Tensor]): Sparse adjacency input for graph
+                convolution.
+
+        Returns:
+            Tensor: Predictions of shape :obj:`[num_nodes, out_channels]`.
+        """
         x_orig = x if self.use_orig_x else None
         intra_out = self.intra_interaction(x)
         inter_out = self.inter_interaction(x, adj)
@@ -264,6 +381,28 @@ class InRTL(nn.Module):
         non_table: Tensor | None,
         adj: Union[Tensor, List[Tensor]] | None = None,
     ) -> Tensor:
+        r"""Compute predictions for relational table rows.
+
+        If table metadata is available, raw table features are first converted
+        into row embeddings by the column-aware table encoder. Otherwise, the
+        model directly consumes precomputed node features. The resulting row
+        representations are refined using intra-table and inter-table
+        interaction modules.
+
+        Args:
+            table_or_x (TableData or Tensor): Input table when table encoding
+                is enabled, otherwise node features of shape
+                :obj:`[num_nodes, in_channels]`.
+            non_table (Tensor, optional): Features of non-table nodes when
+                table encoding is enabled. When table encoding is disabled,
+                this argument is interpreted as the adjacency input.
+            adj (Tensor or List[Tensor], optional): Sparse adjacency input when
+                table encoding is enabled.
+
+        Returns:
+            Tensor: Predictions for table rows when table encoding is enabled;
+            otherwise predictions for all input nodes.
+        """
         if not self.uses_table_encoder:
             if not isinstance(table_or_x, Tensor):
                 raise TypeError("A tensor input is required without a table encoder.")

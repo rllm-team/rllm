@@ -4,7 +4,7 @@ from rllm.utils.lazy_imports import define_lazy_imports
 
 
 if TYPE_CHECKING:
-    from rllm.nn.encoder.column_aware_table_encoder import ColATE
+    from rllm.nn.encoder.colate import ColATE
     from rllm.nn.encoder.table_pre_encoder import TablePreEncoder
     from rllm.nn.encoder.ft_transformer_pre_encoder import FTTransformerPreEncoder
     from rllm.nn.encoder.tab_transformer_pre_encoder import TabTransformerPreEncoder
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from rllm.nn.encoder.metartl_encoder import MetaRTLEncoder
 
 _LAZY_MODULES = {
-    "rllm.nn.encoder.column_aware_table_encoder": (
+    "rllm.nn.encoder.colate": (
         "ColATE",
     ),
     "rllm.nn.encoder.table_pre_encoder": (

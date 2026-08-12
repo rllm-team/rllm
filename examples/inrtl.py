@@ -1,7 +1,7 @@
 # Datasets  TML1M       TLF2K       TACM12K
 # Metrics   Acc         Acc         Acc
-# Rept.     40.60       50.40       48.40
-# Ours      40.40       45.80       47.80
+# Rept.     40.60       45.80       48.40
+# Ours      41.00       46.30       47.80
 # Time      50.89s      19.758s     18.41s
 
 from __future__ import annotations
