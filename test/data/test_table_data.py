@@ -100,7 +100,7 @@ def test_text_embedding():
     df = pd.DataFrame(csv_content[1:], columns=csv_content[0])
 
     class embedder:
-        def __init__(self, model_name="F:\\wenjian\\learn\\Github\\all-MiniLM-L6-v2"):
+        def __init__(self, model_name="all-MiniLM-L6-v2"):
             self.model = SentenceTransformer(model_name)
 
         def __call__(self, texts):

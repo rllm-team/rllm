@@ -64,6 +64,7 @@ class GATConv(MessagePassing):
 
             node features :math:`(|\mathcal{V}|, F_{out})`
     """
+
     node_dim = 0
     head_dim = 1
 
@@ -77,9 +78,9 @@ class GATConv(MessagePassing):
         dropout: float = 0.6,
         bias: bool = True,
         skip_connection: bool = False,
-        **kwargs
+        **kwargs,
     ):
-        super().__init__(aggr='add', **kwargs)
+        super().__init__(aggr="add", **kwargs)
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.num_heads = num_heads
@@ -97,7 +98,7 @@ class GATConv(MessagePassing):
             self.lin_skip = torch.nn.Linear(
                 in_features=in_dim[1] if isinstance(in_dim, tuple) else in_dim,
                 out_features=out_dim * num_heads if self.concat else out_dim,
-                bias=False
+                bias=False,
             )
 
         # attention weights
@@ -109,7 +110,7 @@ class GATConv(MessagePassing):
         elif bias and not concat:
             self.bias = torch.nn.Parameter(torch.empty(out_dim))
         else:
-            self.register_parameter('bias', None)
+            self.register_parameter("bias", None)
 
         self.leaky_relu = torch.nn.LeakyReLU(negative_slope)
         self.dropout = torch.nn.Dropout(p=dropout)
@@ -132,6 +133,32 @@ class GATConv(MessagePassing):
         Tuple[Tensor, Tuple[Tensor, Tensor]],
         Tuple[Tensor, Tuple[SparseTensor, Tensor]],
     ]:
+        r"""Compute node embeddings with graph attention message passing.
+
+        Args:
+            x (Union[Tensor, Tuple[Tensor, Tensor]]):
+                - Tensor input features for homogeneous graphs.
+                - Tuple of source and destination node features for bipartite graphs.
+            edge_index (Union[Tensor, SparseTensor]): Graph connectivity in edge-list
+                or sparse adjacency format.
+            return_attention_weights (bool): If True, also return edge-level
+                attention coefficients.
+
+        Returns:
+            Union[Tensor, Tuple[Tensor, Tuple[Tensor, Tensor]], Tuple[Tensor, Tuple[SparseTensor, Tensor]]]:
+            If ``return_attention_weights`` is False, returns output node features.
+            Otherwise returns output features and corresponding attention weights.
+
+        Example:
+            >>> import torch
+            >>> from rllm.nn.conv.graph_conv import GATConv
+            >>> conv = GATConv(16, 8, num_heads=2, concat=False)
+            >>> x = torch.randn(4, 16)
+            >>> edge_index = torch.tensor([[0, 1, 2], [1, 2, 3]])
+            >>> out = conv(x, edge_index)
+            >>> out.shape
+            torch.Size([4, 8])
+        """
         self.return_attention_weights = return_attention_weights
         # Linear projection
         if isinstance(x, Tensor):
@@ -142,8 +169,12 @@ class GATConv(MessagePassing):
         else:
             if self.skip_connection:
                 skip_res = self.lin_skip(x[1])
-            x_src = self.lin_src(x[0]).view(-1, self.num_heads, self.out_dim)  # (N_src, H, D)
-            x_dst = self.lin_dst(x[1]).view(-1, self.num_heads, self.out_dim)  # (N_dst, H, D)
+            x_src = self.lin_src(x[0]).view(
+                -1, self.num_heads, self.out_dim
+            )  # (N_src, H, D)
+            x_dst = self.lin_dst(x[1]).view(
+                -1, self.num_heads, self.out_dim
+            )  # (N_dst, H, D)
 
         num_nodes = x_dst.size(0)  # N_dst
 
@@ -173,7 +204,10 @@ class GATConv(MessagePassing):
 
         if return_attention_weights:
             if edge_index.is_sparse:
-                return out, (set_values(edge_index, self.attn_weights), self.attn_weights)
+                return out, (
+                    set_values(edge_index, self.attn_weights),
+                    self.attn_weights,
+                )
             else:
                 return out, (edge_index, self.attn_weights)
         else:
@@ -181,21 +215,29 @@ class GATConv(MessagePassing):
 
     def message_and_aggregate(self, edge_index, alpha, x_src, dim_size):
         edge_index, _ = self.__unify_edgeindex__(edge_index)
-        x_src = self.retrieve_feats(x_src, edge_index, dim=0, retrieve_dim=self.node_dim)
+        x_src = self.retrieve_feats(
+            x_src, edge_index, dim=0, retrieve_dim=self.node_dim
+        )
 
         # attention scores
         # alpha_src / alpha_dst: (E, H)
-        alpha_src, alpha_dst = self.retrieve_feats(alpha, edge_index, retrieve_dim=self.node_dim)
+        alpha_src, alpha_dst = self.retrieve_feats(
+            alpha, edge_index, retrieve_dim=self.node_dim
+        )
         # alpha: (E, H)
         alpha = self.leaky_relu(alpha_src + alpha_dst)
         alpha = seg_softmax(alpha, edge_index[1], num_segs=dim_size)
         alpha = self.dropout(alpha)
 
-        self.attn_weights = alpha.clone().detach() if self.return_attention_weights else None
+        self.attn_weights = (
+            alpha.clone().detach() if self.return_attention_weights else None
+        )
 
         # msgs: (E, H, D)
         msgs = x_src * alpha.unsqueeze(-1)
-        return self.aggr_module(msgs, edge_index[1], dim=self.node_dim, dim_size=dim_size)
+        return self.aggr_module(
+            msgs, edge_index[1], dim=self.node_dim, dim_size=dim_size
+        )
 
     def __repr__(self) -> str:
         return (

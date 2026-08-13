@@ -1,4 +1,5 @@
 from typing import Any, List, Literal, Optional
+import time
 
 import pandas as pd
 from tqdm import tqdm
@@ -90,10 +91,26 @@ class Predictor:
             assert var in input_variables, \
                 f"Variable '{var}' not found in input variables."
 
-        # Make prediction, remeber `row` is a default argument.
+        # Make prediction, remember `row` is a default argument.
         outputs = []
         for index, row in tqdm(df.iterrows(), total=len(df)):
-            outputs.append(self._llm.predict(self.prompt, row=row, **kwargs))
+            output = ""
+            for i in range(3):
+                try:
+                    output = self._llm.predict(self.prompt, row=row, **kwargs)
+                    break
+                except Exception as exc:
+                    if i == 2:
+                        tqdm.write(
+                            f"Prediction failed for row {index} after "
+                            f"{i + 1} attempts: {exc}"
+                        )
+                        output = ""
+                    else:
+                        time.sleep(1.5 * (i + 1))  # retry backoff
+
+            outputs.append(output)
+            time.sleep(0.5)
 
         return outputs
 

@@ -9,11 +9,10 @@ from rllm.utils.sparse import (
 
 
 def symmetric_norm(adj: Tensor):
-    """
-    Perform symmetric normalization on the adjacency matrix.
+    r"""Performs symmetric normalization on a sparse adjacency matrix.
 
     Args:
-        adj (Tensor): the sparse adjacency matrix,
+        adj (Tensor): Sparse adjacency matrix,
             whose layout could be `torch.sparse_coo`, `torch.sparse_csr`
             and `torch.sparse_csc`.
     """

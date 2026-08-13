@@ -22,12 +22,15 @@ graphgym/results/
 coverage.xml
 .vscode
 .idea
+.trae/
 .venv
 *.out
 *.zip
 *.pt
 *.onnx
 *.exe
+*.ckpt
+*.log
 examples/**/*.png
 examples/**/*.pdf
 benchmark/results/
@@ -70,6 +73,9 @@ draft.py
 _self_test_util.py
 huggingface/
 trash/
+*.ipynb
+tokenizer/
 
 !rllm/data/
 !test/data/
+docs/source/generated/

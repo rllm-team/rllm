@@ -56,7 +56,7 @@ def init_path(dir_or_file):
 # * ============================= Time Related =============================
 
 
-def time2str(t):
+def time_to_str(t):
     if t > 86400:
         return '{:.2f}day'.format(t / 86400)
     if t > 3600:
@@ -77,7 +77,7 @@ def time_logger(func):
         print(f'Start running {func.__name__} at {get_cur_time()}')
         ret = func(*args, **kw)
         print(
-            f'Finished running {func.__name__} at {get_cur_time()}, running time = {time2str(time.time() - start_time)}.')
+            f'Finished running {func.__name__} at {get_cur_time()}, running time = {time_to_str(time.time() - start_time)}.')
         return ret
 
     return wrapper

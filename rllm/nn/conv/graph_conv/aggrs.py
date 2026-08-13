@@ -18,12 +18,20 @@ class Aggregator(torch.nn.Module):
         dim: int = 0,
         dim_size: Optional[int] = None,
     ) -> Tensor:
-        """
+        r"""Aggregate input tensor :obj:`x` according to :obj:`index`.
+
         Args:
             x (Tensor): The input tensor.
-            index (Tensor): The index tensor.
-            dim (int): The dimension to index.
-            dim_size (int, optional): The size of the output tensor at dimension dim.
+            index (Tensor): The index tensor mapping each element to an output
+                position.
+            dim (int): The dimension along which to aggregate.
+                (default: :obj:`0`)
+            dim_size (int, optional): The size of the output tensor at
+                :obj:`dim`. If :obj:`None`, inferred from :obj:`index`.
+                (default: :obj:`None`)
+
+        Returns:
+            Tensor: The aggregated output tensor.
         """
         raise NotImplementedError
 
@@ -42,16 +50,24 @@ class Aggregator(torch.nn.Module):
         dim_size: Optional[int] = None,
         reduce: str = 'sum'
     ) -> Tensor:
-        r"""
-        Reduce the tensor x to the shape of (dim_size, x.size(1)) by index.
+        r"""Reduce :obj:`x` to shape :obj:`(dim_size, ...)` by scattering
+        along :obj:`dim` using :obj:`index`.
 
         Args:
             x (Tensor): The input tensor.
-            index (Tensor): The index tensor.
-            dim (int): The dimension to index and reduce.
-            dim_size (int, optional): The size of the output tensor at dimension dim.
-                If set to None, will create a minimal-sized output tensor according to index.max() + 1.
-            reduce (str): The reduce method. {'sum (add)', 'mean', 'max', 'min', 'prod (mul)'}
+            index (Tensor): The index tensor mapping each row to an output
+                position.
+            dim (int): The dimension to reduce along. (default: :obj:`0`)
+            dim_size (int, optional): The size of the output at :obj:`dim`.
+                If :obj:`None`, inferred as :obj:`index.max() + 1`.
+                (default: :obj:`None`)
+            reduce (str): The reduction method; one of :obj:`"sum"`,
+                :obj:`"add"`, :obj:`"mean"`, :obj:`"max"`, :obj:`"min"`,
+                :obj:`"prod"` / :obj:`"mul"`. (default: :obj:`"sum"`)
+
+        Returns:
+            Tensor: Reduced output tensor of shape
+            :obj:`[dim_size, *x.shape[1:]]`.
         """
         if dim_size is None:
             dim_size = index.max().item() + 1
@@ -95,14 +111,26 @@ class Aggregator(torch.nn.Module):
         max_num_nodes: Optional[int] = None,
         fill_value: float = 0.0
     ):
-        r"""Transform input tensor to a dense batch tensor via index.
+        r"""Transform :obj:`x` into a dense padded batch tensor using batch
+        :obj:`index`.
 
         Args:
-            x (Tensor): The input tensor.
-            index (Tensor): The batch index tensor.
-            batch_size (int, optional): The number of batches. If None, it will be inferred from index.
-            max_num_nodes (int, optional): The maximum number of nodes in a batch.
-            fill_value (float, optional): The value for invalid entries in the batch matrix.
+            x (Tensor): The input tensor of shape :obj:`[num_nodes, *]`.
+            index (Tensor): The batch index tensor of shape
+                :obj:`[num_nodes]`.
+            batch_size (int, optional): The number of graphs in the batch.
+                If :obj:`None`, inferred from :obj:`index`.
+                (default: :obj:`None`)
+            max_num_nodes (int, optional): The maximum number of nodes per
+                graph. If :obj:`None`, inferred from :obj:`index`.
+                (default: :obj:`None`)
+            fill_value (float): Fill value for padding positions.
+                (default: :obj:`0.0`)
+
+        Returns:
+            Tuple[Tensor, Tensor]: The dense output tensor of shape
+            :obj:`[batch_size, max_num_nodes, *]` and a boolean mask of
+            shape :obj:`[batch_size, max_num_nodes]`.
         """
         if index is None and max_num_nodes is None:
             mask = torch.ones((1, x.size(0)), dtype=torch.bool, device=x.device)
@@ -236,7 +264,8 @@ class MaxPoolAggregator(Aggregator):
     Args:
         in_dim (int): The input feature dimension.
         out_dim (int): The output feature dimension.
-        dropout (float, optional): The
+        dropout (float): The dropout probability in the MLP.
+            (default: :obj:`0.5`)
     """
 
     def __init__(
@@ -287,7 +316,8 @@ class MeanPoolAggregator(Aggregator):
     Args:
         in_dim (int): The input feature dimension.
         out_dim (int): The output feature dimension.
-        dropout (float, optional): The dropout rate.
+        dropout (float): The dropout probability in the MLP.
+            (default: :obj:`0.5`)
     """
 
     def __init__(
@@ -362,6 +392,20 @@ class LSTMAggregator(Aggregator):
         dim_size: Optional[int] = None,
         max_num_nodes: Optional[int] = None,
     ) -> Tensor:
+        r"""Run LSTM over sorted node sequences and return final hidden states.
+
+        Args:
+            x (Tensor): Input node features of shape :obj:`[num_nodes, in_dim]`.
+            index (Tensor): Sorted batch index of shape :obj:`[num_nodes]`.
+            dim (int): Must be :obj:`0`. (default: :obj:`0`)
+            dim_size (int, optional): Number of sequences (graphs) in the
+                batch. (default: :obj:`None`)
+            max_num_nodes (int, optional): Maximum number of nodes per graph.
+                (default: :obj:`None`)
+
+        Returns:
+            Tensor: LSTM output of shape :obj:`[num_nodes, out_dim]`.
+        """
         assert torch.all(index[:-1] <= index[1:]), "Index must be sorted."
         assert dim == 0, "Only support node dim=0."
 

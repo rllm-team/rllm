@@ -1,30 +1,63 @@
-from .node_edge_transform import EdgeTransform, NodeTransform  # noqa
-from .add_remaining_self_loops import AddRemainingSelfLoops  # noqa
-from .remove_self_loops import RemoveSelfLoops  # noqa
-from .knn_graph import KNNGraph  # noqa
-from .gcn_norm import GCNNorm  # noqa
-from .gdc import GDC
-from .graph_transform import GraphTransform  # noqa
-from .gcn_transform import GCNTransform  # noqa
-from .rect_transform import RECTTransform  # noqa
-from .normalize_features import NormalizeFeatures  # noqa
-from .svd_feature_reduction import SVDFeatureReduction  # noqa
+from typing import TYPE_CHECKING
+
+from rllm.utils.lazy_imports import define_lazy_imports
 
 
-__all__ = [
-    # node transforms
-    "NodeTransform",
-    "NormalizeFeatures",
-    "SVDFeatureReduction",
-    # edge transforms
-    "EdgeTransform",
-    "AddRemainingSelfLoops",
-    "GCNNorm",
-    "GDC",
-    "KNNGraph",
-    "RemoveSelfLoops",
-    # graph transforms
-    "GraphTransform",
-    "GCNTransform",
-    "RECTTransform",
-]
+if TYPE_CHECKING:
+    from rllm.transforms.graph_transforms.node_edge_transform import (
+        NodeTransform,
+        EdgeTransform,
+    )
+    from rllm.transforms.graph_transforms.add_remaining_self_loops import AddRemainingSelfLoops
+    from rllm.transforms.graph_transforms.remove_self_loops import RemoveSelfLoops
+    from rllm.transforms.graph_transforms.knn_graph import KNNGraph
+    from rllm.transforms.graph_transforms.gcn_norm import GCNNorm
+    from rllm.transforms.graph_transforms.gdc import GDC
+    from rllm.transforms.graph_transforms.graph_transform import GraphTransform
+    from rllm.transforms.graph_transforms.gcn_transform import GCNTransform
+    from rllm.transforms.graph_transforms.rect_transform import RECTTransform
+    from rllm.transforms.graph_transforms.normalize_features import NormalizeFeatures
+    from rllm.transforms.graph_transforms.svd_feature_reduction import SVDFeatureReduction
+
+_LAZY_MODULES = {
+    "rllm.transforms.graph_transforms.node_edge_transform": (
+        "NodeTransform",
+        "EdgeTransform",
+    ),
+    "rllm.transforms.graph_transforms.add_remaining_self_loops": (
+        "AddRemainingSelfLoops",
+    ),
+    "rllm.transforms.graph_transforms.remove_self_loops": (
+        "RemoveSelfLoops",
+    ),
+    "rllm.transforms.graph_transforms.knn_graph": (
+        "KNNGraph",
+    ),
+    "rllm.transforms.graph_transforms.gcn_norm": (
+        "GCNNorm",
+    ),
+    "rllm.transforms.graph_transforms.gdc": (
+        "GDC",
+    ),
+    "rllm.transforms.graph_transforms.graph_transform": (
+        "GraphTransform",
+    ),
+    "rllm.transforms.graph_transforms.gcn_transform": (
+        "GCNTransform",
+    ),
+    "rllm.transforms.graph_transforms.rect_transform": (
+        "RECTTransform",
+    ),
+    "rllm.transforms.graph_transforms.normalize_features": (
+        "NormalizeFeatures",
+    ),
+    "rllm.transforms.graph_transforms.svd_feature_reduction": (
+        "SVDFeatureReduction",
+    ),
+}
+
+__all__, __getattr__, __dir__ = define_lazy_imports(
+    __name__,
+    globals(),
+    _LAZY_MODULES,
+)

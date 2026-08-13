@@ -109,14 +109,8 @@ class TAGDataset(Dataset):
         """
         os.makedirs(self.raw_dir, exist_ok=True)
 
-        path_text = download_url(  # noqa
-            self.urls["text"][self.name], self.raw_dir, f"{self.name}_fixed_sbert.pt"
-        )
-        path_pred = download_url(  # noqa
-            self.urls["pred"][self.name],
-            self.raw_dir,
-            f"{self.name}^cache^consistency.pt",
-        )
+        download_url(self.urls["text"][self.name], self.raw_dir, f"{self.name}_fixed_sbert.pt")
+        download_url(self.urls["pred"][self.name], self.raw_dir, f"{self.name}^cache^consistency.pt",)
 
     def item(self):
         return self.data_list[0]

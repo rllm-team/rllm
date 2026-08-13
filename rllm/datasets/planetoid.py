@@ -16,7 +16,7 @@ import torch
 from rllm.datasets.dataset import Dataset
 from rllm.data.graph_data import GraphData
 from rllm.utils.sparse import sparse_mx_to_torch_sparse_tensor
-from rllm.datasets.utils import index2mask
+from rllm.datasets.utils import index_to_mask
 from rllm.utils.download import download_url
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -197,9 +197,9 @@ class PlanetoidDataset(Dataset):
             val_mask = torch.stack(val_masks, dim=1)
             test_mask = torch.stack(test_masks, dim=1)
         else:
-            train_mask = index2mask(train_index, x.shape[0])
-            val_mask = index2mask(val_index, x.shape[0])
-            test_mask = index2mask(test_index, x.shape[0])
+            train_mask = index_to_mask(train_index, x.shape[0])
+            val_mask = index_to_mask(val_index, x.shape[0])
+            test_mask = index_to_mask(test_index, x.shape[0])
 
         G = nx.from_dict_of_lists(graph)
         adj_sp = sparse_mx_to_torch_sparse_tensor(nx.to_scipy_sparse_array(G))

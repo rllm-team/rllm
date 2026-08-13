@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Optional
 
 import torch
 from torch import Tensor
@@ -16,7 +16,7 @@ def _reset_parameters_soft(module: torch.nn.Module):
 
 
 def _get_na_mask(tensor: Tensor) -> Tensor:
-    r"""Obtains the Na mask of the input :obj:`Tensor`.
+    r"""Obtains the NA mask of the input :obj:`Tensor`.
 
     Args:
         tensor (Tensor): Input :obj:`Tensor`.
@@ -37,7 +37,7 @@ class TableTransform(torch.nn.Module, ABC):
 
     Args:
         out_dim (int): The output dim dimensionality
-        col_type (stype): The stype of the Transform input.
+        col_type (ColType): Column type used for NA-mode validation.
         post_module (Module, optional): The post-hoc module applied to the
             output, such as activation function and normalization. Must
             preserve the shape of the output. If :obj:`None`, no module will be
@@ -52,11 +52,11 @@ class TableTransform(torch.nn.Module, ABC):
 
     def __init__(
         self,
-        out_dim: int | None = None,
-        col_type: ColType | None = None,
-        post_module: torch.nn.Module | None = None,
-        na_mode: Dict[StatType, NAMode] | None = None,
-        transforms: List[Callable] | None = None,
+        out_dim: Optional[int] = None,
+        col_type: Optional[ColType] = None,
+        post_module: Optional[torch.nn.Module] = None,
+        na_mode: Optional[Dict[StatType, NAMode]] = None,
+        transforms: Optional[List[Callable]] = None,
     ):
         r"""Since many attributes are specified later,
         this is a fake initialization"""
@@ -77,6 +77,8 @@ class TableTransform(torch.nn.Module, ABC):
             na_mode = {
                 ColType.NUMERICAL: NAMode.MEAN,
                 ColType.CATEGORICAL: NAMode.MOST_FREQUENT,
+                ColType.BINARY: NAMode.MOST_FREQUENT,
+                ColType.TEXT: NAMode.MOST_FREQUENT,
             }
 
         self.out_dim = out_dim
@@ -101,7 +103,7 @@ class TableTransform(torch.nn.Module, ABC):
         # NaN handling of the input Tensor
         data = self.nan_forward(data)
 
-        for transform in self.transforms:
+        for transform in self.transforms or []:
             data = transform(data)
 
         return data
@@ -116,9 +118,6 @@ class TableTransform(torch.nn.Module, ABC):
         Args:
             feat: Input :obj:`Tensor`.
 
-        Returns:
-            Tensor: Output :obj:`Tensor` with NaNs replaced given
-            :obj:`na_mode`.
         """
         if self.na_mode is None:
             return data
@@ -128,6 +127,15 @@ class TableTransform(torch.nn.Module, ABC):
         # object.
         feats = data.get_feat_dict()
         for col_type, feat in feats.items():
+            # Skip TEXT type as it's already tokenized (tuple of tensors)
+            # NaN handling for TEXT is done during tokenization
+            if col_type == ColType.TEXT:
+                continue
+
+            # Skip if col_type not in na_mode (defensive check)
+            if col_type not in self.na_mode:
+                continue
+
             feat = self._fill_nan(feat, data.metadata[col_type], self.na_mode[col_type])
             # Handle NaN in case na_mode is None
             feats[col_type] = torch.nan_to_num(feat, nan=0)
@@ -172,7 +180,11 @@ class TableTransform(torch.nn.Module, ABC):
                 col_data[col_na_mask] = fill_value
         else:  # na_mask.ndim == 2
             fill_values = torch.tensor(fill_values, device=feat.device)
-            assert feat.size(-1) == fill_values.size(-1)
+            if feat.size(-1) != fill_values.size(-1):
+                raise ValueError(
+                    "Mismatched feature width during NA fill: "
+                    f"{feat.size(-1)} vs {fill_values.size(-1)}."
+                )
             feat = torch.where(na_mask, fill_values, feat)
 
         # Add better safeguard here to make sure nans are actually
@@ -181,7 +193,9 @@ class TableTransform(torch.nn.Module, ABC):
         filled_values = feat
 
         if filled_values.is_floating_point():
-            assert not torch.isnan(filled_values).any()
+            if torch.isnan(filled_values).any():
+                raise ValueError("NaN values remain after NA filling.")
         else:
-            assert not (filled_values == -1).any()
+            if (filled_values == -1).any():
+                raise ValueError("Invalid sentinel -1 remains after NA filling.")
         return feat

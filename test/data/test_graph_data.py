@@ -3,7 +3,7 @@ import numpy as np
 import torch
 
 from rllm.types import ColType
-from rllm.data import HeteroGraphData, TableData
+from rllm.data import EdgeStorage, HeteroGraphData, TableData
 
 
 def test_heterographdata():
@@ -39,3 +39,27 @@ def test_heterographdata():
     assert id(hgraph2["node1"].x) == id(hgraph["node1"].x)
     hgraph2["node1"].x = torch.tensor([1.2, 2.2])
     assert id(hgraph2["node1"].x) != id(hgraph["node1"].x)
+
+
+def test_heterographdata_to_csc_dict_uses_dst_num_nodes():
+    hgraph = HeteroGraphData()
+    hgraph["src"].num_nodes = 2
+    hgraph["dst"].num_nodes = 4
+    hgraph[("src", "to", "dst")].edge_index = torch.tensor(
+        [[0, 1], [0, 3]], dtype=torch.long
+    )
+
+    col_ptr_d, row_d, perm_d = hgraph.to_csc_dict()
+
+    edge_type = ("src", "to", "dst")
+    assert torch.equal(col_ptr_d[edge_type], torch.tensor([0, 1, 1, 1, 2]))
+    assert torch.equal(row_d[edge_type], torch.tensor([0, 1]))
+    assert perm_d[edge_type] is not None
+
+
+def test_edge_storage_is_edge_attr_accepts_tensor_weight():
+    storage = EdgeStorage()
+    storage.edge_index = torch.tensor([[0, 1], [1, 0]], dtype=torch.long)
+    storage.weight = torch.tensor([0.1, 0.2])
+
+    assert storage.is_edge_attr("weight")

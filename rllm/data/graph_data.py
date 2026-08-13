@@ -12,7 +12,7 @@ from rllm.data.storage import BaseStorage, NodeStorage, EdgeStorage
 class BaseGraph:
     """An abstract base class for graph data storage."""
 
-    def __getattr__(self, key: str):
+    def __getattr__(self, key: str) -> Any:
         raise NotImplementedError
 
     def __setattr__(self, key: str, value: Any):
@@ -40,13 +40,26 @@ class BaseGraph:
     def stores(self):
         raise NotImplementedError
 
+    @property
+    def device(self) -> torch.device:
+        for store in self.stores:
+            for _, value in store.items():
+                if isinstance(value, Tensor):
+                    return value.device
+                if hasattr(value, "device"):
+                    try:
+                        return torch.device(value.device)
+                    except (TypeError, ValueError):
+                        pass
+
+        return torch.device("cpu")
+
     def clone(self, *args: str):
         r"""Performs cloning of tensors for the ones given in `*args`"""
         return copy.copy(self).apply(lambda x: x.clone(), *args)
 
     def to(self, device: Union[int, str], *args: str, non_blocking: bool = False):
         r"""Performs device conversion of the whole dataset."""
-        self.device = f"cuda:{device}" if isinstance(device, int) else device
         return self.apply(
             lambda x: x.to(device=device, non_blocking=non_blocking), *args
         )
@@ -130,7 +143,7 @@ class GraphData(BaseGraph):
     def to_dict(self):
         return self._mapping.to_dict()
 
-    def __getattr__(self, key: str):
+    def __getattr__(self, key: str) -> Any:
         # avoid infinite loop.
         if key == "_mapping":
             self.__dict__["_mapping"] = BaseStorage()
@@ -177,7 +190,16 @@ class GraphData(BaseGraph):
     def num_nodes(self):
         if "num_nodes" in self._mapping:
             return self._mapping["num_nodes"]
-        return len(self.y)
+        if hasattr(self, "y") and self.y is not None:
+            return len(self.y)
+        elif hasattr(self, "x") and self.x is not None:
+            return len(self.x)
+        elif hasattr(self, "adj") and self.adj is not None:
+            return self.adj.size(0)
+        else:
+            raise AttributeError(
+                "Cannot determine number of nodes: no y, x, or adj attributes available"
+            )
 
     @property
     def num_classes(self):
@@ -193,6 +215,20 @@ class GraphData(BaseGraph):
 
     def __len__(self):
         return len(self.x)
+
+    def __copy__(self):
+        r"""Performs a shallow copy of the graph.
+
+        Storage copy is done by `copy.copy` which keeps the reference of
+        tensors and other objects, but allows attribute assignment without
+        mutating the original graph's storage.
+        """
+        out = self.__class__.__new__(self.__class__)
+        for k, v in self.__dict__.items():
+            out.__dict__[k] = v
+        out.__dict__["_mapping"] = copy.copy(self._mapping)
+        out._mapping._parent = out
+        return out
 
     def to_hetero(
         self,
@@ -282,6 +318,7 @@ class GraphData(BaseGraph):
 
         return hetero_data
 
+
 """
 `EdgeType` and `NodeType` are used as the types of
 edges and nodes in the `HeteroGraphData` class.
@@ -303,47 +340,58 @@ class HeteroGraphData(BaseGraph):
     Methods of initialization:
         1) Assign attributes,
 
-        data = HeteroGraphData()
-        data['paper']['x'] = x_paper
-        data['paper'].x = x_paper
+        .. code-block:: python
+
+            data = HeteroGraphData()
+            data['paper']['x'] = x_paper
+            data['paper'].x = x_paper
 
         Tips:
             Though name of node attribute can be arbitrary, `x` is prefered.
 
         2) pass them as keyword arguments,
 
-        data = HeteroGraphData(
-            'paper' = {'x': x_paper, 'y': labels},
-            'writer' = {'x': x_writer},
-            'writer__of__paper' = {'adj' = adj}
-        )
+        .. code-block:: python
+
+            data = HeteroGraphData(
+                'paper' = {'x': x_paper, 'y': labels},
+                'writer' = {'x': x_writer},
+                'writer__of__paper' = {'adj' = adj}
+            )
 
         3) pass them as dictionaries,
 
-        data = HeteroGraphData(
-            {
-                'paper' = {'x': x_paper, 'y': labels},
-                'writer' = {'x': x_writer},
-                ('writer', 'of', 'paper') = {'adj' = adj}
-            }
-        )
+        .. code-block:: python
 
-    Save some attributes like train_mask:
+            data = HeteroGraphData(
+                {
+                    'paper' = {'x': x_paper, 'y': labels},
+                    'writer' = {'x': x_writer},
+                    ('writer', 'of', 'paper') = {'adj' = adj}
+                }
+            )
 
-        data.train_mask = train_mask
+        Save some attributes like train_mask:
+
+        .. code-block:: python
+
+            data.train_mask = train_mask
 
         Save more edges and nodes:
-        data[edge_type|node_type] = {
-            ...
-        }
 
-        Key of edge type:
-        data['src__tgt'] =  {'adj': adj}
-        data[src, tgt] = {'adj': adj}
-        data[src, rel, tgt] = {'adj': adj}
+        .. code-block:: python
 
-        Key of node type:
-        data['node type'] = {'x': x}
+            data[edge_type|node_type] = {
+                ...
+            }
+
+            Key of edge type:
+            data['src__tgt'] =  {'adj': adj}
+            data[src, tgt] = {'adj': adj}
+            data[src, rel, tgt] = {'adj': adj}
+
+            Key of node type:
+            data['node type'] = {'x': x}
     """
 
     def __init__(self, mapping: Optional[Mapping[str, Any]] = None, **kwargs):
@@ -377,7 +425,7 @@ class HeteroGraphData(BaseGraph):
             out_dict[key] = store.to_dict()
         return out_dict
 
-    def __getattr__(self, key: str):
+    def __getattr__(self, key: str) -> Any:
         # avoid infinite loop.
         if key == "_mapping":
             self.__dict__["_mapping"] = BaseStorage()
@@ -632,7 +680,11 @@ class HeteroGraphData(BaseGraph):
         is_sorted: bool = False,
         node_time_d: Optional[Dict[NodeType, Tensor]] = None,
         edge_time_d: Optional[Dict[EdgeType, Tensor]] = None,
-    ) -> Tuple[Dict[str, Tensor], Dict[str, Tensor], Dict[str, Optional[Tensor]]]:
+    ) -> Tuple[
+        Dict[EdgeType, Tensor],
+        Dict[EdgeType, Tensor],
+        Dict[EdgeType, Optional[Tensor]],
+    ]:
         r"""Convert the heterogeneous graph edge into a CSC format for sampling.
         Returns dictionaries holding `colptr` and `row` indices as well as edge
         permutations for each edge type, respectively.
@@ -662,7 +714,7 @@ class HeteroGraphData(BaseGraph):
             edge_time = (edge_time_d or {}).get(edge_type, None)
             out = store.to_csc(
                 device=device,
-                num_nodes=self[edge_type[0]].num_nodes,
+                num_nodes=self[edge_type[2]].num_nodes,
                 share_memory=share_memory,
                 is_sorted=is_sorted,
                 src_node_time=src_node_time,
@@ -676,15 +728,16 @@ class HeteroGraphData(BaseGraph):
 
     def set_value_dict(
         self, key: str, value_d: Dict[Union[NodeType, EdgeType], Any]
-    ) -> None:
+    ) -> 'HeteroGraphData':
         r"""Set the attribute `key` for each node and edge type in value dict.
 
         Args:
             key (str): The attribute key to set.
             value (Dict[Union[NodeType, EdgeType], Any]): The attribute values.
         """
-        for type_, value in value_d.items():
+        for type_, value in (value_d or {}).items():
             self[type_][key] = value
+        return self
 
     # Dunder functions ########################################
 

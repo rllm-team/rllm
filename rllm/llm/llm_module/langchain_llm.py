@@ -10,7 +10,7 @@ from rllm.llm.llm_module.general_llm import LLM
 from rllm.llm.parser.base import BaseOutputParser
 from rllm.llm.prompt.utils import completion_response_to_chat_response
 
-from langchain.base_language import BaseLanguageModel
+from langchain_core.language_models import BaseLanguageModel
 
 
 class LangChainLLM(LLM):
@@ -82,7 +82,7 @@ class LangChainLLM(LLM):
         if not formatted:
             prompt = self.completion_to_prompt(prompt)
 
-        output_str = self._llm.predict(prompt, **kwargs)
+        output_str = self._llm.invoke(prompt, **kwargs)
         return CompletionResponse(text=output_str)
 
     def embedding(self, inputs):

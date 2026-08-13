@@ -3,7 +3,9 @@
 # ArXiv: https://arxiv.org/abs/1609.02907
 
 # Datasets  CiteSeer    Cora      PubMed
-# Acc       0.712       0.816     0.787
+# Metrics   Acc         Acc       Acc
+# Rept.     0.703       0.815     0.790
+# Ours      0.712       0.816     0.797
 # Time      8.9s        4.0s      12.6s
 
 import argparse

@@ -3,17 +3,18 @@ from torch import Tensor
 
 
 def seg_sum(data: Tensor, segment_ids: Tensor, num_segments: int):
-    r"""Computes the sum of elements in `data` for each segment
-    specified by `segment_ids`.
+    r"""Compute the sum of elements in :obj:`data` for each segment
+    specified by :obj:`segment_ids`.
 
     Args:
         data (Tensor): A tensor, typically two-dimensional.
         segment_ids (Tensor): A one-dimensional tensor that indicates the
-            segmentation in data.
-        num_segments (int): Total segments.
+            segment assignment of each element in :obj:`data`.
+        num_segments (int): Total number of segments.
 
     Returns:
-        output: sum calculated by segment_ids with the same shape as data.
+        Tensor: Segment sums with shape
+        :obj:`[num_segments, data.size(1)]`.
     """
     output = torch.zeros(
         (num_segments, data.size(1)), device=data.device, dtype=data.dtype
@@ -28,17 +29,16 @@ def seg_sum(data: Tensor, segment_ids: Tensor, num_segments: int):
 
 
 def seg_softmax(data: Tensor, segment_ids: Tensor, num_segs: int):
-    r"""Computes the softmax scores of elements in `data` for each segment
-    specified by `segment_ids`.
+    r"""Compute the segment-wise softmax scores of elements in :obj:`data`.
 
     Args:
         data (Tensor): A tensor, typically two-dimensional.
         segment_ids (Tensor): A one-dimensional tensor that indicates the
-            segmentation in data.
-        num_segments (int): Total segments.
+            segment assignment of each element in :obj:`data`.
+        num_segs (int): Total number of segments.
 
     Returns:
-        score: softmax score, which has the same shape as data.
+        Tensor: Softmax scores with the same shape as :obj:`data`.
     """
     max_values = torch.zeros(
         num_segs, data.size(1), device=data.device, dtype=data.dtype
@@ -67,17 +67,17 @@ def seg_softmax(data: Tensor, segment_ids: Tensor, num_segs: int):
 
 
 def seg_softmax_(data: Tensor, segment_ids: Tensor, num_segs: int):
-    r"""Computes the softmax scores of elements in `data` for each segment
-    specified by `segment_ids`.
+    r"""Compute the segment-wise softmax scores of elements in :obj:`data`
+    using a loop-based implementation (fallback for older PyTorch versions).
 
     Args:
         data (Tensor): A tensor, typically two-dimensional.
         segment_ids (Tensor): A one-dimensional tensor that indicates the
-            segmentation in data.
-        num_segments (int): Total segments.
+            segment assignment of each element in :obj:`data`.
+        num_segs (int): Total number of segments.
 
     Returns:
-        score: softmax score, which has the same shape as data.
+        Tensor: Softmax scores with the same shape as :obj:`data`.
     """
     max_values = torch.zeros(
         num_segs, data.size(1), device=data.device, dtype=data.dtype

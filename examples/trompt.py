@@ -2,9 +2,11 @@
 # "Trompt: Towards a Better Deep Neural Network for Tabular Data" paper.
 # ArXiv: https://arxiv.org/abs/2305.18446
 
-# Datasets  Titanic    Adult
-# Acc       0.853      0.861
-# Time      13.9s      911.7s
+# Datasets      Titanic     Adult
+# Metrics       Acc         Acc
+# Rept.         -           0.862
+# Ours          0.853       0.864
+# Time          13.9s       911.7s
 
 import argparse
 import sys
@@ -20,17 +22,20 @@ import torch.nn.functional as F
 
 sys.path.append("./")
 sys.path.append("../")
-from rllm.types import ColType
-from rllm.datasets import Titanic
+from rllm.types import ColType, StatType
+from rllm.datasets import Titanic, Adult
 from rllm.transforms.table_transforms import DefaultTableTransform
 from rllm.nn.conv.table_conv import TromptConv
 
 parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--dataset", type=str, default="titanic", choices=["titanic", "adult"]
+)
 parser.add_argument("--emb_dim", help="embedding dim", type=int, default=128)
 parser.add_argument("--num_layers", type=int, default=6)
 parser.add_argument("--num_prompts", type=int, default=128)
 parser.add_argument("--batch_size", type=int, default=256)
-parser.add_argument("--epochs", type=int, default=50)
+parser.add_argument("--epochs", type=int, default=100)
 parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--wd", type=float, default=5e-4)
 parser.add_argument("--seed", type=int, default=0)
@@ -42,7 +47,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load dataset
 path = osp.join(osp.dirname(osp.realpath(__file__)), "..", "data")
-data = Titanic(cached_dir=path)[0]
+if args.dataset.lower() == "adult":
+    data = Adult(cached_dir=path)[0]
+else:
+    data = Titanic(cached_dir=path)[0]
 
 # Transform data
 transform = DefaultTableTransform(out_dim=args.emb_dim)
@@ -64,7 +72,7 @@ class Trompt(torch.nn.Module):
         out_dim: int,
         num_layers: int,
         num_prompts: int,
-        metadata: Dict[ColType, List[Dict[str, Any]]],
+        metadata: Dict[ColType, List[Dict[StatType, Any]]],
     ):
         super().__init__()
         self.out_dim = out_dim
@@ -77,12 +85,11 @@ class Trompt(torch.nn.Module):
                     in_dim=in_dim,
                     out_dim=hidden_dim,
                     num_prompts=num_prompts,
-                    use_pre_encoder=True,
                     metadata=metadata,
                 )
             )
 
-        self.linear = torch.nn.Linear(hidden_dim, 1)
+        self.lin_attn = torch.nn.Linear(hidden_dim, 1)
         self.mlp = torch.nn.Sequential(
             torch.nn.Linear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
@@ -95,20 +102,20 @@ class Trompt(torch.nn.Module):
         torch.nn.init.xavier_uniform_(self.x_prompt)
         for conv in self.convs:
             conv.reset_parameters()
-        torch.nn.init.xavier_uniform_(self.linear.weight)
-        torch.nn.init.zeros_(self.linear.bias)
+        torch.nn.init.xavier_uniform_(self.lin_attn.weight)
+        torch.nn.init.zeros_(self.lin_attn.bias)
         for layer in self.mlp:
             if isinstance(layer, torch.nn.Linear):
                 torch.nn.init.xavier_uniform_(layer.weight)
                 torch.nn.init.zeros_(layer.bias)
 
-    def forward(self, x) -> Tensor:
+    def forward(self, x: dict) -> Tensor:
         outs = []
         batch_size = x[list(x.keys())[0]].size(0)
         x_prompt = self.x_prompt.unsqueeze(0).repeat(batch_size, 1, 1)
         for conv in self.convs:
             x_prompt = conv(x, x_prompt)
-            w_prompt = F.softmax(self.linear(x_prompt), dim=1)
+            w_prompt = F.softmax(self.lin_attn(x_prompt), dim=1)
             out = (w_prompt * x_prompt).sum(dim=1)
             out = self.mlp(out)
             out = out.reshape(batch_size, 1, self.out_dim)

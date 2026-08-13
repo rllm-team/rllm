@@ -116,7 +116,7 @@ Next, the :obj:`TabTransformerTransform` class inherits from the :obj:`TableTran
         def __init__(
             self,
             out_dim: int,
-            metadata: Dict[ColType, List[Dict[str, Any]]] = None,
+            metadata: Dict[ColType, List[Dict[StatType, Any]]] = None,
         ) -> None:
             super().__init__(
                 out_dim=out_dim,

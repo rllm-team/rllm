@@ -7,19 +7,19 @@ from rllm.transforms.graph_transforms.functional import add_remaining_self_loops
 
 
 class AddRemainingSelfLoops(EdgeTransform):
-    r"""Add self-loops into the adjacency matrix.
+    r"""Adds missing self-loops to the adjacency matrix.
 
     .. math::
         \mathbf{\hat{A}} = \mathbf{A} + \mathbf{I}
 
     Args:
-        fill_value (Any): values to be filled in the self-loops,
-            the default values is 1.0
+        fill_value (Any): Value used for added self-loops.
+            (default: :obj:`1.0`)
     """
 
     def __init__(self, fill_value=1.0):
+        super().__init__()
         self.fill_value = fill_value
-        self.data = None
 
     @lru_cache()
     def forward(self, adj: Tensor) -> Tensor:

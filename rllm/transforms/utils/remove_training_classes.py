@@ -14,10 +14,14 @@ class RemoveTrainingClasses(BaseTransform):
     """
 
     def __init__(self, classes: List[int]):
+        super().__init__()
         self.classes = classes
 
     def forward(self, data: GraphData):
-        assert hasattr(data, "train_mask")
+        if not hasattr(data, "train_mask"):
+            raise ValueError(
+                "`RemoveTrainingClasses` requires `data.train_mask` to exist."
+            )
         data.train_mask = remove_training_classes(
             data.train_mask,
             data.y,

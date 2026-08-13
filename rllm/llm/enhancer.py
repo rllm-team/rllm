@@ -1,4 +1,5 @@
 from typing import Any, List, Literal, Optional
+import time
 
 import numpy as np
 import pandas as pd
@@ -35,7 +36,9 @@ class Enhancer:
             Task type, default type is 'explanation|embedding'.
 
     Explanation|Embedding:
+
     .. code-block:: python
+
         import pandas as pd
         from langchain_openai import OpenAI, OpenAIEmbeddings
         from rllm.llm import LangChainLLM, Enhancer
@@ -53,7 +56,9 @@ class Enhancer:
         outputs = enhancer(data.head(10), scenario=scenario)
 
     Explanation:
+
     .. code-block:: python
+
         import pandas as pd
         from langchain_openai import OpenAI
         from rllm.llm import LangChainLLM, Enhancer
@@ -66,7 +71,9 @@ class Enhancer:
         outputs = enhancer(data.head(10), scenario=scenario)
 
     Embedding:
+
     .. code-block:: python
+
         import pandas as pd
         from langchain.embeddings import OpenAIEmbeddings
         from rllm.llm import LangChainLLM, Enhancer
@@ -129,12 +136,21 @@ class Enhancer:
                 assert var in input_variables, \
                     f"Variable '{var}' not found in input variables."
 
-            # Make explanation, remeber `row` is a default argument.
+            # Make explanation, remember `row` is a default argument.
             outputs = []
             for index, row in tqdm(df.iterrows(), total=len(df)):
-                outputs.append(
-                    self._llm.predict(self.prompt, row=row, **kwargs)
-                )
+                for i in range(3):
+                    try:
+                        result = self._llm.predict(self.prompt, row=row, **kwargs)
+                        break
+                    except Exception as exc:
+                        if i == 2:
+                            raise type(exc)(
+                                f"Failed to generate explanation for row index {index}: {exc}"
+                            ) from exc
+                        time.sleep(1.5 * (i + 1))
+                outputs.append(result)
+                time.sleep(0.5)
 
         if 'embedding' in self.type:
             if 'explanation' in self.type:
@@ -148,8 +164,16 @@ class Enhancer:
 
             outputs = []
             for input in inputs:
-                embed = self._llm_embed.embedding(input)
+                for i in range(3):
+                    try:
+                        embed = self._llm_embed.embedding(input)
+                        break
+                    except Exception:
+                        if i == 2:
+                            raise
+                        time.sleep(1.5 * (i + 1))
                 outputs.append(np.array(embed))
+                time.sleep(0.5)
             outputs = outputs[0] if len(outputs) == 1 else outputs
 
         return outputs

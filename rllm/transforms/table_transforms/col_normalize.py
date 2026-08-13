@@ -25,11 +25,19 @@ class ColNormalize(ColTransform):
         if ColType.NUMERICAL in data.feat_dict.keys():
 
             metadata = data.metadata[ColType.NUMERICAL]
-            self.mean = torch.tensor([stats[StatType.MEAN] for stats in metadata])
-            self.std = torch.tensor([stats[StatType.STD] for stats in metadata]) + 1e-6
-
             feat = data.feat_dict[ColType.NUMERICAL]
-            feat = (feat - self.mean) / self.std
+            mean = torch.tensor(
+                [stats[StatType.MEAN] for stats in metadata],
+                device=feat.device,
+                dtype=feat.dtype,
+            )
+            std = torch.tensor(
+                [stats[StatType.STD] for stats in metadata],
+                device=feat.device,
+                dtype=feat.dtype,
+            ) + 1e-6
+
+            feat = (feat - mean) / std
 
             data.feat_dict[ColType.NUMERICAL] = feat
 

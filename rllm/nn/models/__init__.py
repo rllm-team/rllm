@@ -1,29 +1,79 @@
-from .rect import RECT_L
-from .tabnet import (
-    # check_list_groups,
-    # create_group_matrix,
-    # create_emb_group_matrix,
-    # initialize_non_glu,
-    # initialize_glu,
-    # GBN,
-    # TabNetEncoder,
-    # TabNetNoEmbeddings,
-    TabNet,
-    # AttentiveTransformer,
-    # FeatTransformer,
-    # GLU_Block,
-    # GLU_Layer
-)
-from .bridge import BRIDGE, TableEncoder, GraphEncoder
-from .transtab import TransTab, TransTabClassifier, TransTabForCL
+from typing import TYPE_CHECKING
 
-__all__ = [
-    "RECT_L",
-    "TabNet",
-    "BRIDGE",
-    "TableEncoder",
-    "GraphEncoder",
-    "TransTab",
-    "TransTabClassifier",
-    "TransTabForCL",
-]
+from rllm.utils.lazy_imports import define_lazy_imports
+
+
+if TYPE_CHECKING:
+    from rllm.nn.models.rect import RECT_L
+    from rllm.nn.models.bridge import (
+        BRIDGE,
+        TableEncoder,
+        GraphEncoder,
+    )
+    from rllm.nn.models.inrtl import (
+        LinearAttentionLayer,
+        IntraTableInteraction,
+        InterTableInteraction,
+        InRTL,
+    )
+    from rllm.nn.models.transtab import (
+        TransTab,
+        TransTabClassifier,
+        TransTabForCL,
+    )
+    from rllm.nn.models.resnet import TableResNet
+    from rllm.nn.models.heterosage import HeteroSAGE
+    from rllm.nn.models.rdl import RDL
+    from rllm.nn.models.relgnn import (
+        RelGNN,
+        RelGNNModel,
+    )
+    from rllm.nn.models.metartl import (
+        MetaPathFusion,
+        MetaPathProp,
+    )
+
+_LAZY_MODULES = {
+    "rllm.nn.models.rect": (
+        "RECT_L",
+    ),
+    "rllm.nn.models.bridge": (
+        "BRIDGE",
+        "TableEncoder",
+        "GraphEncoder",
+    ),
+    "rllm.nn.models.inrtl": (
+        "LinearAttentionLayer",
+        "IntraTableInteraction",
+        "InterTableInteraction",
+        "InRTL",
+    ),
+    "rllm.nn.models.transtab": (
+        "TransTab",
+        "TransTabClassifier",
+        "TransTabForCL",
+    ),
+    "rllm.nn.models.resnet": (
+        "TableResNet",
+    ),
+    "rllm.nn.models.heterosage": (
+        "HeteroSAGE",
+    ),
+    "rllm.nn.models.rdl": (
+        "RDL",
+    ),
+    "rllm.nn.models.relgnn": (
+        "RelGNN",
+        "RelGNNModel",
+    ),
+    "rllm.nn.models.metartl": (
+        "MetaPathFusion",
+        "MetaPathProp",
+    ),
+}
+
+__all__, __getattr__, __dir__ = define_lazy_imports(
+    __name__,
+    globals(),
+    _LAZY_MODULES,
+)
