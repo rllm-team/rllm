@@ -1,48 +1,20 @@
+# Python / pytest runtime artifacts
 __pycache__/
+*.py[cod]
 .pytest_cache/
-.vscode/
-.DS_Store
-data/
-exps/
-build/
-dist/
-alpha/
-runs/
-wandb/
-.cache/
-.eggs/
-lightning_logs/
-outputs/
-graphgym/datasets/
-graphgym/results/
-*.egg-info/
-.ipynb_checkpoints
 .coverage
 .coverage.*
 coverage.xml
-.vscode
-.idea
-.trae/
-.venv
-*.out
-*.zip
-*.pt
-*.onnx
-*.exe
-*.ckpt
-*.log
-examples/**/*.png
-examples/**/*.pdf
-benchmark/results/
-.mypy_cache/
-.flake8
-draft.py
-_self_test_util.py
-huggingface/
-trash/
-*.ipynb
-tokenizer/
 
-!rllm/data/
-!test/data/
-docs/source/generated/
+# rllm-pytest-debug requires logs in TARGET_REPO_ROOT/test_logs/.
+test_logs/
+*.log
+
+# Local environments and editor state
+.venv/
+.vscode/
+.idea/
+.DS_Store
+
+# Temporary Skill validation copies
+.skill-validation/
