@@ -1,6 +1,6 @@
 # rllm Pytest Debug Skill
 
-This branch publishes an Agent Skill for testing `rllm-team/rllm`; it is not an rllm development branch. The Skill's repository knowledge is based on source commit `7421bf22491516119d7d57fcb67019d9ef02164a` (`SOURCE_COMMIT`). A published Skill revision has its own `SKILL_COMMIT`.
+This branch publishes an Agent Skill for testing `rllm-team/rllm`; it is not an rllm development branch.
 
 ## Purpose
 
