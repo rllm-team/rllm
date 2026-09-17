@@ -149,7 +149,9 @@ def main(args):
 
     encoder_path = osp.join(args.cache_dir, f"metartl_driver-dnf_{args.gnn}_encoder.pt")
     if args.skip_stage1 and osp.exists(encoder_path):
-        model.load_state_dict(torch.load(encoder_path, map_location=device))
+        model.load_state_dict(
+            torch.load(encoder_path, map_location=device, weights_only=True)
+        )
         print(f"====> Loaded stage1 encoder from {encoder_path}")
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
