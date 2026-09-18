@@ -11,6 +11,7 @@ from rllm.nn.models.metartl.semantic_transformer import SemanticTransformer
 class MetaPathFusion(nn.Module):
     r"""Meta-path fusion model (stage two) of MetaRTL
     `"MetaRTL: Meta-path Attention Enhanced Relational Table Learning"`.
+    ArXiv: https://arxiv.org/abs/2609.19832
 
     Consumes the per-node meta-path feature tensor of shape :obj:`[B, M, D]`
     produced by

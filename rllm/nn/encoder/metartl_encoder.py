@@ -16,6 +16,7 @@ from rllm.utils import get_atomic_routes
 class MetaRTLEncoder(torch.nn.Module):
     r"""Stage-one relational table encoder of MetaRTL
     `"MetaRTL: Meta-path Attention Enhanced Relational Table Learning"`.
+    ArXiv: https://arxiv.org/abs/2609.19832
 
     It encodes each table with a Table Neural Network (TableResNet), optionally
     adds relative temporal embeddings, and propagates information with a

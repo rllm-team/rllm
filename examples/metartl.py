@@ -1,5 +1,6 @@
 # The MetaRTL method from the "MetaRTL: Meta-path Attention Enhanced
 # Relational Table Learning" paper, on the Rel-F1 dataset.
+# ArXiv: https://arxiv.org/abs/2609.19832
 
 # Datasets              Rel-F1
 # Tasks                 driver-dnf

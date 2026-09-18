@@ -14,6 +14,7 @@ class MetaPathProp:
     r"""Generate multi-hop meta-path features for a target node type from a
     heterogeneous mini-batch, following MetaRTL
     `"MetaRTL: Meta-path Attention Enhanced Relational Table Learning"`.
+    ArXiv: https://arxiv.org/abs/2609.19832
 
     This is the pre-processing step between the stage-one encoder and the
     stage-two fusion model of MetaRTL. Given pre-computed node embeddings
