@@ -7,7 +7,7 @@ __pycache__/
 coverage.xml
 
 # rllm-pytest-debug requires logs in TARGET_REPO_ROOT/test_logs/.
-test_logs/
+# test_logs/
 *.log
 
 # Local environments and editor state

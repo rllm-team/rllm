@@ -1,0 +1,36 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.21, pytest-8.4.2, pluggy-1.6.0 -- /home/pfy/.conda/envs/lake/bin/python
+cachedir: .pytest_cache
+rllm source under test: /home/pfy/rllm-main/rllm-main (1)/rllm-main/rllm/__init__.py
+rootdir: /home/pfy/rllm-main
+plugins: anyio-4.12.1
+collecting ... collected 1 item
+
+rllm-main/test/llm/test_message_contracts.py::test_chat_message_dict_exposes_public_fields_and_is_json_serializable FAILED [100%]
+
+=================================== FAILURES ===================================
+____ test_chat_message_dict_exposes_public_fields_and_is_json_serializable _____
+
+    def test_chat_message_dict_exposes_public_fields_and_is_json_serializable():
+        message = ChatMessage(
+            role=MessageRole.ASSISTANT,
+            content="done",
+            additional_kwargs={"nested": {"count": 2}, "items": [1, "two"]},
+        )
+    
+>       serialized = message.dict()
+
+rllm-main/test/llm/test_message_contracts.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <rllm.llm.types.ChatMessage object at 0x7bb557aee760>, kwargs = {}
+
+    def dict(self, **kwargs) -> dict:
+        # ensure all additional_kwargs are serializable
+>       msg = super().dict(**kwargs)
+E       AttributeError: 'super' object has no attribute 'dict'
+
+rllm-main (1)/rllm-main/rllm/llm/types.py:61: AttributeError
+=========================== short test summary info ============================
+FAILED rllm-main/test/llm/test_message_contracts.py::test_chat_message_dict_exposes_public_fields_and_is_json_serializable - AttributeError: 'super' object has no attribute 'dict'
+============================== 1 failed in 0.05s ===============================
