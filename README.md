@@ -57,7 +57,7 @@ python bridge.py
 
 rLLM includes over 15 state-of-the-art GNN and TNN models, ideal for both standalone use and building RTL-type methods. Highlighted models include:  
 
-- **InRTL**: *Effective Intra-Inter Interaction Learning for Relational Tables* [[KDD 2026](https://dl.acm.org/doi/abs/10.1145/3770855.3817787)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/inrtl.py)] 
+- **InRTL**: *Effective Intra-Inter Interaction Learning for Relational Tables* [[KDD 2026](https://dl.acm.org/doi/abs/10.1145/3770855.3817787)] [[arXiv](https://arxiv.org/html/2609.12712)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/inrtl.py)]
 
 - **OGC**: *From Cluster Assumption to Graph Convolution: Graph-based Semi-Supervised Learning Revisited* [[TNNLS 2024](https://arxiv.org/abs/2309.13599)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/ogc.py)]  
 - **ExcelFormer**: *ExcelFormer: A Neural Network Surpassing GBDTs on Tabular Data* [[KDD 2024](https://arxiv.org/abs/2301.02819)] [[Example](https://github.com/rllm-team/rllm/blob/main/examples/excelformer.py)]  

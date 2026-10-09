@@ -1,3 +1,7 @@
+# The InRTL method from the KDD 2026 paper
+# "InRTL: Effective Intra-Inter Interaction Learning for Relational Tables".
+# Paper: https://arxiv.org/html/2609.12712
+
 # Datasets  TML1M       TLF2K       TACM12K
 # Metrics   Acc         Acc         Acc
 # Rept.     40.60       45.80       48.40

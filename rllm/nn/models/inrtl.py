@@ -244,7 +244,9 @@ class InterTableInteraction(nn.Module):
 
 
 class InRTL(nn.Module):
-    r"""Intra--Inter Relational Table Learning (InRTL).
+    r"""Intra--Inter Relational Table Learning (InRTL) from the KDD 2026 paper
+    `"InRTL: Effective Intra-Inter Interaction Learning for Relational Tables"
+    <https://arxiv.org/html/2609.12712>`_.
 
     InRTL is a unified relational table learning framework that explicitly
     models two complementary dependency types:
