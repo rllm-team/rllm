@@ -42,8 +42,6 @@ TNN Cheatsheet
       - End-to-end TransTab model for downstream prediction tasks from the `"TransTab: Learning Transferable Tabular Transformers Across Tables" <https://arxiv.org/abs/2205.09328>`_ paper.
     * - SAINT
       - The SAINT model introduced in the `"SAINT: Improved Neural Networks for Tabular Data via Row Attention and Contrastive Pre-Training" <https://arxiv.org/abs/2106.01342>`_ paper.
-    * - ResNet
-      - The ResNet-like model for tabular data introduced in the `"Revisiting Deep Learning Models for Tabular Data" <https://arxiv.org/abs/2106.11959>`_ paper.
 
 
 RTL Cheatsheet

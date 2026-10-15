@@ -42,7 +42,7 @@ Table Conv
    TransTabConv
    ResNetConv
 
-Encoder
+Pre-Encoder
 ----------------
 
 .. currentmodule:: rllm.nn.encoder
