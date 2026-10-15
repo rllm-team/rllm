@@ -31,7 +31,9 @@ class ColATEPreEncoder(TablePreEncoder):
 
 
 class ColATE(torch.nn.Module):
-    r"""Column-aware table encoder from the InRTL paper.
+    r"""Column-aware table encoder (ColATE) from the KDD 2026 paper
+    `"InRTL: Effective Intra-Inter Interaction Learning for Relational Tables"
+    <https://arxiv.org/html/2609.12712>`_.
 
     ColATE embeds categorical and numerical columns into a shared token space.
     It then follows Eq. 3-4: column tokens are reweighted with a softmax over
