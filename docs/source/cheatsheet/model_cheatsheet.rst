@@ -40,6 +40,8 @@ TNN Cheatsheet
       - The Trompt model introduced in the `"Trompt: Towards a Better Deep Neural Network for Tabular Data" <https://arxiv.org/abs/2305.18446>`_ paper.
     * - TransTab
       - End-to-end TransTab model for downstream prediction tasks from the `"TransTab: Learning Transferable Tabular Transformers Across Tables" <https://arxiv.org/abs/2205.09328>`_ paper.
+    * - SAINT
+      - The SAINT model introduced in the `"SAINT: Improved Neural Networks for Tabular Data via Row Attention and Contrastive Pre-Training" <https://arxiv.org/abs/2106.01342>`_ paper.
 
 
 RTL Cheatsheet
@@ -55,3 +57,7 @@ RTL Cheatsheet
       - Relational Deep Learning (RDL) model from the `"RelBench: A Benchmark for Deep Learning on Relational Databases" <https://arxiv.org/abs/2407.20060>`_ paper.
     * - RelGNN
       - The relational table learning model with RelGNN as the HGNN backbone from the `"RelGNN: Composite Message Passing for Relational Deep Learning" <https://arxiv.org/abs/2502.06784>`_ paper.
+    * - InRTL
+      - The InRTL method from the `"InRTL: Effective Intra-Inter Interaction Learning for Relational Tables" <https://arxiv.org/abs/2609.12712>`_ paper.
+    * - MetaRTL
+      - The MetaRTL method from the `"MetaRTL: Meta-path Attention Enhanced Relational Table Learning" <https://arxiv.org/abs/2609.19832>`_ paper.

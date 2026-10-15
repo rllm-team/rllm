@@ -21,6 +21,8 @@ Graph Conv
    HANConv
    HGTConv
    SAGEConv
+   GTransformerConv
+   RelGNNConv
 
 Table Conv
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -50,11 +52,15 @@ Pre-Encoder
    :toctree: ../generated
    :template: autosummary/class.rst
 
+   ColATE
+   TablePreEncoder
    FTTransformerPreEncoder
    TabTransformerPreEncoder
    TransTabPreEncoder
    ResNetPreEncoder
+   TromptPreEncoder
    HeteroTemporalEncoder
+   MetaRTLEncoder
 
 
 Models
@@ -69,12 +75,22 @@ Models
 
    RECT_L
    BRIDGE
+   TableEncoder
+   GraphEncoder
+   LinearAttentionLayer
+   IntraTableInteraction
+   InterTableInteraction
+   InRTL
    TransTab
+   TransTabClassifier
+   TransTabForCL
    TableResNet
    HeteroSAGE
    RDL
    RelGNN
    RelGNNModel
+   MetaPathFusion
+   MetaPathProp
 
 
 Loss
